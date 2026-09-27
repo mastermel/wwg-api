@@ -46,8 +46,35 @@ jobs:
         run: dotnet csharpier check .
 
       # Release, so any analyzer warning fails the build just as it does locally.
+      # Also regenerates api/openapi.json from the code.
       - name: Build
         run: dotnet build api/Wwg.slnx --configuration Release
+
+      - name: Check the contract is up to date
+        run: |
+          if [ -n "$(git status --porcelain -- api/openapi.json)" ]; then
+            echo "::error file=api/openapi.json::api/openapi.json doesn't match the code. Build the API locally and commit the updated file."
+            git diff -- api/openapi.json
+            exit 1
+          fi
+
+      # A warning, not a failure: API and front-end deploy together, so a coordinated breaking
+      # change in one PR is fine. It flags changes that could affect an already-open browser tab.
+      - name: Warn about breaking API changes
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --depth=1 origin "$BASE_REF"
+          if ! git show "origin/$BASE_REF:api/openapi.json" > "$RUNNER_TEMP/base-openapi.json" 2>/dev/null; then
+            echo "No api/openapi.json on $BASE_REF yet; nothing to compare."
+            exit 0
+          fi
+          docker run --rm -v "$RUNNER_TEMP:/base:ro" -v "$PWD:/repo:ro" tufin/oasdiff:v1.32.1 \
+            breaking /base/base-openapi.json /repo/api/openapi.json --format githubactions \
+            | sed -E 's/^::error /::warning /; s/file=[^,:]*/file=api\/openapi.json/'
 
       - name: Test
         run: dotnet test --solution api/Wwg.slnx --configuration Release --no-build

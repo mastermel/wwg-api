@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–7 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–8 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -454,9 +454,11 @@ Identity has two layers:
     assembly is `GetDocument.Insider`). Startup work with side effects must
     not run then: migrations, Admin sync, and fail-fast config validation such
     as required SMTP or frontend settings.
-  - `Program.cs` checks one `IsGeneratingOpenApiDocument` flag (entry assembly
-    name) and skips that work. The document itself only needs endpoint
-    metadata.
+  - One flag, `BuildTime.IsGeneratingOpenApiDocument` (entry assembly name),
+    skips that work: `Program.cs` skips database setup, options skip
+    `ValidateOnStart`, and the Swagger UI settings aren't read. The app runs
+    in Production with no settings at that point. The document itself only
+    needs endpoint metadata.
 - **The SDK is generated in `web/` from `api/openapi.json`.**
   - `web/orval.config.ts` reads `../api/openapi.json` and generates TanStack
     Query hooks + TS types into `web/src/api/generated/`.
@@ -563,7 +565,10 @@ One workflow, `.github/workflows/ci.yml`, with three jobs:
      fails with a message to rebuild and commit it.
    - Run all integration tests.
    - **PRs only:** `oasdiff breaking` against `main`'s `openapi.json`, as a
-     warning (§3.7).
+     warning (§3.7). Its findings become `::warning` annotations on
+     `api/openapi.json`, and the step can't fail the job. It runs the
+     `tufin/oasdiff` image at a pinned version, which Dependabot doesn't
+     update (it's in a `run` command), so bump it by hand now and then.
 2. **`web` job:** in `web/`, run `npm ci`, generate the SDK from
    `api/openapi.json`, then lint, typecheck and build. Front-end tests are
    added here once the front-end design decides on them. This runs in
@@ -1023,7 +1028,7 @@ tests passing. Each phase is a good point to stop and review.
    - `ci.yml` running on PRs and pushes to `main`: format check, build, tests.
    - `dependabot.yml` (NuGet incl. local tools, Actions). The contract check
      and `oasdiff` steps join the job in step 8.
-8. **Contract pipeline**
+8. ✅ **Contract pipeline**
    - Build-time `api/openapi.json` emit, with the
      `IsGeneratingOpenApiDocument` guard around startup side effects.
    - CI contract-up-to-date check; `oasdiff breaking` warning on PRs.

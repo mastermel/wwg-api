@@ -18,6 +18,13 @@ pre-commit hook formats them like any other file.
 Don't run `dotnet format whitespace`; it fights CSharpier. `dotnet format style` and
 `dotnet format analyzers` are fine for auto-fixes.
 
+## The API contract
+
+Every build writes `api/openapi.json`, the contract the front-end SDK is generated from. Commit it
+with the code change that caused it; CI fails if it's out of date. Startup work with side effects
+(or that needs real settings) must be skipped when `BuildTime.IsGeneratingOpenApiDocument` is
+true, because the build launches the app to write the document.
+
 ## Build setup
 
 - `Directory.Build.props`: nullable, warnings as errors, `AnalysisMode=Recommended`, code style
