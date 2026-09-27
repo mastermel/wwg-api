@@ -646,8 +646,8 @@ Format-on-save is recommended.
 **Conventions (not tool-enforced):**
 
 - **Visibility:** types are `internal` and `sealed` by default. They're only
-  made `public` or unsealed when needed. (`Program` is `public partial` so the
-  test factory can reach it.)
+  made `public` or unsealed when needed. (.NET 10 generates a `public` `Program`
+  class automatically, so the test factory can reach it without declaring one.)
 - **DTOs:** `sealed record`s, named `{Verb}{Resource}Request` and
   `{Resource}Response` / `{Resource}Summary`.
 - **Endpoints:**
