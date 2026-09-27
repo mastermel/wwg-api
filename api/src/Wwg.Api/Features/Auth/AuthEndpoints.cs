@@ -17,6 +17,10 @@ internal static class AuthEndpoints
             .WithName("Login")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        auth.MapPost("/refresh", RefreshAsync)
+            .WithName("Refresh")
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+        auth.MapPost("/logout", Logout).WithName("Logout");
 
         return app;
     }
@@ -94,6 +98,47 @@ internal static class AuthEndpoints
         return result.Succeeded
             ? TypedResults.Ok(await tokens.IssueAsync(httpContext, user))
             : IncorrectCredentials();
+    }
+
+    /// <summary>
+    /// Swaps the refresh cookie for a new access token and a new refresh cookie (sliding: the 30
+    /// days start again). Fails if the cookie is missing, unreadable or expired, or the account is
+    /// gone or its security stamp changed (password change, sign out everywhere).
+    /// </summary>
+    internal static async Task<Results<Ok<TokenResponse>, ProblemHttpResult>> RefreshAsync(
+        TokenService tokens,
+        SignInManager<AppUser> signInManager,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var principal = tokens.ReadRefreshToken(httpContext);
+        var user = principal is null
+            ? null
+            : await signInManager.ValidateSecurityStampAsync(principal);
+
+        if (user is null)
+        {
+            TokenService.ClearRefreshCookie(httpContext);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Signed out",
+                detail: "Your session has ended. Sign in again."
+            );
+        }
+
+        return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+    }
+
+    /// <summary>
+    /// Signs out this browser by removing the refresh cookie. An access token already issued keeps
+    /// working until it expires (at most 30 minutes); the app discards it.
+    /// </summary>
+    internal static NoContent Logout(HttpContext httpContext)
+    {
+        TokenService.ClearRefreshCookie(httpContext);
+        return TypedResults.NoContent();
     }
 
     // The same answer for an unknown email and a wrong password, so sign-in can't be used to

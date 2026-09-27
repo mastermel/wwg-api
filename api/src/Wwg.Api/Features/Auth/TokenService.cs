@@ -40,7 +40,7 @@ internal sealed class TokenService(
         httpContext.Response.Cookies.Append(
             RefreshCookieName,
             refreshToken,
-            CookieOptions(refreshExpires)
+            CookieOptions(maxAge: options.RefreshTokenExpiration)
         );
 
         return new TokenResponse(accessToken, (int)options.BearerTokenExpiration.TotalSeconds);
@@ -66,7 +66,7 @@ internal sealed class TokenService(
     /// <summary>Removes the refresh cookie (script can't: it's HttpOnly).</summary>
     public static void ClearRefreshCookie(HttpContext httpContext)
     {
-        httpContext.Response.Cookies.Delete(RefreshCookieName, CookieOptions(expires: null));
+        httpContext.Response.Cookies.Delete(RefreshCookieName, CookieOptions(maxAge: null));
     }
 
     private static AuthenticationTicket CreateTicket(
@@ -79,14 +79,16 @@ internal sealed class TokenService(
             IdentityConstants.BearerScheme
         );
 
-    private static CookieOptions CookieOptions(DateTimeOffset? expires) =>
+    // Max-Age rather than Expires: the browser measures it on its own clock, so the cookie's
+    // lifetime doesn't depend on the server's and client's clocks agreeing.
+    private static CookieOptions CookieOptions(TimeSpan? maxAge) =>
         new()
         {
             HttpOnly = true,
             Secure = true,
             SameSite = SameSiteMode.Strict,
             Path = RefreshCookiePath,
-            Expires = expires,
+            MaxAge = maxAge,
             IsEssential = true,
         };
 }
