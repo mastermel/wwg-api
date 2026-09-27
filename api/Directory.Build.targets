@@ -1,0 +1,29 @@
+<Project>
+  <!--
+    Installs the Husky.Net git hooks on restore, so a fresh clone gets the pre-commit hook on its
+    first build. Runs once (for the API project only), and is skipped in CI, when HUSKY=0, or when
+    there's no git checkout (e.g. inside a Docker build).
+  -->
+  <PropertyGroup>
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</RepoRoot>
+  </PropertyGroup>
+
+  <Target
+    Name="InstallHusky"
+    BeforeTargets="Restore;CollectPackageReferences"
+    Condition="'$(MSBuildProjectName)' == 'Wwg.Api' and '$(CI)' != 'true' and '$(HUSKY)' != '0' and Exists('$(RepoRoot)/.git')"
+  >
+    <Exec
+      Command="dotnet tool restore"
+      WorkingDirectory="$(RepoRoot)"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="High"
+    />
+    <Exec
+      Command="dotnet husky install"
+      WorkingDirectory="$(RepoRoot)"
+      StandardOutputImportance="Low"
+      StandardErrorImportance="High"
+    />
+  </Target>
+</Project>
