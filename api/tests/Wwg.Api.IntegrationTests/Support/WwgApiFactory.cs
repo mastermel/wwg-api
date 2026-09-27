@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
@@ -27,6 +29,9 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
         _database = new SqliteConnection(ConnectionString);
         _database.Open();
         TemplateDatabase.CopyTo(_database);
+
+        // HTTPS, so the client's cookie container sends the Secure refresh-token cookie.
+        ClientOptions.BaseAddress = new Uri("https://localhost");
     }
 
     public string ConnectionString { get; }
@@ -41,7 +46,17 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
             .UseSetting("ConnectionStrings:Default", ConnectionString)
             // Already migrated: it's a copy of the template.
             .UseSetting("Database:MigrateOnStartup", "false")
-            .ConfigureTestServices(services => services.AddSingleton<TimeProvider>(Clock));
+            .ConfigureTestServices(services =>
+            {
+                services.AddSingleton<TimeProvider>(Clock);
+                // In-memory keys: tests never write key files, and tokens don't outlive the test.
+                services.PostConfigure<KeyManagementOptions>(options =>
+                    options.XmlRepository = new InMemoryXmlRepository()
+                );
+                // Identity's 100,000 PBKDF2 iterations are deliberate in production; tests create
+                // many users, so one iteration here.
+                services.Configure<PasswordHasherOptions>(options => options.IterationCount = 1);
+            });
     }
 
     public override async ValueTask DisposeAsync()

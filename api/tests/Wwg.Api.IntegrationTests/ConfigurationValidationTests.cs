@@ -32,6 +32,16 @@ public sealed class ConfigurationValidationTests
         Assert.Contains("ConnectionStrings:Default", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Startup_DataProtectionKeysPathMissing_Fails()
+    {
+        var exception = StartupException(builder =>
+            builder.UseSetting("Auth:DataProtectionKeysPath", "")
+        );
+
+        Assert.Contains("DataProtectionKeysPath", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("ForwardedHeaders:KnownProxies:0", "not-an-ip")]
     [InlineData("ForwardedHeaders:KnownNetworks:0", "10.0.0.0")]

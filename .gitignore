@@ -23,6 +23,9 @@ coverage/
 # Generated from api/openapi.json and the route files (npm run generate)
 web/src/api/generated/
 web/src/routeTree.gen.ts
+
+# Development Data Protection keys (Auth:DataProtectionKeysPath)
+api/src/Wwg.Api/keys/
 *.tsbuildinfo
 .vite/
 

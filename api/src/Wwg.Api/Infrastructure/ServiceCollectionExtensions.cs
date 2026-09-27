@@ -1,3 +1,5 @@
+using Wwg.Api.Infrastructure.Auth;
+
 namespace Wwg.Api.Infrastructure;
 
 internal static class ServiceCollectionExtensions
@@ -15,6 +17,7 @@ internal static class ServiceCollectionExtensions
             .AddJsonOptions()
             .AddTrustedForwardedHeaders()
             .AddApiDocument()
-            .AddDatabase();
+            .AddDatabase()
+            .AddAuth();
     }
 }
