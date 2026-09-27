@@ -14,5 +14,6 @@ if (!BuildTime.IsGeneratingOpenApiDocument)
 
 app.UseApiPipeline();
 app.MapApiEndpoints();
+app.MapSpaFallback();
 
 app.Run();

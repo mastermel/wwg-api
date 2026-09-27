@@ -32,6 +32,10 @@ public abstract class ApiTest : IAsyncDisposable
     {
         _client?.Dispose();
         await App.DisposeAsync();
+        await DisposeTestAsync();
         GC.SuppressFinalize(this);
     }
+
+    /// <summary>Extra cleanup for a test class (e.g. temporary files), after the app stops.</summary>
+    protected virtual ValueTask DisposeTestAsync() => ValueTask.CompletedTask;
 }
