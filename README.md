@@ -1,45 +1,56 @@
-# wwg-api
+# wwg
 
-Backend REST API for the **Wasatch Wargamers Campaign App**.
+The **Wasatch Wargamers Campaign App**: a .NET REST API and a React front-end,
+in one repository.
 
 Users sign up, create campaigns, and invite other players with a join link.
 Each campaign's Umpire builds Armies and Units and assigns Players to command
-them. The React front-end uses a TypeScript SDK generated from this API's
-OpenAPI document.
+them. The front-end talks to the API through a TypeScript SDK generated from
+the API's OpenAPI document.
 
 ## Tech stack
 
-- .NET 10 / ASP.NET Core Minimal APIs
-- Entity Framework Core with SQLite
-- ASP.NET Core Identity (bearer tokens)
-- OpenAPI + Swagger UI; TypeScript SDK generated with Orval in the front-end repo
-- xUnit integration tests with a fresh SQLite database per test
-- GitHub Actions CI, Docker images published to Docker Hub
+- **API (`api/`):** .NET 10 / ASP.NET Core Minimal APIs, EF Core with SQLite,
+  ASP.NET Core Identity (bearer tokens), OpenAPI + Swagger UI, xUnit
+  integration tests with a fresh SQLite database per test
+- **Web (`web/`):** React + TypeScript, with an Orval-generated API client
+  (coming in a later step)
+- GitHub Actions CI; a single Docker image (API serving the built front-end)
+  published to Docker Hub
 
 ## Documentation
 
 - [DESIGN.md](DESIGN.md): architecture, domain model, permissions, endpoints,
   and the implementation plan.
+- [docs/decisions/](docs/decisions/README.md): decision log.
 
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) (version pinned in `global.json`)
+- Node.js 24 + npm (for `web/`)
 - Docker (for local email testing with Mailpit, and building the image)
 
 ## Development
 
+From the repo root:
+
 ```sh
-dotnet build                                  # build everything (warnings fail the build)
-dotnet test                                   # run the integration tests
-dotnet run --project src/Wwg.Api              # run the API on http://localhost:5102
+dotnet build api/Wwg.slnx                     # build the API (warnings fail the build)
+dotnet test --solution api/Wwg.slnx           # run the integration tests
+dotnet run --project api/src/Wwg.Api          # run the API on http://localhost:5102
 ```
 
-Tests use xUnit v3 on the Microsoft Testing Platform (enabled in `global.json`).
+Or run `dotnet build` / `dotnet test` from inside `api/`. Tests use xUnit v3 on
+the Microsoft Testing Platform (enabled in the root `global.json`).
 
-## Project layout
+## Repository layout
 
-- `src/Wwg.Api/`: the ASP.NET Core API
-- `tests/Wwg.Api.IntegrationTests/`: endpoint-level integration tests
+- `api/`: .NET solution (`Wwg.slnx`) and its shared build config
+  - `src/Wwg.Api/`: the ASP.NET Core API
+  - `tests/Wwg.Api.IntegrationTests/`: endpoint-level integration tests
+- `web/`: React front-end (coming in a later step)
+- `docs/`: decision log
+- Root: repo-wide config (`global.json`, `.editorconfig`, `.gitignore`)
 
 ## License
 

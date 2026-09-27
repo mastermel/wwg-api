@@ -8,7 +8,7 @@ indent_size = 4
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[*.{json,yml,yaml,xml,csproj,props,targets,slnx}]
+[*.{json,yml,yaml,xml,csproj,props,targets,slnx,js,jsx,ts,tsx,mjs,cjs,css,html}]
 indent_size = 2
 
 [*.md]
@@ -61,7 +61,7 @@ dotnet_naming_style.async_suffix.capitalization = pascal_case
 dotnet_naming_style.async_suffix.required_suffix = Async
 
 # Test method names use underscores (Method_Scenario_Result)
-[tests/**.cs]
+[api/tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
 
 # Generated EF Core migrations: don't enforce style

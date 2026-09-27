@@ -16,6 +16,12 @@ coverage*.xml
 *.snupkg
 .nuget/
 
+# Node / frontend (web/)
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
 # IDEs & editors
 .vs/
 .vscode/*
