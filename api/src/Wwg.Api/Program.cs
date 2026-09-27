@@ -1,6 +1,11 @@
 using Wwg.Api.Features;
 using Wwg.Api.Infrastructure;
 
+if (args.Contains(HealthCheckCommand.Argument, StringComparer.Ordinal))
+{
+    return await HealthCheckCommand.RunAsync();
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApiServices();
@@ -17,3 +22,4 @@ app.MapApiEndpoints();
 app.MapSpaFallback();
 
 app.Run();
+return 0;
