@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi;
 
 namespace Wwg.Api.Infrastructure;
 
@@ -24,27 +23,7 @@ internal static class OpenApiExtensions
                         return Task.CompletedTask;
                     }
                 )
-                .AddSchemaTransformer(
-                    (schema, context, _) =>
-                    {
-                        // A custom JSON converter hides a property's type from the schema generator,
-                        // so put back the string type that [Trimmed] properties always have.
-                        if (
-                            context.JsonPropertyInfo is { } property
-                            && property.AttributeProvider?.IsDefined(
-                                typeof(TrimmedAttribute),
-                                false
-                            ) == true
-                        )
-                        {
-                            schema.Type = property.IsSetNullable
-                                ? JsonSchemaType.String | JsonSchemaType.Null
-                                : JsonSchemaType.String;
-                        }
-
-                        return Task.CompletedTask;
-                    }
-                )
+                .AddSchemaTransformer<PropertySchemaTransformer>()
         );
     }
 

@@ -52,6 +52,9 @@ true, because the build launches the app to write the document.
   `[property: Trimmed, Required, StringLength(100)] string Name`.
 - `[Trimmed]` trims name-like strings and emails while the JSON is read (before validation).
   Never on passwords.
+- `PropertySchemaTransformer` keeps the OpenAPI schema honest: it restores the string type on
+  `[Trimmed]` properties and adds `minLength: 1` to `[Required]` strings (which reject empty
+  strings), so the SDK's generated Zod schemas validate the same way the API does.
 - Entities derive from `Entity` (v7 GUID id, audit fields set by `AuditInterceptor`) and are
   configured in `Data/Configurations/` with `IEntityTypeConfiguration<T>`, not data attributes.
   Name/email columns that are searched or sorted use `UseCollation("NOCASE")`.
