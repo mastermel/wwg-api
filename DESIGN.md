@@ -59,7 +59,8 @@ everything, and manage user accounts.
 | Email | Password reset (and email-change notice) sent through **generic SMTP** (MailKit) |
 | API contract | Built-in `Microsoft.AspNetCore.OpenApi`, emitted at build time |
 | API docs UI | Swagger UI over the generated OpenAPI document |
-| Client SDK | **Orval**, run **in the React repo** against this repo's `openapi.json` |
+| Client SDK | **Orval**, run **in the React repo** against its own pinned copy of this repo's `openapi.json` |
+| API evolution | Additive changes only by default; `oasdiff` flags breaking changes on PRs |
 | Testing | xUnit + `WebApplicationFactory`, fresh in-memory SQLite DB per test |
 | CI | **GitHub Actions**: build + test on every PR and every push to `main` |
 | CD | On push to `main` only: commit updated `openapi.json`, push image to **Docker Hub** |
@@ -400,10 +401,27 @@ Identity has two layers:
   - `Program.cs` checks one `IsGeneratingOpenApiDocument` flag (entry assembly
     name) and skips that work. The document itself only needs endpoint
     metadata.
-- **SDK generation lives in the React repo.** Its Orval config points at this
-  repo's `openapi/openapi.json` (raw file URL, or the local dev server's
-  `/openapi/v1.json`) and generates TanStack Query hooks + TS types. This repo
-  owns the contract; the React repo owns the client.
+- **SDK generation lives in the React repo, from its own pinned copy of the
+  contract.** This repo owns the contract; the React repo owns the client.
+  - The React repo keeps a committed copy of `openapi.json`. A script
+    (e.g. `npm run api:sync`) fetches it from a chosen commit or tag of this
+    repo, or from a local dev server's `/openapi/v1.json`. Orval then
+    generates TanStack Query hooks + TS types from that copy.
+  - Updating the API client is therefore a **deliberate, reviewable change** in
+    the React repo. A backend merge can never silently break the frontend
+    build.
+  - This also works if this repo is private. The sync script uses `gh` or a
+    token, instead of a public raw-file URL.
+- **Breaking-change check.** The API and React app deploy separately, so for a
+  while the live frontend may run against a newer API. Changes should
+  therefore be **additive**: new optional fields and new endpoints are fine;
+  removing or renaming things isn't, without a coordinated frontend release.
+  - The PR check runs **`oasdiff breaking`**, comparing the PR's
+    `openapi.json` with `main`'s, and reports any breaking changes (removed
+    endpoints or fields, new required inputs, changed types).
+  - It **fails the check** by default. An intentional breaking change is
+    allowed by adding a `breaking-change` label to the PR, which makes the
+    decision explicit.
 - ⚠️ .NET 10 emits **OpenAPI 3.1** by default. Orval's handling of 3.1 (notably
   nullable written as a type array) needs checking early (Phase 1). If it's a
   problem, one option switches the document to 3.0.
@@ -479,8 +497,11 @@ One workflow, `.github/workflows/ci.yml`:
    (`dotnet csharpier check .`), build (Release, so any analyzer warning fails
    it), and run all integration tests. The build also regenerates
    `openapi/openapi.json`. **If any check fails, the workflow fails and nothing
-   later runs.** On PRs this is the whole run, and it shows as a pass/fail
-   check on the PR.
+   later runs.** On PRs this is the whole run (plus the breaking-change check
+   below), and it shows as a pass/fail check on the PR.
+   - **PRs only:** `oasdiff breaking` compares the freshly built
+     `openapi.json` with the one on `main` (§3.7). It fails unless the PR has
+     the `breaking-change` label.
 2. **Commit the contract** (`main` only): if `openapi/openapi.json` changed,
    commit it as `github-actions[bot]` with message
    `chore: update openapi.json [skip ci]`, rebase onto the latest `main`, and
