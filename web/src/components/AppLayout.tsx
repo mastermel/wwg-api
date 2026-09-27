@@ -1,6 +1,8 @@
 import { AppShell, Group, NavLink, Text, UnstyledButton } from "@mantine/core";
 import { IconInfoCircle, IconSwords, type Icon } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { BrandMark } from "@/components/BrandMark";
+import { UpdatePrompt } from "@/components/UpdatePrompt";
 
 interface NavItem {
   to: "/campaigns" | "/about";
@@ -31,9 +33,14 @@ export function AppLayout() {
     >
       <AppShell.Header px="lg">
         <Group h="100%">
-          <Text component={Link} to="/" fw={700} size="lg" c="inherit" td="none">
-            WWG Campaigner
-          </Text>
+          <UnstyledButton component={Link} to="/" aria-label="WWG Campaigner, start page">
+            <Group gap="xs">
+              <BrandMark size={32} />
+              <Text fw={700} size="lg">
+                WWG Campaigner
+              </Text>
+            </Group>
+          </UnstyledButton>
         </Group>
       </AppShell.Header>
 
@@ -81,6 +88,8 @@ export function AppLayout() {
           ))}
         </Group>
       </AppShell.Footer>
+
+      <UpdatePrompt />
     </AppShell>
   );
 }
