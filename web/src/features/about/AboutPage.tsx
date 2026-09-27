@@ -3,6 +3,7 @@ import { useGetHealth } from "@/api/generated/endpoints/health/health";
 import type { HealthStatus } from "@/api/generated/model";
 import { Page } from "@/components/Page";
 import { ApiError } from "@/lib/api-fetch";
+import { appVersion } from "@/lib/app-version";
 
 const statusColors: Record<HealthStatus, string> = {
   Healthy: "green",
@@ -14,6 +15,10 @@ export function AboutPage() {
   return (
     <Page title="About">
       <Text>WWG Campaigner is the Wasatch Wargamers campaign app.</Text>
+      <Group gap="xs">
+        <Text fw={500}>Version:</Text>
+        <Text>{appVersion}</Text>
+      </Group>
       <Group gap="xs">
         <Text fw={500}>Server status:</Text>
         <ApiHealth />

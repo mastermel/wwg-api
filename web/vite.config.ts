@@ -14,6 +14,10 @@ const apiProxy: Record<string, ProxyOptions> = Object.fromEntries(
 );
 
 export default defineConfig({
+  define: {
+    // The image tag (e.g. v20260927.143005), passed in by the Docker build; "dev" otherwise.
+    __APP_VERSION__: JSON.stringify(process.env.APP_VERSION ?? "dev"),
+  },
   plugins: [
     // Generates src/routeTree.gen.ts from src/routes/, and splits each route into its own chunk.
     tanstackRouter({ target: "react", autoCodeSplitting: true }),

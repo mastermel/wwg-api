@@ -14,6 +14,14 @@ describe("About page", () => {
     expect(await screen.findByText("Healthy")).toBeInTheDocument();
   });
 
+  it("shows the app version", async () => {
+    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+
+    await renderApp("/about");
+
+    expect(await screen.findByText("dev")).toBeInTheDocument();
+  });
+
   it("shows the server as unhealthy when the API answers 503", async () => {
     server.use(
       http.get("*/health", () => HttpResponse.json({ status: "Unhealthy" }, { status: 503 })),
