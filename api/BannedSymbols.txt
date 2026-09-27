@@ -1,0 +1,40 @@
+# APIs that go against the design (DESIGN.md §4.1). Format: <doc comment ID>;<message>
+# An ID without a parameter list only matches the parameterless overload, so each overload is
+# listed. A test that truly needs one uses #pragma warning disable RS0030 with a comment saying why.
+
+# Testable time
+P:System.DateTime.Now;Use the injected TimeProvider
+P:System.DateTime.UtcNow;Use the injected TimeProvider
+P:System.DateTime.Today;Use the injected TimeProvider
+P:System.DateTimeOffset.Now;Use the injected TimeProvider
+P:System.DateTimeOffset.UtcNow;Use the injected TimeProvider
+
+# Time-ordered IDs
+M:System.Guid.NewGuid;Use Guid.CreateVersion7()
+
+# Email and logging
+T:System.Net.Mail.SmtpClient;Use IEmailService (MailKit)
+T:System.Console;Use ILogger<T> (structured logging)
+
+# No sync-over-async
+P:System.Threading.Tasks.Task`1.Result;Use await
+M:System.Threading.Tasks.Task.Wait;Use await
+M:System.Threading.Tasks.Task.Wait(System.Int32);Use await
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan);Use await
+M:System.Threading.Tasks.Task.Wait(System.Threading.CancellationToken);Use await
+M:System.Threading.Tasks.Task.Wait(System.Int32,System.Threading.CancellationToken);Use await
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan,System.Threading.CancellationToken);Use await
+M:System.Threading.Thread.Sleep(System.Int32);Use await Task.Delay
+M:System.Threading.Thread.Sleep(System.TimeSpan);Use await Task.Delay
+
+# Tests must run the real migrations
+M:Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureCreated;Use migrations
+M:Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade.EnsureCreatedAsync(System.Threading.CancellationToken);Use migrations
+
+# SQL injection safety
+M:Microsoft.EntityFrameworkCore.RelationalQueryableExtensions.FromSqlRaw``1(Microsoft.EntityFrameworkCore.DbSet{``0},System.String,System.Object[]);Use FromSql with an interpolated string
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRaw(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Object[]);Use ExecuteSql with an interpolated string
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRaw(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Collections.Generic.IEnumerable{System.Object});Use ExecuteSql with an interpolated string
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Threading.CancellationToken);Use ExecuteSqlAsync with an interpolated string
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Object[]);Use ExecuteSqlAsync with an interpolated string
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Collections.Generic.IEnumerable{System.Object},System.Threading.CancellationToken);Use ExecuteSqlAsync with an interpolated string

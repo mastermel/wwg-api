@@ -63,6 +63,12 @@ dotnet_naming_symbols.async_methods.required_modifiers = async
 dotnet_naming_style.async_suffix.capitalization = pascal_case
 dotnet_naming_style.async_suffix.required_suffix = Async
 
+# Analyzer tuning: every rule switched off or lowered is listed here with the reason (DESIGN.md §4.1)
+# ASP.NET Core has no synchronization context, so ConfigureAwait(false) is noise.
+dotnet_diagnostic.MA0004.severity = none
+# Several small DTO records share one {Feature}Dtos.cs file.
+dotnet_diagnostic.MA0048.severity = none
+
 # Test method names use underscores (Method_Scenario_Result)
 [api/tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
