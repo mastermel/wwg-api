@@ -80,7 +80,7 @@ everything, and manage user accounts.
 | Front-end | **WWG Campaigner**: React + TypeScript SPA, **npm**, Vite, **Mantine**, TanStack Router + Query, React Hook Form + Zod; installable **PWA**, read-only offline (§3.12) |
 | API evolution | Prefer additive changes; `oasdiff` **warns** about breaking changes on PRs |
 | Testing | xUnit + `WebApplicationFactory`, fresh in-memory SQLite DB per test |
-| CI | **GitHub Actions** on every PR and push to `main`: `api` job (format, build, test, contract up to date) and `web` job (lint, typecheck, build) |
+| CI | **GitHub Actions** on every PR and push to `main`: `api` job (format, build, test, contract up to date) and `web` job (lint, format, typecheck, test, build) |
 | CD | On push to `main` only: build and push the image to **Docker Hub** |
 | Image tags | `latest` and `vYYYYMMdd.HHmmss` (UTC) |
 | Hosting | **One Docker image**: the API serves the built SPA (same origin, no CORS). Runs on a VPS/home server with the SQLite file on a mounted volume |
@@ -596,10 +596,10 @@ One workflow, `.github/workflows/ci.yml`, with three jobs:
      `api/openapi.json`, and the step can't fail the job. It runs the
      `tufin/oasdiff` image at a pinned version, which Dependabot doesn't
      update (it's in a `run` command), so bump it by hand now and then.
-2. **`web` job:** in `web/`, run `npm ci`, generate the SDK from
-   `api/openapi.json`, then lint, typecheck and build. Front-end tests are
-   added here once the front-end design decides on them. This runs in
-   parallel with `api`; it only needs the committed contract.
+2. **`web` job:** in `web/`, run `npm ci`, generate the SDK and route tree
+   from `api/openapi.json`, then lint, check formatting, typecheck, test and
+   build (§3.12). This runs in parallel with `api`; it only needs the
+   committed contract.
 3. **`docker` job** (`main` only, after both jobs pass): log in to Docker Hub
    and build and push the multi-stage image (§3.10) with
    `docker/build-push-action`, tagged:
@@ -695,12 +695,20 @@ build or tests is visible before merging.
   - Vite's hashed files under `/assets/` get
     `Cache-Control: public, max-age=31536000, immutable`.
   - `index.html` gets `no-cache`, so a new deploy is picked up on the next
-    page load.
-- **Security headers** on SPA responses: a Content-Security-Policy
-  (`default-src 'self'`, tuned to what the front-end needs),
+    page load. So do the PWA files at the root (`sw.js`, `registerSW.js`,
+    `manifest.webmanifest`); a cached service worker would hold back
+    updates.
+  - `.webmanifest` is served as `application/manifest+json` (checked, and
+    added to the content-type map if missing).
+- **Security headers** on SPA responses: a Content-Security-Policy,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and
-  `frame-ancestors 'none'`. The SPA holds bearer tokens, so preventing XSS
-  matters.
+  `frame-ancestors 'none'`. The SPA holds an access token in memory and can
+  act as the user, so preventing XSS matters.
+  - CSP starting point: `default-src 'self'`; `script-src 'self'` (strict);
+    `style-src 'self'` plus a nonce or `'unsafe-inline'` for the CSS
+    variables Mantine injects; `img-src 'self' data:`; `connect-src 'self'`;
+    `worker-src 'self'` and `manifest-src 'self'` for the PWA;
+    `frame-ancestors 'none'`. Tightened to what the built app actually needs.
 - Serving the SPA is skipped if `wwwroot/index.html` doesn't exist (in
   development and in tests).
 - One origin means no CORS, and reset/join links use `App:PublicUrl`.
@@ -713,6 +721,14 @@ build or tests is visible before merging.
   The browser only ever talks to `:5173`, so there's still no CORS.
 - `App:PublicUrl` is `http://localhost:5173` in development, so reset links
   in Mailpit open the Vite app.
+- **Editor-agnostic.** Everything runs from the terminal: `scripts/dev.sh`
+  starts the API (`dotnet watch`) and Vite together and stops both on
+  Ctrl+C, and each piece also has its own documented command.
+  `docs/development.md` (added in step 9.2) is the local development
+  guide (prerequisites, first-time setup, running, testing, the checks the
+  pre-commit hook and CI run, and editor setup, including notes for Neovim).
+  VS Code gets optional launch and task configuration (a compound launch for
+  API + Vite) and extension recommendations; nothing depends on them.
 
 ### 3.12 Front-end application (`web/`)
 
@@ -747,7 +763,12 @@ PWA (decision [0005](docs/decisions/0005-front-end-stack.md)).
 - English only, no i18n library. Dates and times use `Intl` in the user's
   locale and time zone.
 - Browsers: the last two versions of **Chrome, Safari and iOS Safari**
-  (`browserslist`, which also sets Vite's build target).
+  (`browserslist`, which also sets Vite's build target). Other modern
+  browsers (Firefox, Edge) should work but aren't tested.
+- **System fonts** only: no web font download, which is faster, works
+  offline and keeps the CSP simple.
+- Colour contrast of the navy/silver palettes is checked against AA in both
+  light and dark mode (Mantine's default greys on dark can fall short).
 
 **Layout**
 
@@ -782,6 +803,13 @@ web/
   - turns Problem Details into a typed error.
 - Validation errors (400, camelCase keys) map onto React Hook Form fields.
   Other errors show as a notification or an inline message.
+- **Required strings:** `[Required]` only makes a property required in the
+  OpenAPI document; an empty string would still pass the generated Zod
+  schema. An OpenAPI schema transformer adds `minLength: 1` to required
+  strings, so client and server agree. Trimming stays server-side: a
+  whitespace-only value comes back as a validation error on that field.
+- Forms set proper `autocomplete` attributes, so password managers and
+  autofill work (sign-in, register, account).
 - Freshness: refetch on window focus and on reconnect, with a short
   `staleTime` (around 30 seconds). Nothing live in v1.
 
@@ -806,6 +834,16 @@ web/
 - Admin screens live in the same app and only show when `isAdmin` is true.
   Campaign screens likewise hide actions the user's role can't perform. The
   API enforces access regardless.
+- **Only a 401 from refresh means "signed out"**, at any time. A 429, a 5xx
+  or a network error is temporary: keep the current state and retry later.
+- **Signed out mid-session** (e.g. a password change elsewhere makes refresh
+  return 401): clear the cache, go to sign-in, and keep the return path.
+- The signed-in user's profile comes from `GET /api/me` after each
+  successful refresh.
+- A small non-secret **"last user" record** (id, name, `isAdmin`) is kept
+  next to the persisted cache, so the app can start offline, pick the right
+  cache and draw the shell. It's cleared on sign-out.
+- Both sign-in and sign-out are broadcast to other tabs.
 
 **Offline and PWA**
 - **Read-only offline** in v1: actions that change data are disabled while
@@ -813,6 +851,19 @@ web/
 - The query cache is persisted to IndexedDB (`persistQueryClient`). It's tied
   to the signed-in user's id, so nobody sees another user's cached data, and
   it's cleared on sign-out or when refresh returns 401.
+  - `maxAge` and `gcTime` are about **30 days**, matching the session (the
+    library's 24-hour default would drop offline data after a day).
+  - The cache's `buster` is the app version, so **a new deploy clears it**:
+    persisted data can never have an older response shape than the code
+    reading it. Offline data comes back on the next online visit.
+  - **Only campaign data is persisted.** Admin queries (e.g. the user list
+    with emails) are marked not to persist.
+  - On a shared computer the data stays until someone signs out, which
+    clears everything. That's accepted for a club app.
+- A page never visited while online has nothing cached; it shows a clear
+  "not available offline" state rather than a spinner or an error.
+- On iOS, an installed app has its own storage, separate from Safari, so
+  users sign in once more there. The install hint says so.
 - An offline banner shows when data was last synced. Cached data is shown at
   any age.
 - The service worker precaches the **app shell only** (HTML, JS, CSS,
@@ -824,25 +875,53 @@ web/
   standalone display.
 - A small, dismissible install hint. iOS has no install prompt, so there it
   explains Share → Add to Home Screen.
-- The app shows its version (the image tag, injected at build time; `dev`
-  locally) in the footer / About page.
+- An **About** page shows the app version (the image tag, passed into the
+  Vite build as a build argument by the CI `docker` job; `dev` locally) and
+  the API's health. It replaces the Phase 1 "health" page.
 - No push notifications, error reporting or analytics in v1.
+
+**Screens, navigation and errors**
+- **URLs:** `/campaigns`, `/campaigns/:id`, `/campaigns/:id/armies/:armyId`,
+  `/join/:code`, `/sign-in`, `/register`, `/forgot-password`,
+  `/reset-password`, `/account`, `/admin/users`, `/admin/users/:id`,
+  `/admin/campaigns`, `/about`.
+- Signed out, the app opens on the **sign-in page**, which carries the main
+  image. Signed in, it opens on the campaign list.
+- **Empty states** say what to do next, e.g. no campaigns yet: "Create a
+  campaign" or "Ask your Umpire for a join link".
+- **Errors:** a route error boundary and a 404 page. API 403 and 404 show a
+  "not found / no access" page. 429 and 5xx show as notifications. Mantine
+  notifications confirm successful actions. Deletes ask for confirmation.
+- **Accessibility:** each route sets `document.title` and moves focus to the
+  page heading on navigation (WCAG 2.4.2 and focus order). Animations
+  respect `prefers-reduced-motion`.
 
 **Testing**
 - Vitest + React Testing Library + MSW (Orval-generated handlers) for key
   screens and logic: session handling, forms, and role-dependent UI. Not
   every screen, and no coverage threshold.
+- Key screens also get an automated **axe** accessibility check in their
+  component tests.
 - Playwright end-to-end tests against the real API come later (§6).
 
 **Tooling**
 - npm scripts: `dev`, `build`, `preview`, `lint`, `format`, `typecheck`,
   `test`, plus a `generate` step run before `dev`, `build`, `typecheck` and
   `test`.
+- Prettier line width **100**, matching the C# code.
 - Pre-commit (the Husky.Net hook, §4.1): Prettier and `eslint --fix` on
-  staged `web/` files. Type checking and tests are left to CI.
+  staged `web/` files. Type checking and tests are left to CI. The task only
+  runs when `web/` files are staged; if `web/node_modules` is missing it
+  fails with "run `npm ci` in `web/`".
+- Before committing, the full checks are the API's tests plus, in `web/`,
+  `npm run lint`, `npm run typecheck` and `npm test` (listed in the root
+  `CLAUDE.md`).
 - CI `web` job (§3.9): `npm ci`, generate, lint, format check, typecheck,
   test, build.
-- Dependabot: weekly npm updates, grouped.
+- Dependabot: weekly npm updates in `web/`, grouped: Mantine, TanStack,
+  ESLint/Prettier, Vite/Vitest, and testing libraries.
+- Local development: `scripts/dev.sh`, `docs/development.md` and the
+  optional VS Code configuration (§3.11).
 
 **To check during the scaffold**
 - Orval with OpenAPI 3.1 (nullable written as type arrays; enums without
@@ -850,6 +929,10 @@ web/
   to 3.0.
 - Mantine injects its CSS variables in a `<style>` tag, so the CSP (§3.11)
   needs a style nonce or `'unsafe-inline'` for styles. Scripts stay strict.
+- Whether enums without `"type": "string"` come out of Orval as `unknown`.
+- Whether Chrome accepts the `__Secure-` cookie prefix from
+  `http://localhost` through the Vite proxy (checked in step 10). If not,
+  development drops the prefix.
 
 ## 4. Cross-cutting concerns
 
@@ -1201,20 +1284,25 @@ tests passing. Each phase is a good point to stop and review.
    2. **Scaffold & tooling:** `web/` (Vite + React + TypeScript, npm, Node 24
       pinned), ESLint + Prettier, Vitest + Testing Library, the `@/` alias,
       Husky.Net tasks for `web/`, CI `web` job, Dependabot `npm` entry,
-      `web/CLAUDE.md`.
+      `web/CLAUDE.md` and the root `CLAUDE.md` commit checks. Local
+      development: `scripts/dev.sh`, `docs/development.md` (including Neovim
+      notes), VS Code launch/tasks and extension recommendations.
    3. **SDK & app shell:** Orval (Query hooks, Zod schemas, MSW handlers)
       with the custom fetch function, generation hooked into the npm scripts.
-      Check that OpenAPI 3.1 works with Orval (switch to 3.0 if needed).
+      Check that OpenAPI 3.1 works with Orval (switch to 3.0 if needed). The
+      `minLength: 1` schema transformer for required strings.
       TanStack Router; Mantine theme (navy/silver, light/dark from the OS);
-      `AppShell` with sidebar / bottom tabs; Vite dev proxy. A first page
-      that shows the API's health through the generated hook, with a test.
+      `AppShell` with sidebar / bottom tabs; error boundary and 404 page;
+      Vite dev proxy. An About page that shows the API's health through the
+      generated hook, with a test.
    4. **PWA:** `vite-plugin-pwa` (manifest, app-shell service worker, update
       prompt, install hint), the app icon, the persisted query cache and
-      offline banner, and the version display.
+      offline banner, and the version on the About page.
 
 **Phase 1 is done when:** a PR runs the `api` and `web` jobs in CI (format,
 build, contract check, tests, lint, typecheck), Swagger UI shows the health
-endpoint, and the Vite app shows the API's health through the generated SDK.
+endpoint, the Vite app's About page shows the API's health through the
+generated SDK, and the app installs as a PWA and opens offline.
 
 ### Phase 2 — Accounts
 
@@ -1223,6 +1311,8 @@ endpoint, and the Vite app shows the API's health through the generated SDK.
      characters, password rules); token lifetimes (30 minutes / 30 days).
    - Register, login (with lockout), refresh (with all the checks in §3.4),
      logout. Refresh token in the `HttpOnly` cookie (decision 0004).
+   - `GET /api/me` (the signed-in user, with `isAdmin`), which the session
+     handling needs.
    - Per-request security stamp validation; fallback auth policy.
    - Rate limiting (`auth` policy).
    - Persisted Data Protection keys; Admin sync from config at startup.
@@ -1235,7 +1325,7 @@ endpoint, and the Vite app shows the API's health through the generated SDK.
     fallback, fake email service for tests, Mailpit dev compose;
     forgot/reset endpoints with the `email` rate limit. **Screens:** forgot
     and reset password.
-12. **Account:** `/api/me` get/update, change email (+ notice to old address),
+12. **Account:** `PUT /api/me`, change email (+ notice to old address),
     change password, sign out everywhere. **Screens:** account page.
 13. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
     **Screens:** admin user list and details.
@@ -1264,9 +1354,12 @@ endpoint, and the Vite app shows the API's health through the generated SDK.
     `/api` 404s, caching and security headers, §3.11); multi-stage
     `Dockerfile` (node → sdk → runtime), `.dockerignore`,
     `docker-compose.yml` for Traefik (labels, shared network with a fixed
-    subnet, no published ports), volume layout, health check (§3.10).
+    subnet, no published ports), volume layout, health check (§3.10). The
+    CSP and PWA caching rules in §3.11; the node stage copies in
+    `api/openapi.json` for Orval.
 20. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmmss` tags and
-    OCI labels.
+    OCI labels. The version tag is also passed into the image build, for the
+    app's About page.
 21. **First deploy** to the server behind Traefik, with the SMTP values and
     `ForwardedHeaders__KnownNetworks__0` (the shared network's subnet) filled
     in. Register the Admin account, then add it to `Admin:Emails` and restart.
