@@ -24,6 +24,7 @@ the API's OpenAPI document.
 - [DESIGN.md](DESIGN.md): architecture, domain model, permissions, endpoints,
   and the implementation plan.
 - [docs/decisions/](docs/decisions/README.md): decision log.
+- [docs/development.md](docs/development.md): local development guide.
 
 ## Prerequisites
 
@@ -33,27 +34,24 @@ the API's OpenAPI document.
 
 ## Development
 
-From the repo root:
+Quick start, from the repo root:
 
 ```sh
-dotnet build api/Wwg.slnx                     # build the API (warnings fail the build)
-dotnet test --solution api/Wwg.slnx           # run the integration tests
-dotnet run --project api/src/Wwg.Api          # run the API on http://localhost:5102
+dotnet tool restore && dotnet build api/Wwg.slnx && npm ci --prefix web
+scripts/dev.sh          # API on :5102 and the web app on http://localhost:5173
 ```
 
-Or run `dotnet build` / `dotnet test` from inside `api/`. Tests use xUnit v3 on
-the Microsoft Testing Platform (enabled in the root `global.json`).
-
-Code is formatted with [CSharpier](https://csharpier.com) (`dotnet csharpier format .`).
-The first build restores the local tools and installs a pre-commit hook
-(Husky.Net) that formats staged files. Set `HUSKY=0` to skip installing it.
+See **[docs/development.md](docs/development.md)** for the full guide: running,
+the development database, the checks to run before committing, and editor
+setup (Neovim, VS Code).
 
 ## Repository layout
 
 - `api/`: .NET solution (`Wwg.slnx`) and its shared build config
   - `src/Wwg.Api/`: the ASP.NET Core API
   - `tests/Wwg.Api.IntegrationTests/`: endpoint-level integration tests
-- `web/`: React front-end (coming in a later step)
+- `web/`: WWG Campaigner, the React front-end
+- `scripts/`: developer scripts (`dev.sh`)
 - `docs/`: decision log
 - Root: repo-wide config (`global.json`, `.editorconfig`, `.gitignore`,
   `.config/dotnet-tools.json`, `.husky/`)

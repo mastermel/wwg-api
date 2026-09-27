@@ -1,0 +1,49 @@
+{
+  // Optional: every task is a plain command, documented in docs/development.md.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev: API + web",
+      "detail": "scripts/dev.sh: dotnet watch + Vite, stopped together",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/dev.sh",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "api: build",
+      "type": "shell",
+      "command": "dotnet build api/Wwg.slnx",
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "api: test",
+      "type": "shell",
+      "command": "dotnet test --solution api/Wwg.slnx",
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "web: dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^$" },
+        "background": { "activeBegin": true, "beginsPattern": "VITE v", "endsPattern": "ready in" }
+      }
+    },
+    {
+      "label": "web: check",
+      "detail": "lint, typecheck and test, as run before committing",
+      "type": "shell",
+      "command": "npm run lint && npm run typecheck && npm test",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

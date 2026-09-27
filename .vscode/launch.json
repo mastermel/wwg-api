@@ -1,0 +1,35 @@
+{
+  // Optional: run and debug the API and the web app from VS Code.
+  // "API + web" starts both; the web app opens in Chrome at http://localhost:5173.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "api: build",
+      "program": "${workspaceFolder}/api/src/Wwg.Api/bin/Debug/net10.0/Wwg.Api.dll",
+      "cwd": "${workspaceFolder}/api/src/Wwg.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5102"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Web (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "preLaunchTask": "web: dev",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "API + web",
+      "configurations": ["API", "Web (Chrome)"],
+      "stopAll": true
+    }
+  ]
+}

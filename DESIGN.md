@@ -1,7 +1,7 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–8 and the
-> front-end design done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–8, 9.1 and 9.2
+> done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -724,7 +724,7 @@ build or tests is visible before merging.
 - **Editor-agnostic.** Everything runs from the terminal: `scripts/dev.sh`
   starts the API (`dotnet watch`) and Vite together and stops both on
   Ctrl+C, and each piece also has its own documented command.
-  `docs/development.md` (added in step 9.2) is the local development
+  [`docs/development.md`](docs/development.md) is the local development
   guide (prerequisites, first-time setup, running, testing, the checks the
   pre-commit hook and CI run, and editor setup, including notes for Neovim).
   VS Code gets optional launch and task configuration (a compound launch for
@@ -1281,7 +1281,7 @@ tests passing. Each phase is a good point to stop and review.
    - CI contract-up-to-date check; `oasdiff breaking` warning on PRs.
 9. **Front-end** (§3.12), in four parts:
    1. ✅ **Design** recorded (decisions 0004 and 0005).
-   2. **Scaffold & tooling:** `web/` (Vite + React + TypeScript, npm, Node 24
+   2. ✅ **Scaffold & tooling:** `web/` (Vite + React + TypeScript, npm, Node 24
       pinned), ESLint + Prettier, Vitest + Testing Library, the `@/` alias,
       Husky.Net tasks for `web/`, CI `web` job, Dependabot `npm` entry,
       `web/CLAUDE.md` and the root `CLAUDE.md` commit checks. Local
