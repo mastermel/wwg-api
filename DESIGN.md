@@ -1,16 +1,23 @@
-# wwg-api — Design & Implementation Plan
+# wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (step 1 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–2 done).
+> **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
 > for significant changes are recorded in the decision log,
 > [`docs/decisions/`](docs/decisions/README.md).
-> **Last updated:** 2026-09-27
 
 ## 1. Context
 
-`wwg-api` is the backend for the **Wasatch Wargamers Campaign App**. It serves a
-React front-end (in a separate repository) over a REST API.
+`wwg` is the **Wasatch Wargamers Campaign App**. This repository holds both
+parts:
+
+- **`api/`:** a .NET 10 REST API (the focus of most of this document).
+- **`web/`:** a React + TypeScript front-end, which calls the API through a
+  generated TypeScript SDK.
+
+In production, the API also serves the built front-end, so the whole app is
+one container on one origin.
 
 Users sign up and create **Campaigns**. The creator runs the campaign as its
 **Umpire**. Other users join as **Players** through a shareable join link. The
@@ -19,8 +26,10 @@ Players can see who is in the campaign and which Armies exist, but only see the
 Units of the Army they command. A site-wide **Admin** can see and edit
 everything, and manage user accounts.
 
-> Note: the repo was first created (2023) as a planned *GraphQL* API. That
-> direction was replaced by this plan: a **.NET 10 REST API**.
+> Note: the repo was first created (2023) as `wwg-api`, a planned *GraphQL*
+> API. That direction was replaced by a **.NET 10 REST API**, and the repo later
+> became the home of the front-end too (decision
+> [0002](docs/decisions/0002-single-repo-for-api-and-web.md)).
 
 ### Goals
 
@@ -30,6 +39,8 @@ everything, and manage user accounts.
 - Confidence through **integration tests** that exercise every endpoint over HTTP
   against a real, throwaway SQLite database.
 - Low operational overhead: SQLite, one container, automated CI/CD.
+- API, SDK and UI changes land **together**: one commit or PR can change an
+  endpoint, regenerate the client and update the UI.
 
 ### Non-goals (for now)
 
@@ -62,64 +73,87 @@ everything, and manage user accounts.
 | Email | Password reset (and email-change notice) sent through **generic SMTP** (MailKit) |
 | API contract | Built-in `Microsoft.AspNetCore.OpenApi`, emitted at build time |
 | API docs UI | Swagger UI over the generated OpenAPI document |
-| Client SDK | **Orval**, run **in the React repo** against its own pinned copy of this repo's `openapi.json` |
-| API evolution | Additive changes only by default; `oasdiff` flags breaking changes on PRs |
+| Repository | **One repo** (`wwg`): `api/` (.NET) and `web/` (React), shared config at the root |
+| Client SDK | **Orval**, run in `web/` against the committed `api/openapi.json`; generated code not committed |
+| Front-end | React + TypeScript, **npm**. Other stack details to be decided in a front-end design step |
+| API evolution | Prefer additive changes; `oasdiff` **warns** about breaking changes on PRs |
 | Testing | xUnit + `WebApplicationFactory`, fresh in-memory SQLite DB per test |
-| CI | **GitHub Actions**: build + test on every PR and every push to `main` |
-| CD | On push to `main` only: commit updated `openapi.json`, push image to **Docker Hub** |
+| CI | **GitHub Actions** on every PR and push to `main`: `api` job (format, build, test, contract up to date) and `web` job (lint, typecheck, build) |
+| CD | On push to `main` only: build and push the image to **Docker Hub** |
 | Image tags | `latest` and `vYYYYMMdd.HHmm` (UTC) |
-| Hosting | Docker on a VPS/home server, SQLite file on a mounted volume |
+| Hosting | **One Docker image**: the API serves the built SPA (same origin, no CORS). Runs on a VPS/home server with the SQLite file on a mounted volume |
 | Formatting | **CSharpier** (automatic, near-zero config) |
 | Analyzers | Built-in .NET analyzers at **Recommended**, + **Meziantou.Analyzer**, + **BannedApiAnalyzers** |
 | Enforcement | Warnings fail the build; **Husky.Net** pre-commit hook formats staged files; CI checks formatting |
 
 ## 3. Architecture
 
-### 3.1 Solution layout
+### 3.1 Repository layout
 
 ```
-wwg-api/
-├── Wwg.slnx
-├── global.json                  # pins .NET 10 SDK
-├── Directory.Build.props        # nullable, warnings-as-errors, analyzers
-├── Directory.Packages.props     # central package versions + global analyzers
-├── Directory.Build.targets      # auto-installs the Husky.Net git hook
-├── BannedSymbols.txt            # APIs that must not be used (§4.1)
-├── .editorconfig                # style rules + analyzer tuning
+wwg/
+├── global.json                  # pins .NET 10 SDK, enables Microsoft Testing Platform
+├── .editorconfig                # style rules for C# and TS + analyzer tuning
+├── .gitignore
+├── .dockerignore                # keeps node_modules, bin/obj etc. out of the build context
 ├── .config/dotnet-tools.json    # local tools: CSharpier, Husky.Net, dotnet-ef
-├── .husky/                      # pre-commit hook config
+├── .husky/                      # pre-commit hook config (covers api/ and web/)
 ├── .vscode/extensions.json      # recommended editor extensions
-├── CLAUDE.md                    # conventions summary for AI-assisted work
 ├── .github/
-│   ├── workflows/ci.yml
-│   └── dependabot.yml
-├── docs/decisions/              # decision log (one short file per decision)
-├── openapi/
-│   └── openapi.json             # generated at build time, committed
-├── src/
-│   └── Wwg.Api/
-│       ├── Program.cs
-│       ├── Features/            # vertical slices: one folder per resource
-│       │   ├── Auth/            # register, login, refresh, forgot/reset password
-│       │   ├── Account/         # /api/me: profile, email, password
-│       │   ├── Admin/           # user management
-│       │   ├── Campaigns/       # campaigns, members, join codes, umpire
-│       │   ├── Join/            # join link preview + join
-│       │   ├── Armies/
-│       │   └── Units/
-│       ├── Data/
-│       │   ├── WwgDbContext.cs
-│       │   ├── Entities/
-│       │   ├── Configurations/  # IEntityTypeConfiguration<T> per entity
-│       │   └── Migrations/
-│       └── Infrastructure/      # errors, OpenAPI, auth, email, interceptors
-├── tests/
-│   └── Wwg.Api.IntegrationTests/
-├── Dockerfile
+│   ├── workflows/ci.yml         # api + web jobs, Docker image on main
+│   └── dependabot.yml           # NuGet, npm, Actions, Docker
+├── CLAUDE.md                    # repo-wide conventions for AI-assisted work
+├── DESIGN.md
+├── README.md
+├── Dockerfile                   # node build → dotnet publish → runtime image
 ├── docker-compose.yml           # production-style run
 ├── docker-compose.dev.yml       # local dev extras (Mailpit)
-└── DESIGN.md
+├── docs/decisions/              # decision log (one short file per decision)
+├── api/
+│   ├── Wwg.slnx
+│   ├── Directory.Build.props    # nullable, warnings-as-errors, analyzers
+│   ├── Directory.Packages.props # central package versions + global analyzers
+│   ├── Directory.Build.targets  # auto-installs the Husky.Net git hook
+│   ├── BannedSymbols.txt        # APIs that must not be used (§4.1)
+│   ├── CLAUDE.md                # API-specific conventions
+│   ├── openapi.json             # generated at build time, committed: the contract
+│   ├── src/
+│   │   └── Wwg.Api/
+│   │       ├── Program.cs
+│   │       ├── Features/        # vertical slices: one folder per resource
+│   │       │   ├── Auth/        # register, login, refresh, forgot/reset password
+│   │       │   ├── Account/     # /api/me: profile, email, password
+│   │       │   ├── Admin/       # users, all campaigns, set umpire
+│   │       │   ├── Campaigns/   # campaigns, members, join codes
+│   │       │   ├── Join/        # join link preview + join
+│   │       │   ├── Armies/
+│   │       │   └── Units/
+│   │       ├── Data/
+│   │       │   ├── WwgDbContext.cs
+│   │       │   ├── Entities/
+│   │       │   ├── Configurations/  # IEntityTypeConfiguration<T> per entity
+│   │       │   └── Migrations/
+│   │       └── Infrastructure/  # errors, OpenAPI, auth, email, SPA hosting, interceptors
+│   └── tests/
+│       └── Wwg.Api.IntegrationTests/
+└── web/                         # React app (structure decided in the front-end design step)
+    ├── package.json
+    ├── orval.config.ts          # reads ../api/openapi.json
+    ├── CLAUDE.md                # front-end conventions
+    └── src/
+        └── api/generated/       # Orval output, git-ignored
 ```
+
+**What lives where:**
+- **Root:** only files that are truly repo-wide. `global.json` and
+  `.config/dotnet-tools.json` stay here because `dotnet` looks for them from
+  the current folder upward, so they work from anywhere in the repo.
+- **`api/`:** everything .NET. The MSBuild props/targets live here so they
+  only apply to .NET projects.
+- **`web/`:** everything Node. It has its own `package.json`, and there's no
+  root `package.json`.
+- **`CLAUDE.md` in each area:** Claude Code loads a folder's `CLAUDE.md` when
+  working there, so API and front-end conventions stay separate.
 
 A single API project organised by **feature folders**. Splitting into
 `Domain`/`Infrastructure` projects is deliberately deferred until there's a
@@ -212,8 +246,9 @@ metadata.
 - Every endpoint has an explicit, stable **name / operationId**
   (`.WithName("GetCampaign")`) and tags. These become Orval's hook names
   (`useGetCampaign`) and its file grouping.
-- CORS: allow the React dev origin in development and configured origin(s) in
-  production.
+- **No CORS.** The front-end and API share one origin in production (§3.11),
+  and in development Vite proxies API calls (§3.11). Leaving CORS switched
+  off means there's nothing to misconfigure.
 
 ### 3.4 Authentication
 
@@ -287,7 +322,9 @@ Identity has two layers:
      not the account exists, so the endpoint can't be used to find out which
      emails are registered.
   2. If the account exists, an email is sent with a link to the React app:
-     `{Frontend:BaseUrl}/reset-password?email=…&code=…`.
+     `{App:PublicUrl}/reset-password?email=…&code=…`. The URL comes from config,
+     never from the request's `Host` header, which an attacker could forge
+     to point reset links at their own site.
   3. The React page calls `POST /api/auth/reset-password { email, code,
      newPassword }`.
 - **Change password** (logged in): requires the current password. This updates
@@ -398,8 +435,9 @@ Identity has two layers:
 - Auth endpoints that return tokens declare an explicit token response type,
   so the SDK gets a typed result.
 - **Build-time emit** via `Microsoft.Extensions.ApiDescription.Server` writes
-  `openapi/openapi.json` on every build. Local builds keep it current, and CI
-  commits it on `main` if it changed (§3.9).
+  **`api/openapi.json`** on every build. It's committed: it is the contract,
+  and its diff is how API changes get reviewed. Local builds keep it current,
+  and CI fails if a commit's `openapi.json` doesn't match its code (§3.9).
   - ⚠️ To do this, the build **launches the app** (through a tool whose entry
     assembly is `GetDocument.Insider`). Startup work with side effects must
     not run then: migrations, Admin sync, and fail-fast config validation such
@@ -407,30 +445,30 @@ Identity has two layers:
   - `Program.cs` checks one `IsGeneratingOpenApiDocument` flag (entry assembly
     name) and skips that work. The document itself only needs endpoint
     metadata.
-- **SDK generation lives in the React repo, from its own pinned copy of the
-  contract.** This repo owns the contract; the React repo owns the client.
-  - The React repo keeps a committed copy of `openapi.json`. A script
-    (e.g. `npm run api:sync`) fetches it from a chosen commit or tag of this
-    repo, or from a local dev server's `/openapi/v1.json`. Orval then
-    generates TanStack Query hooks + TS types from that copy.
-  - Updating the API client is therefore a **deliberate, reviewable change** in
-    the React repo. A backend merge can never silently break the frontend
-    build.
-  - This also works if this repo is private. The sync script uses `gh` or a
-    token, instead of a public raw-file URL.
-- **Breaking-change check.** The API and React app deploy separately, so for a
-  while the live frontend may run against a newer API. Changes should
-  therefore be **additive**: new optional fields and new endpoints are fine;
-  removing or renaming things isn't, without a coordinated frontend release.
-  - The PR check runs **`oasdiff breaking`**, comparing the PR's
-    `openapi.json` with `main`'s, and reports any breaking changes (removed
-    endpoints or fields, new required inputs, changed types).
-  - It **fails the check** by default. An intentional breaking change is
-    allowed by adding a `breaking-change` label to the PR, which makes the
-    decision explicit.
+- **The SDK is generated in `web/` from `api/openapi.json`.**
+  - `web/orval.config.ts` reads `../api/openapi.json` and generates TanStack
+    Query hooks + TS types into `web/src/api/generated/`.
+  - Generation runs automatically before `dev`, `build` and `typecheck` (npm
+    `pre…` scripts), so the client always matches the committed contract.
+  - The **generated code isn't committed** (it's git-ignored). The reviewable
+    artifact is `openapi.json`; the TypeScript is derived from it.
+  - One PR can change an endpoint, the contract and the UI together. If an API
+    change breaks the front-end, the `web` CI job fails in that same PR.
+- **Breaking changes are less risky, but not risk-free.** API and front-end
+  deploy together, so they can't drift apart. The remaining risk is a browser
+  tab that loaded the *old* front-end before a deploy and keeps calling the
+  new API.
+  - Prefer **additive** changes: new optional fields and new endpoints.
+  - On PRs, **`oasdiff breaking`** compares the PR's `openapi.json` with
+    `main`'s and posts a **warning** listing any breaking changes. It doesn't
+    fail the check, because a coordinated change in the same PR is normal now.
+  - The front-end can detect a new deploy (e.g. a version header or a
+    `/version.json`) and prompt the user to reload. That gets decided in the
+    front-end design.
 - ⚠️ .NET 10 emits **OpenAPI 3.1** by default. Orval's handling of 3.1 (notably
-  nullable written as a type array) needs checking early (Phase 1). If it's a
-  problem, one option switches the document to 3.0.
+  nullable written as a type array) is checked when the front-end is
+  scaffolded (Phase 1). If it's a problem, one option switches the document to
+  3.0.
 
 ### 3.8 Integration testing
 
@@ -491,30 +529,31 @@ Identity has two layers:
 
 ### 3.9 CI/CD (GitHub Actions)
 
-One workflow, `.github/workflows/ci.yml`:
+One workflow, `.github/workflows/ci.yml`, with three jobs:
 
-| Trigger | Build & test | Commit `openapi.json` | Push Docker image |
-|---|:-:|:-:|:-:|
-| Pull request (any branch → `main`) | ✅ | – | – |
-| Push to `main` | ✅ | ✅ | ✅ |
-| Manual (`workflow_dispatch`) on `main` | ✅ | ✅ | ✅ |
+| Job | Pull request | Push to `main` / manual |
+|---|:-:|:-:|
+| `api`: format, build, contract check, tests | ✅ | ✅ |
+| `web`: generate SDK, lint, typecheck, build | ✅ | ✅ |
+| `docker`: build and push the image | – | ✅ (after `api` and `web` pass) |
 
-1. **Build & test:** set up .NET 10, restore tools, check formatting
-   (`dotnet csharpier check .`), build (Release, so any analyzer warning fails
-   it), and run all integration tests. The build also regenerates
-   `openapi/openapi.json`. **If any check fails, the workflow fails and nothing
-   later runs.** On PRs this is the whole run (plus the breaking-change check
-   below), and it shows as a pass/fail check on the PR.
-   - **PRs only:** `oasdiff breaking` compares the freshly built
-     `openapi.json` with the one on `main` (§3.7). It fails unless the PR has
-     the `breaking-change` label.
-2. **Commit the contract** (`main` only): if `openapi/openapi.json` changed,
-   commit it as `github-actions[bot]` with message
-   `chore: update openapi.json [skip ci]`, rebase onto the latest `main`, and
-   push. Requires `permissions: contents: write`.
-   - Pushes made with the default `GITHUB_TOKEN` don't trigger new workflow
-     runs, so this can't loop. `[skip ci]` is an extra safeguard.
-3. **Docker image** (`main` only): log in to Docker Hub and build and push with
+1. **`api` job:**
+   - Set up .NET 10 and restore tools.
+   - Check formatting (`dotnet csharpier check .`).
+   - Build in Release, so any analyzer warning fails the build. The build also
+     regenerates `api/openapi.json`.
+   - **Contract check:** `git diff --exit-code api/openapi.json`. If the build
+     changed it, the committed contract doesn't match the code, and the job
+     fails with a message to rebuild and commit it.
+   - Run all integration tests.
+   - **PRs only:** `oasdiff breaking` against `main`'s `openapi.json`, as a
+     warning (§3.7).
+2. **`web` job:** in `web/`, run `npm ci`, generate the SDK from
+   `api/openapi.json`, then lint, typecheck and build. Front-end tests are
+   added here once the front-end design decides on them. This runs in
+   parallel with `api`; it only needs the committed contract.
+3. **`docker` job** (`main` only, after both jobs pass): log in to Docker Hub
+   and build and push the multi-stage image (§3.10) with
    `docker/build-push-action`, tagged:
    - `latest`
    - `vYYYYMMdd.HHmm`: UTC time, computed once per run, e.g. `v20260927.1430`.
@@ -528,25 +567,29 @@ One workflow, `.github/workflows/ci.yml`:
    `docker/metadata-action`. Any running image can then be traced back to its
    exact commit (`docker inspect`).
 
+**CI never commits to the repo**, so the workflow only needs read access to
+the repo contents. Protecting `main` later just means making the `api` and
+`web` jobs required checks; nothing else changes.
+
 **Dependency updates:** `.github/dependabot.yml` opens weekly PRs for:
-- NuGet packages (Dependabot understands `Directory.Packages.props`), grouped
-  so related packages (e.g. all `Microsoft.*`, EF Core) arrive together;
+- NuGet packages in `api/` (Dependabot understands `Directory.Packages.props`),
+  grouped so related packages (e.g. all `Microsoft.*`, EF Core) arrive together;
+- npm packages in `web/`, grouped similarly;
 - GitHub Actions versions;
 - the Docker base images in `Dockerfile`.
 
 Each Dependabot PR runs the normal PR checks, so an update that breaks the
 build or tests is visible before merging.
 
-**Later, when `main` is protected:** the bot's direct push in step 2 will be
-blocked. Options at that point:
-- Allow the Actions bot to bypass the rule, or push with a GitHub App token.
-- Or drop the commit-back and instead **fail the PR check if `openapi.json` is
-  out of date**, so developers commit it with their change. This is simpler
-  and keeps every change to the contract visible in review.
-
 ### 3.10 Deployment
 
-- Multi-stage `Dockerfile` (SDK build → `aspnet` runtime image, non-root user).
+- Multi-stage `Dockerfile` at the repo root:
+  1. **`node` stage:** `npm ci` + `npm run build` in `web/` → `web/dist/`.
+  2. **`sdk` stage:** `dotnet publish` the API.
+  3. **Runtime stage:** `aspnet` image, non-root user. It contains the
+     published API with the front-end build copied into its `wwwroot/`.
+- `.dockerignore` keeps `node_modules`, `bin/`, `obj/`, test output and local
+  databases out of the build context.
 - One volume mounted at `/data` holding the SQLite DB and the Data Protection
   keys.
 - TLS is handled by a reverse proxy in front of the container (e.g. Caddy).
@@ -559,14 +602,46 @@ blocked. Options at that point:
   new `latest` (or a specific `vYYYYMMdd.HHmm`) and restarting.
 - Production configuration comes from environment variables:
   `ConnectionStrings__Default`, `Smtp__*`, `Admin__Emails__0…`,
-  `Frontend__BaseUrl`, `Cors__AllowedOrigins__0…`.
+  `App__PublicUrl`, `ForwardedHeaders__*`.
+
+### 3.11 Front-end hosting & local development
+
+**Production: the API serves the SPA.**
+- `UseStaticFiles()` serves the built front-end from `wwwroot/`.
+- `MapFallbackToFile("index.html")` sends every other non-file URL (e.g.
+  `/campaigns/123`) to the SPA, so client-side routes work on reload.
+- **API routes never fall through to the SPA.** A catch-all
+  `/api/{**path}` route returns a Problem Details **404**, so a mistyped API
+  URL gets a JSON error rather than `index.html` with a 200. The same applies
+  to `/openapi` and `/health`. A test covers both behaviours.
+- **Caching:**
+  - Vite's hashed files under `/assets/` get
+    `Cache-Control: public, max-age=31536000, immutable`.
+  - `index.html` gets `no-cache`, so a new deploy is picked up on the next
+    page load.
+- **Security headers** on SPA responses: a Content-Security-Policy
+  (`default-src 'self'`, tuned to what the front-end needs),
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and
+  `frame-ancestors 'none'`. The SPA holds bearer tokens, so preventing XSS
+  matters.
+- Serving the SPA is skipped if `wwwroot/index.html` doesn't exist (in
+  development and in tests).
+- One origin means no CORS, and reset/join links use `App:PublicUrl`.
+
+**Development: two processes, one origin from the browser's view.**
+- The API runs on `http://localhost:5102` (`dotnet run` / `dotnet watch`).
+- The front-end runs on Vite's dev server (`http://localhost:5173`, with hot
+  reload). Vite **proxies** `/api`, `/openapi` and `/swagger` to the API.
+  The browser only ever talks to `:5173`, so there's still no CORS.
+- `App:PublicUrl` is `http://localhost:5173` in development, so reset links
+  in Mailpit open the Vite app.
 
 ## 4. Cross-cutting concerns
 
 | Concern | Approach |
 |---|---|
 | Logging | Built-in `ILogger`, structured JSON console logs in production |
-| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`Smtp`, `Frontend`, `Admin`, `Cors`, `Auth`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. `Frontend:BaseUrl` is required outside development |
+| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
 | Code quality | See §4.1 |
@@ -737,7 +812,7 @@ Unit
 **Join codes:** a random 128-bit value, base64url-encoded (~22 characters),
 unique per campaign, created with the campaign. The Umpire can **regenerate**
 it, which makes the old link stop working. The React app builds the link
-(e.g. `{Frontend:BaseUrl}/join/{code}`).
+(e.g. `{App:PublicUrl}/join/{code}`, using `window.location.origin`).
 
 ### 5.2 Permission matrix
 
