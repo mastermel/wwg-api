@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–8, 9.1 and 9.2
+> **Status:** Design agreed; Phase 1 in progress (steps 1–8 and 9.1–9.3
 > done).
 > **Last updated:** 2026-09-27
 >
@@ -924,12 +924,12 @@ web/
   optional VS Code configuration (§3.11).
 
 **To check during the scaffold**
-- Orval with OpenAPI 3.1 (nullable written as type arrays; enums without
-  `"type": "string"`). Fix with a schema transformer, or switch the document
-  to 3.0.
+- ✅ Orval with OpenAPI 3.1: checked in step 9.3. Nullable type arrays become
+  `string | null` (Zod `.nullable()`), `minLength` becomes `.min(1)`, and
+  enums without `"type": "string"` become string unions. The document stays
+  on 3.1.
 - Mantine injects its CSS variables in a `<style>` tag, so the CSP (§3.11)
   needs a style nonce or `'unsafe-inline'` for styles. Scripts stay strict.
-- Whether enums without `"type": "string"` come out of Orval as `unknown`.
 - Whether Chrome accepts the `__Secure-` cookie prefix from
   `http://localhost` through the Vite proxy (checked in step 10). If not,
   development drops the prefix.
@@ -1287,7 +1287,7 @@ tests passing. Each phase is a good point to stop and review.
       `web/CLAUDE.md` and the root `CLAUDE.md` commit checks. Local
       development: `scripts/dev.sh`, `docs/development.md` (including Neovim
       notes), VS Code launch/tasks and extension recommendations.
-   3. **SDK & app shell:** Orval (Query hooks, Zod schemas, MSW handlers)
+   3. ✅ **SDK & app shell:** Orval (Query hooks, Zod schemas, MSW handlers)
       with the custom fetch function, generation hooked into the npm scripts.
       Check that OpenAPI 3.1 works with Orval (switch to 3.0 if needed). The
       `minLength: 1` schema transformer for required strings.

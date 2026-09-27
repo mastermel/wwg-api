@@ -1,5 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { getGetHealthMockHandler } from "@/api/generated/endpoints/health/health.msw";
+import { server } from "@/test/server";
 import { renderApp } from "@/test/render";
 
 describe("app layout and routing", () => {
@@ -18,12 +21,25 @@ describe("app layout and routing", () => {
     ).toBeInTheDocument();
   });
 
-  it("marks the current page in the navigation", async () => {
+  it("marks the current page in the navigation and moves focus to the new heading", async () => {
+    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+    const user = userEvent.setup();
     await renderApp("/campaigns");
     await screen.findByRole("heading", { level: 1, name: "Campaigns" });
 
     const sidebar = screen.getByRole("navigation", { name: "Main" });
     expect(within(sidebar).getByRole("link", { name: "Campaigns" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await user.click(within(sidebar).getByRole("link", { name: "About" }));
+
+    const heading = await screen.findByRole("heading", { level: 1, name: "About" });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
+    expect(within(sidebar).getByRole("link", { name: "About" })).toHaveAttribute(
       "aria-current",
       "page",
     );

@@ -1,14 +1,17 @@
 import { AppShell, Group, NavLink, Text, UnstyledButton } from "@mantine/core";
-import { IconSwords, type Icon } from "@tabler/icons-react";
+import { IconInfoCircle, IconSwords, type Icon } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 
 interface NavItem {
-  to: "/campaigns";
+  to: "/campaigns" | "/about";
   label: string;
   icon: Icon;
 }
 
-const navItems: NavItem[] = [{ to: "/campaigns", label: "Campaigns", icon: IconSwords }];
+const navItems: NavItem[] = [
+  { to: "/campaigns", label: "Campaigns", icon: IconSwords },
+  { to: "/about", label: "About", icon: IconInfoCircle },
+];
 
 /**
  * The app frame: a header, a sidebar on desktop, and a bottom tab bar on phones (below Mantine's
