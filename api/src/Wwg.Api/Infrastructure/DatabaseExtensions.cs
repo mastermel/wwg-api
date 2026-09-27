@@ -20,6 +20,7 @@ internal static class DatabaseExtensions
             );
 
         services.AddSingleton<AuditInterceptor>();
+        services.AddExceptionHandler<UniqueConstraintExceptionHandler>();
         services.AddDbContext<WwgDbContext>(
             (serviceProvider, options) =>
                 options
