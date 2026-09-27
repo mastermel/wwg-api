@@ -1,20 +1,19 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
+using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
 
-public sealed class OpenApiTests(WwgApiFactory factory) : IClassFixture<WwgApiFactory>
+public sealed class OpenApiTests : ApiTest
 {
     [Fact]
     public async Task GetDocument_Always_DescribesTheApiWithoutServers()
     {
-        using var client = factory.CreateClient();
-
         using var document = JsonDocument.Parse(
-            await client.GetStringAsync(
+            await Client.GetStringAsync(
                 new Uri("/openapi/v1.json", UriKind.Relative),
-                TestContext.Current.CancellationToken
+                CancellationToken
             )
         );
 
@@ -29,11 +28,9 @@ public sealed class OpenApiTests(WwgApiFactory factory) : IClassFixture<WwgApiFa
     [Fact]
     public async Task GetSwaggerUi_Development_IsServed()
     {
-        using var client = factory.CreateClient();
-
-        using var response = await client.GetAsync(
+        using var response = await Client.GetAsync(
             new Uri("/swagger/index.html", UriKind.Relative),
-            TestContext.Current.CancellationToken
+            CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -47,7 +44,7 @@ public sealed class OpenApiTests(WwgApiFactory factory) : IClassFixture<WwgApiFa
         HttpStatusCode expected
     )
     {
-        using var production = factory.WithWebHostBuilder(builder =>
+        using var production = App.WithWebHostBuilder(builder =>
             builder
                 .UseEnvironment("Production")
                 .UseSetting("App:PublicUrl", "https://wwg.example.com")
@@ -57,7 +54,7 @@ public sealed class OpenApiTests(WwgApiFactory factory) : IClassFixture<WwgApiFa
 
         using var response = await client.GetAsync(
             new Uri("/swagger/index.html", UriKind.Relative),
-            TestContext.Current.CancellationToken
+            CancellationToken
         );
 
         Assert.Equal(expected, response.StatusCode);

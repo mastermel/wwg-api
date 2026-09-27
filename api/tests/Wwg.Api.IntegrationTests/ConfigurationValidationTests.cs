@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
+using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
 

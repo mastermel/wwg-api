@@ -1,28 +1,19 @@
 using System.Net;
-using System.Net.Http.Json;
-using Microsoft.AspNetCore.Mvc;
+using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
 
-public sealed class ErrorHandlingTests(WwgApiFactory factory) : IClassFixture<WwgApiFactory>
+public sealed class ErrorHandlingTests : ApiTest
 {
     [Fact]
     public async Task Get_UnknownApiRoute_ReturnsProblemDetails404()
     {
-        using var client = factory.CreateClient();
-
-        using var response = await client.GetAsync(
+        using var response = await Client.GetAsync(
             new Uri("/api/does-not-exist", UriKind.Relative),
-            TestContext.Current.CancellationToken
+            CancellationToken
         );
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(
-            TestContext.Current.CancellationToken
-        );
-        Assert.NotNull(problem);
-        Assert.Equal(404, problem.Status);
+        var problem = await response.AssertProblemAsync(HttpStatusCode.NotFound);
         Assert.Equal("GET /api/does-not-exist", problem.Instance);
     }
 }
