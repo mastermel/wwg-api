@@ -5,6 +5,9 @@ internal static class ServiceCollectionExtensions
     /// <summary>Registers the services the API depends on.</summary>
     public static IServiceCollection AddApiServices(this IServiceCollection services)
     {
-        return services.AddErrorHandling().AddJsonOptions();
+        services.AddValidatedOptions<AppOptions>(AppOptions.SectionName);
+        services.AddSingleton(TimeProvider.System);
+
+        return services.AddErrorHandling().AddJsonOptions().AddTrustedForwardedHeaders();
     }
 }
