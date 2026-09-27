@@ -135,13 +135,23 @@ metadata.
 - Entities are never returned from endpoints. Endpoints return DTOs, mapped by
   hand (extension methods / `Select` projections). No AutoMapper.
 - **IDs:** entities get `Id = Guid.CreateVersion7()` on construction. v7 GUIDs
-  are time-ordered, so they sort sensibly even stored as SQLite `TEXT`.
+  are time-ordered, which keeps inserts index-friendly. Queries still **order by
+  `CreatedAt`** (then `Id` as a tie-breaker), never by `Id` alone.
 - **Enums** (e.g. campaign role) are stored as strings.
 - **Audit fields:** `CreatedAt` / `UpdatedAt` set by a `SaveChanges`
   interceptor using the injected `TimeProvider`.
 - **SQLite gotchas to design around:**
   - No native `DateTimeOffset`, so EF can't order or compare on it. Store
     timestamps as **UTC `DateTime`**.
+  - SQLite hands `DateTime`s back as `Kind=Unspecified`. Serialized to JSON,
+    they'd have no `Z`, and the browser would read them as local time. A
+    **global EF convention** (`ConfigureConventions`) applies a value converter
+    to every `DateTime` / `DateTime?` that marks it as `Utc` when read.
+  - Text comparison is **case-sensitive** by default (`BINARY` collation), and
+    EF translates `.Contains()` to `instr()`. So searches and sorts on
+    `FirstName`, `LastName` and `Email` would miss "Mel" when searching "mel".
+    These columns use **`COLLATE NOCASE`**. It only folds ASCII letters, which
+    is acceptable here.
   - No `decimal` math in SQL. Avoid `decimal` for anything sorted or aggregated.
   - No `rowversion`. Optimistic concurrency, if needed, uses a manual token.
   - Limited `ALTER TABLE`. EF rebuilds tables for some migrations, which is
@@ -152,13 +162,24 @@ metadata.
 
 ### 3.3 API conventions
 
-- Routes: `/api/{resource}` (plural, kebab-case).
+- Routes: `/api/{resource}` (plural, kebab-case). Route IDs use the `:guid`
+  constraint (`/members/{memberId:guid}`), so literal segments like
+  `/members/me` never collide with them.
 - **Shallow nesting:** collections are nested under their parent
   (`GET/POST /api/campaigns/{id}/armies`), while single items have their own
   flat route (`GET/PUT/DELETE /api/armies/{id}`). This avoids deep URLs like
   `/campaigns/{c}/armies/{a}/units/{u}`.
 - Status codes: `GET` 200, `POST` 201 + `Location`, `PUT` 200, `DELETE` 204,
-  400 validation, 401 not signed in.
+  400 validation, 401 not signed in, 403/404 per below, **409 conflict**,
+  **429 rate limited**.
+- **Conflicts:** handlers check business rules first (e.g. "email already in
+  use", "this Player already commands an army") and return a clear error. The
+  database's unique indexes are the final guarantee. If two requests race past
+  the check, the `DbUpdateException` for the unique-constraint failure is caught
+  centrally and returned as **409** Problem Details, never a 500.
+- **Operations that change several rows** (e.g. set Umpire: demote old, promote
+  new, unassign army) happen in a **single `SaveChanges`**, so they succeed or
+  fail as a whole.
 - **Hidden vs forbidden:** if a user isn't allowed to know a resource exists
   (e.g. a campaign they're not in), the API returns **404**. If they can see
   that it exists but can't perform the action (e.g. a Player renaming an Army,
@@ -171,9 +192,16 @@ metadata.
   Rules that need the database (e.g. "commander must be a Player in this
   campaign", "email already in use") are checked in the handler and returned in
   the same shape.
-- List endpoints that can grow large (campaigns, admin user list) support
-  `?page=&pageSize=` and return a shared `PagedResponse<T>` envelope. Small
-  child collections (members, armies, units) return plain arrays.
+- **Paging:** list endpoints that can grow large (campaigns, admin lists)
+  support `?page=&pageSize=` and return a shared `PagedResponse<T>`
+  (`items`, `page`, `pageSize`, `totalCount`).
+  - Defaults: page 1, size 25. Maximum size **100**; larger values are a
+    validation error.
+  - Always a stable sort order (a sort key, then `Id`), so pages don't shuffle.
+  - Small child collections (members, armies, units) return plain arrays.
+- **Input tidying:** name-like strings (campaign, army, unit, first and last
+  names) are **trimmed** before validation and saving. Emails are trimmed;
+  case is kept as entered (Identity matches on its normalized form).
 - Every endpoint has an explicit, stable **name / operationId**
   (`.WithName("GetCampaign")`) and tags. These become Orval's hook names
   (`useGetCampaign`) and its file grouping.
@@ -303,8 +331,9 @@ Identity has two layers:
   the rules in §5.2 live in one place and are covered by integration tests.
 - Queries that return lists apply the same rules in the query itself, rather
   than filtering in memory.
-- An `AdminOnly` authorization policy protects the `/api/admin/*` group and
-  the admin-only campaign actions.
+- **All admin-only actions live under `/api/admin`**, and an `AdminOnly`
+  policy is applied once to that route group. There are no admin-only query
+  parameters or one-off admin routes elsewhere.
 
 ### 3.6 Email
 
@@ -350,6 +379,13 @@ Identity has two layers:
 - **Build-time emit** via `Microsoft.Extensions.ApiDescription.Server` writes
   `openapi/openapi.json` on every build. Local builds keep it current, and CI
   commits it on `main` if it changed (§3.9).
+  - ⚠️ To do this, the build **launches the app** (through a tool whose entry
+    assembly is `GetDocument.Insider`). Startup work with side effects must
+    not run then: migrations, Admin sync, and fail-fast config validation such
+    as required SMTP or frontend settings.
+  - `Program.cs` checks one `IsGeneratingOpenApiDocument` flag (entry assembly
+    name) and skips that work. The document itself only needs endpoint
+    metadata.
 - **SDK generation lives in the React repo.** Its Orval config points at this
   repo's `openapi/openapi.json` (raw file URL, or the local dev server's
   `/openapi/v1.json`) and generates TanStack Query hooks + TS types. This repo
@@ -566,7 +602,8 @@ CampaignMember                Army
   CampaignId   → Campaign       CampaignId   → Campaign
   UserId       → AppUser        Name         string (required, ≤100)
   Role         Umpire|Player    CommanderId  → CampaignMember? (null = unassigned)
-  JoinedAt                      CreatedAt / UpdatedAt
+  CreatedAt / UpdatedAt         CreatedAt / UpdatedAt
+  (CreatedAt = when they joined)
 
 Unit
   Id           Guid
@@ -621,7 +658,6 @@ it, which makes the old link stop working. The React app builds the link
 | View campaign details | ✅ | ✅ | ✅ | ✅ | 404 |
 | Edit / delete campaign | ✅ | ✅ | 403 | 403 | 404 |
 | View / regenerate join code | ✅ | ✅ | 403 | 403 | 404 |
-| Set Umpire | ✅ | 403 | 403 | 403 | 404 |
 | View member list (incl. each Player's army name) | ✅ | ✅ | ✅ | ✅ | 404 |
 | Remove a Player | ✅ | ✅ | self only (leave) | self only (leave) | 404 |
 | List armies (name + commander) | ✅ | ✅ | ✅ all | ✅ all | 404 |
@@ -644,7 +680,8 @@ it, which makes the old link stop working. The React app builds the link
 | List / search users | ✅ | 403 |
 | View a user (incl. their campaigns and roles) | ✅ | 403 |
 | Delete a user | ✅ (not themselves) | 403 |
-| See all campaigns | ✅ (`?all=true`) | only their own |
+| List all campaigns (`/api/admin/campaigns`) | ✅ | 403 |
+| Set a campaign's Umpire | ✅ | 403 |
 
 ### 5.3 Endpoints (first pass)
 
@@ -675,21 +712,23 @@ it, which makes the old link stop working. The React app builds the link
 | GET | `/api/admin/users` | Paged list, `?search=` on name/email |
 | GET | `/api/admin/users/{id}` | User details + campaigns and roles |
 | DELETE | `/api/admin/users/{id}` | Delete user (not self) |
+| GET | `/api/admin/campaigns` | Paged list of every campaign, incl. umpire-less ones |
+| PUT | `/api/admin/campaigns/{id}/umpire` | Set the Umpire `{ userId }` |
 
 **Campaigns & membership**
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/campaigns` | Campaigns I'm in, with my role (Admins: `?all=true`) |
+| GET | `/api/campaigns` | Campaigns I'm in, with my role (paged) |
 | POST | `/api/campaigns` | Create; caller becomes Umpire |
 | GET | `/api/campaigns/{id}` | Details, Umpire (may be null), my role |
 | PUT | `/api/campaigns/{id}` | Edit name/description |
 | DELETE | `/api/campaigns/{id}` | Delete campaign and everything in it |
-| PUT | `/api/campaigns/{id}/umpire` | **Admin:** set the Umpire `{ userId }` |
 | GET | `/api/campaigns/{id}/join-code` | Current join code (Umpire) |
 | POST | `/api/campaigns/{id}/join-code` | Regenerate join code (Umpire) |
 | GET | `/api/campaigns/{id}/members` | Members with role and commanded army (id, name) |
-| DELETE | `/api/campaigns/{id}/members/{memberId}` | Remove a Player / leave |
+| DELETE | `/api/campaigns/{id}/members/{memberId}` | Remove a Player (Umpire/Admin) |
+| DELETE | `/api/campaigns/{id}/members/me` | Leave the campaign (Players) |
 | GET | `/api/join/{code}` | **Anonymous** preview: campaign name, Umpire name |
 | POST | `/api/join/{code}` | Join as Player (repeat calls are harmless) |
 
@@ -700,8 +739,10 @@ it, which makes the old link stop working. The React app builds the link
 | GET | `/api/campaigns/{id}/armies` | All armies: id, name, commander |
 | POST | `/api/campaigns/{id}/armies` | Create army (optional commander) |
 | GET | `/api/armies/{id}` | Army + commander + units (403 for other Players) |
-| PUT | `/api/armies/{id}` | Rename, assign/unassign commander |
+| PUT | `/api/armies/{id}` | Rename (name only) |
 | DELETE | `/api/armies/{id}` | Delete army and units |
+| PUT | `/api/armies/{id}/commander` | Assign commander `{ memberId }` |
+| DELETE | `/api/armies/{id}/commander` | Unassign commander |
 | POST | `/api/armies/{id}/units` | Add unit |
 | PUT | `/api/units/{id}` | Rename unit |
 | DELETE | `/api/units/{id}` | Delete unit |
