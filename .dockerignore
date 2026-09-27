@@ -1,0 +1,17 @@
+# Keep the build context to what the Dockerfile copies.
+**/bin/
+**/obj/
+**/node_modules/
+web/dist/
+web/src/api/generated/
+web/src/routeTree.gen.ts
+**/*.db
+**/*.db-shm
+**/*.db-wal
+api/tests/
+.git/
+.github/
+.husky/
+.vscode/
+docs/
+scripts/
