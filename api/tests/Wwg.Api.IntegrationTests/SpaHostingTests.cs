@@ -119,6 +119,14 @@ public sealed class SpaHostingTests : ApiTest
     }
 
     [Fact]
+    public async Task Get_MissingFile_ReturnsProblemDetails404NotTheApp()
+    {
+        using var response = await GetAsync("/assets/missing.js");
+
+        await response.AssertProblemAsync(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Get_Health_StillReachesTheApi()
     {
         using var response = await GetAsync("/health");

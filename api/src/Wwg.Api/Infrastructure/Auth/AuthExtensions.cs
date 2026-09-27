@@ -52,7 +52,7 @@ internal static class AuthExtensions
                 }
             );
 
-        services.AddAuthorization();
+        services.AddAuthorizationBuilder().AddAccessPolicies();
         services.AddScoped<TokenService>();
 
         // Keys persisted to a directory (the /data volume in production), like

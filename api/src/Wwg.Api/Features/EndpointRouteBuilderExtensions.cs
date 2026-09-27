@@ -1,3 +1,4 @@
+using Wwg.Api.Features.Account;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Health;
 
@@ -8,6 +9,6 @@ internal static class EndpointRouteBuilderExtensions
     /// <summary>Maps every feature's endpoints. Each feature adds one <c>Map{Feature}Endpoints</c> call here.</summary>
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder app)
     {
-        return app.MapHealthEndpoints().MapAuthEndpoints();
+        return app.MapHealthEndpoints().MapAuthEndpoints().MapAccountEndpoints();
     }
 }

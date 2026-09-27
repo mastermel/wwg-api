@@ -14,6 +14,7 @@ internal static class HealthEndpoints
         app.MapGet("/health", GetHealthAsync)
             .WithName("GetHealth")
             .WithTags("Health")
+            .AllowAnonymous()
             .Produces<HealthResponse>(StatusCodes.Status503ServiceUnavailable);
 
         return app;

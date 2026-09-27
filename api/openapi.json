@@ -183,6 +183,32 @@
           }
         }
       }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "The signed-in user's profile.",
+        "operationId": "GetMe",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -273,6 +299,40 @@
         },
         "description": "Sign in with email and password."
       },
+      "MeResponse": {
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "isAdmin"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The user's ID.",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "description": "Their email, which is also what they sign in with."
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name."
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "description": "Whether they're a site-wide Admin."
+          }
+        },
+        "description": "The signed-in user."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -361,6 +421,13 @@
         },
         "description": "A signed-in session. The access token goes in `Authorization: Bearer …`; the refresh\ntoken is never in a body: it's set as an HttpOnly cookie that only /api/auth receives."
       }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "The accessToken from register, login or refresh.",
+        "scheme": "bearer"
+      }
     }
   },
   "tags": [
@@ -369,6 +436,9 @@
     },
     {
       "name": "Auth"
+    },
+    {
+      "name": "Account"
     }
   ]
 }

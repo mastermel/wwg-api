@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.StaticFiles;
 
 namespace Wwg.Api.Infrastructure;
@@ -56,17 +57,27 @@ internal static class SpaHostingExtensions
     {
         foreach (var prefix in ServerPrefixes)
         {
-            app.Map($"{prefix}/{{**path}}", () => TypedResults.Problem(statusCode: 404))
-                .ExcludeFromDescription();
+            app.Map($"{prefix}/{{**path}}", NotFound).ExcludeFromDescription().AllowAnonymous();
         }
 
+        // Requests that match nothing still pass through authorization, where the
+        // sign-in-by-default policy would answer 401; these make them a plain 404.
         if (IsEnabled(app.Environment))
         {
-            app.MapFallbackToFile("index.html", CreateStaticFileOptions());
+            app.MapFallbackToFile("index.html", CreateStaticFileOptions())
+                .AllowAnonymous()
+                .ExcludeFromDescription();
+            app.MapFallback("{*path:file}", NotFound).AllowAnonymous().ExcludeFromDescription();
+        }
+        else
+        {
+            app.MapFallback("{**path}", NotFound).AllowAnonymous().ExcludeFromDescription();
         }
 
         return app;
     }
+
+    private static ProblemHttpResult NotFound() => TypedResults.Problem(statusCode: 404);
 
     private static StaticFileOptions CreateStaticFileOptions()
     {

@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Wwg.Api.Infrastructure.Auth;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
@@ -29,9 +31,26 @@ public sealed class EndpointConventionTests : ApiTest
     }
 
     [Fact]
+    public void Endpoints_Always_DeclareAnAccessRule()
+    {
+        // Sign-in is required by default, but every endpoint must say which rule it means
+        // (DESIGN.md §3.5), so a forgotten rule can't silently fall back to it.
+        var violations = Endpoints()
+            .Where(e =>
+                e.Metadata.GetMetadata<IAllowAnonymous>() is null
+                && e.Metadata.GetMetadata<AccessRuleMetadata>() is null
+            )
+            .Select(Describe);
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void Endpoints_Always_AreUnderApi()
     {
         var violations = Endpoints()
+            // Fallbacks (the front-end's index.html, and plain 404s) catch everything else.
+            .Where(e => e.Order != int.MaxValue)
             .Where(e =>
                 !Route(e).StartsWith("/api/", StringComparison.Ordinal)
                 && !NonApiPrefixes.Any(prefix =>
