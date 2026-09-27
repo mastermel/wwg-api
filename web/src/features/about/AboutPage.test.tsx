@@ -47,7 +47,6 @@ describe("About page", () => {
     await renderApp("/about");
 
     expect(await screen.findByText("Offline")).toBeInTheDocument();
-    onlineManager.setOnline(true);
   });
 
   it("has no detectable accessibility problems", async () => {

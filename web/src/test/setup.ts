@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { onlineManager } from "@tanstack/react-query";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "@/test/server";
@@ -40,6 +41,9 @@ beforeAll(() => {
 afterEach(() => {
   // Vitest globals are off, so Testing Library can't register its own cleanup.
   cleanup();
+  // Back online only after unmounting: done while a page is still mounted, it resumes paused
+  // queries, whose requests then find no handler.
+  onlineManager.setOnline(true);
   server.resetHandlers();
 });
 

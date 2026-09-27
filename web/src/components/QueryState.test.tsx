@@ -1,6 +1,6 @@
 import { onlineManager, useQuery } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { AppProviders } from "@/app/AppProviders";
 import { createQueryClient } from "@/app/query-client";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -17,10 +17,6 @@ function renderWith(ui: React.ReactNode, queryClient = createQueryClient()) {
 }
 
 describe("QueryState", () => {
-  afterEach(() => {
-    onlineManager.setOnline(true);
-  });
-
   it("shows the data once it has loaded", async () => {
     renderWith(<Thing load={() => Promise.resolve("Army")} />);
 
@@ -63,10 +59,6 @@ describe("QueryState", () => {
 });
 
 describe("OfflineBanner", () => {
-  afterEach(() => {
-    onlineManager.setOnline(true);
-  });
-
   it("shows nothing while online", () => {
     renderWith(<OfflineBanner />);
 
