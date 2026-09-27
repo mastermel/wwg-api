@@ -61,5 +61,10 @@ Don't run `dotnet format whitespace`; it fights CSharpier. `dotnet format style`
 - Endpoint-level integration tests only (no unit tests), over HTTP against a throwaway SQLite
   database.
 - Named `Action_Scenario_ExpectedResult`, one behaviour per test.
+- Test classes derive from `Support/ApiTest`: each test gets its own app, in-memory database (a
+  copy of the migrated template), `Client`, fake `Clock` and `WithDbAsync` for direct DbContext
+  access. Don't share state between tests.
+- Assert errors with `AssertProblemAsync(status)` / `AssertValidationProblemAsync(fields…)`.
+- `EndpointConventionTests` fail if an endpoint has no name or tag, or isn't under `/api`.
 - Setup goes through the shared helpers and scenario builders.
 - A test that truly needs a banned API uses `#pragma warning disable RS0030` with a comment.

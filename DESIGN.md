@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–5 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–6 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -486,10 +486,14 @@ Identity has two layers:
 
 - **xUnit v3** + `WebApplicationFactory<Program>`, hosting the real app
   in-process. Tests use `HttpClient` exactly like a real client.
-- **Fresh database per test:** each test gets its own SQLite **in-memory**
-  database (a `SqliteConnection` held open for the test's lifetime), and the
-  factory swaps the `DbContext` registration to use it. No shared state, so
-  tests can run in parallel.
+- **Fresh app and database per test:** tests derive from `ApiTest`, and xUnit
+  creates a new instance per test, so each test gets its own factory and its
+  own SQLite **in-memory** database. The database is a named, shared-cache
+  in-memory database: the app reaches it through its normal
+  `ConnectionStrings:Default` (so tests run the real database setup,
+  interceptor included), and the factory holds one connection open to keep it
+  alive for the test's lifetime. No shared state, so tests can run in
+  parallel.
 - **Migrations run once, then get copied.** Running every migration for
   every test gets slower as migrations pile up. Instead:
   - Once per test run, the **real migrations** are applied to a *template*
@@ -999,10 +1003,11 @@ tests passing. Each phase is a good point to stop and review.
    - Unique-constraint → 409 mapping.
    - SQLite connection setup (WAL), migrate-on-startup flag.
    - Initial migration (Identity tables).
-6. **Test harness**
+6. ✅ **Test harness**
    - `WebApplicationFactory` with a migrated template DB cloned per test
      (`BackupDatabase`).
-   - Fake email service, `FakeTimeProvider`, Problem Details assertions.
+   - `FakeTimeProvider`, Problem Details assertions. (The fake email service
+     moved to step 11, with `IEmailService`.)
    - Convention tests (operationId, tags, `/api` prefix) and the
      pending-migration test.
    - First tests: `/health` returns healthy; unknown `/api/…` route returns
@@ -1043,7 +1048,7 @@ endpoint, and the Vite app shows the API's health through the generated SDK.
    - Test auth helpers, cheap password hashing in tests, and the "every
      endpoint declares an access rule" convention test.
 11. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
-    fallback, Mailpit dev compose; forgot/reset endpoints with the `email`
+    fallback, fake email service for tests, Mailpit dev compose; forgot/reset endpoints with the `email`
     rate limit.
 12. **Account:** `/api/me` get/update, change email (+ notice to old address),
     change password, sign out everywhere.
