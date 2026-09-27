@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
 
 namespace Wwg.Api.Infrastructure;
 
@@ -10,18 +11,40 @@ internal static class OpenApiExtensions
     public static IServiceCollection AddApiDocument(this IServiceCollection services)
     {
         return services.AddOpenApi(options =>
-            options.AddDocumentTransformer(
-                (document, _, _) =>
-                {
-                    document.Info.Title = "wwg API";
-                    document.Info.Version = "v1";
-                    document.Info.Description = "The Wasatch Wargamers Campaign App API.";
-                    // The API is always called on the same origin; a server URL would also make
-                    // the build-time document depend on where it was generated.
-                    document.Servers = [];
-                    return Task.CompletedTask;
-                }
-            )
+            options
+                .AddDocumentTransformer(
+                    (document, _, _) =>
+                    {
+                        document.Info.Title = "wwg API";
+                        document.Info.Version = "v1";
+                        document.Info.Description = "The Wasatch Wargamers Campaign App API.";
+                        // The API is always called on the same origin; a server URL would also make
+                        // the build-time document depend on where it was generated.
+                        document.Servers = [];
+                        return Task.CompletedTask;
+                    }
+                )
+                .AddSchemaTransformer(
+                    (schema, context, _) =>
+                    {
+                        // A custom JSON converter hides a property's type from the schema generator,
+                        // so put back the string type that [Trimmed] properties always have.
+                        if (
+                            context.JsonPropertyInfo is { } property
+                            && property.AttributeProvider?.IsDefined(
+                                typeof(TrimmedAttribute),
+                                false
+                            ) == true
+                        )
+                        {
+                            schema.Type = property.IsSetNullable
+                                ? JsonSchemaType.String | JsonSchemaType.Null
+                                : JsonSchemaType.String;
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                )
         );
     }
 

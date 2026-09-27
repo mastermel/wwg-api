@@ -34,8 +34,13 @@ Don't run `dotnet format whitespace`; it fights CSharpier. `dotnet format style`
   generator skips private methods. Every handler takes a `CancellationToken` and passes it on.
 - Every endpoint has `.WithName("{Verb}{Resource}")` (the operationId, and the SDK's function
   name) and `.WithTags(...)`.
-- DTOs are `sealed record`s: `{Verb}{Resource}Request`, `{Resource}Response` /
-  `{Resource}Summary`. Several can share a `{Feature}Dtos.cs` file.
+- DTOs are **`public`** `sealed record`s: `{Verb}{Resource}Request`, `{Resource}Response` /
+  `{Resource}Summary`. Several can share a `{Feature}Dtos.cs` file. They must be public: the
+  validation source generator ignores internal types, and validation then silently never runs.
+- Attributes on positional record parameters use the `property:` target, or OpenAPI misses them:
+  `[property: Trimmed, Required, StringLength(100)] string Name`.
+- `[Trimmed]` trims name-like strings and emails while the JSON is read (before validation).
+  Never on passwords.
 - EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL
   only through the interpolated `FromSql` / `ExecuteSql`.
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.

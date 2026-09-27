@@ -43,3 +43,4 @@ A reversal gets a new entry.
 |---|---|---|
 | [0001](0001-design-review-hardening.md) | Design review: security, correctness and maintainability changes | 2026-09-27 |
 | [0002](0002-single-repo-for-api-and-web.md) | One repository for the API and the React front-end | 2026-09-27 |
+| [0003](0003-request-validation-and-trimming.md) | Public DTOs, property-targeted attributes and opt-in trimming | 2026-09-27 |

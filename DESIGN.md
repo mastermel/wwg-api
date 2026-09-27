@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–3 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–4 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -229,7 +229,8 @@ metadata.
   `AddProblemDetails()` + exception handler + status-code pages, so nothing
   ever returns an HTML or empty error body.
 - **Validation:** DataAnnotations on request records, enforced automatically
-  by .NET 10's `AddValidation()`. Failures return `ValidationProblemDetails`.
+  by .NET 10's `AddValidation()`. Failures return `ValidationProblemDetails`,
+  with error keys in camelCase to match the JSON (`items[0].name`).
   Rules that need the database (e.g. "commander must be a Player in this
   campaign", "email already in use") are checked in the handler and returned in
   the same shape.
@@ -243,6 +244,9 @@ metadata.
 - **Input tidying:** name-like strings (campaign, army, unit, first and last
   names) are **trimmed** before validation and saving. Emails are trimmed;
   case is kept as entered (Identity matches on its normalized form).
+  Trimming is opt-in per property with `[Trimmed]`, which trims while the JSON
+  is read, so validation sees the tidied value. Passwords are never trimmed
+  (decision [0003](docs/decisions/0003-request-validation-and-trimming.md)).
 - Every endpoint has an explicit, stable **name / operationId**
   (`.WithName("GetCampaign")`) and tags. These become Orval's hook names
   (`useGetCampaign`) and its file grouping.
@@ -723,10 +727,13 @@ Format-on-save is recommended.
 - **Visibility:** types are `internal` and `sealed` by default. They're only
   made `public` or unsealed when needed. (.NET 10 generates a `public` `Program`
   class automatically, so the test factory can reach it without declaring one.)
-- **DTOs:** `sealed record`s, named `{Verb}{Resource}Request` and
-  `{Resource}Response` / `{Resource}Summary`.
+- **DTOs:** `public sealed record`s (the validation generator only finds public
+  types), named `{Verb}{Resource}Request` and `{Resource}Response` /
+  `{Resource}Summary`. Attributes on positional parameters use the `property:`
+  target, or OpenAPI misses them (decision 0003).
 - **Endpoints:**
-  - Handlers are static methods returning `Results<…>`.
+  - Handlers are `internal static` methods returning `Results<…>`. Not
+    `private`: the XML comment generator skips private methods.
   - Every handler takes a `CancellationToken` and passes it to EF Core.
     Meziantou flags missed ones.
   - XML doc `<summary>` on each handler; this becomes the OpenAPI description.
@@ -948,7 +955,7 @@ tests passing. Each phase is a good point to stop and review.
      global package references; `BannedSymbols.txt`.
    - Tune rules (suppressions documented in `.editorconfig`).
    - `.vscode/extensions.json`; root and `api/` `CLAUDE.md`.
-4. **Infrastructure**
+4. ✅ **Infrastructure**
    - Problem Details, exception handler, status-code pages.
    - `AddValidation()`; input trimming approach.
    - OpenAPI document + Swagger UI; JSON options (camelCase, enums as strings).
