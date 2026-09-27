@@ -636,6 +636,12 @@ the repo contents. Protecting `main` later just means making the `api` and
 Each Dependabot PR runs the normal PR checks, so an update that breaks the
 build or tests is visible before merging.
 
+Major versions that can't be taken yet (because another tool doesn't support
+them) are **ignore rules** in `dependabot.yml`, each with a comment saying
+why; delete the rule once the blocker is gone. Currently: ESLint 10 (waiting
+on `jsx-a11y`), TypeScript 7 (waiting on typescript-eslint) and
+`@types/node` above the Node version in `web/.nvmrc`.
+
 ### 3.10 Deployment
 
 - Multi-stage `Dockerfile` at the repo root:

@@ -26,6 +26,20 @@ updates:
     directory: /web
     schedule:
       interval: weekly
+    # Majors held back until the tools that depend on them catch up. Review these when they do,
+    # and delete the entry to let Dependabot offer the upgrade again.
+    ignore:
+      # eslint-plugin-jsx-a11y's peer range stops at ESLint 9.
+      - dependency-name: eslint
+        versions: [">=10"]
+      - dependency-name: "@eslint/js"
+        versions: [">=10"]
+      # typescript-eslint supports TypeScript below 6.1.
+      - dependency-name: typescript
+        versions: [">=7"]
+      # The typings must match the Node version the app runs on (web/.nvmrc, Node 24).
+      - dependency-name: "@types/node"
+        versions: [">=25"]
     groups:
       mantine:
         patterns:
