@@ -74,6 +74,16 @@ updates:
           - jsdom
           - msw
 
+  # Base images in the Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # The build's Node must match web/.nvmrc (Node 24).
+      - dependency-name: node
+        versions: [">=25"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
