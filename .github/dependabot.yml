@@ -21,6 +21,45 @@ updates:
         patterns:
           - xunit*
 
+  # npm packages for the front-end.
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      mantine:
+        patterns:
+          - "@mantine/*"
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+      lint-and-format:
+        patterns:
+          - eslint
+          - "@eslint/*"
+          - "eslint-*"
+          - typescript-eslint
+          - globals
+          - prettier
+      vite-and-vitest:
+        patterns:
+          - vite
+          - vitest
+          - "@vitejs/*"
+          - "@vitest/*"
+          - "vite-plugin-*"
+      testing:
+        patterns:
+          - "@testing-library/*"
+          - jsdom
+          - msw
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

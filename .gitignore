@@ -19,6 +19,7 @@ coverage*.xml
 # Node / frontend (web/)
 node_modules/
 dist/
+coverage/
 *.tsbuildinfo
 .vite/
 

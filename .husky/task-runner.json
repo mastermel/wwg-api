@@ -7,6 +7,34 @@
       "command": "dotnet",
       "args": ["csharpier", "format", "${staged}"],
       "include": ["**/*.cs", "**/*.csproj", "**/*.props", "**/*.targets"]
+    },
+    {
+      "name": "web-dependencies",
+      "group": "pre-commit",
+      "command": "bash",
+      "args": [
+        "-c",
+        "test -d web/node_modules || { echo 'web/node_modules is missing: run npm ci in web/'; exit 1; }"
+      ],
+      "include": ["web/**/*"]
+    },
+    {
+      "name": "eslint",
+      "group": "pre-commit",
+      "cwd": "web",
+      "pathMode": "absolute",
+      "command": "npm",
+      "args": ["exec", "--no", "--", "eslint", "--fix", "--no-warn-ignored", "${staged}"],
+      "include": ["web/**/*.ts", "web/**/*.tsx", "web/**/*.js"]
+    },
+    {
+      "name": "prettier",
+      "group": "pre-commit",
+      "cwd": "web",
+      "pathMode": "absolute",
+      "command": "npm",
+      "args": ["exec", "--no", "--", "prettier", "--write", "--ignore-unknown", "${staged}"],
+      "include": ["web/**/*"]
     }
   ]
 }
