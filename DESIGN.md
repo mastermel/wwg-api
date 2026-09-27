@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–2 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–3 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -939,7 +939,7 @@ tests passing. Each phase is a good point to stop and review.
      (xUnit v3 on Microsoft Testing Platform), and a smoke test.
    - `Program.cs` split into `Add…` / `Use…` / `Map…` extension methods.
    - Moved into `api/` for the single-repo layout (decision 0002).
-3. **Code quality tooling** (§4.1)
+3. ✅ **Code quality tooling** (§4.1)
    - Local tool manifest (root) with CSharpier and Husky.Net; format the
      codebase.
    - Pre-commit hook + auto-install target. It covers `api/` now and gets

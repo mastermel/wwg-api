@@ -43,6 +43,10 @@ dotnet run --project api/src/Wwg.Api          # run the API on http://localhost:
 Or run `dotnet build` / `dotnet test` from inside `api/`. Tests use xUnit v3 on
 the Microsoft Testing Platform (enabled in the root `global.json`).
 
+Code is formatted with [CSharpier](https://csharpier.com) (`dotnet csharpier format .`).
+The first build restores the local tools and installs a pre-commit hook
+(Husky.Net) that formats staged files. Set `HUSKY=0` to skip installing it.
+
 ## Repository layout
 
 - `api/`: .NET solution (`Wwg.slnx`) and its shared build config
@@ -50,7 +54,8 @@ the Microsoft Testing Platform (enabled in the root `global.json`).
   - `tests/Wwg.Api.IntegrationTests/`: endpoint-level integration tests
 - `web/`: React front-end (coming in a later step)
 - `docs/`: decision log
-- Root: repo-wide config (`global.json`, `.editorconfig`, `.gitignore`)
+- Root: repo-wide config (`global.json`, `.editorconfig`, `.gitignore`,
+  `.config/dotnet-tools.json`, `.husky/`)
 
 ## License
 
