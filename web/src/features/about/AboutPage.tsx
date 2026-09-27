@@ -28,7 +28,12 @@ export function AboutPage() {
 }
 
 function ApiHealth() {
-  const health = useGetHealth();
+  // Live status: never saved for offline use.
+  const health = useGetHealth({ query: { meta: { persist: false } } });
+
+  if (health.fetchStatus === "paused") {
+    return <Badge color="gray">Offline</Badge>;
+  }
 
   if (health.isPending) {
     return <Loader size="xs" aria-label="Checking the server" />;

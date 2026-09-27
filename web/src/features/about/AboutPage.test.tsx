@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import { onlineManager } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { getGetHealthMockHandler } from "@/api/generated/endpoints/health/health.msw";
@@ -38,6 +39,15 @@ describe("About page", () => {
     await renderApp("/about");
 
     expect(await screen.findByText("Unreachable")).toBeInTheDocument();
+  });
+
+  it("shows the server as offline, without calling it, while the device is offline", async () => {
+    onlineManager.setOnline(false);
+
+    await renderApp("/about");
+
+    expect(await screen.findByText("Offline")).toBeInTheDocument();
+    onlineManager.setOnline(true);
   });
 
   it("has no detectable accessibility problems", async () => {

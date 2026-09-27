@@ -40,13 +40,15 @@ export const theme = createTheme({
 });
 
 /**
- * Mantine's defaults fall just short of AA in two places: dimmed text, and in dark mode, links
- * and light-variant text (4.0–4.1:1 on the dark background). These raise them to 4.6:1 or more.
+ * Mantine's defaults fall short of AA in a few places: dimmed text; in dark mode, links and
+ * light-variant text (4.0–4.1:1 on the dark background); and in light mode, yellow light-variant
+ * text such as the offline banner's title and icon (2.7:1). These raise them to 4.6:1 or more.
  */
 export const cssVariablesResolver: CSSVariablesResolver = (t) => ({
   variables: {},
   light: {
     "--mantine-color-dimmed": t.colors.silver[8],
+    "--mantine-color-yellow-light-color": "#7a5200",
   },
   dark: {
     "--mantine-color-dimmed": t.colors.dark[1],

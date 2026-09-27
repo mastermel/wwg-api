@@ -3,6 +3,7 @@ import { IconInfoCircle, IconSwords, type Icon } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { BrandMark } from "@/components/BrandMark";
 import { InstallHint } from "@/components/InstallHint";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 
 interface NavItem {
@@ -60,6 +61,7 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        <OfflineBanner />
         <InstallHint />
         <Outlet />
       </AppShell.Main>
