@@ -13,8 +13,9 @@ the API's OpenAPI document.
 - **API (`api/`):** .NET 10 / ASP.NET Core Minimal APIs, EF Core with SQLite,
   ASP.NET Core Identity (bearer tokens), OpenAPI + Swagger UI, xUnit
   integration tests with a fresh SQLite database per test
-- **Web (`web/`):** React + TypeScript, with an Orval-generated API client
-  (coming in a later step)
+- **Web (`web/`, WWG Campaigner):** React + TypeScript SPA built with Vite,
+  Mantine, TanStack Router and Query, and an Orval-generated API client;
+  installable as a PWA (coming in step 9)
 - GitHub Actions CI; a single Docker image (API serving the built front-end)
   published to Docker Hub
 
