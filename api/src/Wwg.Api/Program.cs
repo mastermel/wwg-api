@@ -7,7 +7,10 @@ builder.Services.AddApiServices();
 
 var app = builder.Build();
 
-app.InitializeDatabase();
+if (!BuildTime.IsGeneratingOpenApiDocument)
+{
+    app.InitializeDatabase();
+}
 
 app.UseApiPipeline();
 app.MapApiEndpoints();

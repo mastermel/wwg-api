@@ -56,6 +56,12 @@ internal static class OpenApiExtensions
     {
         app.MapOpenApi();
 
+        // Reading the options validates them, and there are no real settings at build time.
+        if (BuildTime.IsGeneratingOpenApiDocument)
+        {
+            return app;
+        }
+
         var appOptions = app.Services.GetRequiredService<IOptions<AppOptions>>().Value;
         if (app.Environment.IsDevelopment() || appOptions.EnableSwaggerUi)
         {
