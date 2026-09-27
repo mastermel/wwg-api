@@ -666,7 +666,7 @@ below.
 
 - Analyzer packages are added to **every project at once** with
   `<GlobalPackageReference>` in `Directory.Packages.props`.
-  `BannedSymbols.txt` sits at the repo root and is shared the same way.
+  `BannedSymbols.txt` sits in `api/` and is shared the same way (via `Directory.Build.props`).
 - **Warnings are errors everywhere**, locally and in CI. There's no
   "warnings are fine locally" mode, so a green local build means a green CI
   build.
@@ -914,7 +914,10 @@ it, which makes the old link stop working. The React app builds the link
 
 None blocking. Items to revisit later:
 
-- Protecting `main`, and which CI option to use then (§3.9).
+- **Front-end design** (before step 9): routing, UI component library,
+  forms and validation, token storage and refresh handling, detecting new
+  deploys, linting/formatting (ESLint, Prettier or Biome), front-end testing,
+  and how front-end screens are sequenced alongside the API steps.
 - Unit details, extra campaign fields.
 - Letting users delete their own account.
 - Real SMTP provider values.
@@ -931,26 +934,27 @@ tests passing. Each phase is a good point to stop and review.
    - Update `README.md`; replace the Node `.gitignore` with a .NET one.
    - Add `global.json`, `.editorconfig`, `Directory.Build.props`,
      `Directory.Packages.props`.
-2. **Scaffold**
-   - `Wwg.slnx`, `src/Wwg.Api` (empty web project), `tests/Wwg.Api.IntegrationTests`
-     (xUnit v3), and a first smoke test so there's something to run before each
-     commit.
-   - `Program.cs` split into small `Add…` / `Map…` extension methods from the
-     start.
+2. ✅ **Scaffold**
+   - `Wwg.slnx`, `Wwg.Api` (empty web project), `Wwg.Api.IntegrationTests`
+     (xUnit v3 on Microsoft Testing Platform), and a smoke test.
+   - `Program.cs` split into `Add…` / `Use…` / `Map…` extension methods.
+   - Moved into `api/` for the single-repo layout (decision 0002).
 3. **Code quality tooling** (§4.1)
-   - Local tool manifest with CSharpier and Husky.Net; format the codebase.
-   - Pre-commit hook + auto-install target.
+   - Local tool manifest (root) with CSharpier and Husky.Net; format the
+     codebase.
+   - Pre-commit hook + auto-install target. It covers `api/` now and gets
+     `web/` tasks in step 9.
    - `AnalysisMode=Recommended`, Meziantou.Analyzer and BannedApiAnalyzers as
      global package references; `BannedSymbols.txt`.
    - Tune rules (suppressions documented in `.editorconfig`).
-   - `.vscode/extensions.json`, `CLAUDE.md`.
+   - `.vscode/extensions.json`; root and `api/` `CLAUDE.md`.
 4. **Infrastructure**
    - Problem Details, exception handler, status-code pages.
    - `AddValidation()`; input trimming approach.
    - OpenAPI document + Swagger UI; JSON options (camelCase, enums as strings).
    - Validated options pattern (§4) used for every settings section from here
-     on.
-   - CORS from config, forwarded headers, `TimeProvider`, `GET /health`.
+     on, starting with `App`.
+   - Forwarded headers, `TimeProvider`, `GET /health`.
 5. **Data layer**
    - `WwgDbContext` (Identity-based, GUID keys), `AppUser` with names.
    - Base entity (GUID v7 id, audit fields), audit interceptor.
@@ -964,25 +968,35 @@ tests passing. Each phase is a good point to stop and review.
    - Fake email service, `FakeTimeProvider`, Problem Details assertions.
    - Convention tests (operationId, tags, `/api` prefix) and the
      pending-migration test.
-   - First tests: `/health` returns healthy; unknown route returns Problem
-     Details 404.
-7. **CI (format check + build + test)**
-   - `ci.yml` running on PRs and pushes to `main`.
-   - `dependabot.yml`.
+   - First tests: `/health` returns healthy; unknown `/api/…` route returns
+     Problem Details 404.
+7. **CI: `api` job**
+   - `ci.yml` running on PRs and pushes to `main`: format check, build, tests.
+   - `dependabot.yml` (NuGet, Actions).
 8. **Contract pipeline**
-   - Build-time `openapi/openapi.json` emit, with the
+   - Build-time `api/openapi.json` emit, with the
      `IsGeneratingOpenApiDocument` guard around startup side effects.
-   - CI commit-back step on `main`; `oasdiff breaking` check on PRs.
-   - Check that Orval generates clean hooks from it (OpenAPI 3.1 check) in a
-     scratch React app, and switch to 3.0 if needed.
+   - CI contract-up-to-date check; `oasdiff breaking` warning on PRs.
+9. **Front-end design & scaffold**
+   - Discuss and record the front-end design (see §6), then:
+   - Create `web/` (Vite + React + TypeScript, npm).
+   - Orval config reading `../api/openapi.json`, generation hooked into the
+     npm scripts, generated folder git-ignored. Check that OpenAPI 3.1 works
+     with Orval, and switch to 3.0 if needed.
+   - Vite dev proxy to the API.
+   - Front-end lint/format tooling, Husky pre-commit tasks for `web/`,
+     `web/CLAUDE.md`.
+   - CI `web` job; Dependabot `npm` entry.
+   - A first page that calls `/health` through the generated client, to prove
+     the whole path works.
 
-**Phase 1 is done when:** a PR runs the format, build, test and
-breaking-change checks in CI, a merge to `main` commits an up-to-date
-`openapi.json`, and Swagger UI shows the health endpoint.
+**Phase 1 is done when:** a PR runs the `api` and `web` jobs in CI (format,
+build, contract check, tests, lint, typecheck), Swagger UI shows the health
+endpoint, and the Vite app shows the API's health through the generated SDK.
 
 ### Phase 2 — Accounts
 
-9. **Auth**
+10. **Auth**
    - Identity with bearer tokens; option overrides (unique email, username
      characters, password rules).
    - Register, login (with lockout), refresh (with all the checks in §3.4).
@@ -991,44 +1005,49 @@ breaking-change checks in CI, a merge to `main` commits an up-to-date
    - Persisted Data Protection keys; Admin sync from config at startup.
    - Test auth helpers, cheap password hashing in tests, and the "every
      endpoint declares an access rule" convention test.
-10. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
+11. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
     fallback, Mailpit dev compose; forgot/reset endpoints with the `email`
     rate limit.
-11. **Account:** `/api/me` get/update, change email (+ notice to old address),
+12. **Account:** `/api/me` get/update, change email (+ notice to old address),
     change password, sign out everywhere.
-12. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
+13. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
 
 ### Phase 3 — Campaigns
 
-13. **Campaigns:** entity + membership, CRUD, paged list.
+14. **Campaigns:** entity + membership, CRUD, paged list.
     `RequireCampaignAccess` endpoint filter + `CampaignContext`. Scenario
     builders and data-driven permission tests.
-14. **Join flow:** join codes, preview/join/regenerate, member list,
+15. **Join flow:** join codes, preview/join/regenerate, member list,
     remove Player, leave (`/members/me`).
-15. **Admin campaigns:** `/api/admin/campaigns` list and set Umpire, including
+16. **Admin campaigns:** `/api/admin/campaigns` list and set Umpire, including
     the umpire-less campaign cases and the user-deletion test.
-16. **Armies:** CRUD, separate commander assign/unassign endpoints and rules,
+17. **Armies:** CRUD, separate commander assign/unassign endpoints and rules,
     list with commanders; member list shows commanded army.
-17. **Units:** create/rename/delete; units visible only to Umpire, Admin and
+18. **Units:** create/rename/delete; units visible only to Umpire, Admin and
     the commander.
 
 ### Phase 4 — Release
 
-18. **Docker:** multi-stage `Dockerfile`, `docker-compose.yml`, volume layout,
-    health check.
-19. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags and
+19. **Docker & SPA hosting:** API serves the SPA (static files, fallback,
+    `/api` 404s, caching and security headers, §3.11); multi-stage
+    `Dockerfile` (node → sdk → runtime), `.dockerignore`,
+    `docker-compose.yml`, volume layout, health check.
+20. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags and
     OCI labels.
-20. **First deploy** to the server with SMTP values filled in. Register the
+21. **First deploy** to the server with SMTP values filled in. Register the
     Admin account, then add it to `Admin:Emails` and restart.
 
 > Docker could move earlier (after Phase 1) if you'd like a deployable image
 > from the start. It doesn't depend on anything in Phases 2–3.
+>
+> **Front-end screens** for Phases 2–3 are sequenced in the front-end design
+> step (step 9). Most likely each API step is followed by its screens, so
+> every feature is usable end to end before the next begins.
 
 ### Before starting: things you'll need to set up
 
-- .NET 10 SDK installed locally (and Docker, for Mailpit).
+- .NET 10 SDK and Node.js 24 installed locally (and Docker, for Mailpit).
+- Rename the GitHub repo to `wwg` (then update the local `origin` remote).
 - Docker Hub: a repository for the image and an access token.
 - GitHub repo: secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` and variable
   `DOCKERHUB_IMAGE` (only needed by Phase 4).
-- GitHub Actions allowed to push: *Settings → Actions → General → Workflow
-  permissions → Read and write* (needed by step 8).

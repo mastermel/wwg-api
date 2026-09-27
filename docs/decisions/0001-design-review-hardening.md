@@ -1,7 +1,7 @@
 # 0001. Design review: security, correctness and maintainability changes
 
 - **Date:** 2026-09-27
-- **Status:** Accepted
+- **Status:** Accepted. The "API contract" part is superseded by [0002](0002-single-repo-for-api-and-web.md).
 
 ## Context
 
