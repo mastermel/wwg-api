@@ -11,6 +11,7 @@
     {
       "name": "web-dependencies",
       "group": "pre-commit",
+      "filteringRule": "staged",
       "command": "bash",
       "args": [
         "-c",
