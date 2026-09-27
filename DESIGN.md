@@ -66,6 +66,7 @@ everything, and manage user accounts.
 | Errors | RFC 9457 Problem Details everywhere |
 | Auth | **ASP.NET Core Identity** (built-in user store, hashing, lockout, bearer tokens) behind **our own thin auth endpoints** |
 | Session validity | Security stamp checked **on every request**, so deleted users and password changes take effect immediately |
+| Session tokens | Access token (30 min) **in memory**; refresh token (30 days, sliding) in an **`HttpOnly` cookie** scoped to `/api/auth` |
 | Password policy | Minimum 8 characters, no forced character classes |
 | Rate limiting | Built-in ASP.NET Core rate limiter on auth endpoints, per client IP |
 | Roles | Site-wide **Admin**. Per-campaign **Umpire** (at most one) and **Player** |
@@ -289,7 +290,8 @@ Identity has two layers:
 **Details:**
 
 - **Sign-up:** email, password, first name, last name. No email confirmation.
-  A successful sign-up returns tokens, so the user is logged in straight away.
+  A successful sign-up signs the user in straight away (access token +
+  refresh cookie).
   The Identity `UserName` is kept equal to the email.
 - **Identity options that must change from the defaults:**
   - `User.RequireUniqueEmail = true` (default is `false`).
@@ -297,14 +299,34 @@ Identity has two layers:
     email addresses such as `o'brien@example.com`, and since the username *is*
     the email, email format is validated separately.
   - Password rules per §2.
-- **Tokens:** login returns an access token and a refresh token (Identity's
-  bearer scheme). The SPA sends `Authorization: Bearer …` and calls `/refresh`
-  when the access token expires. These are *opaque* tokens protected by
-  ASP.NET Data Protection, not JWTs.
+- **Tokens** (decision
+  [0004](docs/decisions/0004-refresh-token-in-httponly-cookie.md)): Identity's
+  bearer scheme issues an access token and a refresh token. These are
+  *opaque* tokens protected by ASP.NET Data Protection, not JWTs.
+  - The **access token** is returned in the response body and kept **in
+    memory** by the SPA, which sends `Authorization: Bearer …`. Lifetime
+    **30 minutes**.
+  - The **refresh token** never reaches JavaScript. It's set as a cookie,
+    `__Secure-wwg-refresh`, with `HttpOnly; Secure; SameSite=Strict;
+    Path=/api/auth`, so injected script can't steal it. Lifetime **30 days,
+    sliding**: every refresh issues a new refresh token and cookie, so a
+    session lasts as long as the app is used at least once every 30 days.
+  - Every response that signs someone in (register, login, refresh, change
+    password, change email) returns `{ accessToken, expiresIn }` and sets the
+    cookie.
+  - **CSRF:** the cookie is only sent to `/api/auth/*` and only on same-site
+    requests (`SameSite=Strict`), and the refresh response can't be read
+    cross-origin, so no antiforgery token is needed for the supported
+    browsers.
+  - Old refresh tokens stay valid until they expire (they aren't stored
+    server-side). That's also why several tabs refreshing at once don't
+    conflict. The security stamp (below) is what revokes them.
+  - In development, Chrome accepts `Secure` cookies on `http://localhost`;
+    Safari may not, so Safari is tested against HTTPS.
+  - Swagger UI's **Authorize** button takes the access token from a login
+    response.
   - **Data Protection keys are persisted** to the mounted volume. Otherwise
     every container restart would log everyone out.
-  - **Access token lifetime: 30 minutes**; refresh token lifetime: 14 days
-    (Identity default).
 - **Security stamp checked on every request.** By default, bearer access tokens
   aren't checked against the database, so a deleted user or changed password
   would keep working until the token expired. A deleted user could even cause
@@ -317,16 +339,21 @@ Identity has two layers:
   - Deletion, password change, email change and "sign out everywhere"
     therefore take effect **immediately**.
 - **Refresh endpoint.** Because we don't use `MapIdentityApi`, our `/refresh`
-  must do everything its version does:
-  1. Unprotect the token with the bearer scheme's `RefreshTokenProtector`.
+  must do everything its version does, reading the token from the cookie:
+  1. Unprotect the token with the bearer scheme's `RefreshTokenProtector`
+     (a missing cookie is a 401).
   2. Reject it if `ExpiresUtc` has passed, using `TimeProvider`.
   3. Validate the security stamp; reject if the user is gone or the stamp
      changed.
-  4. Issue a new token pair.
+  4. Issue a new token pair: the access token in the body, the refresh token
+     in a fresh cookie.
 
   Each rejection path has its own integration test.
 - **Logout:** opaque bearer tokens can't be revoked individually.
-  - Normal logout is client-side: the SPA discards its tokens.
+  - Normal logout is `POST /api/auth/logout`, which expires the refresh
+    cookie (script can't delete an `HttpOnly` cookie), and the SPA drops its
+    access token. An access token already issued keeps working until it
+    expires (at most 30 minutes).
   - `POST /api/me/sign-out-everywhere` rotates the security stamp, which
     immediately invalidates every access and refresh token for that user.
 - **Password reset:**
@@ -905,9 +932,10 @@ it, which makes the old link stop working. The React app builds the link
 
 | Method | Route | Purpose |
 |---|---|---|
-| POST | `/api/auth/register` | Sign up (email, password, first, last) → tokens |
-| POST | `/api/auth/login` | Email + password → tokens |
-| POST | `/api/auth/refresh` | Refresh token → new tokens |
+| POST | `/api/auth/register` | Sign up (email, password, first, last) → access token + refresh cookie |
+| POST | `/api/auth/login` | Email + password → access token + refresh cookie |
+| POST | `/api/auth/refresh` | Refresh cookie → new access token + refresh cookie |
+| POST | `/api/auth/logout` | Expire the refresh cookie |
 | POST | `/api/auth/forgot-password` | Send reset email (always 200) |
 | POST | `/api/auth/reset-password` | Email + code + new password |
 
@@ -1053,16 +1081,17 @@ endpoint, and the Vite app shows the API's health through the generated SDK.
 
 10. **Auth**
    - Identity with bearer tokens; option overrides (unique email, username
-     characters, password rules).
-   - Register, login (with lockout), refresh (with all the checks in §3.4).
+     characters, password rules); token lifetimes (30 minutes / 30 days).
+   - Register, login (with lockout), refresh (with all the checks in §3.4),
+     logout. Refresh token in the `HttpOnly` cookie (decision 0004).
    - Per-request security stamp validation; fallback auth policy.
    - Rate limiting (`auth` policy).
    - Persisted Data Protection keys; Admin sync from config at startup.
    - Test auth helpers, cheap password hashing in tests, and the "every
      endpoint declares an access rule" convention test.
 11. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
-    fallback, fake email service for tests, Mailpit dev compose; forgot/reset endpoints with the `email`
-    rate limit.
+    fallback, fake email service for tests, Mailpit dev compose;
+    forgot/reset endpoints with the `email` rate limit.
 12. **Account:** `/api/me` get/update, change email (+ notice to old address),
     change password, sign out everywhere.
 13. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
