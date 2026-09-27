@@ -45,6 +45,18 @@ See **[docs/development.md](docs/development.md)** for the full guide: running,
 the development database, the checks to run before committing, and editor
 setup (Neovim, VS Code).
 
+## Deployment
+
+A single image, [`mastermel/wwg`](https://hub.docker.com/r/mastermel/wwg)
+(linux/amd64 and linux/arm64), is built and pushed by CI on every push to
+`main`: the API serving the built web app on port 8080, with its SQLite
+database in the `/data` volume. See [DESIGN.md §3.10](DESIGN.md) for how
+production runs it.
+
+```sh
+docker build -t wwg .   # build the image locally
+```
+
 ## Repository layout
 
 - `api/`: .NET solution (`Wwg.slnx`) and its shared build config

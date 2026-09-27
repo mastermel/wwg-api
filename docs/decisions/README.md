@@ -46,3 +46,4 @@ A reversal gets a new entry.
 | [0003](0003-request-validation-and-trimming.md) | Public DTOs, property-targeted attributes and opt-in trimming | 2026-09-27 |
 | [0004](0004-refresh-token-in-httponly-cookie.md) | Refresh token in an HttpOnly cookie, access token in memory | 2026-09-27 |
 | [0005](0005-front-end-stack.md) | Front-end stack: Mantine, TanStack Router/Query, installable PWA | 2026-09-27 |
+| [0006](0006-deploy-after-phase-1.md) | Deploy after Phase 1, on Komodo, before building accounts | 2026-09-27 |

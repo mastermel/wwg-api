@@ -1,7 +1,8 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 built (steps 1–9). It's complete once
-> CI's `web` job has run green on GitHub.
+> **Status:** Phase 1 done (steps 1–9). Deploying now (steps 19–21, moved
+> ahead of Phase 2 by decision
+> [0006](docs/decisions/0006-deploy-after-phase-1.md)); Phase 2 next.
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -644,11 +645,25 @@ on `jsx-a11y`), TypeScript 7 (waiting on typescript-eslint) and
 
 ### 3.10 Deployment
 
+**Production (decision [0006](docs/decisions/0006-deploy-after-phase-1.md)):**
+`https://wasatchwargamers.org`, a Docker Compose stack managed by Komodo on
+the home server "roach" (arm64), defined in that server's config repo
+(`roach/sync/stacks/wwg`). The image is `mastermel/wwg` on Docker Hub, built
+for amd64 and arm64. The shared `traefik` network is pinned to
+`172.21.0.0/16` in the Komodo compose, and the stack sets
+`ForwardedHeaders__KnownNetworks__0` to it.
+
 - Multi-stage `Dockerfile` at the repo root:
   1. **`node` stage:** `npm ci` + `npm run build` in `web/` → `web/dist/`.
   2. **`sdk` stage:** `dotnet publish` the API.
-  3. **Runtime stage:** `aspnet` image, non-root user. It contains the
-     published API with the front-end build copied into its `wwwroot/`.
+  3. **Runtime stage:** `aspnet:10.0-noble-chiseled-extra` (non-root UID
+     1654, no shell, ICU and tzdata). It contains the published API with the
+     front-end build copied into its `wwwroot/`.
+  - The node and sdk stages run on the build machine's platform and
+    cross-compile (`dotnet publish -a $TARGETARCH`); the runtime stage only
+    copies, so arm64 builds on x64 without emulation. The build-time
+    OpenAPI emit is off in the image build (it runs the app, which can't
+    run cross-compiled; CI checks the committed contract).
 - `.dockerignore` keeps `node_modules`, `bin/`, `obj/`, test output and local
   databases out of the build context.
 - One volume mounted at `/data` holding the SQLite DB and the Data Protection
@@ -675,10 +690,9 @@ on `jsx-a11y`), TypeScript 7 (waiting on typescript-eslint) and
     alone. If another proxy or CDN (e.g. Cloudflare) is ever put in front,
     Traefik's `forwardedHeaders.trustedIPs` and the app's forward limit both
     need adjusting.
-- **Health checks:** the runtime image has no `curl`, so the Docker
-  `HEALTHCHECK` can't just curl `/health`; the approach is chosen in step 19
-  (e.g. a small check mode built into the app). Traefik can also health-check
-  `/health` itself.
+- **Health checks:** the runtime image has no `curl`, so the app has a
+  check mode: `Wwg.Api --health-check` calls `GET /health` on localhost and
+  exits 0 or 1. The image's `HEALTHCHECK` runs it.
 - `docker-compose.yml` for running it on the server, with the Traefik labels,
   the shared network and the `/data` volume. Updating means pulling the new
   `latest` (or a specific `vYYYYMMdd.HHmmss`) and restarting.
@@ -1366,22 +1380,22 @@ generated SDK, and the app installs as a PWA and opens offline.
 
 ### Phase 4 — Release
 
-19. **Docker & SPA hosting:** API serves the SPA (static files, fallback,
+19. ✅ **Docker & SPA hosting:** API serves the SPA (static files, fallback,
     `/api` 404s, caching and security headers, §3.11); multi-stage
     `Dockerfile` (node → sdk → runtime), `.dockerignore`,
     `docker-compose.yml` for Traefik (labels, shared network with a fixed
     subnet, no published ports), volume layout, health check (§3.10). The
     CSP and PWA caching rules in §3.11; the node stage copies in
     `api/openapi.json` for Orval.
-20. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmmss` tags and
+20. ✅ **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmmss` tags and
     OCI labels. The version tag is also passed into the image build, for the
     app's About page.
 21. **First deploy** to the server behind Traefik, with the SMTP values and
     `ForwardedHeaders__KnownNetworks__0` (the shared network's subnet) filled
     in. Register the Admin account, then add it to `Admin:Emails` and restart.
 
-> Docker could move earlier (after Phase 1) if you'd like a deployable image
-> from the start. It doesn't depend on anything in Phases 2–3.
+> Steps 19–21 were done right after Phase 1 (decision 0006), so Phases 2–3
+> ship to a running deployment.
 >
 > **Each API step in Phases 2–3 ships with its screens**, so every feature is
 > usable end to end before the next begins.
