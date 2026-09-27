@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "generate": "orval",
+    "generate": "orval && tsr generate",
     "prepare": "npm run generate",
     "predev": "npm run generate",
     "dev": "vite",
@@ -26,7 +26,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@mantine/core": "^9.6.3",
+    "@mantine/hooks": "^9.6.3",
+    "@mantine/notifications": "^9.6.3",
+    "@tabler/icons-react": "^3.48.0",
     "@tanstack/react-query": "^5.104.0",
+    "@tanstack/react-router": "^1.170.40",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"
@@ -34,6 +39,10 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@faker-js/faker": "^10.6.0",
+    "@tanstack/eslint-plugin-query": "^5.104.0",
+    "@tanstack/eslint-plugin-router": "^1.162.0",
+    "@tanstack/router-cli": "^1.167.39",
+    "@tanstack/router-plugin": "^1.168.41",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -42,6 +51,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "axe-core": "^4.13.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -51,6 +61,9 @@
     "jsdom": "^29.1.1",
     "msw": "^2.15.0",
     "orval": "^8.38.0",
+    "postcss": "^8.5.28",
+    "postcss-preset-mantine": "^1.18.0",
+    "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.9.9",
     "typescript": "~6.0",
     "typescript-eslint": "^8.70.1",

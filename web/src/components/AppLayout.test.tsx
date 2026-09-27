@@ -1,0 +1,31 @@
+import { screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { renderApp } from "@/test/render";
+
+describe("app layout and routing", () => {
+  it("sends the start page to the campaign list", async () => {
+    await renderApp("/");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Campaigns" })).toBeInTheDocument();
+    expect(document.title).toBe("Campaigns · WWG Campaigner");
+  });
+
+  it("shows a not-found page for an unknown address", async () => {
+    await renderApp("/no-such-page");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Page not found" }),
+    ).toBeInTheDocument();
+  });
+
+  it("marks the current page in the navigation", async () => {
+    await renderApp("/campaigns");
+    await screen.findByRole("heading", { level: 1, name: "Campaigns" });
+
+    const sidebar = screen.getByRole("navigation", { name: "Main" });
+    expect(within(sidebar).getByRole("link", { name: "Campaigns" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+});
