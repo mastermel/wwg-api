@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The browser paints its default background in the OS scheme before any CSS loads. -->
+    <meta name="color-scheme" content="light dark" />
+    <!-- Blocking on purpose: it must run before the first paint. -->
+    <script src="/color-scheme.js"></script>
     <title>WWG Campaigner</title>
   </head>
   <body>

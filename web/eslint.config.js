@@ -42,6 +42,11 @@ export default defineConfig([
     extends: [js.configs.recommended, tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },
+  {
+    // Plain scripts served as-is to the browser.
+    files: ["public/**/*.js"],
+    languageOptions: { globals: globals.browser, sourceType: "script" },
+  },
   // Last: turn off rules that would fight Prettier's formatting.
   prettier,
 ]);

@@ -63,7 +63,8 @@ export function AppLayout() {
               component={Link}
               to={item.to}
               aria-current={isActive(item.to) ? "page" : undefined}
-              c={isActive(item.to) ? "var(--mantine-primary-color-filled)" : "dimmed"}
+              // The anchor colour meets AA in both schemes; the filled primary is too dark on dark.
+              c={isActive(item.to) ? "var(--mantine-color-anchor)" : "dimmed"}
               h="100%"
               style={{
                 display: "flex",
