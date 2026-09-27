@@ -596,14 +596,35 @@ build or tests is visible before merging.
   databases out of the build context.
 - One volume mounted at `/data` holding the SQLite DB and the Data Protection
   keys.
-- TLS is handled by a reverse proxy in front of the container (e.g. Caddy).
+- **Reverse proxy: Traefik**, also running in Docker on the server.
+  - Traefik terminates TLS (and sets HSTS). The container serves plain HTTP on
+    port 8080 (the .NET image default). The app doesn't use
+    `UseHttpsRedirection`, which could loop behind the proxy.
+  - The app joins a Docker network shared with Traefik and is routed by
+    Docker labels. It publishes **no ports**, so it's only reachable through
+    Traefik.
+  - The shared network gets a **fixed subnet** in the compose file, so the
+    trusted-network setting below stays stable when containers restart.
+  - **One replica only:** SQLite is single-writer.
 - **Forwarded headers:** `UseForwardedHeaders` (for `X-Forwarded-For` and
-  `X-Forwarded-Proto`), trusting only the proxy's address or network, which
-  is configurable. Without this, every request appears to come from the proxy,
-  which breaks per-IP rate limiting, and generated URLs (`Location` headers)
-  use `http://`.
-- `docker-compose.yml` for running it on the server. Updating means pulling the
-  new `latest` (or a specific `vYYYYMMdd.HHmm`) and restarting.
+  `X-Forwarded-Proto`), trusting loopback plus the configured proxies
+  (`ForwardedHeaders:KnownProxies` / `KnownNetworks`). Behind Traefik, trust
+  the shared network's subnet (e.g.
+  `ForwardedHeaders__KnownNetworks__0=172.20.0.0/16`), not Traefik's IP,
+  which can change. Without this, every request appears to come from the
+  proxy, which breaks per-IP rate limiting, and generated URLs (`Location`
+  headers) use `http://`.
+  - Only the last hop is read (forward limit 1), which is right with Traefik
+    alone. If another proxy or CDN (e.g. Cloudflare) is ever put in front,
+    Traefik's `forwardedHeaders.trustedIPs` and the app's forward limit both
+    need adjusting.
+- **Health checks:** the runtime image has no `curl`, so the Docker
+  `HEALTHCHECK` can't just curl `/health`; the approach is chosen in step 19
+  (e.g. a small check mode built into the app). Traefik can also health-check
+  `/health` itself.
+- `docker-compose.yml` for running it on the server, with the Traefik labels,
+  the shared network and the `/data` volume. Updating means pulling the new
+  `latest` (or a specific `vYYYYMMdd.HHmm`) and restarting.
 - Production configuration comes from environment variables:
   `ConnectionStrings__Default`, `Smtp__*`, `Admin__Emails__0…`,
   `App__PublicUrl`, `ForwardedHeaders__*`.
@@ -1038,11 +1059,13 @@ endpoint, and the Vite app shows the API's health through the generated SDK.
 19. **Docker & SPA hosting:** API serves the SPA (static files, fallback,
     `/api` 404s, caching and security headers, §3.11); multi-stage
     `Dockerfile` (node → sdk → runtime), `.dockerignore`,
-    `docker-compose.yml`, volume layout, health check.
+    `docker-compose.yml` for Traefik (labels, shared network with a fixed
+    subnet, no published ports), volume layout, health check (§3.10).
 20. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags and
     OCI labels.
-21. **First deploy** to the server with SMTP values filled in. Register the
-    Admin account, then add it to `Admin:Emails` and restart.
+21. **First deploy** to the server behind Traefik, with the SMTP values and
+    `ForwardedHeaders__KnownNetworks__0` (the shared network's subnet) filled
+    in. Register the Admin account, then add it to `Admin:Emails` and restart.
 
 > Docker could move earlier (after Phase 1) if you'd like a deployable image
 > from the start. It doesn't depend on anything in Phases 2–3.
