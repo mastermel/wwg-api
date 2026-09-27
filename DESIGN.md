@@ -1,6 +1,10 @@
 # wwg-api — Design & Implementation Plan
 
-> **Status:** Design agreed; ready to start Phase 1. Nothing is built yet.
+> **Status:** Design agreed; Phase 1 in progress (step 1 done).
+>
+> This document describes the design **as it currently stands**. The reasons
+> for significant changes are recorded in the decision log,
+> [`docs/decisions/`](docs/decisions/README.md).
 > **Last updated:** 2026-09-27
 
 ## 1. Context
@@ -15,9 +19,8 @@ Players can see who is in the campaign and which Armies exist, but only see the
 Units of the Army they command. A site-wide **Admin** can see and edit
 everything, and manage user accounts.
 
-> Note: the repo was first created (2023) as a planned *GraphQL* API with a Node
-> `.gitignore`. That direction is replaced by this plan: a **.NET 10 REST API**.
-> The README and `.gitignore` will be updated to match.
+> Note: the repo was first created (2023) as a planned *GraphQL* API. That
+> direction was replaced by this plan: a **.NET 10 REST API**.
 
 ### Goals
 
@@ -87,7 +90,10 @@ wwg-api/
 ├── .husky/                      # pre-commit hook config
 ├── .vscode/extensions.json      # recommended editor extensions
 ├── CLAUDE.md                    # conventions summary for AI-assisted work
-├── .github/workflows/ci.yml
+├── .github/
+│   ├── workflows/ci.yml
+│   └── dependabot.yml
+├── docs/decisions/              # decision log (one short file per decision)
 ├── openapi/
 │   └── openapi.json             # generated at build time, committed
 ├── src/
@@ -865,52 +871,69 @@ tests passing. Each phase is a good point to stop and review.
    - `.vscode/extensions.json`, `CLAUDE.md`.
 4. **Infrastructure**
    - Problem Details, exception handler, status-code pages.
-   - `AddValidation()`.
+   - `AddValidation()`; input trimming approach.
    - OpenAPI document + Swagger UI; JSON options (camelCase, enums as strings).
-   - CORS from config, `TimeProvider`, `GET /health`.
+   - Validated options pattern (§4) used for every settings section from here
+     on.
+   - CORS from config, forwarded headers, `TimeProvider`, `GET /health`.
 5. **Data layer**
    - `WwgDbContext` (Identity-based, GUID keys), `AppUser` with names.
    - Base entity (GUID v7 id, audit fields), audit interceptor.
+   - Conventions: UTC `DateTime` converter, `NOCASE` on searchable text.
+   - Unique-constraint → 409 mapping.
    - SQLite connection setup (WAL), migrate-on-startup flag.
    - Initial migration (Identity tables).
 6. **Test harness**
-   - `WebApplicationFactory` with per-test in-memory SQLite + migrations.
-   - Fake email sender, `FakeTimeProvider`, Problem Details assertions.
+   - `WebApplicationFactory` with a migrated template DB cloned per test
+     (`BackupDatabase`).
+   - Fake email service, `FakeTimeProvider`, Problem Details assertions.
+   - Convention tests (operationId, tags, `/api` prefix) and the
+     pending-migration test.
    - First tests: `/health` returns healthy; unknown route returns Problem
      Details 404.
 7. **CI (format check + build + test)**
    - `ci.yml` running on PRs and pushes to `main`.
+   - `dependabot.yml`.
 8. **Contract pipeline**
-   - Build-time `openapi/openapi.json` emit.
-   - CI commit-back step on `main`.
+   - Build-time `openapi/openapi.json` emit, with the
+     `IsGeneratingOpenApiDocument` guard around startup side effects.
+   - CI commit-back step on `main`; `oasdiff breaking` check on PRs.
    - Check that Orval generates clean hooks from it (OpenAPI 3.1 check) in a
      scratch React app, and switch to 3.0 if needed.
 
-**Phase 1 is done when:** a PR runs the format check and tests in CI, a merge
-to `main` commits an up-to-date `openapi.json`, and Swagger UI shows the health
-endpoint.
+**Phase 1 is done when:** a PR runs the format, build, test and
+breaking-change checks in CI, a merge to `main` commits an up-to-date
+`openapi.json`, and Swagger UI shows the health endpoint.
 
 ### Phase 2 — Accounts
 
-9. **Auth:** Identity with bearer tokens and password rules; register, login,
-   refresh; fallback auth policy; persisted Data Protection keys; Admin
-   seeding from config; test auth helpers.
+9. **Auth**
+   - Identity with bearer tokens; option overrides (unique email, username
+     characters, password rules).
+   - Register, login (with lockout), refresh (with all the checks in §3.4).
+   - Per-request security stamp validation; fallback auth policy.
+   - Rate limiting (`auth` policy).
+   - Persisted Data Protection keys; Admin sync from config at startup.
+   - Test auth helpers, cheap password hashing in tests, and the "every
+     endpoint declares an access rule" convention test.
 10. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
-    fallback, Mailpit dev compose; forgot/reset endpoints.
+    fallback, Mailpit dev compose; forgot/reset endpoints with the `email`
+    rate limit.
 11. **Account:** `/api/me` get/update, change email (+ notice to old address),
-    change password.
-12. **Admin users:** list/search, details, delete (not self).
+    change password, sign out everywhere.
+12. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
 
 ### Phase 3 — Campaigns
 
-13. **Campaigns:** entity + membership, CRUD, `CampaignAccess` service,
-    `?all=true` for Admins, scenario builders for tests.
+13. **Campaigns:** entity + membership, CRUD, paged list.
+    `RequireCampaignAccess` endpoint filter + `CampaignContext`. Scenario
+    builders and data-driven permission tests.
 14. **Join flow:** join codes, preview/join/regenerate, member list,
-    leave/remove.
-15. **Set Umpire (Admin)** and the umpire-less campaign cases, including the
-    user-deletion test.
-16. **Armies:** CRUD, commander assignment rules, list with commanders, member
-    list shows commanded army.
+    remove Player, leave (`/members/me`).
+15. **Admin campaigns:** `/api/admin/campaigns` list and set Umpire, including
+    the umpire-less campaign cases and the user-deletion test.
+16. **Armies:** CRUD, separate commander assign/unassign endpoints and rules,
+    list with commanders; member list shows commanded army.
 17. **Units:** create/rename/delete; units visible only to Umpire, Admin and
     the commander.
 
@@ -918,8 +941,10 @@ endpoint.
 
 18. **Docker:** multi-stage `Dockerfile`, `docker-compose.yml`, volume layout,
     health check.
-19. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags.
-20. **First deploy** to the server with SMTP values filled in.
+19. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags and
+    OCI labels.
+20. **First deploy** to the server with SMTP values filled in. Register the
+    Admin account, then add it to `Admin:Emails` and restart.
 
 > Docker could move earlier (after Phase 1) if you'd like a deployable image
 > from the start. It doesn't depend on anything in Phases 2–3.
