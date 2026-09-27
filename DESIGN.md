@@ -1,7 +1,7 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–8 and 9.1–9.3
-> done).
+> **Status:** Design agreed; Phase 1 built (steps 1–9). It's complete once
+> CI's `web` job has run green on GitHub.
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -870,7 +870,17 @@ web/
   icons). It never caches API responses. Its navigation fallback excludes
   `/api`, `/openapi`, `/swagger` and `/health`.
 - New deploys: the service worker shows an **"Update available, reload"**
-  prompt. This is how the app detects a new deploy (§3.7).
+  prompt. This is how the app detects a new deploy (§3.7). On a first visit
+  no worker controls the page yet, so Reload simply reloads.
+- The manifest icons, maskable icon, Apple touch icon and favicon are
+  generated from `web/public/app-icon.svg` at build time; no PNGs are
+  committed. The precache globs don't include `*.webmanifest`: the plugin
+  adds the manifest itself, and listing it twice makes Workbox refuse to
+  install.
+- TanStack Query assumes it starts online, so the app seeds its online
+  state from `navigator.onLine` at start-up. Pages render data through a
+  shared `QueryState` component, which shows saved data even when a refetch
+  fails, and "not available offline" when there's nothing saved.
 - Manifest: name **WWG Campaigner**, short name **WWG**, navy theme colour,
   standalone display.
 - A small, dismissible install hint. iOS has no install prompt, so there it
@@ -1295,7 +1305,7 @@ tests passing. Each phase is a good point to stop and review.
       `AppShell` with sidebar / bottom tabs; error boundary and 404 page;
       Vite dev proxy. An About page that shows the API's health through the
       generated hook, with a test.
-   4. **PWA:** `vite-plugin-pwa` (manifest, app-shell service worker, update
+   4. ✅ **PWA:** `vite-plugin-pwa` (manifest, app-shell service worker, update
       prompt, install hint), the app icon, the persisted query cache and
       offline banner, and the version on the About page.
 

@@ -48,6 +48,20 @@ dotnet watch --project api/src/Wwg.Api     # or: dotnet run --project api/src/Ww
 npm run dev --prefix web
 ```
 
+### Trying the PWA
+
+The service worker (offline shell, update prompt) only runs in a production build, not under
+`npm run dev`:
+
+```sh
+npm run build --prefix web && npm run preview --prefix web   # http://localhost:4173
+```
+
+`APP_VERSION=v-test npm run build --prefix web` sets the version shown on the About page; building
+again with a different value while the preview is open triggers the update prompt. To start
+clean, remove the service worker and site data in the browser's dev tools (Application tab in
+Chrome).
+
 ### Development database
 
 The API uses SQLite at `api/src/Wwg.Api/wwg.db` (git-ignored), created and migrated on start-up.

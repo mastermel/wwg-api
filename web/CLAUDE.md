@@ -27,5 +27,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Tests sit next to the code as `*.test.ts(x)`, using Testing Library queries by role/label (how a
   user finds things), not CSS selectors or test IDs.
 - Prettier owns formatting (line width 100). Don't hand-format.
+- Page data goes through `QueryState` (loading / error / "not available offline", and saved data
+  wins over a failed refetch). Wrap each page in `Page`, which sets the title and focus.
+- Queries that must not be saved for offline use (live status, admin data such as the user list)
+  pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and
   a single `h1`.
