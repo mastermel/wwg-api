@@ -2,6 +2,7 @@ import { AppShell, Group, NavLink, Text, UnstyledButton } from "@mantine/core";
 import { IconInfoCircle, IconSwords, type Icon } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { BrandMark } from "@/components/BrandMark";
+import { InstallHint } from "@/components/InstallHint";
 import { UpdatePrompt } from "@/components/UpdatePrompt";
 
 interface NavItem {
@@ -59,6 +60,7 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
+        <InstallHint />
         <Outlet />
       </AppShell.Main>
 
