@@ -19,6 +19,7 @@ internal static class AuthExtensions
     public static IServiceCollection AddAuth(this IServiceCollection services)
     {
         services.AddValidatedOptions<AuthOptions>(AuthOptions.SectionName);
+        services.AddValidatedOptions<AdminOptions>(AdminOptions.SectionName);
 
         services
             .AddIdentityCore<AppUser>(options =>

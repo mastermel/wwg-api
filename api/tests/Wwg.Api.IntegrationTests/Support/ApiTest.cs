@@ -1,9 +1,12 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Wwg.Api.Data;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Auth;
+using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.IntegrationTests.Support;
 
@@ -55,6 +58,37 @@ public abstract class ApiTest : IAsyncDisposable
         email ??= $"user{Interlocked.Increment(ref _userCount)}@example.com";
         var client = CreateClient();
         using var response = await RegisterAsync(client, email);
+        response.EnsureSuccessStatusCode();
+        var token = await response.Content.ReadFromJsonAsync<TokenResponse>(CancellationToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            token?.AccessToken
+        );
+        return client;
+    }
+
+    /// <summary>
+    /// A signed-in Admin. Registers, grants the role directly (what the startup sync does for a
+    /// listed email), then signs in again so the token carries the role.
+    /// </summary>
+    protected async Task<HttpClient> CreateAdminClientAsync(string email = "admin@example.com")
+    {
+        (await CreateUserClientAsync(email)).Dispose();
+        await using (var scope = App.Services.CreateAsyncScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var user =
+                await users.FindByEmailAsync(email)
+                ?? throw new InvalidOperationException("The admin didn't register.");
+            (await users.AddToRoleAsync(user, Roles.Admin)).EnsureSucceeded();
+        }
+
+        var client = CreateClient();
+        using var response = await client.PostAsJsonAsync(
+            new Uri("/api/auth/login", UriKind.Relative),
+            new LoginRequest(email, TestPassword),
+            CancellationToken
+        );
         response.EnsureSuccessStatusCode();
         var token = await response.Content.ReadFromJsonAsync<TokenResponse>(CancellationToken);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(

@@ -1,5 +1,6 @@
 using Wwg.Api.Features;
 using Wwg.Api.Infrastructure;
+using Wwg.Api.Infrastructure.Auth;
 
 if (args.Contains(HealthCheckCommand.Argument, StringComparer.Ordinal))
 {
@@ -15,6 +16,7 @@ var app = builder.Build();
 if (!BuildTime.IsGeneratingOpenApiDocument)
 {
     app.InitializeDatabase();
+    await app.SyncAdminsAsync();
 }
 
 app.UseApiPipeline();
