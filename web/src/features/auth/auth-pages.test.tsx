@@ -94,6 +94,65 @@ describe("sign-in", () => {
   });
 });
 
+describe("register", () => {
+  async function fillIn(email = "mel@example.com") {
+    const user = userEvent.setup();
+    await user.type(await screen.findByRole("textbox", { name: "First name" }), "Mel");
+    await user.type(screen.getByRole("textbox", { name: "Last name" }), "Green");
+    await user.type(screen.getByRole("textbox", { name: "Email" }), email);
+    await user.type(screen.getByLabelText(/^Password/), "correct horse battery");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+  }
+
+  it("creates the account, signs in and opens the app", async () => {
+    server.use(
+      http.post("*/api/auth/register", () =>
+        HttpResponse.json({ accessToken: `token-for-${testUser.id}`, expiresIn: 1800 }),
+      ),
+    );
+    await renderApp("/register", { session: "signed-out" });
+
+    await fillIn();
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Campaigns" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mel" })).toBeInTheDocument();
+  });
+
+  it("says so on the email field when the email is taken", async () => {
+    server.use(
+      http.post("*/api/auth/register", () => problem(409, { title: "Email already in use" })),
+    );
+    await renderApp("/register", { session: "signed-out" });
+
+    await fillIn();
+
+    expect(
+      await screen.findByText("An account with this email already exists."),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the API's validation errors on their fields", async () => {
+    server.use(
+      http.post("*/api/auth/register", () =>
+        problem(400, { errors: { password: ["Passwords must be at least 8 characters."] } }),
+      ),
+    );
+    await renderApp("/register", { session: "signed-out" });
+
+    await fillIn();
+
+    expect(await screen.findByText("Passwords must be at least 8 characters.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("has no detectable accessibility problems", async () => {
+    const { container } = await renderApp("/register", { session: "signed-out" });
+    await screen.findByRole("heading", { level: 1, name: "Create an account" });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe("signing out", () => {
   it("signs out from the user menu and returns to sign-in", async () => {
     const { calls } = await renderApp("/campaigns");

@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Alert, Button, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
-import { useRouter } from "@tanstack/react-router";
+import { Alert, Anchor, Button, PasswordInput, Stack, Text, TextInput } from "@mantine/core";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -78,6 +78,12 @@ export function SignInPage({ redirect }: { redirect?: string | undefined }) {
           )}
         </Stack>
       </form>
+      <Text size="sm">
+        New here?{" "}
+        <Anchor renderRoot={(props) => <Link to="/register" search={{ redirect }} {...props} />}>
+          Create an account
+        </Anchor>
+      </Text>
     </Page>
   );
 }
