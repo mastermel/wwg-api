@@ -51,9 +51,11 @@ everything, and manage user accounts.
 | Validation | **Built-in .NET 10 validation** (`AddValidation()` + DataAnnotations) |
 | Errors | RFC 9457 Problem Details everywhere |
 | Auth | **ASP.NET Core Identity** (built-in user store, hashing, lockout, bearer tokens) behind **our own thin auth endpoints** |
+| Session validity | Security stamp checked **on every request**, so deleted users and password changes take effect immediately |
 | Password policy | Minimum 8 characters, no forced character classes |
+| Rate limiting | Built-in ASP.NET Core rate limiter on auth endpoints, per client IP |
 | Roles | Site-wide **Admin**. Per-campaign **Umpire** (at most one) and **Player** |
-| First admin | Emails listed in config are made Admin automatically |
+| Admins | `Admin:Emails` config is the full list, **synced at startup only** (register first, then add to config) |
 | Email | Password reset (and email-change notice) sent through **generic SMTP** (MailKit) |
 | API contract | Built-in `Microsoft.AspNetCore.OpenApi`, emitted at build time |
 | API docs UI | Swagger UI over the generated OpenAPI document |
@@ -207,18 +209,44 @@ Identity has two layers:
 - **Sign-up:** email, password, first name, last name. No email confirmation.
   A successful sign-up returns tokens, so the user is logged in straight away.
   The Identity `UserName` is kept equal to the email.
+- **Identity options that must change from the defaults:**
+  - `User.RequireUniqueEmail = true` (default is `false`).
+  - `User.AllowedUserNameCharacters = ""`. The default list rejects valid
+    email addresses such as `o'brien@example.com`, and since the username *is*
+    the email, email format is validated separately.
+  - Password rules per §2.
 - **Tokens:** login returns an access token and a refresh token (Identity's
   bearer scheme). The SPA sends `Authorization: Bearer …` and calls `/refresh`
   when the access token expires. These are *opaque* tokens protected by
   ASP.NET Data Protection, not JWTs.
   - **Data Protection keys are persisted** to the mounted volume. Otherwise
     every container restart would log everyone out.
-  - **Access token lifetime: 30 minutes** (Identity's default is 1 hour).
-    Access tokens aren't checked against the database on each request, so a
-    deleted user or a changed password only takes full effect when the current
-    access token expires. A shorter lifetime narrows that window. Refresh
-    tokens *are* checked against the user's security stamp, so they stop
-    working immediately.
+  - **Access token lifetime: 30 minutes**; refresh token lifetime: 14 days
+    (Identity default).
+- **Security stamp checked on every request.** By default, bearer access tokens
+  aren't checked against the database, so a deleted user or changed password
+  would keep working until the token expired. A deleted user could even cause
+  a 500, e.g. creating a campaign that references a user row that no longer
+  exists.
+  - After authentication, a small middleware calls
+    `SignInManager.ValidateSecurityStampAsync(principal)`. That's one indexed
+    lookup per request.
+  - If the user is gone or the stamp has changed, the request gets a 401.
+  - Deletion, password change, email change and "sign out everywhere"
+    therefore take effect **immediately**.
+- **Refresh endpoint.** Because we don't use `MapIdentityApi`, our `/refresh`
+  must do everything its version does:
+  1. Unprotect the token with the bearer scheme's `RefreshTokenProtector`.
+  2. Reject it if `ExpiresUtc` has passed, using `TimeProvider`.
+  3. Validate the security stamp; reject if the user is gone or the stamp
+     changed.
+  4. Issue a new token pair.
+
+  Each rejection path has its own integration test.
+- **Logout:** opaque bearer tokens can't be revoked individually.
+  - Normal logout is client-side: the SPA discards its tokens.
+  - `POST /api/me/sign-out-everywhere` rotates the security stamp, which
+    immediately invalidates every access and refresh token for that user.
 - **Password reset:**
   1. `POST /api/auth/forgot-password { email }` always returns 200, whether or
      not the account exists, so the endpoint can't be used to find out which
@@ -235,7 +263,20 @@ Identity has two layers:
   confirmation step, which matches sign-up. As a safeguard against account
   takeover, a **notice is sent to the old address**. Like a password change,
   it signs out other sessions and returns new tokens.
-- **Lockout** after repeated failed logins (Identity defaults).
+- **Lockout** after repeated failed logins (Identity defaults: 5 attempts, 5
+  minutes). This only applies if login calls `PasswordSignInAsync(…,
+  lockoutOnFailure: true)`, so that's a tested requirement.
+- **Rate limiting** (`AddRateLimiter`), partitioned by client IP. Needs the
+  real client IP behind the proxy (§3.10).
+  - `auth` policy: login, register, refresh (e.g. 10 requests/minute).
+  - `email` policy: forgot-password (e.g. 3 requests per 15 minutes). This
+    prevents using us to spam someone's inbox or run up SMTP costs.
+  - Rejected requests get **429** Problem Details.
+  - Limits are configurable, and set very high in the test factory so they
+    don't interfere, with dedicated tests for the limits themselves.
+- **Account enumeration:** forgot-password never reveals whether an email
+  exists. Sign-up and change-email necessarily do ("email already in use");
+  that's accepted, and the rate limits make mass probing impractical.
 - Endpoints require sign-in by default (fallback policy). Anonymous endpoints
   opt out explicitly.
 - The OpenAPI document declares the bearer security scheme, so Swagger UI's
@@ -243,10 +284,17 @@ Identity has two layers:
 
 ### 3.5 Authorization
 
-- **Admin** is an Identity role. On startup and at sign-up, any user whose email
-  is listed in `Admin:Emails` gets the Admin role. There's no endpoint to grant
-  or remove Admin; config is the only source. Admins pass every campaign
-  permission check.
+- **Admin** is an Identity role. Admins pass every campaign permission check.
+  - **`Admin:Emails` is the full list of Admins, synced at startup only.** On
+    startup, every existing account whose email is listed gets the Admin
+    role, and every Admin whose email is *not* listed loses it.
+  - Promotion **never** happens at sign-up or on email change. Since emails
+    aren't verified, promoting at sign-up would let anyone who registers a
+    listed address first become Admin.
+  - Operating procedure: **register the account first, then add its email to
+    config and restart.** If someone else had already registered that address,
+    registration fails and you'd know before granting anything.
+  - There's no endpoint to grant or remove Admin.
 - **Campaign roles** come from the `CampaignMember` row (§5.1), not Identity
   roles.
 - A single `CampaignAccess` service loads the caller's relationship to a
@@ -378,6 +426,11 @@ blocked. Options at that point:
 - One volume mounted at `/data` holding the SQLite DB and the Data Protection
   keys.
 - TLS is handled by a reverse proxy in front of the container (e.g. Caddy).
+- **Forwarded headers:** `UseForwardedHeaders` (for `X-Forwarded-For` and
+  `X-Forwarded-Proto`), trusting only the proxy's address or network, which
+  is configurable. Without this, every request appears to come from the proxy,
+  which breaks per-IP rate limiting, and generated URLs (`Location` headers)
+  use `http://`.
 - `docker-compose.yml` for running it on the server. Updating means pulling the
   new `latest` (or a specific `vYYYYMMdd.HHmm`) and restarting.
 - Production configuration comes from environment variables:
@@ -613,6 +666,7 @@ it, which makes the old link stop working. The React app builds the link
 | PUT | `/api/me` | Update first/last name |
 | PUT | `/api/me/email` | Change email (needs current password) → new tokens |
 | PUT | `/api/me/password` | Change password (needs current password) → new tokens |
+| POST | `/api/me/sign-out-everywhere` | Rotate security stamp; all tokens stop working |
 
 **Admin** (Admin only)
 
