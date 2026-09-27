@@ -1,12 +1,10 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Wwg.Api.IntegrationTests;
 
-public sealed class OpenApiTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class OpenApiTests(WwgApiFactory factory) : IClassFixture<WwgApiFactory>
 {
     [Fact]
     public async Task GetDocument_Always_DescribesTheApiWithoutServers()

@@ -1,12 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Wwg.Api.IntegrationTests;
 
-public sealed class ErrorHandlingTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ErrorHandlingTests(WwgApiFactory factory) : IClassFixture<WwgApiFactory>
 {
     [Fact]
     public async Task Get_UnknownApiRoute_ReturnsProblemDetails404()

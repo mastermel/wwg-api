@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Options;
 
 namespace Wwg.Api.IntegrationTests;
@@ -44,8 +43,9 @@ public sealed class ConfigurationValidationTests
 
     private static OptionsValidationException StartupException(Action<IWebHostBuilder> configure)
     {
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(configure);
+        using var factory = new WwgApiFactory();
+        using var configured = factory.WithWebHostBuilder(configure);
 
-        return Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        return Assert.Throws<OptionsValidationException>(() => configured.CreateClient());
     }
 }

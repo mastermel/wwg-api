@@ -7,6 +7,8 @@ builder.Services.AddApiServices();
 
 var app = builder.Build();
 
+app.InitializeDatabase();
+
 app.UseApiPipeline();
 app.MapApiEndpoints();
 

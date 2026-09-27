@@ -1,11 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Wwg.Api.IntegrationTests;
 
-public sealed class HealthTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public sealed class HealthTests(WwgApiFactory factory) : IClassFixture<WwgApiFactory>
 {
     [Fact]
     public async Task GetHealth_AllChecksPass_ReturnsHealthy()

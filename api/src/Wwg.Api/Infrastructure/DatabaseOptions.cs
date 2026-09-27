@@ -16,4 +16,10 @@ internal sealed class DatabaseOptions
     /// </summary>
     [Required(ErrorMessage = "ConnectionStrings:Default is required.")]
     public string? ConnectionString { get; set; }
+
+    /// <summary>
+    /// Apply pending migrations at startup (safe with a single instance). Turn off to migrate
+    /// by hand instead.
+    /// </summary>
+    public bool MigrateOnStartup { get; set; } = true;
 }
