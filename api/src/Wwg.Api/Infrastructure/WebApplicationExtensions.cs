@@ -8,6 +8,7 @@ internal static class WebApplicationExtensions
         // First, so everything after sees the real client IP and scheme.
         app.UseForwardedHeaders();
         app.UseErrorHandling();
+        app.MapApiDocument();
 
         return app;
     }

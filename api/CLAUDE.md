@@ -29,8 +29,11 @@ Don't run `dotnet format whitespace`; it fights CSharpier. `dotnet format style`
 - Types are `internal sealed` by default; only make them `public` or unsealed when needed.
 - Feature folders under `src/Wwg.Api/Features/`. Each feature exposes one
   `Map{Feature}Endpoints(this IEndpointRouteBuilder)`, called from `MapApiEndpoints`.
-- Handlers are static methods (not lambdas) returning `Results<…>`, with an XML `<summary>` (it
-  becomes the OpenAPI description). Every handler takes a `CancellationToken` and passes it on.
+- Handlers are `internal static` methods (not lambdas) returning `Results<…>`, with an XML
+  `<summary>`, which becomes the OpenAPI summary. They can't be `private`: the XML comment
+  generator skips private methods. Every handler takes a `CancellationToken` and passes it on.
+- Every endpoint has `.WithName("{Verb}{Resource}")` (the operationId, and the SDK's function
+  name) and `.WithTags(...)`.
 - DTOs are `sealed record`s: `{Verb}{Resource}Request`, `{Resource}Response` /
   `{Resource}Summary`. Several can share a `{Feature}Dtos.cs` file.
 - EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL

@@ -7,7 +7,12 @@ internal static class ServiceCollectionExtensions
     {
         services.AddValidatedOptions<AppOptions>(AppOptions.SectionName);
         services.AddSingleton(TimeProvider.System);
+        services.AddHealthChecks();
 
-        return services.AddErrorHandling().AddJsonOptions().AddTrustedForwardedHeaders();
+        return services
+            .AddErrorHandling()
+            .AddJsonOptions()
+            .AddTrustedForwardedHeaders()
+            .AddApiDocument();
     }
 }
