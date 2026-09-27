@@ -1,6 +1,8 @@
+import { getAccessToken, refreshAccessToken } from "@/lib/access-token";
+
 /**
- * The one fetch function every generated API call goes through (Orval's "mutator").
- * The access token and 401 refresh handling are added with sign-in (step 10).
+ * The one fetch function every generated API call goes through (Orval's "mutator"). It adds the
+ * access token, and after a 401 refreshes once (shared with any other callers) and retries.
  */
 
 /** RFC 9457 Problem Details, as every API error returns (validation errors add `errors`). */
@@ -34,9 +36,15 @@ export class ApiError<TBody = unknown> extends Error {
 export type ErrorType<TBody> = ApiError<TBody>;
 
 export async function apiFetch<T>(url: string, init: RequestInit): Promise<T> {
-  // Always same-origin. Resolving against the page's origin also makes relative URLs work in
-  // tests, where fetch doesn't know the page's address.
-  const response = await fetch(new URL(url, window.location.origin), init);
+  let response = await send(url, init);
+
+  // The auth endpoints answer 401 for their own reasons (wrong password, session over).
+  if (response.status === 401 && !url.startsWith("/api/auth/")) {
+    if ((await refreshAccessToken()) === "refreshed") {
+      response = await send(url, init);
+    }
+  }
+
   const body = await readBody(response);
 
   if (!response.ok) {
@@ -46,6 +54,18 @@ export async function apiFetch<T>(url: string, init: RequestInit): Promise<T> {
 
   // The generated caller supplies T from the OpenAPI document; the body is trusted to match.
   return body as T;
+}
+
+function send(url: string, init: RequestInit) {
+  const headers = new Headers(init.headers);
+  const token = getAccessToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  // Always same-origin. Resolving against the page's origin also makes relative URLs work in
+  // tests, where fetch doesn't know the page's address.
+  return fetch(new URL(url, window.location.origin), { ...init, headers });
 }
 
 async function readBody(response: Response): Promise<unknown> {
