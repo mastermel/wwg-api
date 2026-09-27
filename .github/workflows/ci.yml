@@ -10,10 +10,12 @@ on:
 permissions:
   contents: read
 
-# A new push to the same PR or branch cancels the run it replaces.
+# One run at a time per PR or branch. On PRs a new push cancels the run in progress. On main,
+# runs queue instead: every commit gets a result, and an image push is never cut off. GitHub keeps
+# at most one waiting run, and a newer push replaces it, so the latest commit is built last.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   DOTNET_NOLOGO: true
