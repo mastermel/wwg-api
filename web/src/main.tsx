@@ -6,6 +6,8 @@ import { AppProviders } from "@/app/AppProviders";
 import { createQueryClient } from "@/app/query-client";
 import { persistOptions } from "@/app/query-persistence";
 import { createAppRouter } from "@/app/router";
+import { SessionProvider } from "@/features/auth/SessionProvider";
+import { createSessionStore } from "@/features/auth/session-store";
 
 const root = document.getElementById("root");
 if (!root) {
@@ -17,12 +19,19 @@ if (!root) {
 onlineManager.setOnline(navigator.onLine);
 
 const queryClient = createQueryClient();
-const router = createAppRouter();
+const session = createSessionStore({
+  queryClient,
+  clearSavedData: () => Promise.resolve(persistOptions.persister.removeClient()),
+});
+void session.start();
+const router = createAppRouter(session);
 
 createRoot(root).render(
   <StrictMode>
     <AppProviders queryClient={queryClient} persistOptions={persistOptions}>
-      <RouterProvider router={router} />
+      <SessionProvider store={session}>
+        <RouterProvider router={router} />
+      </SessionProvider>
     </AppProviders>
   </StrictMode>,
 );

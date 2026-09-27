@@ -1,9 +1,16 @@
 import { createRouter, type RouterHistory } from "@tanstack/react-router";
+import type { SessionStore } from "@/features/auth/session-store";
 import { routeTree } from "@/routeTree.gen";
 
-export function createAppRouter(history?: RouterHistory) {
+/** What every route's beforeLoad can use. */
+export interface RouterContext {
+  session: SessionStore;
+}
+
+export function createAppRouter(session: SessionStore, history?: RouterHistory) {
   return createRouter({
     routeTree,
+    context: { session },
     defaultPreload: "intent",
     scrollRestoration: true,
     ...(history ? { history } : {}),

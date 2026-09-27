@@ -1,10 +1,16 @@
-import { AppShell, Group, NavLink, Text, UnstyledButton } from "@mantine/core";
-import { IconInfoCircle, IconSwords, type Icon } from "@tabler/icons-react";
+import { AppShell, Button, Group, Menu, NavLink, Text, UnstyledButton } from "@mantine/core";
+import {
+  IconChevronDown,
+  IconInfoCircle,
+  IconLogout,
+  IconSwords,
+  type Icon,
+} from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { BrandMark } from "@/components/BrandMark";
 import { InstallHint } from "@/components/InstallHint";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { useSession, useSessionStore } from "@/features/auth/session-context";
 
 interface NavItem {
   to: "/campaigns" | "/about";
@@ -24,6 +30,8 @@ const navItems: NavItem[] = [
  */
 export function AppLayout() {
   const matchRoute = useMatchRoute();
+  const session = useSessionStore();
+  const { user } = useSession();
   const isActive = (to: NavItem["to"]) => Boolean(matchRoute({ to, fuzzy: true }));
 
   return (
@@ -34,7 +42,7 @@ export function AppLayout() {
       padding="lg"
     >
       <AppShell.Header px="lg">
-        <Group h="100%">
+        <Group h="100%" justify="space-between" wrap="nowrap">
           <UnstyledButton component={Link} to="/" aria-label="WWG Campaigner, start page">
             <Group gap="xs">
               <BrandMark size={32} />
@@ -43,6 +51,26 @@ export function AppLayout() {
               </Text>
             </Group>
           </UnstyledButton>
+          {user && (
+            <Menu position="bottom-end">
+              <Menu.Target>
+                <Button variant="subtle" rightSection={<IconChevronDown size={16} aria-hidden />}>
+                  {user.firstName}
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>
+                  {user.firstName} {user.lastName}
+                </Menu.Label>
+                <Menu.Item
+                  leftSection={<IconLogout size={16} aria-hidden />}
+                  onClick={() => void session.signOut()}
+                >
+                  Sign out
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          )}
         </Group>
       </AppShell.Header>
 
@@ -92,8 +120,6 @@ export function AppLayout() {
           ))}
         </Group>
       </AppShell.Footer>
-
-      <UpdatePrompt />
     </AppShell>
   );
 }

@@ -1,10 +1,11 @@
-import { createRootRoute } from "@tanstack/react-router";
-import { AppLayout } from "@/components/AppLayout";
+import { createRootRouteWithContext } from "@tanstack/react-router";
+import type { RouterContext } from "@/app/router";
 import { ErrorPage } from "@/components/ErrorPage";
 import { NotFoundPage } from "@/components/NotFoundPage";
+import { RootLayout } from "@/components/RootLayout";
 
-export const Route = createRootRoute({
-  component: AppLayout,
+export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootLayout,
   notFoundComponent: NotFoundPage,
   errorComponent: ErrorPage,
 });
