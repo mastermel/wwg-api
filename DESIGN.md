@@ -325,12 +325,26 @@ Identity has two layers:
   - There's no endpoint to grant or remove Admin.
 - **Campaign roles** come from the `CampaignMember` row (§5.1), not Identity
   roles.
-- A single `CampaignAccess` service loads the caller's relationship to a
-  campaign (Admin / Umpire / Player / none) and answers questions like
-  `CanView`, `CanManage` and `CanViewUnits(army)`. Every handler calls it, so
-  the rules in §5.2 live in one place and are covered by integration tests.
-- Queries that return lists apply the same rules in the query itself, rather
-  than filtering in memory.
+- **Permissions are declared on each endpoint, not left to each handler to
+  remember.** Handlers that must remember to call an access check are one
+  forgotten line away from a security hole. Instead:
+  - Each campaign-scoped endpoint declares its minimum access, e.g.
+    `.RequireCampaignAccess(CampaignAccess.Member)` or
+    `.RequireCampaignAccess(CampaignAccess.Umpire)`.
+  - A shared **endpoint filter** resolves the campaign from the route. That
+    means `{campaignId}` directly, or via `{armyId}` / `{unitId}` with one
+    small query. It loads the caller's relationship (Admin / Umpire / Player /
+    none), applies the 404-vs-403 rule (§3.3), and then puts a
+    `CampaignContext` (campaign ID, caller's role, member ID) in the request
+    for the handler to use.
+  - Rules that depend on the specific row, like "Players may only view units
+    of the army they command", are checked in the handler against
+    `CampaignContext`. There are few of these, and each has a permission test.
+  - Queries that return lists apply the same rules in the query itself, rather
+    than filtering in memory.
+- **Every endpoint must declare its access rule.** A convention test (§3.8)
+  fails if any endpoint has none of: `AllowAnonymous`, `AdminOnly`,
+  `RequireCampaignAccess`, or an explicit "any signed-in user" marker.
 - **All admin-only actions live under `/api/admin`**, and an `AdminOnly`
   policy is applied once to that route group. There are no admin-only query
   parameters or one-off admin routes elsewhere.
@@ -398,11 +412,20 @@ Identity has two layers:
 
 - **xUnit v3** + `WebApplicationFactory<Program>`, hosting the real app
   in-process. Tests use `HttpClient` exactly like a real client.
-- **Fresh database per test:** each test creates its own SQLite **in-memory**
+- **Fresh database per test:** each test gets its own SQLite **in-memory**
   database (a `SqliteConnection` held open for the test's lifetime), and the
-  factory swaps the `DbContext` registration to use it. The schema is created by
-  **running the real migrations**, so migrations are tested too. No shared
-  state, so tests can run in parallel.
+  factory swaps the `DbContext` registration to use it. No shared state, so
+  tests can run in parallel.
+- **Migrations run once, then get copied.** Running every migration for
+  every test gets slower as migrations pile up. Instead:
+  - Once per test run, the **real migrations** are applied to a *template*
+    in-memory database, so migrations are still tested.
+  - Each test gets a copy made with SQLite's `BackupDatabase`, which takes
+    milliseconds.
+- **Faster password hashing in tests only.** Identity's hasher uses 100,000
+  PBKDF2 iterations on purpose, and permission tests create several users
+  each. The test factory lowers `PasswordHasherOptions.IterationCount` (e.g.
+  to 1). Production keeps the default.
 - Test helpers:
   - `CreateUserClientAsync(…)`: signs up a user through the real
     `/api/auth/register` endpoint and returns a client with the bearer token.
@@ -417,6 +440,30 @@ Identity has two layers:
 - Every endpoint gets tests for: happy path, validation failure, not found,
   unauthenticated (401), and **each role in the permission matrix (§5.2)**:
   Admin, Umpire, commanding Player, other Player, non-member.
+- **Permission tests are data-driven, to mirror §5.2.** Each action has one
+  `[Theory]`, with a row per role and the expected status:
+
+  ```csharp
+  [Theory]
+  [InlineData(Role.Admin, 200)]
+  [InlineData(Role.Umpire, 200)]
+  [InlineData(Role.Commander, 403)]
+  [InlineData(Role.OtherPlayer, 403)]
+  [InlineData(Role.NonMember, 404)]
+  public async Task RenameArmy_ByRole_ReturnsExpectedStatus(Role role, int expected)
+  ```
+
+  A change to the permission table in this document maps directly to a change
+  in the tests.
+- **Convention tests** check the whole app's endpoint list
+  (`EndpointDataSource`), so rules hold without relying on review. They fail
+  if any endpoint:
+  - declares no access rule (§3.5);
+  - has no name (operationId) or tag, which the SDK depends on;
+  - isn't under `/api` (except `/health` and the OpenAPI/Swagger routes).
+- **Pending-migration test:** fails if `DbContext.Database.HasPendingModelChanges()`
+  is true, i.e. someone changed an entity or configuration but didn't add a
+  migration.
 
 ### 3.9 CI/CD (GitHub Actions)
 
@@ -449,6 +496,20 @@ One workflow, `.github/workflows/ci.yml`:
    from secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` (a Docker Hub access
    token, not the account password).
 
+   The image carries standard **OCI labels** (`org.opencontainers.image.revision`
+   = git SHA, `.created`, `.source`, `.version`), generated by
+   `docker/metadata-action`. Any running image can then be traced back to its
+   exact commit (`docker inspect`).
+
+**Dependency updates:** `.github/dependabot.yml` opens weekly PRs for:
+- NuGet packages (Dependabot understands `Directory.Packages.props`), grouped
+  so related packages (e.g. all `Microsoft.*`, EF Core) arrive together;
+- GitHub Actions versions;
+- the Docker base images in `Dockerfile`.
+
+Each Dependabot PR runs the normal PR checks, so an update that breaks the
+build or tests is visible before merging.
+
 **Later, when `main` is protected:** the bot's direct push in step 2 will be
 blocked. Options at that point:
 - Allow the Actions bot to bypass the rule, or push with a GitHub App token.
@@ -478,7 +539,7 @@ blocked. Options at that point:
 | Concern | Approach |
 |---|---|
 | Logging | Built-in `ILogger`, structured JSON console logs in production |
-| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev |
+| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`Smtp`, `Frontend`, `Admin`, `Cors`, `Auth`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. `Frontend:BaseUrl` is required outside development |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
 | Code quality | See §4.1 |
