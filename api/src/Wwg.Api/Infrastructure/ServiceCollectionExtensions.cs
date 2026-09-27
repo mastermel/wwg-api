@@ -14,6 +14,7 @@ internal static class ServiceCollectionExtensions
             .AddErrorHandling()
             .AddJsonOptions()
             .AddTrustedForwardedHeaders()
-            .AddApiDocument();
+            .AddApiDocument()
+            .AddDatabase();
     }
 }

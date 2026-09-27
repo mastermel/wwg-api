@@ -22,6 +22,16 @@ public sealed class ConfigurationValidationTests
         Assert.Contains("absolute http or https", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Startup_ConnectionStringMissing_Fails()
+    {
+        var exception = StartupException(builder =>
+            builder.UseSetting("ConnectionStrings:Default", "")
+        );
+
+        Assert.Contains("ConnectionStrings:Default", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("ForwardedHeaders:KnownProxies:0", "not-an-ip")]
     [InlineData("ForwardedHeaders:KnownNetworks:0", "10.0.0.0")]
