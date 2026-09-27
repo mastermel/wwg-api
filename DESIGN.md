@@ -260,8 +260,13 @@ Identity has two layers:
 
 ### 3.6 Email
 
-- Our own `IEmailSender` abstraction. The production implementation uses
-  **MailKit** (`System.Net.Mail.SmtpClient` is not recommended for new code).
+- Our own small `IEmailService` abstraction (roughly
+  `SendAsync(EmailMessage, CancellationToken)`). It's deliberately not named
+  `IEmailSender`, to avoid confusion with Identity's `IEmailSender<TUser>`,
+  which doesn't fit our emails (e.g. the email-changed notice).
+- The production implementation uses **MailKit**. `System.Net.Mail.SmtpClient`
+  is discouraged by Microsoft for new code, can't do implicit TLS (port 465),
+  and has no OAuth2 support.
 - Emails sent: **password reset link**, **email-changed notice** (to the old
   address).
 - Settings are bound from config section `Smtp` and validated at startup:
@@ -433,7 +438,7 @@ below.
 |---|---|---|
 | `DateTime.Now` / `UtcNow`, `DateTimeOffset.Now` / `UtcNow` | Injected `TimeProvider` | Testable time (§4) |
 | `Guid.NewGuid()` | `Guid.CreateVersion7()` | Time-ordered IDs (§3.2) |
-| `System.Net.Mail.SmtpClient` | `IEmailSender` (MailKit) | §3.6 |
+| `System.Net.Mail.SmtpClient` | `IEmailService` (MailKit) | §3.6 |
 | `System.Console` | `ILogger<T>` | Structured logging |
 | `Task.Result`, `Task.Wait()`, `Thread.Sleep` | `await`, `Task.Delay` | No sync-over-async |
 | `DatabaseFacade.EnsureCreated()` | Migrations | Tests must run the real migrations (§3.8) |
@@ -713,7 +718,7 @@ endpoint.
 9. **Auth:** Identity with bearer tokens and password rules; register, login,
    refresh; fallback auth policy; persisted Data Protection keys; Admin
    seeding from config; test auth helpers.
-10. **Email & password reset:** `IEmailSender`, MailKit SMTP + logging
+10. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
     fallback, Mailpit dev compose; forgot/reset endpoints.
 11. **Account:** `/api/me` get/update, change email (+ notice to old address),
     change password.
