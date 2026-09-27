@@ -63,6 +63,9 @@ everything, and manage user accounts.
 | CD | On push to `main` only: commit updated `openapi.json`, push image to **Docker Hub** |
 | Image tags | `latest` and `vYYYYMMdd.HHmm` (UTC) |
 | Hosting | Docker on a VPS/home server, SQLite file on a mounted volume |
+| Formatting | **CSharpier** (automatic, near-zero config) |
+| Analyzers | Built-in .NET analyzers at **Recommended**, + **Meziantou.Analyzer**, + **BannedApiAnalyzers** |
+| Enforcement | Warnings fail the build; **Husky.Net** pre-commit hook formats staged files; CI checks formatting |
 
 ## 3. Architecture
 
@@ -73,8 +76,14 @@ wwg-api/
 ├── Wwg.slnx
 ├── global.json                  # pins .NET 10 SDK
 ├── Directory.Build.props        # nullable, warnings-as-errors, analyzers
-├── Directory.Packages.props     # central package versions
-├── .editorconfig
+├── Directory.Packages.props     # central package versions + global analyzers
+├── Directory.Build.targets      # auto-installs the Husky.Net git hook
+├── BannedSymbols.txt            # APIs that must not be used (§4.1)
+├── .editorconfig                # style rules + analyzer tuning
+├── .config/dotnet-tools.json    # local tools: CSharpier, Husky.Net, dotnet-ef
+├── .husky/                      # pre-commit hook config
+├── .vscode/extensions.json      # recommended editor extensions
+├── CLAUDE.md                    # conventions summary for AI-assisted work
 ├── .github/workflows/ci.yml
 ├── openapi/
 │   └── openapi.json             # generated at build time, committed
@@ -330,10 +339,12 @@ One workflow, `.github/workflows/ci.yml`:
 | Push to `main` | ✅ | ✅ | ✅ |
 | Manual (`workflow_dispatch`) on `main` | ✅ | ✅ | ✅ |
 
-1. **Build & test:** set up .NET 10, restore, build (Release), run all
-   integration tests. The build also regenerates `openapi/openapi.json`. **If
-   any test fails, the workflow fails and nothing later runs.** On PRs this is
-   the whole run, and it shows as a pass/fail check on the PR.
+1. **Build & test:** set up .NET 10, restore tools, check formatting
+   (`dotnet csharpier check .`), build (Release, so any analyzer warning fails
+   it), and run all integration tests. The build also regenerates
+   `openapi/openapi.json`. **If any check fails, the workflow fails and nothing
+   later runs.** On PRs this is the whole run, and it shows as a pass/fail
+   check on the PR.
 2. **Commit the contract** (`main` only): if `openapi/openapi.json` changed,
    commit it as `github-actions[bot]` with message
    `chore: update openapi.json [skip ci]`, rebase onto the latest `main`, and
@@ -376,8 +387,109 @@ blocked. Options at that point:
 | Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
-| Code quality | Nullable enabled, warnings as errors, `dotnet format` check in CI |
+| Code quality | See §4.1 |
 | Packages | Central package management (`Directory.Packages.props`) |
+
+### 4.1 Code style, linting & conventions
+
+The aim: formatting is never discussed, and most rules are enforced by the
+compiler rather than by review. Anything a tool can't check is written down
+below.
+
+**Layers:**
+
+| Layer | Tool | What it does | Where it runs |
+|---|---|---|---|
+| Formatting | **CSharpier** (local dotnet tool) | Rewrites layout/whitespace into one canonical form. Nothing to configure beyond line width (100) | Editor on save, pre-commit hook, CI check |
+| Code style | `.editorconfig` + `EnforceCodeStyleInBuild` | Naming, file-scoped namespaces, unused usings, `var`, modern syntax | Build (a few rules fail the build; the rest are editor suggestions) |
+| Quality & bugs | Built-in .NET analyzers, `AnalysisMode=Recommended` | Reliability, security, performance, API-usage rules | Build |
+| Practical pitfalls | **Meziantou.Analyzer** | Pass `CancellationToken`s through, explicit string comparison/culture, async misuse, common API mistakes | Build |
+| Design decisions | **BannedApiAnalyzers** + `BannedSymbols.txt` | Makes calls that go against this design fail to compile, with a message saying what to use instead | Build |
+| Nullability | `<Nullable>enable</Nullable>` + warnings as errors | Null-safety across the codebase | Build |
+
+- Analyzer packages are added to **every project at once** with
+  `<GlobalPackageReference>` in `Directory.Packages.props`.
+  `BannedSymbols.txt` sits at the repo root and is shared the same way.
+- **Warnings are errors everywhere**, locally and in CI. There's no
+  "warnings are fine locally" mode, so a green local build means a green CI
+  build.
+- **Rule tuning:** every rule that is switched off or lowered goes in
+  `.editorconfig` with a one-line comment saying why. Expected starting
+  suppressions:
+  - `MA0004` (`ConfigureAwait(false)`): ASP.NET Core has no synchronization
+    context, so this is noise.
+  - `MA0048` (file name must match type name): allows several small DTO
+    records in one `{Feature}Dtos.cs` file.
+  - Any `CA` rules from `Recommended` that don't fit a web API. These get
+    decided during setup, not in advance.
+- **Formatting vs. `dotnet format`:** CSharpier owns layout. `dotnet format`
+  is still useful locally to auto-fix style and analyzer issues
+  (`dotnet format style`, `dotnet format analyzers`), but we don't run its
+  `whitespace` mode, which would fight CSharpier.
+
+**Banned APIs** (initial `BannedSymbols.txt`):
+
+| Banned | Use instead | Why |
+|---|---|---|
+| `DateTime.Now` / `UtcNow`, `DateTimeOffset.Now` / `UtcNow` | Injected `TimeProvider` | Testable time (§4) |
+| `Guid.NewGuid()` | `Guid.CreateVersion7()` | Time-ordered IDs (§3.2) |
+| `System.Net.Mail.SmtpClient` | `IEmailSender` (MailKit) | §3.6 |
+| `System.Console` | `ILogger<T>` | Structured logging |
+| `Task.Result`, `Task.Wait()`, `Thread.Sleep` | `await`, `Task.Delay` | No sync-over-async |
+| `DatabaseFacade.EnsureCreated()` | Migrations | Tests must run the real migrations (§3.8) |
+| `FromSqlRaw`, `ExecuteSqlRaw` | `FromSql`, `ExecuteSql` (interpolated, parameterized) | SQL injection safety |
+
+A test that truly needs a banned API (rare) uses a `#pragma warning disable`
+with a comment saying why.
+
+**Pre-commit hook (Husky.Net):**
+
+- Husky.Net is a .NET local tool, so no Node is needed. Its config lives in
+  `.husky/` and is committed.
+- **pre-commit:** runs CSharpier on the staged `.cs` files and re-stages
+  them. It deliberately doesn't build or test; that would make every commit
+  slow, and CI covers it.
+  - Caveat: if a file is only *partly* staged, re-staging it also stages the
+    rest of that file's changes.
+- Installed automatically: an MSBuild target runs `dotnet husky install` on
+  restore, so a fresh clone gets the hook on its first build. It's skipped
+  when `CI=true`.
+- Hooks can be bypassed with `git commit --no-verify` in an emergency. CI
+  still catches unformatted code.
+
+**Editor setup:** `.vscode/extensions.json` recommends C# Dev Kit and the
+CSharpier extension. CSharpier also has plugins for Rider and Visual Studio.
+Format-on-save is recommended.
+
+**Conventions (not tool-enforced):**
+
+- **Visibility:** types are `internal` and `sealed` by default. They're only
+  made `public` or unsealed when needed. (`Program` is `public partial` so the
+  test factory can reach it.)
+- **DTOs:** `sealed record`s, named `{Verb}{Resource}Request` and
+  `{Resource}Response` / `{Resource}Summary`.
+- **Endpoints:**
+  - Handlers are static methods returning `Results<…>`.
+  - Every handler takes a `CancellationToken` and passes it to EF Core.
+    Meziantou flags missed ones.
+  - XML doc `<summary>` on each handler; this becomes the OpenAPI description.
+- **EF Core:**
+  - Read queries use `AsNoTracking()` and project straight to DTOs with
+    `Select`.
+  - No lazy loading.
+  - No raw SQL except through the parameterized APIs.
+- **Nullability:** no `!` (null-forgiving) without a comment explaining why
+  it's safe.
+- **Logging:** message templates with named placeholders, never string
+  interpolation (CA2254 enforces this).
+- **Comments** explain *why*, not *what*. No `#region`s.
+- **Tests:**
+  - Named `Action_Scenario_ExpectedResult`, one behaviour per test.
+  - Setup goes through the shared helpers and scenario builders.
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/)
+  (`feat:`, `fix:`, `chore:`, `docs:`, `build:`, `ci:`, `test:`, `refactor:`).
+- A `CLAUDE.md` summarising these conventions and the commit rules will be
+  added, so AI-assisted changes follow them too.
 
 ## 5. Domain model
 
@@ -552,74 +664,80 @@ tests passing. Each phase is a good point to stop and review.
 
 ### Phase 1 — Foundation (nothing user-facing yet)
 
-1. **Repo housekeeping**
-   - Update `README.md` (description, how to run, how to test).
-   - Replace the Node `.gitignore` with the standard .NET one (+ `*.db`,
-     `*.db-shm`, `*.db-wal`).
-   - Add `global.json` (pin .NET 10 SDK), `.editorconfig`.
-   - Add `Directory.Build.props` (nullable, implicit usings, warnings as errors,
-     analyzers) and `Directory.Packages.props` (central package versions).
+1. ✅ **Repo housekeeping**
+   - Update `README.md`; replace the Node `.gitignore` with a .NET one.
+   - Add `global.json`, `.editorconfig`, `Directory.Build.props`,
+     `Directory.Packages.props`.
 2. **Scaffold**
    - `Wwg.slnx`, `src/Wwg.Api` (empty web project), `tests/Wwg.Api.IntegrationTests`
-     (xUnit v3).
+     (xUnit v3), and a first smoke test so there's something to run before each
+     commit.
    - `Program.cs` split into small `Add…` / `Map…` extension methods from the
      start.
-3. **Infrastructure**
+3. **Code quality tooling** (§4.1)
+   - Local tool manifest with CSharpier and Husky.Net; format the codebase.
+   - Pre-commit hook + auto-install target.
+   - `AnalysisMode=Recommended`, Meziantou.Analyzer and BannedApiAnalyzers as
+     global package references; `BannedSymbols.txt`.
+   - Tune rules (suppressions documented in `.editorconfig`).
+   - `.vscode/extensions.json`, `CLAUDE.md`.
+4. **Infrastructure**
    - Problem Details, exception handler, status-code pages.
    - `AddValidation()`.
    - OpenAPI document + Swagger UI; JSON options (camelCase, enums as strings).
    - CORS from config, `TimeProvider`, `GET /health`.
-4. **Data layer**
+5. **Data layer**
    - `WwgDbContext` (Identity-based, GUID keys), `AppUser` with names.
    - Base entity (GUID v7 id, audit fields), audit interceptor.
    - SQLite connection setup (WAL), migrate-on-startup flag.
    - Initial migration (Identity tables).
-5. **Test harness**
+6. **Test harness**
    - `WebApplicationFactory` with per-test in-memory SQLite + migrations.
    - Fake email sender, `FakeTimeProvider`, Problem Details assertions.
    - First tests: `/health` returns healthy; unknown route returns Problem
      Details 404.
-6. **CI (build + test)**
+7. **CI (format check + build + test)**
    - `ci.yml` running on PRs and pushes to `main`.
-7. **Contract pipeline**
+8. **Contract pipeline**
    - Build-time `openapi/openapi.json` emit.
    - CI commit-back step on `main`.
    - Check that Orval generates clean hooks from it (OpenAPI 3.1 check) in a
      scratch React app, and switch to 3.0 if needed.
 
-**Phase 1 is done when:** a PR runs the tests in CI, a merge to `main` commits
-an up-to-date `openapi.json`, and Swagger UI shows the health endpoint.
+**Phase 1 is done when:** a PR runs the format check and tests in CI, a merge
+to `main` commits an up-to-date `openapi.json`, and Swagger UI shows the health
+endpoint.
 
 ### Phase 2 — Accounts
 
-8. **Auth:** Identity with bearer tokens and password rules; register, login,
+9. **Auth:** Identity with bearer tokens and password rules; register, login,
    refresh; fallback auth policy; persisted Data Protection keys; Admin
    seeding from config; test auth helpers.
-9. **Email & password reset:** `IEmailSender`, MailKit SMTP + logging
-   fallback, Mailpit dev compose; forgot/reset endpoints.
-10. **Account:** `/api/me` get/update, change email (+ notice to old address),
+10. **Email & password reset:** `IEmailSender`, MailKit SMTP + logging
+    fallback, Mailpit dev compose; forgot/reset endpoints.
+11. **Account:** `/api/me` get/update, change email (+ notice to old address),
     change password.
-11. **Admin users:** list/search, details, delete (not self).
+12. **Admin users:** list/search, details, delete (not self).
 
 ### Phase 3 — Campaigns
 
-12. **Campaigns:** entity + membership, CRUD, `CampaignAccess` service,
+13. **Campaigns:** entity + membership, CRUD, `CampaignAccess` service,
     `?all=true` for Admins, scenario builders for tests.
-13. **Join flow:** join codes, preview/join/regenerate, member list,
+14. **Join flow:** join codes, preview/join/regenerate, member list,
     leave/remove.
-14. **Set Umpire (Admin)** and the umpire-less campaign cases, including the
+15. **Set Umpire (Admin)** and the umpire-less campaign cases, including the
     user-deletion test.
-15. **Armies:** CRUD, commander assignment rules, list with commanders, member
+16. **Armies:** CRUD, commander assignment rules, list with commanders, member
     list shows commanded army.
-16. **Units:** create/rename/delete; units visible only to Umpire, Admin and
+17. **Units:** create/rename/delete; units visible only to Umpire, Admin and
     the commander.
 
 ### Phase 4 — Release
 
-17. **Docker:** multi-stage `Dockerfile`, `docker-compose.yml`, volume layout,
+18. **Docker:** multi-stage `Dockerfile`, `docker-compose.yml`, volume layout,
     health check.
-18. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags.
-19. **First deploy** to the server with SMTP values filled in.
+19. **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmm` tags.
+20. **First deploy** to the server with SMTP values filled in.
 
 > Docker could move earlier (after Phase 1) if you'd like a deployable image
 > from the start. It doesn't depend on anything in Phases 2–3.
@@ -631,4 +749,4 @@ an up-to-date `openapi.json`, and Swagger UI shows the health endpoint.
 - GitHub repo: secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` and variable
   `DOCKERHUB_IMAGE` (only needed by Phase 4).
 - GitHub Actions allowed to push: *Settings → Actions → General → Workflow
-  permissions → Read and write* (needed by step 7).
+  permissions → Read and write* (needed by step 8).
