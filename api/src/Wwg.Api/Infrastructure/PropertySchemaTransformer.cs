@@ -45,6 +45,13 @@ internal sealed class PropertySchemaTransformer : IOpenApiSchemaTransformer
             schema.MinLength = 1;
         }
 
+        // [EmailAddress] isn't reflected in the schema by default; the SDK's Zod schema then
+        // checks the format too.
+        if (attributes.IsDefined(typeof(EmailAddressAttribute), false))
+        {
+            schema.Format = "email";
+        }
+
         return Task.CompletedTask;
     }
 }

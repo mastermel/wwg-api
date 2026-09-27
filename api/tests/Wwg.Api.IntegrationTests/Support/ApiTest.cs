@@ -1,6 +1,9 @@
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Wwg.Api.Data;
+using Wwg.Api.Features.Auth;
 
 namespace Wwg.Api.IntegrationTests.Support;
 
@@ -20,6 +23,46 @@ public abstract class ApiTest : IAsyncDisposable
     protected FakeTimeProvider Clock => App.Clock;
 
     protected static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
+
+    /// <summary>A password every test user can share (cheap to hash in tests).</summary>
+    protected const string TestPassword = "correct horse battery";
+
+    private int _userCount;
+
+    /// <summary>A new client with its own cookie jar (so its own refresh cookie).</summary>
+    protected HttpClient CreateClient() => App.CreateClient();
+
+    /// <summary>Registers through the real endpoint.</summary>
+    protected static Task<HttpResponseMessage> RegisterAsync(
+        HttpClient client,
+        string email,
+        string password = TestPassword,
+        string firstName = "Test",
+        string lastName = "User"
+    ) =>
+        client.PostAsJsonAsync(
+            new Uri("/api/auth/register", UriKind.Relative),
+            new RegisterRequest(email, password, firstName, lastName),
+            CancellationToken
+        );
+
+    /// <summary>
+    /// Registers a new user (a unique email unless given) and returns a client signed in as them:
+    /// bearer token set, refresh cookie in its cookie jar.
+    /// </summary>
+    protected async Task<HttpClient> CreateUserClientAsync(string? email = null)
+    {
+        email ??= $"user{Interlocked.Increment(ref _userCount)}@example.com";
+        var client = CreateClient();
+        using var response = await RegisterAsync(client, email);
+        response.EnsureSuccessStatusCode();
+        var token = await response.Content.ReadFromJsonAsync<TokenResponse>(CancellationToken);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            token?.AccessToken
+        );
+        return client;
+    }
 
     /// <summary>Runs <paramref name="action"/> with a fresh DbContext, for seeding and checking data.</summary>
     private protected async Task<T> WithDbAsync<T>(Func<WwgDbContext, Task<T>> action)

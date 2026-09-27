@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Auth;
 
 namespace Wwg.Api.Infrastructure.Auth;
 
@@ -52,6 +53,7 @@ internal static class AuthExtensions
             );
 
         services.AddAuthorization();
+        services.AddScoped<TokenService>();
 
         // Keys persisted to a directory (the /data volume in production), like
         // PersistKeysToFileSystem, but with the path read from validated options.
