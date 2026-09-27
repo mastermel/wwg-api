@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–4 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–5 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -168,7 +168,12 @@ metadata.
 ### 3.2 Data layer
 
 - **Code-first migrations**, committed. Applied on startup (safe with a single
-  instance), controlled by a config flag so it can be turned off.
+  instance), controlled by a config flag (`Database:MigrateOnStartup`) so it
+  can be turned off.
+- The connection string is `ConnectionStrings:Default`. A relative file path
+  is resolved against the content root, so the dev database
+  (`api/src/Wwg.Api/wwg.db`, git-ignored) doesn't depend on the working
+  directory.
 - `WwgDbContext` derives from
   `IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>`, so Identity tables
   live in the same database with GUID keys.
@@ -180,7 +185,10 @@ metadata.
   `CreatedAt`** (then `Id` as a tie-breaker), never by `Id` alone.
 - **Enums** (e.g. campaign role) are stored as strings.
 - **Audit fields:** `CreatedAt` / `UpdatedAt` set by a `SaveChanges`
-  interceptor using the injected `TimeProvider`.
+  interceptor using the injected `TimeProvider`. Entities opt in through
+  `IHasCreatedAt` / `IHasUpdatedAt`; the app's own entities get both from the
+  `Entity` base class, and `AppUser` (which must derive from Identity's user)
+  has `CreatedAt` only.
 - **SQLite gotchas to design around:**
   - No native `DateTimeOffset`, so EF can't order or compare on it. Store
     timestamps as **UTC `DateTime`**.
@@ -626,8 +634,9 @@ build or tests is visible before merging.
   the shared network and the `/data` volume. Updating means pulling the new
   `latest` (or a specific `vYYYYMMdd.HHmm`) and restarting.
 - Production configuration comes from environment variables:
-  `ConnectionStrings__Default`, `Smtp__*`, `Admin__Emails__0…`,
-  `App__PublicUrl`, `ForwardedHeaders__*`.
+  `ConnectionStrings__Default` (defaults to `Data Source=/data/wwg.db`),
+  `Database__MigrateOnStartup` (default `true`), `Smtp__*`,
+  `Admin__Emails__0…`, `App__PublicUrl`, `ForwardedHeaders__*`.
 
 ### 3.11 Front-end hosting & local development
 
@@ -983,7 +992,7 @@ tests passing. Each phase is a good point to stop and review.
    - Validated options pattern (§4) used for every settings section from here
      on, starting with `App`.
    - Forwarded headers, `TimeProvider`, `GET /health`.
-5. **Data layer**
+5. ✅ **Data layer**
    - `WwgDbContext` (Identity-based, GUID keys), `AppUser` with names.
    - Base entity (GUID v7 id, audit fields), audit interceptor.
    - Conventions: UTC `DateTime` converter, `NOCASE` on searchable text.

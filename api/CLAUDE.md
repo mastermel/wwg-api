@@ -9,7 +9,11 @@ dotnet build api/Wwg.slnx              # warnings are errors
 dotnet test --solution api/Wwg.slnx    # integration tests (xUnit v3, Microsoft Testing Platform)
 dotnet csharpier format .              # format (CSharpier owns layout; line width 100)
 dotnet csharpier check .               # what CI runs
+dotnet ef migrations add <Name> --project api/src/Wwg.Api --output-dir Data/Migrations
 ```
+
+Review generated migrations before committing (SQLite rebuilds tables for some changes). The
+pre-commit hook formats them like any other file.
 
 Don't run `dotnet format whitespace`; it fights CSharpier. `dotnet format style` and
 `dotnet format analyzers` are fine for auto-fixes.
@@ -41,6 +45,10 @@ Don't run `dotnet format whitespace`; it fights CSharpier. `dotnet format style`
   `[property: Trimmed, Required, StringLength(100)] string Name`.
 - `[Trimmed]` trims name-like strings and emails while the JSON is read (before validation).
   Never on passwords.
+- Entities derive from `Entity` (v7 GUID id, audit fields set by `AuditInterceptor`) and are
+  configured in `Data/Configurations/` with `IEntityTypeConfiguration<T>`, not data attributes.
+  Name/email columns that are searched or sorted use `UseCollation("NOCASE")`.
+- Never return entities from endpoints; project to DTOs.
 - EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL
   only through the interpolated `FromSql` / `ExecuteSql`.
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.
