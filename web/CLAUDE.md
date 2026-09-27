@@ -27,6 +27,14 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Tests sit next to the code as `*.test.ts(x)`, using Testing Library queries by role/label (how a
   user finds things), not CSS selectors or test IDs.
 - Prettier owns formatting (line width 100). Don't hand-format.
+- Session: `useSession()` for the state (status, user), `useSessionStore()` for `signIn` /
+  `signOut`. Pages inside the app frame live under `routes/_app/` (guarded); sign-in and register
+  under `routes/_public/`. Never store tokens yourself: the access token is in memory in
+  `lib/access-token`, the refresh token is an HttpOnly cookie.
+- Forms: React Hook Form + `zodResolver` with the generated schema (`@/api/generated/zod/...`);
+  trim name/email inputs with `setValueAs`; put API errors on fields with `applyServerErrors`.
+- Tests: `renderApp(path, { session })` renders the real app with a mocked session
+  ("signed-in" by default, "signed-out" or "offline").
 - Page data goes through `QueryState` (loading / error / "not available offline", and saved data
   wins over a failed refetch). Wrap each page in `Page`, which sets the title and focus.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)

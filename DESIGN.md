@@ -1,8 +1,8 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phase 1 done (steps 1–9). Deploying now (steps 19–21, moved
-> ahead of Phase 2 by decision
-> [0006](docs/decisions/0006-deploy-after-phase-1.md)); Phase 2 next.
+> **Status:** Phase 1 done and deployed (steps 1–9 and 19–21, decision
+> [0006](docs/decisions/0006-deploy-after-phase-1.md)). Phase 2 in progress
+> (step 10 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -320,6 +320,8 @@ Identity has two layers:
     requests (`SameSite=Strict`), and the refresh response can't be read
     cross-origin, so no antiforgery token is needed for the supported
     browsers.
+  - The cookie uses `Max-Age`, not `Expires`, so its lifetime doesn't
+    depend on the server's and browser's clocks agreeing.
   - Old refresh tokens stay valid until they expire (they aren't stored
     server-side). That's also why several tabs refreshing at once don't
     conflict. The security stamp (below) is what revokes them.
@@ -377,8 +379,10 @@ Identity has two layers:
   takeover, a **notice is sent to the old address**. Like a password change,
   it signs out other sessions and returns new tokens.
 - **Lockout** after repeated failed logins (Identity defaults: 5 attempts, 5
-  minutes). This only applies if login calls `PasswordSignInAsync(…,
-  lockoutOnFailure: true)`, so that's a tested requirement.
+  minutes). Login calls `CheckPasswordSignInAsync(…, lockoutOnFailure:
+  true)`, and that's a tested requirement. Identity's lockout reads the
+  system clock, not the injected `TimeProvider`, so its expiry test moves
+  `LockoutEnd` instead of the fake clock.
 - **Rate limiting** (`AddRateLimiter`), partitioned by client IP. Needs the
   real client IP behind the proxy (§3.10).
   - `auth` policy: login, register, refresh (e.g. 10 requests/minute).
@@ -392,6 +396,9 @@ Identity has two layers:
   that's accepted, and the rate limits make mass probing impractical.
 - Endpoints require sign-in by default (fallback policy). Anonymous endpoints
   opt out explicitly.
+  - The fallback policy also applies to requests that match no endpoint, so
+    the pipeline runs routing and authorization *after* static files and
+    Swagger UI, and unmatched requests get anonymous 404 fallbacks.
 - The OpenAPI document declares the bearer security scheme, so Swagger UI's
   **Authorize** button works and Orval knows which calls need a token.
 
@@ -698,8 +705,10 @@ for amd64 and arm64. The shared `traefik` network is pinned to
   `latest` (or a specific `vYYYYMMdd.HHmmss`) and restarting.
 - Production configuration comes from environment variables:
   `ConnectionStrings__Default` (defaults to `Data Source=/data/wwg.db`),
-  `Database__MigrateOnStartup` (default `true`), `Smtp__*`,
-  `Admin__Emails__0…`, `App__PublicUrl`, `ForwardedHeaders__*`.
+  `Database__MigrateOnStartup` (default `true`), `Auth__DataProtectionKeysPath`
+  (defaults to `/data/keys`), `Smtp__*`, `Admin__Emails__0…`,
+  `App__PublicUrl`, `ForwardedHeaders__*`, `RateLimits__Auth__*` (defaults
+  to 10 per minute).
 
 ### 3.11 Front-end hosting & local development
 
@@ -860,9 +869,13 @@ web/
   return 401): clear the cache, go to sign-in, and keep the return path.
 - The signed-in user's profile comes from `GET /api/me` after each
   successful refresh.
-- A small non-secret **"last user" record** (id, name, `isAdmin`) is kept
-  next to the persisted cache, so the app can start offline, pick the right
-  cache and draw the shell. It's cleared on sign-out.
+- A small **"last user" record** (the `/api/me` response: id, email, names,
+  `isAdmin`; no tokens) is kept in `localStorage`, so the app can start
+  offline, pick the right cache and draw the shell. It's validated with the
+  generated Zod schema when read, and cleared on sign-out.
+- **Signing out while offline** can't reach `/api/auth/logout`, so the
+  HttpOnly cookie survives. A "sign-out pending" flag keeps the app signed
+  out and retries the logout at the next start.
 - Both sign-in and sign-out are broadcast to other tabs.
 
 **Offline and PWA**
@@ -1336,7 +1349,7 @@ generated SDK, and the app installs as a PWA and opens offline.
 
 ### Phase 2 — Accounts
 
-10. **Auth**
+10. ✅ **Auth**
    - Identity with bearer tokens; option overrides (unique email, username
      characters, password rules); token lifetimes (30 minutes / 30 days).
    - Register, login (with lockout), refresh (with all the checks in §3.4),
