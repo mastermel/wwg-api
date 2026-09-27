@@ -18,6 +18,7 @@ internal static class ServiceCollectionExtensions
             .AddTrustedForwardedHeaders()
             .AddApiDocument()
             .AddDatabase()
-            .AddAuth();
+            .AddAuth()
+            .AddApiRateLimiting();
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Auth;
 
@@ -12,13 +13,19 @@ internal static class AuthEndpoints
 
         auth.MapPost("/register", RegisterAsync)
             .WithName("Register")
+            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status409Conflict);
         auth.MapPost("/login", LoginAsync)
             .WithName("Login")
+            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/refresh", RefreshAsync)
             .WithName("Refresh")
+            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/logout", Logout).WithName("Logout");
 

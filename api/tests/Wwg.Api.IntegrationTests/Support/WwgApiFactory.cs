@@ -46,6 +46,8 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
             .UseSetting("ConnectionStrings:Default", ConnectionString)
             // Already migrated: it's a copy of the template.
             .UseSetting("Database:MigrateOnStartup", "false")
+            // Tests make many auth requests from one "IP"; RateLimitingTests covers the limits.
+            .UseSetting("RateLimits:Auth:PermitLimit", "100000")
             .ConfigureTestServices(services =>
             {
                 services.AddSingleton<TimeProvider>(Clock);

@@ -17,6 +17,7 @@ internal static class WebApplicationExtensions
         // before static files run, and the sign-in-by-default policy applies to the front-end's
         // own files.
         app.UseRouting();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseSecurityStampValidation();
         app.UseAuthorization();
