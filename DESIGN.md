@@ -383,7 +383,7 @@ Identity has two layers:
   at startup). This lets the app run before a real SMTP service is set up.
 - **Local dev:** `docker-compose.dev.yml` runs **Mailpit**, a local SMTP server
   with a web inbox, so emails can be checked by hand.
-- **Tests:** the email sender is replaced with a fake that records messages, so
+- **Tests:** `IEmailService` is replaced with a fake that records messages, so
   tests can pull the reset code out of the "sent" email and finish the flow.
 - Email bodies are simple HTML + text templates in code. No template engine
   yet.
@@ -459,7 +459,7 @@ Identity has two layers:
     commanded by Player 1", so permission tests stay short.
   - Direct `DbContext` access for seeding and checking what was saved.
   - Assertion helpers for Problem Details / validation responses.
-  - Fake email sender (above) and `FakeTimeProvider` for predictable results,
+  - Fake email service (above) and `FakeTimeProvider` for predictable results,
     e.g. testing token expiry by moving the clock forward.
 - Every endpoint gets tests for: happy path, validation failure, not found,
   unauthenticated (401), and **each role in the permission matrix (§5.2)**:
@@ -727,7 +727,7 @@ Unit
 - The Umpire can't leave or be removed as a normal member.
 - **Umpire-less campaigns:** if an Admin deletes a user who was an Umpire,
   their campaigns remain with no Umpire. Only an Admin can manage them until an
-  Admin **sets a new Umpire** (§5.3):
+  Admin **sets a new Umpire** (`PUT /api/admin/campaigns/{id}/umpire`, §5.3):
   - The chosen user can be an existing Player (promoted) or any other user
     (added as a member).
   - If the promoted Player commanded an Army, that Army becomes unassigned.
