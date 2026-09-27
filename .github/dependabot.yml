@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # NuGet packages (api/Directory.Packages.props) and local tools (.config/dotnet-tools.json).
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Released together, so updated together.
+      aspnetcore-and-efcore:
+        patterns:
+          - Microsoft.AspNetCore.*
+          - Microsoft.EntityFrameworkCore.*
+          - Microsoft.Extensions.*
+          - dotnet-ef
+      analyzers:
+        patterns:
+          - Meziantou.Analyzer
+          - Microsoft.CodeAnalysis.*
+      testing:
+        patterns:
+          - xunit*
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"

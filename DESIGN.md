@@ -1,6 +1,6 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Design agreed; Phase 1 in progress (steps 1–6 done).
+> **Status:** Design agreed; Phase 1 in progress (steps 1–7 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -1012,9 +1012,10 @@ tests passing. Each phase is a good point to stop and review.
      pending-migration test.
    - First tests: `/health` returns healthy; unknown `/api/…` route returns
      Problem Details 404.
-7. **CI: `api` job**
+7. ✅ **CI: `api` job**
    - `ci.yml` running on PRs and pushes to `main`: format check, build, tests.
-   - `dependabot.yml` (NuGet, Actions).
+   - `dependabot.yml` (NuGet incl. local tools, Actions). The contract check
+     and `oasdiff` steps join the job in step 8.
 8. **Contract pipeline**
    - Build-time `api/openapi.json` emit, with the
      `IsGeneratingOpenApiDocument` guard around startup side effects.
