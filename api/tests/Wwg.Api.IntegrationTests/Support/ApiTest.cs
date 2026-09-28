@@ -6,6 +6,7 @@ using Microsoft.Extensions.Time.Testing;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Auth;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.IntegrationTests.Support;
@@ -98,6 +99,54 @@ public abstract class ApiTest : IAsyncDisposable
             token?.AccessToken
         );
         return client;
+    }
+
+    /// <summary>
+    /// A campaign created by its Umpire through the API, with one Player, plus an Admin and a
+    /// signed-in outsider. (The Player is added directly until the join flow exists.)
+    /// </summary>
+    private protected async Task<CampaignScenario> CreateCampaignScenarioAsync(
+        string name = "The Peninsular War"
+    )
+    {
+        var admin = await CreateAdminClientAsync("admin@example.com");
+        var umpire = await CreateUserClientAsync("umpire@example.com");
+        var player = await CreateUserClientAsync("player@example.com");
+        var outsider = await CreateUserClientAsync("outsider@example.com");
+
+        using var created = await umpire.PostAsJsonAsync(
+            new Uri("/api/campaigns", UriKind.Relative),
+            new CreateCampaignRequest(name, "A campaign for testing."),
+            CancellationToken
+        );
+        created.EnsureSuccessStatusCode();
+        var campaign = await created.Content.ReadAsAsync<CampaignResponse>();
+        var campaignId = campaign?.Id ?? throw new InvalidOperationException("No campaign.");
+
+        await WithDbAsync(async db =>
+        {
+            var playerId = db.Users.Single(u => u.NormalizedEmail == "PLAYER@EXAMPLE.COM").Id;
+            db.CampaignMembers.Add(
+                new CampaignMember
+                {
+                    CampaignId = campaignId,
+                    UserId = playerId,
+                    Role = CampaignRole.Player,
+                }
+            );
+            return await db.SaveChangesAsync(CancellationToken);
+        });
+
+        return new CampaignScenario(
+            campaignId,
+            new Dictionary<Role, HttpClient>
+            {
+                [Role.Admin] = admin,
+                [Role.Umpire] = umpire,
+                [Role.Player] = player,
+                [Role.NonMember] = outsider,
+            }
+        );
     }
 
     /// <summary>Runs <paramref name="action"/> with a fresh DbContext, for seeding and checking data.</summary>
