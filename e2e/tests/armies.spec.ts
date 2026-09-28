@@ -15,6 +15,8 @@ async function addArmy(umpire: User, name: string, commander?: User) {
 }
 
 test("armies and units are seen only by those who should", async ({ signUp }) => {
+  // Three people and a long flow: longer than the default time, beside the other tests.
+  test.slow();
   const umpire = await signUp("Ada");
   const commander = await signUp("Arthur");
   const other = await signUp("Bea");
