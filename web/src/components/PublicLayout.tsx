@@ -1,26 +1,33 @@
-import { Center, Paper, Stack, Title } from "@mantine/core";
+import { Box, Paper, Stack, Text, Title } from "@mantine/core";
 import { Outlet } from "@tanstack/react-router";
 import { BrandMark } from "@/components/BrandMark";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { CompactPageContext } from "@/components/page-context";
+import classes from "@/components/PublicLayout.module.css";
 
-/** Sign-in and register: the app's mark and name above a card, centred. */
+/** Sign-in, register and join links: the app's mark and name on a navy band, the page in a card. */
 export function PublicLayout() {
   return (
-    <Center mih="100dvh" p="md">
-      <Stack w="100%" maw={420} align="stretch" gap="lg">
-        <Stack align="center" gap="xs" c="var(--mantine-color-anchor)">
-          <BrandMark size={120} />
-          <Title order={2} component="p" c="var(--mantine-color-text)">
+    <Box className={classes.root} px="md" py="xl">
+      <Stack w="100%" maw={440} mx="auto" align="stretch" gap="lg">
+        <Stack align="center" gap={4} className={classes.brand} pt="md">
+          <BrandMark size={96} />
+          <Title order={2} component="p" c="inherit">
             WWG Campaigner
           </Title>
+          <Text size="sm" className={classes.tagline}>
+            Campaigns for the Wasatch Wargamers
+          </Text>
         </Stack>
         <OfflineBanner />
-        <Paper withBorder p="lg" radius="md">
+        <Paper withBorder shadow="md" p="xl" radius="lg">
           <main>
-            <Outlet />
+            <CompactPageContext.Provider value={true}>
+              <Outlet />
+            </CompactPageContext.Provider>
           </main>
         </Paper>
       </Stack>
-    </Center>
+    </Box>
   );
 }

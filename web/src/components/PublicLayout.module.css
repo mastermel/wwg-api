@@ -1,0 +1,16 @@
+/* Sign-in and register: a navy band with the brand, and the card raised over its edge. */
+
+.root {
+  min-height: 100dvh;
+  background:
+    linear-gradient(var(--app-header), var(--app-header)) top / 100% 300px no-repeat,
+    var(--app-canvas);
+}
+
+.brand {
+  color: var(--app-header-text);
+}
+
+.tagline {
+  color: var(--app-header-dimmed);
+}

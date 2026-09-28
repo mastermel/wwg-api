@@ -1,0 +1,13 @@
+.section {
+  overflow: hidden;
+
+  &[data-tone="danger"] {
+    border-color: var(--mantine-color-red-outline);
+  }
+}
+
+.title {
+  .section[data-tone="danger"] & {
+    color: var(--mantine-color-red-text);
+  }
+}
