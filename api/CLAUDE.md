@@ -57,9 +57,10 @@ true, because the build launches the app to write the document.
   strings), so the SDK's generated Zod schemas validate the same way the API does.
 - **Access rules:** sign-in is required by default, but every endpoint declares its rule:
   `.AllowAnonymous()`, `.RequireSignedIn()`, `.AdminOnly()` (on the `/api/admin` group) or
-  `.RequireCampaignAccess(CampaignAccess.Member | Umpire)`. `EndpointConventionTests` fails for
-  any endpoint without one.
-- Campaign endpoints: the `RequireCampaignAccess` filter gives 404 to non-members (Admins pass)
+  `.RequireCampaignAccess(CampaignAccess.Member | Commander | Umpire, routeId)`.
+  `EndpointConventionTests` fails for any endpoint without one.
+- Campaign endpoints: the `RequireCampaignAccess` filter finds the campaign from the route's `{id}`
+  (a campaign's, or an army's with `CampaignRouteId.Army`). It gives 404 to non-members (Admins pass)
   and 403 to members without the role, then sets `HttpContext.CampaignContext()` (campaign ID,
   Admin flag, role, member ID) for the handler. Handlers still take `Guid id`, or OpenAPI
   doesn't declare the path parameter. Row-level rules are checked in the handler.
@@ -95,7 +96,7 @@ true, because the build launches the app to write the document.
   refresh cookie in the client's jar). Test clients use https://localhost so Secure cookies work.
 - `EndpointConventionTests` fail if an endpoint has no name or tag, or isn't under `/api`.
 - Setup goes through the shared helpers and scenario builders: `CreateCampaignScenarioAsync()`
-  gives a campaign with an Admin, Umpire, Player and outsider; `scenario.As(role)` is that
-  user's client. Permission tests are theories over the roles, one row per §5.2 cell.
+  gives a campaign with an Admin, an Umpire, a Commander (a Player commanding the army "First
+  Corps"), a Player with no army and an outsider; `scenario.As(role)` is that user's client. Permission tests are theories over the roles, one row per §5.2 cell.
 - Read JSON with `ReadAsAsync<T>()` / `GetAsAsync<T>(path)` (`TestJson`: string enums).
 - A test that truly needs a banned API uses `#pragma warning disable RS0030` with a comment.

@@ -433,8 +433,8 @@ Identity has two layers:
   - Each campaign-scoped endpoint declares its minimum access, e.g.
     `.RequireCampaignAccess(CampaignAccess.Member)` or
     `.RequireCampaignAccess(CampaignAccess.Umpire)`.
-  - A shared **endpoint filter** resolves the campaign from the route. That
-    means `{campaignId}` directly, or via `{armyId}` / `{unitId}` with one
+  - A shared **endpoint filter** resolves the campaign from the route's
+    `{id}`: the campaign's own, or an army's (or later a unit's) with one
     small query. It loads the caller's relationship (Admin / Umpire / Player /
     none), applies the 404-vs-403 rule (§3.3), and then puts a
     `CampaignContext` (campaign ID, caller's role, member ID) in the request
@@ -1433,9 +1433,24 @@ generated SDK, and the app installs as a PWA and opens offline.
     - Admin user details now list the user's campaigns and roles.
     - Screens: "All campaigns" in the admin navigation; "Set Umpire" (or
       "Change Umpire") on the campaign page, for Admins only.
-17. **Armies:** CRUD, separate commander assign/unassign endpoints and rules,
+17. ✅ **Armies:** CRUD, separate commander assign/unassign endpoints and rules,
     list with commanders; member list shows commanded army. **Screens:**
     army list and details, commander assignment.
+    - `RequireCampaignAccess(access, CampaignRouteId.Army)` finds the campaign
+      through the army. `CampaignAccess.Commander` (army routes only) lets in
+      the army's commander, the Umpire and Admins; other members get 403.
+    - `GET /api/armies/{id}` is Commander access already, because its units
+      arrive in step 18.
+    - Commander rules: not a Player in this campaign (or the Umpire) is a
+      validation error on `memberId` / `commanderMemberId`; a Player who
+      already commands another army is a **409** naming it. Setting a new
+      Umpire unassigns the promoted Player's army.
+    - The test scenario now has two Players: `Role.Commander` commands the army
+      "First Corps", `Role.Player` commands nothing. Every §5.2 theory has a
+      case for each.
+    - Screens: an Armies section on the campaign page (every member sees every
+      army; links only where the user can open it), an Army column in the
+      member list, and `/campaigns/:id/armies/:armyId`.
 18. **Units:** create/rename/delete; units visible only to Umpire, Admin and
     the commander. **Screens:** units within the army page.
 

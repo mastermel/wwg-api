@@ -35,13 +35,15 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   trim name/email inputs with `setValueAs`; put API errors on fields with `applyServerErrors`.
 - Tests: `renderApp(path, { session })` renders the real app with a mocked session
   ("signed-in" by default, "signed-out" or "offline").
-  `test/server.ts` answers requests many pages make (the campaign list, a campaign's members and
-  join code) with empty defaults; a test's own `server.use(...)` wins.
+  `test/server.ts` answers requests many pages make (the campaign list, a campaign's armies,
+  members and join code) with empty defaults; a test's own `server.use(...)` wins.
 - Page data goes through `QueryState` (loading / error / "not available offline", and saved data
   wins over a failed refetch). Wrap each page in `Page`, which sets the title and focus.
 - Admin screens live under `routes/_app/admin/` (the layout gives non-admins the not-found page).
   Lists keep their search and page in the URL (`validateSearch`), so they can be shared.
 - Anything that deletes, removes or can't be undone asks first with `ConfirmModal`.
+- Mantine's `Select` is a `combobox` to Testing Library, and its options need `hidden: true`
+  (the dropdown's transition leaves it `display: none` in jsdom).
 - Show dates with `formatDate` / `formatDateTime` (`lib/format`): the API sends UTC.
 - Don't set a `gcTime` above 2^31 - 1 ms (about 24.8 days): timers overflow and fire at once,
   dropping the data before it can be saved or restored.
