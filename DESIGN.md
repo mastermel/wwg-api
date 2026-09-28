@@ -2,7 +2,7 @@
 
 > **Status:** Every step of the plan is done: Phases 1–3 (steps 1–18), and the
 > deploy (steps 19–21, decision [0006](docs/decisions/0006-deploy-after-phase-1.md)).
-> What's next is in §6.
+> Then end-to-end tests (step 22). What's next is in §6.
 > **Last updated:** 2026-09-28
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -601,15 +601,39 @@ Identity has two layers:
   is true, i.e. someone changed an entity or configuration but didn't add a
   migration.
 
+**End-to-end tests** (`e2e/`, decision [0007](docs/decisions/0007-end-to-end-tests.md)):
+
+- Playwright drives the **production image**, behind Caddy with TLS (as Traefik
+  in production) and with Mailpit catching emails: `e2e/compose.yaml`, at
+  `https://localhost:8443`. `e2e/stack.sh up` starts it from an empty database
+  and creates the Admin account.
+- HTTPS isn't optional: WebKit drops the `Secure` refresh cookie over plain
+  http, even on localhost.
+- Projects: desktop **Chromium** and **WebKit on an iPhone** profile.
+  Playwright supports service workers in Chromium only, so the offline test
+  runs there; offline on iOS Safari is checked by hand before a release.
+- Each test signs up its own users (unique emails), so tests run in parallel
+  against one database. Setup goes through the API only where the UI isn't
+  what's being tested (registering a user who then uses the app).
+- Covered: sign-up, staying signed in, sign-out, the sign-in redirect,
+  password reset by email; campaigns (create, edit, delete, offline); join
+  links (the signed-out round trip, a new link, leave, remove); admin (an
+  Umpire's account deleted, a new Umpire set; admin screens hidden from
+  others); armies and units and who sees them; the image's hosting (security
+  headers, deep links, API 404s, health).
+- Not covered here: rate limits (raised in the e2e stack; the API tests cover
+  them) and anything the API or component tests already pin down in detail.
+
 ### 3.9 CI/CD (GitHub Actions)
 
-One workflow, `.github/workflows/ci.yml`, with three jobs:
+One workflow, `.github/workflows/ci.yml`, with four jobs:
 
 | Job | Pull request | Push to `main` / manual |
 |---|:-:|:-:|
 | `api`: format, build, contract check, tests | ✅ | ✅ |
 | `web`: generate SDK, lint, typecheck, build | ✅ | ✅ |
-| `docker`: build and push the image | – | ✅ (after `api` and `web` pass) |
+| `e2e`: build the image, end-to-end tests | ✅ | ✅ |
+| `docker`: build and push the image | – | ✅ (after the other three pass) |
 
 1. **`api` job:**
    - Set up .NET 10 and restore tools.
@@ -629,7 +653,12 @@ One workflow, `.github/workflows/ci.yml`, with three jobs:
    from `api/openapi.json`, then lint, check formatting, typecheck, test and
    build (§3.12). This runs in parallel with `api`; it only needs the
    committed contract.
-3. **`docker` job** (`main` only, after both jobs pass): log in to Docker Hub
+3. **`e2e` job:** lint, format-check and typecheck `e2e/`; build the image for
+   linux/amd64 (its own GitHub Actions cache scope, so it doesn't evict the
+   multi-arch cache); start the stack (`E2E_IMAGE`); install the browsers
+   (cached by the lockfile) and run the suite. On failure it prints the app's
+   logs and uploads the Playwright report and traces.
+4. **`docker` job** (`main` only, after the other jobs pass): log in to Docker Hub
    and build and push the multi-stage image (§3.10) with
    `docker/build-push-action`, tagged:
    - `latest`
@@ -970,7 +999,7 @@ web/
   every screen, and no coverage threshold.
 - Key screens also get an automated **axe** accessibility check in their
   component tests.
-- Playwright end-to-end tests against the real API come later (§6).
+- Playwright end-to-end tests run against the production image (§3.8).
 
 **Tooling**
 - npm scripts: `dev`, `build`, `preview`, `lint`, `format`, `typecheck`,
@@ -1284,11 +1313,9 @@ it, which makes the old link stop working. The React app builds the link
 
 None blocking. Items to revisit later:
 
-- Playwright end-to-end tests against the real API (after Phase 3).
 - Offline edits that sync later; push notifications.
 - Unit details, extra campaign fields.
 - Letting users delete their own account.
-- Real SMTP provider values.
 - Database backups.
 
 ## 7. Implementation plan
@@ -1493,3 +1520,9 @@ generated SDK, and the app installs as a PWA and opens offline.
 - Docker Hub: a repository for the image and an access token.
 - GitHub repo: secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` and variable
   `DOCKERHUB_IMAGE` (only needed by Phase 4).
+
+### Phase 5 — End-to-end tests
+
+22. ✅ **Playwright suite** (`e2e/`, §3.8, decision 0007): the production image
+    behind a TLS proxy with Mailpit, Chromium and iPhone WebKit, the main
+    flows of Phases 2–3, and the `e2e` CI job gating the image push.

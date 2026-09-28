@@ -15,7 +15,9 @@ the API's OpenAPI document.
   integration tests with a fresh SQLite database per test
 - **Web (`web/`, WWG Campaigner):** React + TypeScript SPA built with Vite,
   Mantine, TanStack Router and Query, and an Orval-generated API client;
-  installable as a PWA (coming in step 9)
+  installable as a PWA
+- **End-to-end tests (`e2e/`):** Playwright, in Chromium and iPhone WebKit,
+  against the production image behind a TLS proxy
 - GitHub Actions CI; a single Docker image (API serving the built front-end)
   published to Docker Hub
 
@@ -29,8 +31,9 @@ the API's OpenAPI document.
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) (version pinned in `global.json`)
-- Node.js 24 + npm (for `web/`)
-- Docker (for local email testing with Mailpit, and building the image)
+- Node.js 24 + npm (for `web/` and `e2e/`)
+- Docker (for local email testing with Mailpit, building the image, and the
+  end-to-end tests)
 
 ## Development
 
@@ -63,6 +66,7 @@ docker build -t wwg .   # build the image locally
   - `src/Wwg.Api/`: the ASP.NET Core API
   - `tests/Wwg.Api.IntegrationTests/`: endpoint-level integration tests
 - `web/`: WWG Campaigner, the React front-end
+- `e2e/`: Playwright end-to-end tests and the stack they run against
 - `scripts/`: developer scripts (`dev.sh`)
 - `docs/`: decision log
 - Root: repo-wide config (`global.json`, `.editorconfig`, `.gitignore`,

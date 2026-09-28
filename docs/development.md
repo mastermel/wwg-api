@@ -91,7 +91,7 @@ A test fails if the model has changes with no migration.
 ## Checks
 
 The pre-commit hook formats what you commit: CSharpier for C#, and `eslint --fix` plus Prettier
-for staged `web/` files. It doesn't build or test. Run these before committing (CI runs the same):
+for staged `web/` and `e2e/` files. It doesn't build or test. Run these before committing (CI runs the same):
 
 ```sh
 # API
@@ -107,6 +107,31 @@ npm run build                             # production build
 ```
 
 Auto-fix: `dotnet csharpier format .`, and in `web/` `npm run lint:fix` and `npm run format`.
+
+## End-to-end tests
+
+`e2e/` drives the production image in real browsers with Playwright: desktop Chromium and
+Safari's engine (WebKit) on an iPhone profile. CI runs it on every PR; run it yourself after
+changing a user-facing flow. From `e2e/`, once: `npm ci`.
+
+```sh
+./stack.sh up           # build the image, start it behind a TLS proxy with Mailpit (fresh data)
+npm run test:docker     # the suite, in Microsoft's Playwright image (no browser setup needed)
+npm test                # or on this machine, once browsers are installed (below)
+npm run report          # the HTML report of the last run (failures have traces)
+./stack.sh down         # stop, and throw the data away
+```
+
+- The app is at **https://localhost:8443** (accept the self-signed certificate), and its emails
+  at http://localhost:8025. `./stack.sh logs` shows the app's logs.
+- Leave the stack up while working on tests: every test signs up its own users, so runs don't
+  interfere. Run `./stack.sh up` again after changing the app, to rebuild the image.
+- One file, one test, one browser: `npm run test:docker -- tests/join.spec.ts -g "leaves"
+  --project iphone`. `npx playwright test --ui` (on this machine) is the interactive runner.
+- **Running on this machine** needs the browsers and their system libraries:
+  `npx playwright install chromium webkit`, then `sudo npx playwright install-deps chromium webkit`
+  once. `test:docker` avoids both.
+- Checks for `e2e/` itself: `npm run lint`, `npm run format:check`, `npm run typecheck`.
 
 **The API contract.** Every API build rewrites `api/openapi.json` from the code. Commit it along
 with the change that caused it; CI fails if it's out of date, and PRs get a warning for breaking
