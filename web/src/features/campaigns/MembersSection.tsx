@@ -1,4 +1,4 @@
-import { Badge, Button, Stack, Table, Text, Title, VisuallyHidden } from "@mantine/core";
+import { Badge, Button, Table, Text, VisuallyHidden } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,6 +11,7 @@ import {
 import type { CampaignMemberResponse, CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { QueryState } from "@/components/QueryState";
+import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { useConfirmTarget } from "@/lib/use-confirm-target";
@@ -47,17 +48,19 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
   };
 
   return (
-    <Stack gap="sm" component="section" aria-labelledby="members-heading">
-      <Title order={2} size="h3" id="members-heading">
-        Members
-      </Title>
+    <Section
+      title="Members"
+      description="The Umpire and the Players, and what each commands."
+      flush
+    >
       <QueryState query={members}>
         {(list) => (
-          <Table>
+          <Table horizontalSpacing="lg" highlightOnHover>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
-                <Table.Th>Role</Table.Th>
+                {/* Phones show the role under the name instead, rather than squeeze it. */}
+                <Table.Th visibleFrom="sm">Role</Table.Th>
                 <Table.Th>Army</Table.Th>
                 {manager && (
                   <Table.Th>
@@ -77,8 +80,18 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
                         (you)
                       </Text>
                     )}
+                    <Badge
+                      size="xs"
+                      mt={4}
+                      display="block"
+                      w="fit-content"
+                      hiddenFrom="sm"
+                      variant={member.role === "Umpire" ? "filled" : "light"}
+                    >
+                      {member.role}
+                    </Badge>
                   </Table.Td>
-                  <Table.Td>
+                  <Table.Td visibleFrom="sm">
                     <Badge variant={member.role === "Umpire" ? "filled" : "light"}>
                       {member.role}
                     </Badge>
@@ -127,6 +140,6 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
         {removing.target && fullName(removing.target)} will lose access to {campaign.name}. They can
         join again with the join link.
       </ConfirmModal>
-    </Stack>
+    </Section>
   );
 }

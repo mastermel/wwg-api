@@ -169,7 +169,7 @@ describe("army page", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "First Corps" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("(you)")).toBeInTheDocument();
+    expect(screen.getByText("Commanded by Mel Green (you)")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete army" })).not.toBeInTheDocument();
   });
 

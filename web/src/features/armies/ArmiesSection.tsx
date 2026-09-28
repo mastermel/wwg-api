@@ -1,7 +1,7 @@
-import { Anchor, Button, Group, Stack, Table, Text, Title } from "@mantine/core";
+import { Anchor, Button, Table, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconPlus } from "@tabler/icons-react";
+import { IconFlag, IconPlus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
@@ -14,7 +14,9 @@ import {
   useListCampaignMembers,
 } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { ArmyCommander, CampaignResponse } from "@/api/generated/model";
+import { EmptyState } from "@/components/EmptyState";
 import { QueryState } from "@/components/QueryState";
+import { Section } from "@/components/Section";
 import { canViewArmy, commanderOptions } from "@/features/armies/army-access";
 import { ArmyFormModal } from "@/features/armies/ArmyFormModal";
 import { useSession } from "@/features/auth/session-context";
@@ -35,12 +37,12 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
   const manager = canManage(campaign, user);
 
   return (
-    <Stack gap="sm" component="section" aria-labelledby="armies-heading">
-      <Group justify="space-between">
-        <Title order={2} size="h3" id="armies-heading">
-          Armies
-        </Title>
-        {manager && (
+    <Section
+      title="Armies"
+      description="Every army and who commands it."
+      flush
+      actions={
+        manager && (
           <Button
             size="xs"
             leftSection={<IconPlus size={14} aria-hidden />}
@@ -49,16 +51,19 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
           >
             New army
           </Button>
-        )}
-      </Group>
+        )
+      }
+    >
       <QueryState query={armies}>
         {(list) =>
           list.length === 0 ? (
-            <Text c="dimmed">
-              {manager ? "No armies yet. Add one with New army." : "No armies yet."}
-            </Text>
+            <EmptyState icon={IconFlag} title="No armies yet">
+              {manager
+                ? "Add one with New army, and give it a commander."
+                : "The Umpire hasn't added any yet."}
+            </EmptyState>
           ) : (
-            <Table>
+            <Table horizontalSpacing="lg" highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Army</Table.Th>
@@ -119,6 +124,6 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
           }}
         />
       )}
-    </Stack>
+    </Section>
   );
 }

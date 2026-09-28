@@ -1,13 +1,4 @@
-import {
-  ActionIcon,
-  Button,
-  CopyButton,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-  Tooltip,
-} from "@mantine/core";
+import { ActionIcon, Button, CopyButton, Stack, TextInput, Tooltip } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconCopy, IconRefresh } from "@tabler/icons-react";
@@ -20,6 +11,7 @@ import {
 import type { CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { QueryState } from "@/components/QueryState";
+import { Section } from "@/components/Section";
 import { useOnline } from "@/lib/use-online";
 
 /** The link to send to Players (Umpire or Admin), and a way to replace it. */
@@ -45,10 +37,10 @@ export function JoinLinkSection({ campaign }: { campaign: CampaignResponse }) {
   };
 
   return (
-    <Stack gap="sm" component="section" aria-labelledby="join-link-heading">
-      <Title order={2} size="h3" id="join-link-heading">
-        Join link
-      </Title>
+    <Section
+      title="Join link"
+      description="Anyone with the link can join as a Player once they've signed in."
+    >
       <QueryState query={joinCode}>
         {({ joinCode: code }) => {
           const link = `${window.location.origin}/join/${code}`;
@@ -81,9 +73,6 @@ export function JoinLinkSection({ campaign }: { campaign: CampaignResponse }) {
                   </CopyButton>
                 }
               />
-              <Text size="sm" c="dimmed">
-                Anyone with the link can join as a Player once they&apos;ve signed in.
-              </Text>
               <div>
                 <Button
                   variant="default"
@@ -109,6 +98,6 @@ export function JoinLinkSection({ campaign }: { campaign: CampaignResponse }) {
       >
         The current link will stop working. Players who have already joined stay in the campaign.
       </ConfirmModal>
-    </Stack>
+    </Section>
   );
 }

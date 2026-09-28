@@ -78,9 +78,16 @@ describe("campaign members", () => {
     const rows = within(await membersTable())
       .getAllByRole("row")
       .slice(1);
-    expect(rows.map((row) => row.textContent)).toEqual([
-      "Ada AdminUmpire–",
-      "Mel Green (you)PlayerNone",
+    // Cells: name (with the role under it, for phones), role, army.
+    expect(
+      rows.map((row) =>
+        within(row)
+          .getAllByRole("cell")
+          .map((cell) => cell.textContent),
+      ),
+    ).toEqual([
+      ["Ada AdminUmpire", "Umpire", "–"],
+      ["Mel Green (you)Player", "Player", "None"],
     ]);
   });
 

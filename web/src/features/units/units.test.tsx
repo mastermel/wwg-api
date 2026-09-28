@@ -119,7 +119,7 @@ describe("units", () => {
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
     const section = await unitsSection();
-    expect(section.getByText("No units yet. Add one with Add unit.")).toBeInTheDocument();
+    expect(section.getByText("No units yet")).toBeInTheDocument();
 
     await user.click(section.getByRole("button", { name: "Add unit" }));
     const dialog = within(await screen.findByRole("dialog"));
@@ -211,7 +211,7 @@ describe("units", () => {
     );
 
     expect(await screen.findByText("Deleted 1st Division.")).toBeInTheDocument();
-    expect(await section.findByText("No units yet. Add one with Add unit.")).toBeInTheDocument();
+    expect(await section.findByText("No units yet")).toBeInTheDocument();
     expect(requests.map((r) => r.method)).toEqual(["DELETE"]);
   });
 

@@ -1,22 +1,16 @@
-import {
-  ActionIcon,
-  Button,
-  Group,
-  Stack,
-  Table,
-  Text,
-  Title,
-  VisuallyHidden,
-} from "@mantine/core";
+import { ActionIcon, Button, Group, Table, Text, VisuallyHidden } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconEdit, IconPlus, IconShield, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getGetArmyQueryKey } from "@/api/generated/endpoints/armies/armies";
 import { useCreateUnit, useDeleteUnit, useUpdateUnit } from "@/api/generated/endpoints/units/units";
 import type { ArmyResponse, UnitResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { EmptyState } from "@/components/EmptyState";
+import { Section } from "@/components/Section";
+import classes from "@/features/units/UnitsSection.module.css";
 import { UnitFormModal } from "@/features/units/UnitFormModal";
 import { unitTypeLabels } from "@/features/units/unit-types";
 import { useConfirmTarget } from "@/lib/use-confirm-target";
@@ -50,12 +44,12 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
   };
 
   return (
-    <Stack gap="sm" component="section" aria-labelledby="units-heading">
-      <Group justify="space-between">
-        <Title order={2} size="h3" id="units-heading">
-          Units
-        </Title>
-        {manager && (
+    <Section
+      title="Units"
+      description={manager ? "Name, type, Fighting Factor (FF) and points." : undefined}
+      flush
+      actions={
+        manager && (
           <Button
             size="xs"
             leftSection={<IconPlus size={14} aria-hidden />}
@@ -64,12 +58,15 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
           >
             Add unit
           </Button>
-        )}
-      </Group>
+        )
+      }
+    >
       {army.units.length === 0 ? (
-        <Text c="dimmed">{manager ? "No units yet. Add one with Add unit." : "No units yet."}</Text>
+        <EmptyState icon={IconShield} title="No units yet">
+          {manager ? "Add one with Add unit." : "The Umpire hasn't added any yet."}
+        </EmptyState>
       ) : (
-        <Table>
+        <Table horizontalSpacing="lg" highlightOnHover>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
@@ -128,7 +125,7 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
               </Table.Tr>
             ))}
           </Table.Tbody>
-          <Table.Tfoot>
+          <Table.Tfoot className={classes.totals}>
             <Table.Tr>
               <Table.Th scope="row">
                 {army.units.length === 1 ? "1 unit" : `${String(army.units.length)} units`}
@@ -181,6 +178,6 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
       >
         {deleting.target?.name} will be removed from {army.name}. This can&apos;t be undone.
       </ConfirmModal>
-    </Stack>
+    </Section>
   );
 }

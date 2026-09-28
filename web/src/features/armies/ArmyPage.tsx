@@ -1,7 +1,7 @@
-import { Anchor, Button, Group, Select, Stack, Text } from "@mantine/core";
+import { Button, Grid, Group, Select, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconArrowLeft, IconEdit, IconTrash, IconUserMinus } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconUser, IconUserMinus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -18,10 +18,12 @@ import {
   useGetCampaign,
   useListCampaignMembers,
 } from "@/api/generated/endpoints/campaigns/campaigns";
-import type { ArmyResponse, CampaignResponse } from "@/api/generated/model";
+import type { ArmyResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { BackLink } from "@/components/BackLink";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
+import { Section } from "@/components/Section";
 import { commanderOptions } from "@/features/armies/army-access";
 import { ArmyFormModal } from "@/features/armies/ArmyFormModal";
 import { useSession } from "@/features/auth/session-context";
@@ -33,54 +35,69 @@ import { useOnline } from "@/lib/use-online";
 export function ArmyPage({ campaignId, armyId }: { campaignId: string; armyId: string }) {
   const army = useGetArmy(armyId);
   const campaign = useGetCampaign(campaignId);
+  const { user } = useSession();
+  const manager = campaign.data !== undefined && canManage(campaign.data, user);
+  const details = army.data;
 
   return (
-    <Page title={army.data?.name ?? "Army"}>
-      <Anchor
-        size="sm"
-        renderRoot={(props) => <Link to="/campaigns/$id" params={{ id: campaignId }} {...props} />}
-      >
-        <Group gap={4}>
-          <IconArrowLeft size={16} aria-hidden /> {army.data?.campaignName ?? "The campaign"}
-        </Group>
-      </Anchor>
+    <Page
+      title={details?.name ?? "Army"}
+      back={
+        <BackLink
+          renderLink={(props) => (
+            <Link to="/campaigns/$id" params={{ id: campaignId }} {...props} />
+          )}
+        >
+          {details?.campaignName ?? "The campaign"}
+        </BackLink>
+      }
+      summary={details && <CommanderSummary army={details} />}
+      actions={details && manager && <RenameArmyButton army={details} />}
+    >
       <QueryState query={army}>
-        {(details) => <ArmyDetails army={details} campaign={campaign.data} />}
+        {(loaded) => <ArmyDetails army={loaded} manager={manager} />}
       </QueryState>
     </Page>
   );
 }
 
-function ArmyDetails({
-  army,
-  campaign,
-}: {
-  army: ArmyResponse;
-  campaign: CampaignResponse | undefined;
-}) {
+function CommanderSummary({ army }: { army: ArmyResponse }) {
   const { user } = useSession();
-  const manager = campaign !== undefined && canManage(campaign, user);
+  return (
+    <Group gap={6} wrap="nowrap">
+      <IconUser size={16} aria-hidden />
+      <Text span inherit>
+        {army.commander
+          ? `Commanded by ${army.commander.firstName} ${army.commander.lastName}`
+          : "No commander yet"}
+        {army.commander?.userId === user?.id && " (you)"}
+      </Text>
+    </Group>
+  );
+}
+
+/** Units in the main column; the Umpire's commander choice and danger zone beside them. */
+function ArmyDetails({ army, manager }: { army: ArmyResponse; manager: boolean }) {
+  if (!manager) {
+    return <UnitsSection army={army} manager={false} />;
+  }
 
   return (
-    <Stack gap="lg" maw={720}>
-      <div>
-        <Text size="sm" c="dimmed">
-          Commander
-        </Text>
-        <Text>
-          {army.commander ? `${army.commander.firstName} ${army.commander.lastName}` : "Unassigned"}
-          {army.commander?.userId === user?.id && (
-            <Text span c="dimmed">
-              {" "}
-              (you)
-            </Text>
-          )}
-        </Text>
-      </div>
-      {manager && <CommanderControl army={army} />}
-      <UnitsSection army={army} manager={manager} />
-      {manager && <ArmyActions army={army} />}
-    </Stack>
+    <Grid gap="xl">
+      <Grid.Col span={{ base: 12, md: 8 }}>
+        <UnitsSection army={army} manager />
+      </Grid.Col>
+      <Grid.Col span={{ base: 12, md: 4 }}>
+        <Stack gap="xl">
+          <Section title="Commander" description="A Player who commands no other army.">
+            <CommanderControl army={army} />
+          </Section>
+          <Section title="Danger zone" tone="danger" description="Deletes the army and its units.">
+            <DeleteArmyButton army={army} />
+          </Section>
+        </Stack>
+      </Grid.Col>
+    </Grid>
   );
 }
 
@@ -135,7 +152,7 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
 
   const options = commanderOptions(members.data ?? [], army.id);
   return (
-    <Group align="flex-end">
+    <Stack gap="sm" align="flex-start">
       <Select
         label={army.commander ? "Change commander" : "Choose a commander"}
         placeholder={options.length ? "Choose a Player" : "No Players are free"}
@@ -144,7 +161,7 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
         onChange={(value) => void choose(value)}
         disabled={!online || assign.isPending || options.length === 0}
         allowDeselect={false}
-        w={{ base: "100%", xs: 280 }}
+        w="100%"
       />
       {army.commander && (
         <Button
@@ -157,18 +174,52 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
           Remove commander
         </Button>
       )}
-    </Group>
+    </Stack>
   );
 }
 
-/** Rename or delete the army (Umpire or Admin). */
-function ArmyActions({ army }: { army: ArmyResponse }) {
+/** Rename the army (Umpire or Admin): the army page's action. */
+function RenameArmyButton({ army }: { army: ArmyResponse }) {
+  const online = useOnline();
+  const queryClient = useQueryClient();
+  const rename = useRenameArmy();
+  const [renaming, renameModal] = useDisclosure(false);
+
+  return (
+    <>
+      <Button
+        variant="default"
+        leftSection={<IconEdit size={16} aria-hidden />}
+        onClick={renameModal.open}
+        disabled={!online}
+      >
+        Rename army
+      </Button>
+      {renaming && (
+        <ArmyFormModal
+          title="Rename army"
+          submitLabel="Save"
+          defaultName={army.name}
+          onClose={renameModal.close}
+          onSubmit={async ({ name }) => {
+            const updated = await rename.mutateAsync({ id: army.id, data: { name } });
+            queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
+            await queryClient.invalidateQueries({
+              queryKey: getListArmiesQueryKey(army.campaignId),
+            });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** Delete the army and its units (Umpire or Admin), after confirming. */
+function DeleteArmyButton({ army }: { army: ArmyResponse }) {
   const online = useOnline();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const rename = useRenameArmy();
   const remove = useDeleteArmy();
-  const [renaming, renameModal] = useDisclosure(false);
   const [deleting, deleteModal] = useDisclosure(false);
 
   const confirmDelete = async () => {
@@ -189,15 +240,7 @@ function ArmyActions({ army }: { army: ArmyResponse }) {
   };
 
   return (
-    <Group>
-      <Button
-        variant="default"
-        leftSection={<IconEdit size={16} aria-hidden />}
-        onClick={renameModal.open}
-        disabled={!online}
-      >
-        Rename army
-      </Button>
+    <>
       <Button
         color="red"
         variant="light"
@@ -207,21 +250,6 @@ function ArmyActions({ army }: { army: ArmyResponse }) {
       >
         Delete army
       </Button>
-      {renaming && (
-        <ArmyFormModal
-          title="Rename army"
-          submitLabel="Save"
-          defaultName={army.name}
-          onClose={renameModal.close}
-          onSubmit={async ({ name }) => {
-            const updated = await rename.mutateAsync({ id: army.id, data: { name } });
-            queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
-            await queryClient.invalidateQueries({
-              queryKey: getListArmiesQueryKey(army.campaignId),
-            });
-          }}
-        />
-      )}
       <ConfirmModal
         opened={deleting}
         onClose={deleteModal.close}
@@ -232,6 +260,6 @@ function ArmyActions({ army }: { army: ArmyResponse }) {
       >
         {army.name} and its units will be deleted. This can&apos;t be undone.
       </ConfirmModal>
-    </Group>
+    </>
   );
 }

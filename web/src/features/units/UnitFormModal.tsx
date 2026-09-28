@@ -118,6 +118,8 @@ export function UnitFormModal({
                   allowDecimal={false}
                   allowNegative={false}
                   clampBehavior="strict"
+                  // Its step buttons have no accessible names; arrow keys still step.
+                  hideControls
                   value={field.value}
                   onChange={(value) => {
                     field.onChange(toNumber(value));
@@ -139,6 +141,8 @@ export function UnitFormModal({
                   allowDecimal={false}
                   allowNegative={false}
                   clampBehavior="strict"
+                  // Its step buttons have no accessible names; arrow keys still step.
+                  hideControls
                   value={field.value}
                   onChange={(value) => {
                     field.onChange(toNumber(value));

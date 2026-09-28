@@ -1,0 +1,5 @@
+/* The totals row: set apart from the units above it. */
+.totals {
+  background-color: var(--mantine-color-default-hover);
+  font-weight: 700;
+}
