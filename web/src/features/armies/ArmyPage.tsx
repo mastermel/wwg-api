@@ -25,6 +25,7 @@ import { QueryState } from "@/components/QueryState";
 import { commanderOptions } from "@/features/armies/army-access";
 import { ArmyFormModal } from "@/features/armies/ArmyFormModal";
 import { useSession } from "@/features/auth/session-context";
+import { UnitsSection } from "@/features/units/UnitsSection";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { ApiError } from "@/lib/api-fetch";
 import { useOnline } from "@/lib/use-online";
@@ -77,6 +78,7 @@ function ArmyDetails({
         </Text>
       </div>
       {manager && <CommanderControl army={army} />}
+      <UnitsSection army={army} manager={manager} />
       {manager && <ArmyActions army={army} />}
     </Stack>
   );
@@ -194,7 +196,7 @@ function ArmyActions({ army }: { army: ArmyResponse }) {
         onClick={renameModal.open}
         disabled={!online}
       >
-        Rename
+        Rename army
       </Button>
       <Button
         color="red"
