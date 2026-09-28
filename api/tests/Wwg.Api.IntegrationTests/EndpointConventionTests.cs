@@ -46,6 +46,23 @@ public sealed class EndpointConventionTests : ApiTest
     }
 
     [Fact]
+    public void Endpoints_UnderApiAdmin_AreAllAdminOnly()
+    {
+        var violations = Endpoints()
+            .Where(e => Route(e).StartsWith("/api/admin", StringComparison.Ordinal))
+            .Where(e =>
+                !string.Equals(
+                    e.Metadata.GetMetadata<AccessRuleMetadata>()?.Rule,
+                    "admin",
+                    StringComparison.Ordinal
+                )
+            )
+            .Select(Describe);
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void Endpoints_Always_AreUnderApi()
     {
         var violations = Endpoints()

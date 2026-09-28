@@ -502,6 +502,156 @@
           }
         ]
       }
+    },
+    "/api/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Users, sorted by last then first name, one page at a time. `search` matches any part of\nthe first name, last name or email, ignoring case.",
+        "operationId": "ListUsers",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponseOfUserSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "One user's details.",
+        "operationId": "GetUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Deletes a user and their sign-in data; their sessions end immediately. Admins can't delete\ntheir own account.",
+        "operationId": "DeleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -682,6 +832,40 @@
         },
         "description": "The signed-in user."
       },
+      "PagedResponseOfUserSummary": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserSummary"
+            },
+            "description": "This page's items, in a stable order."
+          },
+          "page": {
+            "type": "integer",
+            "description": "The page number, from 1.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "The requested page size (the last page can have fewer items).",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "How many items there are across all pages.",
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list that can grow large."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -816,6 +1000,95 @@
           }
         },
         "description": "Updates the signed-in user's name."
+      },
+      "UserDetails": {
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "isAdmin",
+          "createdAt",
+          "lockedOutUntil"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The user's ID.",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "description": "Their email (what they sign in with)."
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name."
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "description": "Whether they're a site-wide Admin."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When they registered (UTC).",
+            "format": "date-time"
+          },
+          "lockedOutUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When a sign-in lockout ends (UTC), if they're locked out now.",
+            "format": "date-time"
+          }
+        },
+        "description": "One user, for admins. Their campaigns and roles are added with campaigns (Phase 3)."
+      },
+      "UserSummary": {
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "isAdmin",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The user's ID.",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "description": "Their email (what they sign in with)."
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name."
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "description": "Whether they're a site-wide Admin."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When they registered (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A user in the admin user list."
       }
     },
     "securitySchemes": {
@@ -835,6 +1108,9 @@
     },
     {
       "name": "Account"
+    },
+    {
+      "name": "Admin"
     }
   ]
 }
