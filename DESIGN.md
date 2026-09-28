@@ -1239,9 +1239,9 @@ it, which makes the old link stop working. The React app builds the link
 | Method | Route | Purpose |
 |---|---|---|
 | GET | `/api/admin/users` | Paged list, `?search=` on name/email |
-| GET | `/api/admin/users/{id}` | User details (campaigns and roles join in Phase 3) |
+| GET | `/api/admin/users/{id}` | User details, with their campaigns and roles |
 | DELETE | `/api/admin/users/{id}` | Delete user (not self: 409) |
-| GET | `/api/admin/campaigns` | Paged list of every campaign, incl. umpire-less ones |
+| GET | `/api/admin/campaigns` | Paged list of every campaign, incl. umpire-less ones (`?search=`, `?withoutUmpire=`) |
 | PUT | `/api/admin/campaigns/{id}/umpire` | Set the Umpire `{ userId }` |
 
 **Campaigns & membership**
@@ -1420,9 +1420,19 @@ generated SDK, and the app installs as a PWA and opens offline.
     - `/join/:code` is a public page, signed in or not. Signed out, it offers
       sign-in and register, which return to it.
     - The test scenario's Player joins through the join link, not the database.
-16. **Admin campaigns:** `/api/admin/campaigns` list and set Umpire, including
+16. ✅ **Admin campaigns:** `/api/admin/campaigns` list and set Umpire, including
     the umpire-less campaign cases and the user-deletion test. **Screens:**
     admin campaign list, set Umpire.
+    - The list searches by name and can keep only campaigns without an Umpire
+      (`?withoutUmpire=true`).
+    - Setting the Umpire runs in one transaction with two saves: SQLite
+      checks the one-Umpire index row by row, so the old Umpire is demoted
+      and saved before the new one is promoted. Choosing the current Umpire
+      changes nothing; an unknown user is a validation error on `userId`.
+    - Step 17 adds "a promoted Player's army becomes unassigned" to it.
+    - Admin user details now list the user's campaigns and roles.
+    - Screens: "All campaigns" in the admin navigation; "Set Umpire" (or
+      "Change Umpire") on the campaign page, for Admins only.
 17. **Armies:** CRUD, separate commander assign/unassign endpoints and rules,
     list with commanders; member list shows commanded army. **Screens:**
     army list and details, commander assignment.
