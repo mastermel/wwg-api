@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
@@ -9,12 +10,22 @@ namespace Wwg.Api.IntegrationTests.Features;
 
 public sealed class UnitTests : ApiTest
 {
-    private static Task<HttpResponseMessage> CreateAsync(CampaignScenario scenario, string name) =>
+    private static Task<HttpResponseMessage> CreateAsync(
+        CampaignScenario scenario,
+        string name,
+        UnitType type = UnitType.HeavyInfantry,
+        int fightingFactor = 5,
+        int points = 10
+    ) => PostAsync(scenario, new CreateUnitRequest(name, type, fightingFactor, points));
+
+    /// <summary>Any body, e.g. JSON the typed request can't express.</summary>
+    private static Task<HttpResponseMessage> PostAsync(CampaignScenario scenario, object body) =>
         scenario
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest(name),
+                body,
+                TestJson.Options,
                 TestContext.Current.CancellationToken
             );
 
@@ -31,12 +42,108 @@ public sealed class UnitTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var response = await CreateAsync(scenario, "  Light Division ");
+        using var response = await CreateAsync(
+            scenario,
+            "  Light Division ",
+            UnitType.LightInfantry,
+            fightingFactor: 6,
+            points: 35
+        );
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var unit = await response.Content.ReadAsAsync<UnitResponse>();
         Assert.Equal($"/api/units/{unit?.Id}", response.Headers.Location?.ToString());
-        Assert.Equal(("Light Division", scenario.ArmyId), (unit?.Name, unit?.ArmyId));
+        Assert.Equal(
+            new UnitResponse(
+                unit!.Id,
+                scenario.ArmyId,
+                "Light Division",
+                UnitType.LightInfantry,
+                6,
+                35
+            ),
+            unit
+        );
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(9, 100)]
+    public async Task CreateUnit_AtTheLimits_IsAccepted(int fightingFactor, int points)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await CreateAsync(
+            scenario,
+            "Guard",
+            fightingFactor: fightingFactor,
+            points: points
+        );
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(0, 10, "fightingFactor")]
+    [InlineData(10, 10, "fightingFactor")]
+    [InlineData(5, -1, "points")]
+    [InlineData(5, 101, "points")]
+    public async Task CreateUnit_OutOfRange_IsAValidationError(
+        int fightingFactor,
+        int points,
+        string field
+    )
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await CreateAsync(
+            scenario,
+            "Guard",
+            fightingFactor: fightingFactor,
+            points: points
+        );
+
+        await response.AssertValidationProblemAsync(field);
+    }
+
+    [Fact]
+    public async Task CreateUnit_UndefinedTypeNumber_IsAValidationError()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await PostAsync(
+            scenario,
+            new
+            {
+                name = "Guard",
+                type = 99,
+                fightingFactor = 5,
+                points = 10,
+            }
+        );
+
+        await response.AssertValidationProblemAsync("type");
+    }
+
+    [Theory]
+    [InlineData("type")]
+    [InlineData("fightingFactor")]
+    [InlineData("points")]
+    public async Task CreateUnit_MissingField_Returns400(string missing)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        var body = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["name"] = "Guard",
+            ["type"] = "Skirmishers",
+            ["fightingFactor"] = 5,
+            ["points"] = 10,
+        };
+        body.Remove(missing);
+
+        using var response = await PostAsync(scenario, body);
+
+        await response.AssertProblemAsync(HttpStatusCode.BadRequest);
     }
 
     [Theory]
@@ -65,7 +172,7 @@ public sealed class UnitTests : ApiTest
     }
 
     [Fact]
-    public async Task RenameUnit_ChangesItsName()
+    public async Task UpdateUnit_ChangesEverything()
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
@@ -73,12 +180,39 @@ public sealed class UnitTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/units/{scenario.UnitId}", UriKind.Relative),
-                new RenameUnitRequest(" Light Division "),
+                new UpdateUnitRequest(" Horse Guards ", UnitType.HeavyCavalry, 8, 60),
                 CancellationToken
             );
 
-        Assert.Equal("Light Division", (await response.Content.ReadAsAsync<UnitResponse>())?.Name);
-        Assert.Equal(["Light Division"], await UnitNamesAsync(scenario));
+        var expected = new UnitResponse(
+            scenario.UnitId,
+            scenario.ArmyId,
+            "Horse Guards",
+            UnitType.HeavyCavalry,
+            8,
+            60
+        );
+        Assert.Equal(expected, await response.Content.ReadAsAsync<UnitResponse>());
+        var army = await scenario
+            .As(Role.Commander)
+            .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}");
+        Assert.Equal(expected, Assert.Single(army!.Units));
+    }
+
+    [Fact]
+    public async Task UpdateUnit_OutOfRange_IsAValidationError()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/units/{scenario.UnitId}", UriKind.Relative),
+                new UpdateUnitRequest("Guard", UnitType.HeavyInfantry, 0, 101),
+                CancellationToken
+            );
+
+        await response.AssertValidationProblemAsync("fightingFactor", "points");
     }
 
     [Fact]

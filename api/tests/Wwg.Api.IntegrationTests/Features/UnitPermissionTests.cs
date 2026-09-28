@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
@@ -48,7 +49,7 @@ public sealed class UnitPermissionTests : ApiTest
             .As(role)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest("2nd Division"),
+                new CreateUnitRequest("2nd Division", UnitType.LightInfantry, 4, 15),
                 CancellationToken
             );
 
@@ -61,7 +62,7 @@ public sealed class UnitPermissionTests : ApiTest
     [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task RenameUnit_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task UpdateUnit_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
@@ -69,7 +70,7 @@ public sealed class UnitPermissionTests : ApiTest
             .As(role)
             .PutAsJsonAsync(
                 UnitUri(scenario),
-                new RenameUnitRequest("Light Division"),
+                new UpdateUnitRequest("Light Division", UnitType.LightInfantry, 4, 15),
                 CancellationToken
             );
 
@@ -104,7 +105,11 @@ public sealed class UnitPermissionTests : ApiTest
 
         using var response = method switch
         {
-            "put" => await admin.PutAsJsonAsync(uri, new RenameUnitRequest("x"), CancellationToken),
+            "put" => await admin.PutAsJsonAsync(
+                uri,
+                new UpdateUnitRequest("x", UnitType.Skirmishers, 1, 0),
+                CancellationToken
+            ),
             _ => await admin.DeleteAsync(uri, CancellationToken),
         };
 

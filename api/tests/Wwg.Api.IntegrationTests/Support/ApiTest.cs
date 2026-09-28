@@ -147,7 +147,7 @@ public abstract class ApiTest : IAsyncDisposable
         var unitId = await PostForIdAsync<UnitResponse>(
             umpire,
             $"/api/armies/{armyId}/units",
-            new CreateUnitRequest("1st Division"),
+            new CreateUnitRequest("1st Division", UnitType.HeavyInfantry, 5, 20),
             u => u.Id
         );
 

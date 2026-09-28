@@ -18,8 +18,8 @@ internal static class UnitEndpoints
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army);
 
         var unit = app.MapGroup("/api/units/{id:guid}").WithTags("Units");
-        unit.MapPut("", RenameUnitAsync)
-            .WithName("RenameUnit")
+        unit.MapPut("", UpdateUnitAsync)
+            .WithName("UpdateUnit")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Unit);
         unit.MapDelete("", DeleteUnitAsync)
             .WithName("DeleteUnit")
@@ -36,27 +36,34 @@ internal static class UnitEndpoints
         CancellationToken cancellationToken
     )
     {
-        var unit = new Unit { ArmyId = id, Name = request.Name };
+        var unit = new Unit
+        {
+            ArmyId = id,
+            Name = request.Name,
+            Type = request.Type,
+            FightingFactor = request.FightingFactor,
+            Points = request.Points,
+        };
         db.Units.Add(unit);
         await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Created(
-            $"/api/units/{unit.Id}",
-            new UnitResponse(unit.Id, unit.ArmyId, unit.Name)
-        );
+        return TypedResults.Created($"/api/units/{unit.Id}", ToResponse(unit));
     }
 
-    /// <summary>Renames a unit (Umpire or Admin).</summary>
-    internal static async Task<Ok<UnitResponse>> RenameUnitAsync(
+    /// <summary>Changes a unit's name, type, Fighting Factor and points (Umpire or Admin).</summary>
+    internal static async Task<Ok<UnitResponse>> UpdateUnitAsync(
         Guid id,
-        RenameUnitRequest request,
+        UpdateUnitRequest request,
         WwgDbContext db,
         CancellationToken cancellationToken
     )
     {
         var unit = await db.Units.SingleAsync(u => u.Id == id, cancellationToken);
         unit.Name = request.Name;
+        unit.Type = request.Type;
+        unit.FightingFactor = request.FightingFactor;
+        unit.Points = request.Points;
         await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Ok(new UnitResponse(unit.Id, unit.ArmyId, unit.Name));
+        return TypedResults.Ok(ToResponse(unit));
     }
 
     /// <summary>Deletes a unit (Umpire or Admin).</summary>
@@ -69,4 +76,7 @@ internal static class UnitEndpoints
         await db.Units.Where(u => u.Id == id).ExecuteDeleteAsync(cancellationToken);
         return TypedResults.NoContent();
     }
+
+    private static UnitResponse ToResponse(Unit unit) =>
+        new(unit.Id, unit.ArmyId, unit.Name, unit.Type, unit.FightingFactor, unit.Points);
 }

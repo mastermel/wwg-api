@@ -1629,8 +1629,8 @@
         "tags": [
           "Units"
         ],
-        "summary": "Renames a unit (Umpire or Admin).",
-        "operationId": "RenameUnit",
+        "summary": "Changes a unit's name, type, Fighting Factor and points (Umpire or Admin).",
+        "operationId": "UpdateUnit",
         "parameters": [
           {
             "name": "id",
@@ -1646,7 +1646,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameUnitRequest"
+                "$ref": "#/components/schemas/UpdateUnitRequest"
               }
             }
           },
@@ -2165,7 +2165,10 @@
       },
       "CreateUnitRequest": {
         "required": [
-          "name"
+          "name",
+          "type",
+          "fightingFactor",
+          "points"
         ],
         "type": "object",
         "properties": {
@@ -2174,6 +2177,24 @@
             "minLength": 1,
             "type": "string",
             "description": "The unit's name."
+          },
+          "type": {
+            "description": "What kind of troops it is.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "fightingFactor": {
+            "maximum": 9,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Its Fighting Factor (\"FF\"), 1–9.",
+            "format": "int32"
+          },
+          "points": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer",
+            "description": "What it's worth, 0–100.",
+            "format": "int32"
           }
         },
         "description": "Adds a unit to an army."
@@ -2571,21 +2592,6 @@
         },
         "description": "Renames an army."
       },
-      "RenameUnitRequest": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string",
-            "description": "The unit's new name."
-          }
-        },
-        "description": "Renames a unit."
-      },
       "ResetPasswordRequest": {
         "required": [
           "email",
@@ -2650,7 +2656,10 @@
         "required": [
           "id",
           "armyId",
-          "name"
+          "name",
+          "type",
+          "fightingFactor",
+          "points"
         ],
         "type": "object",
         "properties": {
@@ -2667,9 +2676,35 @@
           "name": {
             "type": "string",
             "description": "Its name."
+          },
+          "type": {
+            "description": "What kind of troops it is.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "fightingFactor": {
+            "type": "integer",
+            "description": "Its Fighting Factor (\"FF\"), 1–9.",
+            "format": "int32"
+          },
+          "points": {
+            "type": "integer",
+            "description": "What it's worth, 0–100.",
+            "format": "int32"
           }
         },
         "description": "A unit in an army."
+      },
+      "UnitType": {
+        "enum": [
+          "HeavyInfantry",
+          "LightInfantry",
+          "Skirmishers",
+          "HeavyCavalry",
+          "LightCavalry",
+          "FootArtillery",
+          "HorseArtillery"
+        ],
+        "description": "What kind of troops a unit is (stored as its name)."
       },
       "UpdateCampaignRequest": {
         "required": [
@@ -2713,6 +2748,42 @@
           }
         },
         "description": "Updates the signed-in user's name."
+      },
+      "UpdateUnitRequest": {
+        "required": [
+          "name",
+          "type",
+          "fightingFactor",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The unit's name."
+          },
+          "type": {
+            "description": "What kind of troops it is.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "fightingFactor": {
+            "maximum": 9,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Its Fighting Factor (\"FF\"), 1–9.",
+            "format": "int32"
+          },
+          "points": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer",
+            "description": "What it's worth, 0–100.",
+            "format": "int32"
+          }
+        },
+        "description": "Changes a unit."
       },
       "UserCampaign": {
         "required": [

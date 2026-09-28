@@ -1,22 +1,51 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Units;
 
+// The numbers and type are [JsonRequired]: left out, they'd quietly read as 0 or Heavy Infantry.
+// EnumDataType refuses a type sent as an undefined number (the enum converter accepts numbers).
+
 /// <summary>Adds a unit to an army.</summary>
 /// <param name="Name">The unit's name.</param>
+/// <param name="Type">What kind of troops it is.</param>
+/// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
+/// <param name="Points">What it's worth, 0–100.</param>
 public sealed record CreateUnitRequest(
-    [property: Trimmed, Required, StringLength(100)] string Name
+    [property: Trimmed, Required, StringLength(100)] string Name,
+    [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType Type,
+    [property: JsonRequired, Range(Unit.MinFightingFactor, Unit.MaxFightingFactor)]
+        int FightingFactor,
+    [property: JsonRequired, Range(Unit.MinPoints, Unit.MaxPoints)] int Points
 );
 
-/// <summary>Renames a unit.</summary>
-/// <param name="Name">The unit's new name.</param>
-public sealed record RenameUnitRequest(
-    [property: Trimmed, Required, StringLength(100)] string Name
+/// <summary>Changes a unit.</summary>
+/// <param name="Name">The unit's name.</param>
+/// <param name="Type">What kind of troops it is.</param>
+/// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
+/// <param name="Points">What it's worth, 0–100.</param>
+public sealed record UpdateUnitRequest(
+    [property: Trimmed, Required, StringLength(100)] string Name,
+    [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType Type,
+    [property: JsonRequired, Range(Unit.MinFightingFactor, Unit.MaxFightingFactor)]
+        int FightingFactor,
+    [property: JsonRequired, Range(Unit.MinPoints, Unit.MaxPoints)] int Points
 );
 
 /// <summary>A unit in an army.</summary>
 /// <param name="Id">The unit's ID.</param>
 /// <param name="ArmyId">The army it's in.</param>
 /// <param name="Name">Its name.</param>
-public sealed record UnitResponse(Guid Id, Guid ArmyId, string Name);
+/// <param name="Type">What kind of troops it is.</param>
+/// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
+/// <param name="Points">What it's worth, 0–100.</param>
+public sealed record UnitResponse(
+    Guid Id,
+    Guid ArmyId,
+    string Name,
+    UnitType Type,
+    int FightingFactor,
+    int Points
+);
