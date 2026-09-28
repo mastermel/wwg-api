@@ -91,19 +91,19 @@ internal static class CampaignEndpoints
 
     /// <summary>A campaign's details: its Umpire (if it has one) and the caller's role.</summary>
     internal static async Task<Ok<CampaignResponse>> GetCampaignAsync(
+        Guid id,
         HttpContext httpContext,
         WwgDbContext db,
         CancellationToken cancellationToken
     )
     {
         var access = httpContext.CampaignContext();
-        return TypedResults.Ok(
-            await LoadAsync(db, access.CampaignId, access.Role, cancellationToken)
-        );
+        return TypedResults.Ok(await LoadAsync(db, id, access.Role, cancellationToken));
     }
 
     /// <summary>Changes the campaign's name and description (Umpire or Admin).</summary>
     internal static async Task<Ok<CampaignResponse>> UpdateCampaignAsync(
+        Guid id,
         UpdateCampaignRequest request,
         HttpContext httpContext,
         WwgDbContext db,
@@ -111,10 +111,7 @@ internal static class CampaignEndpoints
     )
     {
         var access = httpContext.CampaignContext();
-        var campaign = await db.Campaigns.SingleAsync(
-            c => c.Id == access.CampaignId,
-            cancellationToken
-        );
+        var campaign = await db.Campaigns.SingleAsync(c => c.Id == id, cancellationToken);
         campaign.Name = request.Name;
         campaign.Description = EmptyToNull(request.Description);
         await db.SaveChangesAsync(cancellationToken);
@@ -127,13 +124,13 @@ internal static class CampaignEndpoints
     /// Admin). The database's cascades do the rest.
     /// </summary>
     internal static async Task<NoContent> DeleteCampaignAsync(
-        HttpContext httpContext,
+        Guid id,
         WwgDbContext db,
         CancellationToken cancellationToken
     )
     {
-        var campaignId = httpContext.CampaignContext().CampaignId;
-        await db.Campaigns.Where(c => c.Id == campaignId).ExecuteDeleteAsync(cancellationToken);
+        // RequireCampaignAccess has already checked the caller may delete it.
+        await db.Campaigns.Where(c => c.Id == id).ExecuteDeleteAsync(cancellationToken);
         return TypedResults.NoContent();
     }
 

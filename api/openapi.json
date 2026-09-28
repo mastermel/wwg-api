@@ -754,6 +754,17 @@
         ],
         "summary": "A campaign's details: its Umpire (if it has one) and the caller's role.",
         "operationId": "GetCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -778,6 +789,17 @@
         ],
         "summary": "Changes the campaign's name and description (Umpire or Admin).",
         "operationId": "UpdateCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -812,6 +834,17 @@
         ],
         "summary": "Deletes the campaign and everything in it: members now, armies and units later (Umpire or\nAdmin). The database's cascades do the rest.",
         "operationId": "DeleteCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": "No Content"

@@ -35,7 +35,8 @@ internal static class CampaignAccessExtensions
 {
     /// <summary>
     /// Declares a campaign endpoint's access rule (DESIGN.md §3.5). The campaign comes from the
-    /// route's <c>{id}</c>. Not a member (or no such campaign): 404, so outsiders can't tell it
+    /// route's <c>{id}</c>; the handler should still take <c>Guid id</c>, which documents it in the
+    /// OpenAPI document (a path parameter nothing binds is left out, and the document is invalid). Not a member (or no such campaign): 404, so outsiders can't tell it
     /// exists. A member without enough access: 403. Admins always pass.
     /// </summary>
     public static TBuilder RequireCampaignAccess<TBuilder>(
