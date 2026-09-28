@@ -40,6 +40,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Admin screens live under `routes/_app/admin/` (the layout gives non-admins the not-found page).
   Lists keep their search and page in the URL (`validateSearch`), so they can be shared.
 - Show dates with `formatDate` / `formatDateTime` (`lib/format`): the API sends UTC.
+- Don't set a `gcTime` above 2^31 - 1 ms (about 24.8 days): timers overflow and fire at once,
+  dropping the data before it can be saved or restored.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

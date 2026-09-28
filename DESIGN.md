@@ -1392,10 +1392,17 @@ generated SDK, and the app installs as a PWA and opens offline.
 
 ### Phase 3 — Campaigns
 
-14. **Campaigns:** entity + membership, CRUD, paged list.
+14. ✅ **Campaigns:** entity + membership, CRUD, paged list.
     `RequireCampaignAccess` endpoint filter + `CampaignContext`. Scenario
     builders and data-driven permission tests. **Screens:** campaign list,
     create, details, edit.
+    - The filter reads the campaign from the route's `{id}` for now; army and
+      unit routes (steps 17 and 18) will add their own lookups.
+    - Handlers still bind `Guid id`, though they read the campaign from
+      `CampaignContext`: without it, OpenAPI doesn't declare the path
+      parameter (a test checks every path parameter is declared).
+    - Offline restore was broken since step 9.4 and fixed here: `gcTime` was
+      30 days, which overflows timers, so restored data was dropped at once.
 15. **Join flow:** join codes, preview/join/regenerate, member list,
     remove Player, leave (`/members/me`). **Screens:** join page (including
     the sign-in round trip), members, join link sharing.
