@@ -2,7 +2,7 @@
 
 > **Status:** Phase 1 done and deployed (steps 1–9 and 19–21, decision
 > [0006](docs/decisions/0006-deploy-after-phase-1.md)). Phase 2 in progress
-> (steps 10–11 done).
+> (steps 10–12 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -379,7 +379,8 @@ Identity has two layers:
   the security stamp, which signs out every other session. The response
   includes **new tokens** so the current session keeps working.
 - **Change email** (logged in): requires the current password. Updates
-  `Email` and `UserName` together and rejects an address already in use. No
+  `Email` and `UserName` together (with the new security stamp, in one save)
+  and rejects an address already in use (409) or the current one. No
   confirmation step, which matches sign-up. As a safeguard against account
   takeover, a **notice is sent to the old address**. Like a password change,
   it signs out other sessions and returns new tokens.
@@ -1221,9 +1222,9 @@ it, which makes the old link stop working. The React app builds the link
 |---|---|---|
 | GET | `/api/me` | Current user: id, email, names, `isAdmin` |
 | PUT | `/api/me` | Update first/last name |
-| PUT | `/api/me/email` | Change email (needs current password) → new tokens |
-| PUT | `/api/me/password` | Change password (needs current password) → new tokens |
-| POST | `/api/me/sign-out-everywhere` | Rotate security stamp; all tokens stop working |
+| PUT | `/api/me/email` | Change email (needs current password) → new tokens; notice to the old address. Rate-limited (`auth`) |
+| PUT | `/api/me/password` | Change password (needs current password) → new tokens. Rate-limited (`auth`) |
+| POST | `/api/me/sign-out-everywhere` | Rotate security stamp; all tokens stop working, this session's too (its cookie is cleared) |
 
 **Admin** (Admin only)
 
@@ -1380,7 +1381,7 @@ generated SDK, and the app installs as a PWA and opens offline.
     fallback, fake email service for tests, Mailpit dev compose;
     forgot/reset endpoints with the `email` rate limit. **Screens:** forgot
     and reset password.
-12. **Account:** `PUT /api/me`, change email (+ notice to old address),
+12. ✅ **Account:** `PUT /api/me`, change email (+ notice to old address),
     change password, sign out everywhere. **Screens:** account page.
 13. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
     **Screens:** admin user list and details.
