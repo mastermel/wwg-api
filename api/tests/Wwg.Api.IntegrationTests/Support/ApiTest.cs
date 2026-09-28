@@ -137,8 +137,15 @@ public abstract class ApiTest : IAsyncDisposable
             return await db.SaveChangesAsync(CancellationToken);
         });
 
+        var members =
+            await umpire.GetAsAsync<List<CampaignMemberResponse>>(
+                $"/api/campaigns/{campaignId}/members"
+            ) ?? [];
+
         return new CampaignScenario(
             campaignId,
+            members.Single(m => m.Role == CampaignRole.Umpire).Id,
+            members.Single(m => m.Role == CampaignRole.Player).Id,
             new Dictionary<Role, HttpClient>
             {
                 [Role.Admin] = admin,

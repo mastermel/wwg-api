@@ -73,6 +73,97 @@ public sealed class CampaignPermissionTests : ApiTest
     }
 
     [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task ViewJoinCode_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .GetAsync(CampaignUri(scenario, "/join-code"), CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task RegenerateJoinCode_ByRole_ReturnsExpectedStatus(
+        Role role,
+        HttpStatusCode expected
+    )
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .PostAsync(CampaignUri(scenario, "/join-code"), null, CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Player, HttpStatusCode.OK)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task ViewMembers_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .GetAsync(CampaignUri(scenario, "/members"), CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.NoContent)]
+    [InlineData(Role.Umpire, HttpStatusCode.NoContent)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task RemovePlayer_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .DeleteAsync(
+                CampaignUri(scenario, $"/members/{scenario.PlayerMemberId}"),
+                CancellationToken
+            );
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    // "Self only (leave)": the Umpire can't leave, and an Admin who isn't a member has nothing to
+    // leave.
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.NotFound)]
+    [InlineData(Role.Umpire, HttpStatusCode.Conflict)]
+    [InlineData(Role.Player, HttpStatusCode.NoContent)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task LeaveCampaign_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .DeleteAsync(CampaignUri(scenario, "/members/me"), CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    private static Uri CampaignUri(CampaignScenario scenario, string path) =>
+        new($"/api/campaigns/{scenario.CampaignId}{path}", UriKind.Relative);
+
+    [Theory]
     [InlineData("get")]
     [InlineData("put")]
     [InlineData("delete")]

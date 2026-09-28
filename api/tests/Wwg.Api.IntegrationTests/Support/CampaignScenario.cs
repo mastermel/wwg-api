@@ -15,10 +15,18 @@ public enum Role
 /// </summary>
 internal sealed class CampaignScenario(
     Guid campaignId,
+    Guid umpireMemberId,
+    Guid playerMemberId,
     IReadOnlyDictionary<Role, HttpClient> clients
 ) : IDisposable
 {
     public Guid CampaignId { get; } = campaignId;
+
+    /// <summary>The Umpire's membership ID.</summary>
+    public Guid UmpireMemberId { get; } = umpireMemberId;
+
+    /// <summary>The Player's membership ID.</summary>
+    public Guid PlayerMemberId { get; } = playerMemberId;
 
     public HttpClient As(Role role) => clients[role];
 
