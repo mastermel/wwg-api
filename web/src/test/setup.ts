@@ -38,6 +38,8 @@ Object.defineProperty(document, "fonts", {
 
 // jsdom doesn't implement these; the router's scroll restoration and axe call them.
 window.scrollTo = () => undefined;
+// Mantine's Select scrolls the highlighted option into view.
+Element.prototype.scrollIntoView = () => undefined;
 HTMLCanvasElement.prototype.getContext = () => null;
 
 // Any request without a handler fails the test, so tests never reach a real network.
