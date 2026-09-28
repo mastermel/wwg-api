@@ -52,7 +52,8 @@ everything, and manage user accounts.
 - Email verification (at sign-up or on email change).
 - Two-factor authentication.
 - Database backups.
-- Extra campaign fields (dates, game system, status…). Unit details beyond a name.
+- Extra campaign fields (dates, game system, status…). Unit details beyond name, type, FF and
+  points.
 - GraphQL.
 
 ## 2. Decisions
@@ -1167,9 +1168,13 @@ CampaignMember                Army
   (CreatedAt = when they joined)
 
 Unit
-  Id           Guid
-  ArmyId       → Army
-  Name         string (required, ≤100)
+  Id              Guid
+  ArmyId          → Army
+  Name            string (required, ≤100)
+  Type            HeavyInfantry | LightInfantry | Skirmishers | HeavyCavalry |
+                  LightCavalry | FootArtillery | HorseArtillery
+  FightingFactor  int 1–9 ("FF" in the app)
+  Points          int 0–100
   CreatedAt / UpdatedAt
 ```
 
@@ -1305,8 +1310,8 @@ it, which makes the old link stop working. The React app builds the link
 | DELETE | `/api/armies/{id}` | Delete army and units |
 | PUT | `/api/armies/{id}/commander` | Assign commander `{ memberId }` |
 | DELETE | `/api/armies/{id}/commander` | Unassign commander |
-| POST | `/api/armies/{id}/units` | Add unit |
-| PUT | `/api/units/{id}` | Rename unit |
+| POST | `/api/armies/{id}/units` | Add unit `{ name, type, fightingFactor, points }` |
+| PUT | `/api/units/{id}` | Edit unit (the same four fields) |
 | DELETE | `/api/units/{id}` | Delete unit |
 
 ## 6. Open questions
@@ -1314,7 +1319,7 @@ it, which makes the old link stop working. The React app builds the link
 None blocking. Items to revisit later:
 
 - Offline edits that sync later; push notifications.
-- Unit details, extra campaign fields.
+- More unit details, extra campaign fields.
 - Letting users delete their own account.
 - Database backups.
 
@@ -1526,3 +1531,18 @@ generated SDK, and the app installs as a PWA and opens offline.
 22. ✅ **Playwright suite** (`e2e/`, §3.8, decision 0007): the production image
     behind a TLS proxy with Mailpit, Chromium and iPhone WebKit, the main
     flows of Phases 2–3, and the `e2e` CI job gating the image push.
+
+### Phase 6 — Armies and units, fleshed out
+
+23. ✅ **Unit details:** each unit has a **type** (seven kinds of infantry,
+    cavalry and artillery), a **Fighting Factor** (1–9, "FF") and **points**
+    (0–100), set when it's added and changed with a full edit
+    (`PUT /api/units/{id}`, `UpdateUnit`).
+    - The type and numbers are `[JsonRequired]`: a request without them is a
+      400, rather than silently 0 or Heavy Infantry. A type sent as an
+      undefined number is a validation error.
+    - Units that existed before got FF 1, 0 points and Heavy Infantry.
+    - The army page shows a table (name, type, FF, points, and the points
+      total). On phones the type sits under the name.
+    - Also fixed: in Development an unreadable request body was a 500, not a
+      400 (§3.3).
