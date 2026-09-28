@@ -1057,6 +1057,81 @@
           }
         ]
       }
+    },
+    "/api/join/{code}": {
+      "get": {
+        "tags": [
+          "Join"
+        ],
+        "summary": "The campaign a join link is for: its name and Umpire. No sign-in needed.",
+        "operationId": "GetJoinPreview",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Join"
+        ],
+        "summary": "Joins the campaign as a Player: 201. Already a member (including its Umpire): 200 with the\nexisting role, and nothing changes.",
+        "operationId": "JoinCampaign",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinCampaignResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinCampaignResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1390,6 +1465,25 @@
           }
         }
       },
+      "JoinCampaignResponse": {
+        "required": [
+          "campaignId",
+          "myRole"
+        ],
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "string",
+            "description": "The campaign's ID.",
+            "format": "uuid"
+          },
+          "myRole": {
+            "description": "The caller's role: Player, or their existing role if already a member.",
+            "$ref": "#/components/schemas/CampaignRole"
+          }
+        },
+        "description": "The campaign the caller is now in."
+      },
       "JoinCodeResponse": {
         "required": [
           "joinCode"
@@ -1402,6 +1496,27 @@
           }
         },
         "description": "A campaign's join code. The app builds the join link from it."
+      },
+      "JoinPreviewResponse": {
+        "required": [
+          "campaignName",
+          "umpireName"
+        ],
+        "type": "object",
+        "properties": {
+          "campaignName": {
+            "type": "string",
+            "description": "The campaign's name."
+          },
+          "umpireName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The Umpire's name, or null if the campaign has none."
+          }
+        },
+        "description": "What a join link shows before joining. Public: anyone with the code can see it."
       },
       "LoginRequest": {
         "required": [
@@ -1797,6 +1912,9 @@
     },
     {
       "name": "Campaigns"
+    },
+    {
+      "name": "Join"
     }
   ]
 }
