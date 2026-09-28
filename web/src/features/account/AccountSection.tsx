@@ -1,30 +1,21 @@
-import { Paper, Stack, Text, Title } from "@mantine/core";
 import type { ReactNode } from "react";
+import { Section } from "@/components/Section";
 
+/** One part of the account page: a Section, named for screen readers by its title. */
 export function AccountSection({
   title,
   description,
+  tone,
   children,
 }: {
   title: string;
   description?: string;
+  tone?: "danger";
   children: ReactNode;
 }) {
   return (
-    <Paper withBorder p="lg" radius="md" component="section" aria-label={title}>
-      <Stack gap="md">
-        <div>
-          <Title order={2} size="h4">
-            {title}
-          </Title>
-          {description && (
-            <Text size="sm" c="dimmed">
-              {description}
-            </Text>
-          )}
-        </div>
-        {children}
-      </Stack>
-    </Paper>
+    <Section title={title} description={description} tone={tone}>
+      {children}
+    </Section>
   );
 }

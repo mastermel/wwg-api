@@ -97,7 +97,11 @@ export function RegisterPage({ redirect }: { redirect?: string | undefined }) {
       </form>
       <Text size="sm">
         Already have an account?{" "}
-        <Anchor renderRoot={(props) => <Link to="/sign-in" search={{ redirect }} {...props} />}>
+        {/* Underlined: a link inside a sentence can't differ by colour alone (WCAG 1.4.1). */}
+        <Anchor
+          underline="always"
+          renderRoot={(props) => <Link to="/sign-in" search={{ redirect }} {...props} />}
+        >
           Sign in
         </Anchor>
       </Text>

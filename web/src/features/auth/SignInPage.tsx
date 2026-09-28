@@ -98,7 +98,11 @@ export function SignInPage({
       </form>
       <Text size="sm">
         New here?{" "}
-        <Anchor renderRoot={(props) => <Link to="/register" search={{ redirect }} {...props} />}>
+        {/* Underlined: a link inside a sentence can't differ by colour alone (WCAG 1.4.1). */}
+        <Anchor
+          underline="always"
+          renderRoot={(props) => <Link to="/register" search={{ redirect }} {...props} />}
+        >
           Create an account
         </Anchor>
       </Text>

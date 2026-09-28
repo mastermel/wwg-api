@@ -1,0 +1,42 @@
+/* A campaign card: the whole card opens the campaign (its title link stretches over it). */
+
+.card {
+  position: relative;
+  border-top: 4px solid var(--card-accent);
+  transition:
+    box-shadow 150ms ease,
+    transform 150ms ease;
+
+  &:hover {
+    box-shadow: var(--mantine-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  /* The focus ring on the card, not just the title, since the whole card is the target. */
+  &:has(.link:focus-visible) {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+  }
+
+  &[data-role="Umpire"] {
+    --card-accent: var(--mantine-primary-color-filled);
+  }
+
+  &[data-role="Player"] {
+    --card-accent: var(--mantine-color-silver-5);
+  }
+}
+
+.link {
+  color: var(--mantine-color-text);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}

@@ -51,7 +51,8 @@ describe("campaigns", () => {
     );
     if (!card) throw new Error("No campaign card");
     expect(within(card).getByText("Player")).toBeInTheDocument();
-    expect(within(card).getByText(/Umpire: Ada Admin · 3 players/)).toBeInTheDocument();
+    expect(within(card).getByText("Umpire: Ada Admin")).toBeInTheDocument();
+    expect(within(card).getByText("3 players")).toBeInTheDocument();
   });
 
   it("explains what to do when there are none", async () => {

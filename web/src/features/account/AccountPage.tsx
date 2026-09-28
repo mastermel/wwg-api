@@ -13,8 +13,8 @@ export function AccountPage() {
   }
 
   return (
-    <Page title="Account">
-      <Stack maw={640} gap="lg">
+    <Page title="Account" summary={`Signed in as ${user.email}`}>
+      <Stack maw={720} gap="xl">
         {/* Keyed so the form's defaults follow the saved name. */}
         <ProfileForm key={user.id} user={user} />
         <EmailForm currentEmail={user.email} />
