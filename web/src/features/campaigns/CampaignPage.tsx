@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Modal, Stack, Text } from "@mantine/core";
+import { Badge, Button, Group, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
@@ -10,10 +10,14 @@ import {
   useGetCampaign,
 } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { CampaignResponse } from "@/api/generated/model";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
+import { JoinLinkSection } from "@/features/campaigns/JoinLinkSection";
+import { LeaveCampaignButton } from "@/features/campaigns/LeaveCampaignButton";
+import { MembersSection } from "@/features/campaigns/MembersSection";
 import { useOnline } from "@/lib/use-online";
 
 export function CampaignPage({ id }: { id: string }) {
@@ -50,7 +54,11 @@ function CampaignDetails({ campaign }: { campaign: CampaignResponse }) {
   return (
     <Stack gap="lg" maw={720}>
       <Group gap="xs">
-        {campaign.myRole && <Badge variant="light">You&apos;re the {campaign.myRole}</Badge>}
+        {campaign.myRole && (
+          <Badge variant="light">
+            {campaign.myRole === "Umpire" ? "You're the Umpire" : "You're a Player"}
+          </Badge>
+        )}
         <Text size="sm" c="dimmed">
           Umpire:{" "}
           {campaign.umpire
@@ -87,20 +95,24 @@ function CampaignDetails({ campaign }: { campaign: CampaignResponse }) {
           </Button>
         </Group>
       )}
-      <Modal opened={confirming} onClose={close} title="Delete this campaign?" centered>
-        <Text size="sm">
-          {campaign.name} and everything in it will be deleted for everyone. This can&apos;t be
-          undone.
-        </Text>
-        <Group justify="flex-end" mt="lg">
-          <Button variant="default" onClick={close}>
-            Cancel
-          </Button>
-          <Button color="red" loading={remove.isPending} onClick={() => void confirmDelete()}>
-            Delete campaign
-          </Button>
+      {campaign.myRole === "Player" && (
+        <Group>
+          <LeaveCampaignButton campaign={campaign} />
         </Group>
-      </Modal>
+      )}
+      {canManage(campaign, user) && <JoinLinkSection campaign={campaign} />}
+      <MembersSection campaign={campaign} />
+      <ConfirmModal
+        opened={confirming}
+        onClose={close}
+        title="Delete this campaign?"
+        confirmLabel="Delete campaign"
+        onConfirm={() => void confirmDelete()}
+        loading={remove.isPending}
+      >
+        {campaign.name} and everything in it will be deleted for everyone. This can&apos;t be
+        undone.
+      </ConfirmModal>
     </Stack>
   );
 }
