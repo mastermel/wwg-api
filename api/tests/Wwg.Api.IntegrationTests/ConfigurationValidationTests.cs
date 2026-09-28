@@ -42,6 +42,16 @@ public sealed class ConfigurationValidationTests
         Assert.Contains("DataProtectionKeysPath", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Startup_SmtpHostWithoutFromAddress_Fails()
+    {
+        var exception = StartupException(builder =>
+            builder.UseSetting("Smtp:Host", "smtp.example.com")
+        );
+
+        Assert.Contains("FromAddress", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("ForwardedHeaders:KnownProxies:0", "not-an-ip")]
     [InlineData("ForwardedHeaders:KnownNetworks:0", "10.0.0.0")]

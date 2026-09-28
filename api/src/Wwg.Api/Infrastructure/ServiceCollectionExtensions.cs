@@ -1,4 +1,5 @@
 using Wwg.Api.Infrastructure.Auth;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Infrastructure;
 
@@ -19,6 +20,7 @@ internal static class ServiceCollectionExtensions
             .AddApiDocument()
             .AddDatabase()
             .AddAuth()
-            .AddApiRateLimiting();
+            .AddApiRateLimiting()
+            .AddEmail();
     }
 }

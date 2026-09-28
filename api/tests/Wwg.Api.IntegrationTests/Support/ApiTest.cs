@@ -25,6 +25,8 @@ public abstract class ApiTest : IAsyncDisposable
 
     protected FakeTimeProvider Clock => App.Clock;
 
+    private protected FakeEmailService Emails => App.Emails;
+
     protected static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
     /// <summary>A password every test user can share (cheap to hash in tests).</summary>

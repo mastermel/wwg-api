@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.IntegrationTests.Support;
 
@@ -36,6 +37,9 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
 
     public string ConnectionString { get; }
 
+    /// <summary>Every email the app sent.</summary>
+    internal FakeEmailService Emails { get; } = new();
+
     /// <summary>The app's clock. Starts at a fixed time; move it with <c>Advance</c>.</summary>
     public FakeTimeProvider Clock { get; } =
         new(new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero));
@@ -51,6 +55,7 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
             .ConfigureTestServices(services =>
             {
                 services.AddSingleton<TimeProvider>(Clock);
+                services.AddSingleton<IEmailService>(Emails);
                 // In-memory keys: tests never write key files, and tokens don't outlive the test.
                 services.PostConfigure<KeyManagementOptions>(options =>
                     options.XmlRepository = new InMemoryXmlRepository()
