@@ -30,7 +30,7 @@ public sealed class CampaignMemberTests : ApiTest
     }
 
     [Fact]
-    public async Task RegenerateJoinCode_ReplacesItAndMembersStay()
+    public async Task RegenerateJoinCode_OldLinkStopsWorkingAndMembersStay()
     {
         using var scenario = await CreateCampaignScenarioAsync();
         var umpire = scenario.As(Role.Umpire);
@@ -47,6 +47,16 @@ public sealed class CampaignMemberTests : ApiTest
         var after = await response.Content.ReadAsAsync<JoinCodeResponse>();
         Assert.NotEqual(before?.JoinCode, after?.JoinCode, StringComparer.Ordinal);
         Assert.Equal(22, after?.JoinCode.Length);
+        using var oldLink = await Client.GetAsync(
+            new Uri($"/api/join/{before?.JoinCode}", UriKind.Relative),
+            CancellationToken
+        );
+        await oldLink.AssertProblemAsync(HttpStatusCode.NotFound);
+        using var newLink = await Client.GetAsync(
+            new Uri($"/api/join/{after?.JoinCode}", UriKind.Relative),
+            CancellationToken
+        );
+        Assert.Equal(HttpStatusCode.OK, newLink.StatusCode);
         Assert.Equal(2, await CountMembersAsync(scenario));
     }
 

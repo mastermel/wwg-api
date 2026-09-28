@@ -123,19 +123,15 @@ public abstract class ApiTest : IAsyncDisposable
         var campaign = await created.Content.ReadAsAsync<CampaignResponse>();
         var campaignId = campaign?.Id ?? throw new InvalidOperationException("No campaign.");
 
-        await WithDbAsync(async db =>
-        {
-            var playerId = db.Users.Single(u => u.NormalizedEmail == "PLAYER@EXAMPLE.COM").Id;
-            db.CampaignMembers.Add(
-                new CampaignMember
-                {
-                    CampaignId = campaignId,
-                    UserId = playerId,
-                    Role = CampaignRole.Player,
-                }
-            );
-            return await db.SaveChangesAsync(CancellationToken);
-        });
+        var joinCode = await umpire.GetAsAsync<JoinCodeResponse>(
+            $"/api/campaigns/{campaignId}/join-code"
+        );
+        using var joined = await player.PostAsync(
+            new Uri($"/api/join/{joinCode?.JoinCode}", UriKind.Relative),
+            null,
+            CancellationToken
+        );
+        joined.EnsureSuccessStatusCode();
 
         var members =
             await umpire.GetAsAsync<List<CampaignMemberResponse>>(

@@ -25,7 +25,7 @@ internal sealed class CampaignScenario(
     /// <summary>The Umpire's membership ID.</summary>
     public Guid UmpireMemberId { get; } = umpireMemberId;
 
-    /// <summary>The Player's membership ID.</summary>
+    /// <summary>The Player's membership ID. The Player joined with the join code.</summary>
     public Guid PlayerMemberId { get; } = playerMemberId;
 
     public HttpClient As(Role role) => clients[role];
