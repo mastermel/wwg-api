@@ -16,7 +16,13 @@ type SignInValues = z.infer<typeof LoginBody>;
 
 const trim = (value: string) => value.trim();
 
-export function SignInPage({ redirect }: { redirect?: string | undefined }) {
+export function SignInPage({
+  redirect,
+  passwordReset = false,
+}: {
+  redirect?: string | undefined;
+  passwordReset?: boolean;
+}) {
   const router = useRouter();
   const session = useSessionStore();
   const { ended } = useSession();
@@ -41,7 +47,12 @@ export function SignInPage({ redirect }: { redirect?: string | undefined }) {
 
   return (
     <Page title="Sign in">
-      {ended && !formError && (
+      {passwordReset && !formError && (
+        <Alert color="green" title="Password changed">
+          Sign in with your new password. You&apos;ve been signed out everywhere else.
+        </Alert>
+      )}
+      {ended && !passwordReset && !formError && (
         <Alert color="yellow" title="You've been signed out">
           Your session ended, for example after a password change. Sign in again.
         </Alert>
@@ -71,6 +82,13 @@ export function SignInPage({ redirect }: { redirect?: string | undefined }) {
           <Button type="submit" loading={isSubmitting} disabled={!online}>
             Sign in
           </Button>
+          <Anchor
+            size="sm"
+            ta="center"
+            renderRoot={(props) => <Link to="/forgot-password" {...props} />}
+          >
+            Forgot your password?
+          </Anchor>
           {!online && (
             <Text size="sm" c="dimmed">
               Signing in needs a connection.
