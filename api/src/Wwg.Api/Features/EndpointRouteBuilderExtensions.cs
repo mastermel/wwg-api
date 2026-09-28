@@ -5,6 +5,7 @@ using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Health;
 using Wwg.Api.Features.Join;
+using Wwg.Api.Features.Units;
 
 namespace Wwg.Api.Features;
 
@@ -20,6 +21,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapCampaignEndpoints()
             .MapMemberEndpoints()
             .MapJoinEndpoints()
-            .MapArmyEndpoints();
+            .MapArmyEndpoints()
+            .MapUnitEndpoints();
     }
 }

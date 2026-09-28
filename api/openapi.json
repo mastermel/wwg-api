@@ -37,6 +37,53 @@
         }
       }
     },
+    "/api/armies/{id}/units": {
+      "post": {
+        "tags": [
+          "Units"
+        ],
+        "summary": "Adds a unit to the army (Umpire or Admin).",
+        "operationId": "CreateUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -1377,7 +1424,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "An army's details (its commander, the campaign's Umpire, or an Admin; other Players get\n403).",
+        "summary": "An army's details and units (its commander, the campaign's Umpire, or an Admin; other\nPlayers get 403).",
         "operationId": "GetArmy",
         "parameters": [
           {
@@ -1576,6 +1623,81 @@
           }
         ]
       }
+    },
+    "/api/units/{id}": {
+      "put": {
+        "tags": [
+          "Units"
+        ],
+        "summary": "Renames a unit (Umpire or Admin).",
+        "operationId": "RenameUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Units"
+        ],
+        "summary": "Deletes a unit (Umpire or Admin).",
+        "operationId": "DeleteUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1656,6 +1778,7 @@
           "campaignName",
           "name",
           "commander",
+          "units",
           "createdAt",
           "updatedAt"
         ],
@@ -1690,6 +1813,13 @@
               }
             ]
           },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitResponse"
+            },
+            "description": "Its units, sorted by name."
+          },
           "createdAt": {
             "type": "string",
             "description": "When it was created (UTC).",
@@ -1701,7 +1831,7 @@
             "format": "date-time"
           }
         },
-        "description": "An army's details."
+        "description": "An army's details, with its units."
       },
       "ArmySummary": {
         "required": [
@@ -2032,6 +2162,21 @@
           }
         },
         "description": "Starts a campaign; the caller becomes its Umpire."
+      },
+      "CreateUnitRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The unit's name."
+          }
+        },
+        "description": "Adds a unit to an army."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -2426,6 +2571,21 @@
         },
         "description": "Renames an army."
       },
+      "RenameUnitRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The unit's new name."
+          }
+        },
+        "description": "Renames a unit."
+      },
       "ResetPasswordRequest": {
         "required": [
           "email",
@@ -2485,6 +2645,31 @@
           }
         },
         "description": "A signed-in session. The access token goes in `Authorization: Bearer …`; the refresh\ntoken is never in a body: it's set as an HttpOnly cookie that only /api/auth receives."
+      },
+      "UnitResponse": {
+        "required": [
+          "id",
+          "armyId",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unit's ID.",
+            "format": "uuid"
+          },
+          "armyId": {
+            "type": "string",
+            "description": "The army it's in.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          }
+        },
+        "description": "A unit in an army."
       },
       "UpdateCampaignRequest": {
         "required": [
@@ -2662,6 +2847,9 @@
   "tags": [
     {
       "name": "Health"
+    },
+    {
+      "name": "Units"
     },
     {
       "name": "Auth"

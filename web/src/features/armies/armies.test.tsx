@@ -54,6 +54,7 @@ const firstCorps: ArmyResponse = {
   campaignName: "The Peninsular War",
   name: "First Corps",
   commander: commander(me),
+  units: [],
   createdAt: "2026-09-01T12:00:00Z",
   updatedAt: "2026-09-01T12:00:00Z",
 };

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Armies;
@@ -123,8 +124,8 @@ internal static class ArmyEndpoints
     }
 
     /// <summary>
-    /// An army's details (its commander, the campaign's Umpire, or an Admin; other Players get
-    /// 403).
+    /// An army's details and units (its commander, the campaign's Umpire, or an Admin; other
+    /// Players get 403).
     /// </summary>
     internal static async Task<Ok<ArmyResponse>> GetArmyAsync(
         Guid id,
@@ -233,6 +234,11 @@ internal static class ArmyEndpoints
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
                     ),
+                db.Units.Where(u => u.ArmyId == a.Id)
+                    .OrderBy(u => u.Name)
+                    .ThenBy(u => u.Id)
+                    .Select(u => new UnitResponse(u.Id, u.ArmyId, u.Name))
+                    .ToList(),
                 a.CreatedAt,
                 a.UpdatedAt
             ))

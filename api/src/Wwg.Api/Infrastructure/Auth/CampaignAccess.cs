@@ -30,6 +30,9 @@ internal enum CampaignRouteId
 
     /// <summary>An army in the campaign (<c>/api/armies/{id}/...</c>).</summary>
     Army,
+
+    /// <summary>A unit in one of the campaign's armies (<c>/api/units/{id}</c>).</summary>
+    Unit,
 }
 
 /// <summary>
@@ -51,10 +54,10 @@ internal static class CampaignAccessExtensions
 {
     /// <summary>
     /// Declares a campaign endpoint's access rule (DESIGN.md §3.5). The campaign comes from the
-    /// route's <c>{id}</c>: the campaign's, or an army's (<paramref name="routeId"/>). The handler
+    /// route's <c>{id}</c>: the campaign's, an army's or a unit's (<paramref name="routeId"/>). The handler
     /// should still take <c>Guid id</c>, which documents it in the OpenAPI document (a path
     /// parameter nothing binds is left out, and the document is invalid).
-    /// Not a member (or no such campaign or army): 404, so outsiders can't tell it exists. A member
+    /// Not a member (or no such campaign, army or unit): 404, so outsiders can't tell it exists. A member
     /// without enough access: 403. Admins always pass.
     /// </summary>
     public static TBuilder RequireCampaignAccess<TBuilder>(
@@ -64,6 +67,7 @@ internal static class CampaignAccessExtensions
     )
         where TBuilder : IEndpointConventionBuilder
     {
+        // Only an army route knows which army, so which commander.
         if (access == CampaignAccess.Commander && routeId != CampaignRouteId.Army)
         {
             throw new ArgumentException("Commander access needs an army route.", nameof(access));
@@ -154,8 +158,8 @@ internal static class CampaignAccessExtensions
         }
 
         /// <summary>
-        /// The campaign the route's ID belongs to, and (for an army) the army's commander. Null if
-        /// there's no such army.
+        /// The campaign the route's ID belongs to, and (for an army or unit) the army's commander.
+        /// Null if there's no such army or unit.
         /// </summary>
         private async Task<(Guid CampaignId, Guid? CommanderId)?> ResolveAsync(
             WwgDbContext db,
@@ -168,11 +172,18 @@ internal static class CampaignAccessExtensions
                 return (id, null);
             }
 
-            var army = await db
-                .Armies.AsNoTracking()
-                .Where(a => a.Id == id)
-                .Select(a => new { a.CampaignId, a.CommanderId })
-                .FirstOrDefaultAsync(cancellationToken);
+            var army =
+                routeId == CampaignRouteId.Army
+                    ? await db
+                        .Armies.AsNoTracking()
+                        .Where(a => a.Id == id)
+                        .Select(a => new { a.CampaignId, a.CommanderId })
+                        .FirstOrDefaultAsync(cancellationToken)
+                    : await db
+                        .Units.AsNoTracking()
+                        .Where(u => u.Id == id)
+                        .Select(u => new { u.Army.CampaignId, u.Army.CommanderId })
+                        .FirstOrDefaultAsync(cancellationToken);
             return army is null ? null : (army.CampaignId, army.CommanderId);
         }
 

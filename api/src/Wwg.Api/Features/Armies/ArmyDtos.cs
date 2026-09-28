@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Armies;
@@ -34,12 +35,13 @@ public sealed record ArmyCommander(Guid MemberId, Guid UserId, string FirstName,
 /// <param name="Commander">Its commander, or null if unassigned.</param>
 public sealed record ArmySummary(Guid Id, string Name, ArmyCommander? Commander);
 
-/// <summary>An army's details.</summary>
+/// <summary>An army's details, with its units.</summary>
 /// <param name="Id">The army's ID.</param>
 /// <param name="CampaignId">The campaign it's in.</param>
 /// <param name="CampaignName">That campaign's name.</param>
 /// <param name="Name">Its name.</param>
 /// <param name="Commander">Its commander, or null if unassigned.</param>
+/// <param name="Units">Its units, sorted by name.</param>
 /// <param name="CreatedAt">When it was created (UTC).</param>
 /// <param name="UpdatedAt">When it last changed (UTC).</param>
 public sealed record ArmyResponse(
@@ -48,6 +50,7 @@ public sealed record ArmyResponse(
     string CampaignName,
     string Name,
     ArmyCommander? Commander,
+    IReadOnlyList<UnitResponse> Units,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
