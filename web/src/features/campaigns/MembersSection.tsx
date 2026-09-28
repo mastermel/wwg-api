@@ -1,7 +1,6 @@
 import { Badge, Button, Stack, Table, Text, Title, VisuallyHidden } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import {
   getGetCampaignQueryKey,
   getListCampaignMembersQueryKey,
@@ -14,6 +13,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { QueryState } from "@/components/QueryState";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
+import { useConfirmTarget } from "@/lib/use-confirm-target";
 import { useOnline } from "@/lib/use-online";
 
 const fullName = (member: CampaignMemberResponse) => `${member.firstName} ${member.lastName}`;
@@ -28,7 +28,7 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
   const online = useOnline();
   const queryClient = useQueryClient();
   const remove = useRemoveCampaignMember();
-  const [removing, setRemoving] = useState<CampaignMemberResponse | null>(null);
+  const removing = useConfirmTarget<CampaignMemberResponse>();
   const manager = canManage(campaign, user);
 
   const confirmRemove = async (member: CampaignMemberResponse) => {
@@ -43,7 +43,7 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
     } catch {
       notifications.show({ color: "red", message: "They couldn't be removed. Try again." });
     }
-    setRemoving(null);
+    removing.close();
   };
 
   return (
@@ -99,7 +99,7 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
                           variant="subtle"
                           disabled={!online}
                           onClick={() => {
-                            setRemoving(member);
+                            removing.open(member);
                           }}
                           aria-label={`Remove ${fullName(member)}`}
                         >
@@ -115,19 +115,17 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
         )}
       </QueryState>
       <ConfirmModal
-        opened={removing !== null}
-        onClose={() => {
-          setRemoving(null);
-        }}
+        opened={removing.opened}
+        onClose={removing.close}
         title="Remove this Player?"
         confirmLabel="Remove"
         onConfirm={() => {
-          if (removing) void confirmRemove(removing);
+          if (removing.target) void confirmRemove(removing.target);
         }}
         loading={remove.isPending}
       >
-        {removing && fullName(removing)} will lose access to {campaign.name}. They can join again
-        with the join link.
+        {removing.target && fullName(removing.target)} will lose access to {campaign.name}. They can
+        join again with the join link.
       </ConfirmModal>
     </Stack>
   );
