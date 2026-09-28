@@ -15,7 +15,8 @@ public enum Role
 }
 
 /// <summary>
-/// A campaign with an Umpire, two Players (one commanding the army "First Corps"), an Admin and a
+/// A campaign with an Umpire, two Players (one commanding the army "First Corps", which has the
+/// unit "1st Division"), an Admin and a
 /// signed-in outsider, each with their own client. Permission tests pick a client by <see cref="Role"/>.
 /// </summary>
 internal sealed class CampaignScenario(
@@ -24,6 +25,7 @@ internal sealed class CampaignScenario(
     Guid commanderMemberId,
     Guid playerMemberId,
     Guid armyId,
+    Guid unitId,
     IReadOnlyDictionary<Role, HttpClient> clients
 ) : IDisposable
 {
@@ -40,6 +42,9 @@ internal sealed class CampaignScenario(
 
     /// <summary>The army "First Corps", commanded by the <see cref="Role.Commander"/>.</summary>
     public Guid ArmyId { get; } = armyId;
+
+    /// <summary>The unit "1st Division", in <see cref="ArmyId"/>.</summary>
+    public Guid UnitId { get; } = unitId;
 
     public HttpClient As(Role role) => clients[role];
 

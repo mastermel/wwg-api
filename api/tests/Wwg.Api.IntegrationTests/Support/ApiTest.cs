@@ -8,6 +8,7 @@ using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
+using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.IntegrationTests.Support;
@@ -104,7 +105,8 @@ public abstract class ApiTest : IAsyncDisposable
 
     /// <summary>
     /// A campaign created by its Umpire through the API, with two Players who joined with the join
-    /// link: one commands the army "First Corps", the other commands nothing. Plus an Admin and a
+    /// link: one commands the army "First Corps" (with one unit, "1st Division"), the other
+    /// commands nothing. Plus an Admin and a
     /// signed-in outsider.
     /// </summary>
     private protected async Task<CampaignScenario> CreateCampaignScenarioAsync(
@@ -136,15 +138,18 @@ public abstract class ApiTest : IAsyncDisposable
             )
         );
 
-        using var army = await umpire.PostAsJsonAsync(
-            new Uri($"/api/campaigns/{campaignId}/armies", UriKind.Relative),
+        var armyId = await PostForIdAsync<ArmyResponse>(
+            umpire,
+            $"/api/campaigns/{campaignId}/armies",
             new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"]),
-            CancellationToken
+            a => a.Id
         );
-        army.EnsureSuccessStatusCode();
-        var armyId =
-            (await army.Content.ReadAsAsync<ArmyResponse>())?.Id
-            ?? throw new InvalidOperationException("No army.");
+        var unitId = await PostForIdAsync<UnitResponse>(
+            umpire,
+            $"/api/armies/{armyId}/units",
+            new CreateUnitRequest("1st Division"),
+            u => u.Id
+        );
 
         return new CampaignScenario(
             campaignId,
@@ -152,6 +157,7 @@ public abstract class ApiTest : IAsyncDisposable
             memberIds["COMMANDER@EXAMPLE.COM"],
             memberIds["PLAYER@EXAMPLE.COM"],
             armyId,
+            unitId,
             new Dictionary<Role, HttpClient>
             {
                 [Role.Admin] = admin,
@@ -161,6 +167,27 @@ public abstract class ApiTest : IAsyncDisposable
                 [Role.NonMember] = outsider,
             }
         );
+    }
+
+    /// <summary>POSTs <paramref name="body"/>, expects success, and returns the new thing's ID.</summary>
+    private static async Task<Guid> PostForIdAsync<TResponse>(
+        HttpClient client,
+        string path,
+        object body,
+        Func<TResponse, Guid> id
+    )
+        where TResponse : class
+    {
+        using var response = await client.PostAsJsonAsync(
+            new Uri(path, UriKind.Relative),
+            body,
+            CancellationToken
+        );
+        response.EnsureSuccessStatusCode();
+        var created =
+            await response.Content.ReadAsAsync<TResponse>()
+            ?? throw new InvalidOperationException($"POST {path} returned nothing.");
+        return id(created);
     }
 
     /// <summary>The <paramref name="joiners"/> join the campaign with its join link.</summary>
