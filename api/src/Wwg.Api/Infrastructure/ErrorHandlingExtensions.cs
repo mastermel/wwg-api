@@ -27,7 +27,19 @@ internal static class ErrorHandlingExtensions
     /// </summary>
     public static IApplicationBuilder UseErrorHandling(this IApplicationBuilder app)
     {
-        return app.UseExceptionHandler().UseStatusCodePages();
+        return app.UseExceptionHandler(
+                new ExceptionHandlerOptions
+                {
+                    // A body that can't be read (bad JSON, a missing [JsonRequired] field) is the
+                    // client's mistake. In Development minimal APIs throw for it rather than
+                    // answer 400, which would otherwise become a 500 here.
+                    StatusCodeSelector = exception =>
+                        exception is BadHttpRequestException badRequest
+                            ? badRequest.StatusCode
+                            : StatusCodes.Status500InternalServerError,
+                }
+            )
+            .UseStatusCodePages();
     }
 
     /// <summary>

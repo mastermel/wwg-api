@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
@@ -15,5 +16,19 @@ public sealed class ErrorHandlingTests : ApiTest
 
         var problem = await response.AssertProblemAsync(HttpStatusCode.NotFound);
         Assert.Equal("GET /api/does-not-exist", problem.Instance);
+    }
+
+    [Fact]
+    public async Task Post_MalformedJson_ReturnsProblemDetails400()
+    {
+        using var content = new StringContent("{ not json", Encoding.UTF8, "application/json");
+
+        using var response = await Client.PostAsync(
+            new Uri("/api/auth/login", UriKind.Relative),
+            content,
+            CancellationToken
+        );
+
+        await response.AssertProblemAsync(HttpStatusCode.BadRequest);
     }
 }
