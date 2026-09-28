@@ -15,6 +15,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapAuthEndpoints()
             .MapAccountEndpoints()
             .MapAdminEndpoints()
-            .MapCampaignEndpoints();
+            .MapCampaignEndpoints()
+            .MapMemberEndpoints();
     }
 }

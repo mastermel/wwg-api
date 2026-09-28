@@ -56,3 +56,23 @@ public sealed record CampaignResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
+
+/// <summary>A campaign's join code. The app builds the join link from it.</summary>
+/// <param name="JoinCode">The code, safe to use in a URL as it is.</param>
+public sealed record JoinCodeResponse(string JoinCode);
+
+/// <summary>A member of a campaign.</summary>
+/// <param name="Id">The membership's ID (used to remove a Player).</param>
+/// <param name="UserId">Their user ID.</param>
+/// <param name="FirstName">First name.</param>
+/// <param name="LastName">Last name.</param>
+/// <param name="Role">Their role in the campaign.</param>
+/// <param name="JoinedAt">When they joined (UTC).</param>
+public sealed record CampaignMemberResponse(
+    Guid Id,
+    Guid UserId,
+    string FirstName,
+    string LastName,
+    CampaignRole Role,
+    DateTime JoinedAt
+);

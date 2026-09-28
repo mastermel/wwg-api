@@ -856,10 +856,252 @@
           }
         ]
       }
+    },
+    "/api/campaigns/{id}/join-code": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "The campaign's current join code (Umpire or Admin).",
+        "operationId": "GetJoinCode",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinCodeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Replaces the join code, so the old join link stops working (Umpire or Admin). Existing\nmembers stay.",
+        "operationId": "RegenerateJoinCode",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinCodeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/members": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "The campaign's members: the Umpire first, then Players by name.",
+        "operationId": "ListCampaignMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignMemberResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/members/me": {
+      "delete": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Leaves the campaign (Players). The Umpire can't leave: an Admin sets a new Umpire instead.",
+        "operationId": "LeaveCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/members/{memberId}": {
+      "delete": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Removes a Player from the campaign (Umpire or Admin).",
+        "operationId": "RemoveCampaignMember",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "memberId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "CampaignMemberResponse": {
+        "required": [
+          "id",
+          "userId",
+          "firstName",
+          "lastName",
+          "role",
+          "joinedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The membership's ID (used to remove a Player).",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Their user ID.",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name."
+          },
+          "role": {
+            "description": "Their role in the campaign.",
+            "$ref": "#/components/schemas/CampaignRole"
+          },
+          "joinedAt": {
+            "type": "string",
+            "description": "When they joined (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A member of a campaign."
+      },
       "CampaignResponse": {
         "required": [
           "id",
@@ -1147,6 +1389,19 @@
             }
           }
         }
+      },
+      "JoinCodeResponse": {
+        "required": [
+          "joinCode"
+        ],
+        "type": "object",
+        "properties": {
+          "joinCode": {
+            "type": "string",
+            "description": "The code, safe to use in a URL as it is."
+          }
+        },
+        "description": "A campaign's join code. The app builds the join link from it."
       },
       "LoginRequest": {
         "required": [

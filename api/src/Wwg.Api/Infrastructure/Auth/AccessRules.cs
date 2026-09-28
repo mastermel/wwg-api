@@ -11,7 +11,7 @@ internal static class Roles
 /// <summary>
 /// Marks an endpoint's declared access rule. Sign-in is required by default (a fallback policy),
 /// but every endpoint must still say which rule it means: AllowAnonymous, RequireSignedIn,
-/// AdminOnly or (later) RequireCampaignAccess. A convention test checks this.
+/// AdminOnly or RequireCampaignAccess. A convention test checks this.
 /// </summary>
 internal sealed record AccessRuleMetadata(string Rule);
 
