@@ -14,7 +14,7 @@ internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
         builder.Property(c => c.JoinCode).HasMaxLength(32);
         builder.HasIndex(c => c.JoinCode).IsUnique();
 
-        // Deleting a campaign deletes its members (and, later, its armies and units).
+        // Deleting a campaign deletes its members (and its armies: see ArmyConfiguration).
         builder
             .HasMany(c => c.Members)
             .WithOne(m => m.Campaign)
