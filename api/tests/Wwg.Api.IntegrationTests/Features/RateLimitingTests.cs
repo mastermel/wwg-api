@@ -34,4 +34,28 @@ public sealed class RateLimitingTests : ApiTest
         await response.AssertProblemAsync(HttpStatusCode.TooManyRequests);
         Assert.True(response.Headers.RetryAfter?.Delta > TimeSpan.Zero);
     }
+
+    [Fact]
+    public async Task ForgotPassword_OverTheEmailLimit_Returns429()
+    {
+        using var client = App.WithWebHostBuilder(builder =>
+                builder.UseSetting("RateLimits:Email:PermitLimit", "1")
+            )
+            .CreateClient();
+        var request = new ForgotPasswordRequest("nobody@example.com");
+
+        using var allowed = await client.PostAsJsonAsync(
+            new Uri("/api/auth/forgot-password", UriKind.Relative),
+            request,
+            CancellationToken
+        );
+        using var response = await client.PostAsJsonAsync(
+            new Uri("/api/auth/forgot-password", UriKind.Relative),
+            request,
+            CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
+        await response.AssertProblemAsync(HttpStatusCode.TooManyRequests);
+    }
 }

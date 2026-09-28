@@ -1,7 +1,11 @@
+using System.Text;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Auth;
 
@@ -28,6 +32,15 @@ internal static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/logout", Logout).WithName("Logout");
+        auth.MapPost("/forgot-password", ForgotPasswordAsync)
+            .WithName("ForgotPassword")
+            .RequireRateLimiting(RateLimiting.EmailPolicy)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        auth.MapPost("/reset-password", ResetPasswordAsync)
+            .WithName("ResetPassword")
+            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         return app;
     }
@@ -147,6 +160,99 @@ internal static class AuthEndpoints
         TokenService.ClearRefreshCookie(httpContext);
         return TypedResults.NoContent();
     }
+
+    /// <summary>
+    /// Emails a password reset link, if there's an account for the email. Always succeeds, so it
+    /// can't be used to find out which emails have accounts.
+    /// </summary>
+    internal static async Task<NoContent> ForgotPasswordAsync(
+        ForgotPasswordRequest request,
+        UserManager<AppUser> userManager,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is not null)
+        {
+            var token = await userManager.GeneratePasswordResetTokenAsync(user);
+            var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+            // From config, never the request's Host header, which an attacker could forge to
+            // point the link at their own site.
+            var link = new Uri(
+                appOptions.Value.PublicUrl!, // Required and validated at startup.
+                $"/reset-password?email={Uri.EscapeDataString(user.Email ?? "")}&code={code}"
+            );
+            await emails.QueueAsync(PasswordResetEmail.Create(user, link), cancellationToken);
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Sets a new password with the code from a reset link. This signs out every existing session
+    /// and clears any sign-in lockout.
+    /// </summary>
+    internal static async Task<Results<NoContent, ValidationProblem>> ResetPasswordAsync(
+        ResetPasswordRequest request,
+        UserManager<AppUser> userManager,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByEmailAsync(request.Email);
+        var token = DecodeCode(request.Code);
+        if (user is null || token is null)
+        {
+            // The same answer for an unknown email as for a bad code.
+            return InvalidResetCode();
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, token, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            return result.Errors.Any(e =>
+                string.Equals(
+                    e.Code,
+                    nameof(IdentityErrorDescriber.InvalidToken),
+                    StringComparison.Ordinal
+                )
+            )
+                ? InvalidResetCode()
+                : TypedResults.ValidationProblem(
+                    new Dictionary<string, string[]>(StringComparer.Ordinal)
+                    {
+                        ["newPassword"] = [.. result.Errors.Select(e => e.Description)],
+                    }
+                );
+        }
+
+        await userManager.SetLockoutEndDateAsync(user, null);
+        await userManager.ResetAccessFailedCountAsync(user);
+        return TypedResults.NoContent();
+    }
+
+    private static string? DecodeCode(string code)
+    {
+        try
+        {
+            return Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static ValidationProblem InvalidResetCode() =>
+        TypedResults.ValidationProblem(
+            new Dictionary<string, string[]>(StringComparer.Ordinal)
+            {
+                ["code"] = ["This reset link is invalid or has expired. Ask for a new one."],
+            }
+        );
 
     // The same answer for an unknown email and a wrong password, so sign-in can't be used to
     // find out which emails have accounts.

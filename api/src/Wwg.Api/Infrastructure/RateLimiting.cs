@@ -11,10 +11,18 @@ internal sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimits";
 
-    /// <summary>Register, login and refresh.</summary>
+    /// <summary>Register, login, refresh and reset-password.</summary>
     [Required]
     public FixedWindowLimit Auth { get; set; } =
         new() { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) };
+
+    /// <summary>
+    /// Forgot-password, which sends an email: tight, so it can't be used to flood someone's inbox
+    /// or run up SMTP costs.
+    /// </summary>
+    [Required]
+    public FixedWindowLimit Email { get; set; } =
+        new() { PermitLimit = 3, Window = TimeSpan.FromMinutes(15) };
 }
 
 internal sealed class FixedWindowLimit
@@ -28,8 +36,11 @@ internal sealed class FixedWindowLimit
 
 internal static class RateLimiting
 {
-    /// <summary>Policy for register, login and refresh.</summary>
+    /// <summary>Policy for register, login, refresh and reset-password.</summary>
     public const string AuthPolicy = "auth";
+
+    /// <summary>Policy for forgot-password.</summary>
+    public const string EmailPolicy = "email";
 
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
@@ -40,26 +51,29 @@ internal static class RateLimiting
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = WriteRejectionAsync;
 
-            // Partitioned by client IP, which is the real one behind the proxy (forwarded headers).
-            options.AddPolicy(
-                AuthPolicy,
-                httpContext =>
-                {
-                    var limit = httpContext
-                        .RequestServices.GetRequiredService<IOptions<RateLimitOptions>>()
-                        .Value.Auth;
-                    return RateLimitPartition.GetFixedWindowLimiter(
-                        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                        _ => new FixedWindowRateLimiterOptions
-                        {
-                            PermitLimit = limit.PermitLimit,
-                            Window = limit.Window,
-                            QueueLimit = 0,
-                        }
-                    );
-                }
-            );
+            options.AddPolicy(AuthPolicy, httpContext => PerClientIp(httpContext, o => o.Auth));
+            options.AddPolicy(EmailPolicy, httpContext => PerClientIp(httpContext, o => o.Email));
         });
+    }
+
+    // Partitioned by client IP, which is the real one behind the proxy (forwarded headers).
+    private static RateLimitPartition<string> PerClientIp(
+        HttpContext httpContext,
+        Func<RateLimitOptions, FixedWindowLimit> select
+    )
+    {
+        var limit = select(
+            httpContext.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value
+        );
+        return RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limit.PermitLimit,
+                Window = limit.Window,
+                QueueLimit = 0,
+            }
+        );
     }
 
     private static async ValueTask WriteRejectionAsync(

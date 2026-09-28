@@ -17,6 +17,18 @@ public sealed record LoginRequest(
     [property: Required, StringLength(128)] string Password
 );
 
+/// <summary>Asks for a password reset link by email.</summary>
+public sealed record ForgotPasswordRequest(
+    [property: Trimmed, Required, EmailAddress, StringLength(256)] string Email
+);
+
+/// <summary>Sets a new password with the code from a reset link.</summary>
+public sealed record ResetPasswordRequest(
+    [property: Trimmed, Required, EmailAddress, StringLength(256)] string Email,
+    [property: Required, StringLength(2048)] string Code,
+    [property: Required, StringLength(128, MinimumLength = 8)] string NewPassword
+);
+
 /// <summary>
 /// A signed-in session. The access token goes in <c>Authorization: Bearer …</c>; the refresh
 /// token is never in a body: it's set as an HttpOnly cookie that only /api/auth receives.

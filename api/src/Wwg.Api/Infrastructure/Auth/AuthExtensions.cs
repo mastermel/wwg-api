@@ -21,24 +21,7 @@ internal static class AuthExtensions
         services.AddValidatedOptions<AuthOptions>(AuthOptions.SectionName);
         services.AddValidatedOptions<AdminOptions>(AdminOptions.SectionName);
 
-        services
-            .AddIdentityCore<AppUser>(options =>
-            {
-                options.User.RequireUniqueEmail = true;
-                // The username is the email; the default character list rejects valid addresses
-                // such as o'brien@example.com. Email format is validated on the request instead.
-                options.User.AllowedUserNameCharacters = "";
-                options.Password.RequiredLength = 8;
-                options.Password.RequireDigit = false;
-                options.Password.RequireLowercase = false;
-                options.Password.RequireUppercase = false;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequiredUniqueChars = 1;
-                // Lockout keeps Identity's defaults: 5 failed attempts, 5 minutes.
-            })
-            .AddRoles<IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<WwgDbContext>()
-            .AddSignInManager();
+        AddIdentity(services);
 
         services
             .AddAuthentication(IdentityConstants.BearerScheme)
@@ -56,6 +39,42 @@ internal static class AuthExtensions
         services.AddAuthorizationBuilder().AddAccessPolicies();
         services.AddScoped<TokenService>();
 
+        AddPersistedDataProtectionKeys(services);
+
+        return services;
+    }
+
+    private static void AddIdentity(IServiceCollection services)
+    {
+        services
+            .AddIdentityCore<AppUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                // The username is the email; the default character list rejects valid addresses
+                // such as o'brien@example.com. Email format is validated on the request instead.
+                options.User.AllowedUserNameCharacters = "";
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredUniqueChars = 1;
+                // Lockout keeps Identity's defaults: 5 failed attempts, 5 minutes.
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<WwgDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+
+        services
+            .AddOptions<DataProtectionTokenProviderOptions>()
+            .Configure<IOptions<AuthOptions>>(
+                (tokens, auth) => tokens.TokenLifespan = auth.Value.PasswordResetLinkLifetime
+            );
+    }
+
+    private static void AddPersistedDataProtectionKeys(IServiceCollection services)
+    {
         // Keys persisted to a directory (the /data volume in production), like
         // PersistKeysToFileSystem, but with the path read from validated options.
         services.AddDataProtection().SetApplicationName("wwg");
@@ -73,7 +92,5 @@ internal static class AuthExtensions
                         loggerFactory
                     )
             );
-
-        return services;
     }
 }

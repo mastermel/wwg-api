@@ -19,4 +19,10 @@ internal sealed class AuthOptions
 
     /// <summary>How long a refresh token works. Sliding: each refresh issues a new one.</summary>
     public TimeSpan RefreshTokenLifetime { get; set; } = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// How long a password reset link works (Identity's default is a day). Identity checks it
+    /// against the system clock, not the injected TimeProvider.
+    /// </summary>
+    public TimeSpan PasswordResetLinkLifetime { get; set; } = TimeSpan.FromHours(2);
 }
