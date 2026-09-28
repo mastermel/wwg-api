@@ -4,7 +4,7 @@
 services:
   # HTTPS matters: WebKit won't keep the Secure refresh cookie over plain http, even on localhost.
   proxy:
-    image: caddy:2.10-alpine
+    image: caddy:2.11-alpine
     ports:
       - "127.0.0.1:8443:8443"
     volumes:
