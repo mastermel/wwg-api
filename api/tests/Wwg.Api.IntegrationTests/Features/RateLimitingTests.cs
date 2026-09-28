@@ -36,6 +36,43 @@ public sealed class RateLimitingTests : ApiTest
     }
 
     [Fact]
+    public async Task Refresh_HasItsOwnLimit_SeparateFromSignIn()
+    {
+        using var client = App.WithWebHostBuilder(builder =>
+                builder
+                    .UseSetting("RateLimits:Auth:PermitLimit", "1")
+                    .UseSetting("RateLimits:Refresh:PermitLimit", "2")
+            )
+            .CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            new Uri("/api/auth/login", UriKind.Relative),
+            new LoginRequest("nobody@example.com", TestPassword),
+            CancellationToken
+        );
+
+        // The sign-in used up the auth limit; refreshes still get theirs.
+        var statuses = new List<HttpStatusCode>();
+        for (var i = 0; i < 3; i++)
+        {
+            using var refresh = await client.PostAsync(
+                new Uri("/api/auth/refresh", UriKind.Relative),
+                null,
+                CancellationToken
+            );
+            statuses.Add(refresh.StatusCode);
+        }
+
+        Assert.Equal(
+            [
+                HttpStatusCode.Unauthorized,
+                HttpStatusCode.Unauthorized,
+                HttpStatusCode.TooManyRequests,
+            ],
+            statuses
+        );
+    }
+
+    [Fact]
     public async Task ForgotPassword_OverTheEmailLimit_Returns429()
     {
         using var client = App.WithWebHostBuilder(builder =>

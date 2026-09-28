@@ -52,6 +52,7 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
             .UseSetting("Database:MigrateOnStartup", "false")
             // Tests make many auth requests from one "IP"; RateLimitingTests covers the limits.
             .UseSetting("RateLimits:Auth:PermitLimit", "100000")
+            .UseSetting("RateLimits:Refresh:PermitLimit", "100000")
             .UseSetting("RateLimits:Email:PermitLimit", "100000")
             .ConfigureTestServices(services =>
             {

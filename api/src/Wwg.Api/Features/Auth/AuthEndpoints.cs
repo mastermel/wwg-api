@@ -28,7 +28,7 @@ internal static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/refresh", RefreshAsync)
             .WithName("Refresh")
-            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .RequireRateLimiting(RateLimiting.RefreshPolicy)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/logout", Logout).WithName("Logout");

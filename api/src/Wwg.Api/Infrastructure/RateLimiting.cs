@@ -11,10 +11,19 @@ internal sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimits";
 
-    /// <summary>Register, login, refresh and reset-password.</summary>
+    /// <summary>Register, login and reset-password: tight, against password guessing.</summary>
     [Required]
     public FixedWindowLimit Auth { get; set; } =
         new() { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) };
+
+    /// <summary>
+    /// Token refresh. Every page load and open tab refreshes, and a club's members may share one
+    /// IP (the same Wi-Fi at a game night), so this is far looser than <see cref="Auth"/>. It only
+    /// works with a valid refresh cookie, so there's nothing to guess.
+    /// </summary>
+    [Required]
+    public FixedWindowLimit Refresh { get; set; } =
+        new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) };
 
     /// <summary>
     /// Forgot-password, which sends an email: tight, so it can't be used to flood someone's inbox
@@ -36,8 +45,11 @@ internal sealed class FixedWindowLimit
 
 internal static class RateLimiting
 {
-    /// <summary>Policy for register, login, refresh and reset-password.</summary>
+    /// <summary>Policy for register, login and reset-password.</summary>
     public const string AuthPolicy = "auth";
+
+    /// <summary>Policy for token refresh.</summary>
+    public const string RefreshPolicy = "refresh";
 
     /// <summary>Policy for forgot-password.</summary>
     public const string EmailPolicy = "email";
@@ -52,6 +64,10 @@ internal static class RateLimiting
             options.OnRejected = WriteRejectionAsync;
 
             options.AddPolicy(AuthPolicy, httpContext => PerClientIp(httpContext, o => o.Auth));
+            options.AddPolicy(
+                RefreshPolicy,
+                httpContext => PerClientIp(httpContext, o => o.Refresh)
+            );
             options.AddPolicy(EmailPolicy, httpContext => PerClientIp(httpContext, o => o.Email));
         });
     }

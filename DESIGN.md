@@ -395,7 +395,11 @@ Identity has two layers:
   `LockoutEnd` instead of the fake clock.
 - **Rate limiting** (`AddRateLimiter`), partitioned by client IP. Needs the
   real client IP behind the proxy (§3.10).
-  - `auth` policy: login, register, refresh (e.g. 10 requests/minute).
+  - `auth` policy: login, register, reset-password (e.g. 10 requests/minute).
+  - `refresh` policy: token refresh, far looser (120/minute). Every page load
+    and tab refreshes, and club members often share one IP (the same Wi-Fi),
+    so the `auth` limit refused them. Refresh needs a valid refresh cookie, so
+    there's nothing to guess.
   - `email` policy: forgot-password (e.g. 3 requests per 15 minutes). This
     prevents using us to spam someone's inbox or run up SMTP costs.
   - Rejected requests get **429** Problem Details.
@@ -725,7 +729,7 @@ for amd64 and arm64. The shared `traefik` network is pinned to
   `Database__MigrateOnStartup` (default `true`), `Auth__DataProtectionKeysPath`
   (defaults to `/data/keys`), `Smtp__*`, `Admin__Emails__0…`,
   `App__PublicUrl`, `ForwardedHeaders__*`, `RateLimits__Auth__*` (defaults
-  to 10 per minute).
+  to 10 per minute), `RateLimits__Refresh__*` (120 per minute).
 
 ### 3.11 Front-end hosting & local development
 
