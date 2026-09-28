@@ -88,7 +88,9 @@ export function AppLayout() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="sm" aria-label="Main">
+      {/* Hidden below sm, not just slid away: otherwise its links stay in the tab order and the
+          accessibility tree on phones, off-screen, next to the tab bar's. */}
+      <AppShell.Navbar p="sm" aria-label="Main" visibleFrom="sm">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
