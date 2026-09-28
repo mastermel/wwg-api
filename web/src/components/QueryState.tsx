@@ -15,9 +15,13 @@ interface QueryStateProps<TData> {
  * saved data is paused rather than failing; that shows "not available offline", not a spinner.
  */
 export function QueryState<TData>({ query, children }: QueryStateProps<TData>) {
-  // Data wins, even if a later refetch failed (offline, or the server is down): showing what we
-  // have beats an error.
-  if (query.data !== undefined) {
+  // "Not found or no access" is the API's answer, not a failure to reach it (e.g. a Player who
+  // was removed from the campaign): it wins over saved data, which is then out of date.
+  const gone = query.error instanceof ApiError && [403, 404].includes(query.error.status);
+
+  // Otherwise data wins, even if a later refetch failed (offline, or the server is down): showing
+  // what we have beats an error.
+  if (query.data !== undefined && !gone) {
     return children(query.data);
   }
 
@@ -29,7 +33,7 @@ export function QueryState<TData>({ query, children }: QueryStateProps<TData>) {
     );
   }
 
-  if (query.error instanceof ApiError && [403, 404].includes(query.error.status)) {
+  if (gone) {
     return (
       <Alert color="gray" icon={<IconAlertTriangle aria-hidden />} title="Not found">
         This doesn&apos;t exist, or you don&apos;t have access to it.

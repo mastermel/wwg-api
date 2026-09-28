@@ -5,6 +5,7 @@ import { AppProviders } from "@/app/AppProviders";
 import { createQueryClient } from "@/app/query-client";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { QueryState } from "@/components/QueryState";
+import { ApiError } from "@/lib/api-fetch";
 
 function Thing({ load }: { load: () => Promise<string> }) {
   const query = useQuery({ queryKey: ["thing"], queryFn: load, retry: false });
@@ -49,6 +50,19 @@ describe("QueryState", () => {
 
     expect(await screen.findByText("Thing: Saved army")).toBeInTheDocument();
     expect(screen.queryByText("Server down.")).not.toBeInTheDocument();
+  });
+
+  it("says not found when a refetch does, even with saved data", async () => {
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(["thing"], "Saved army", { updatedAt: 0 });
+
+    renderWith(
+      <Thing load={() => Promise.reject(new ApiError(404, undefined, undefined))} />,
+      queryClient,
+    );
+
+    expect(await screen.findByText("Not found")).toBeInTheDocument();
+    expect(screen.queryByText("Thing: Saved army")).not.toBeInTheDocument();
   });
 
   it("shows the error when loading fails", async () => {
