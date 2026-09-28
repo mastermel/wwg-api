@@ -18,7 +18,10 @@ import { useOnline } from "@/lib/use-online";
 
 const fullName = (member: CampaignMemberResponse) => `${member.firstName} ${member.lastName}`;
 
-/** The campaign's members; the Umpire (or an Admin) can remove Players. */
+/**
+ * The campaign's members and the army each Player commands; the Umpire (or an Admin) can remove
+ * Players.
+ */
 export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
   const members = useListCampaignMembers(campaign.id);
   const { user } = useSession();
@@ -55,6 +58,7 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
                 <Table.Th>Role</Table.Th>
+                <Table.Th>Army</Table.Th>
                 {manager && (
                   <Table.Th>
                     <VisuallyHidden>Actions</VisuallyHidden>
@@ -68,7 +72,7 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
                   <Table.Td>
                     {fullName(member)}
                     {member.userId === user?.id && (
-                      <Text span c="dimmed">
+                      <Text span c="dimmed" inherit>
                         {" "}
                         (you)
                       </Text>
@@ -78,6 +82,13 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
                     <Badge variant={member.role === "Umpire" ? "filled" : "light"}>
                       {member.role}
                     </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    {member.army?.name ?? (
+                      <Text span c="dimmed" inherit>
+                        {member.role === "Player" ? "None" : "–"}
+                      </Text>
+                    )}
                   </Table.Td>
                   {manager && (
                     <Table.Td ta="right">

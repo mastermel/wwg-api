@@ -11,6 +11,7 @@ import {
 } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { ArmiesSection } from "@/features/armies/ArmiesSection";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
 import { useSession } from "@/features/auth/session-context";
@@ -103,6 +104,7 @@ function CampaignDetails({ campaign }: { campaign: CampaignResponse }) {
         </Group>
       )}
       {canManage(campaign, user) && <JoinLinkSection campaign={campaign} />}
+      <ArmiesSection campaign={campaign} />
       <MembersSection campaign={campaign} />
       <ConfirmModal
         opened={confirming}

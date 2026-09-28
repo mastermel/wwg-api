@@ -79,8 +79,8 @@ describe("campaign members", () => {
       .getAllByRole("row")
       .slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      "Ada AdminUmpire",
-      "Mel Green (you)Player",
+      "Ada AdminUmpire–",
+      "Mel Green (you)PlayerNone",
     ]);
   });
 
