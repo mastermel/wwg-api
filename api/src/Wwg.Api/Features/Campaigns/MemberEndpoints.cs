@@ -69,7 +69,10 @@ internal static class MemberEndpoints
         return TypedResults.Ok(new JoinCodeResponse(campaign.JoinCode));
     }
 
-    /// <summary>The campaign's members: the Umpire first, then Players by name.</summary>
+    /// <summary>
+    /// The campaign's members, with the army each Player commands: the Umpire first, then Players
+    /// by name.
+    /// </summary>
     internal static async Task<Ok<List<CampaignMemberResponse>>> ListMembersAsync(
         Guid id,
         WwgDbContext db,
@@ -89,7 +92,10 @@ internal static class MemberEndpoints
                 m.User.FirstName,
                 m.User.LastName,
                 m.Role,
-                m.CreatedAt
+                m.CreatedAt,
+                db.Armies.Where(a => a.CommanderId == m.Id)
+                    .Select(a => new MemberArmy(a.Id, a.Name))
+                    .FirstOrDefault()
             ))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(members);

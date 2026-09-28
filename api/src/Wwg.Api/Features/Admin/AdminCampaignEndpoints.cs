@@ -67,7 +67,8 @@ internal static class AdminCampaignEndpoints
     }
 
     /// <summary>
-    /// Makes a user the campaign's Umpire. A Player is promoted; anyone else joins as the Umpire.
+    /// Makes a user the campaign's Umpire. A Player is promoted (and their army left unassigned);
+    /// anyone else joins as the Umpire.
     /// The previous Umpire, if there is one, becomes a Player. Choosing the current Umpire changes
     /// nothing.
     /// </summary>
@@ -149,7 +150,14 @@ internal static class AdminCampaignEndpoints
             }
             else
             {
+                // The Umpire can't command an army: a promoted Player's army is left unassigned.
                 chosen.Role = CampaignRole.Umpire;
+                await db
+                    .Armies.Where(a => a.CommanderId == chosen.Id)
+                    .ExecuteUpdateAsync(
+                        s => s.SetProperty(a => a.CommanderId, (Guid?)null),
+                        cancellationToken
+                    );
             }
 
             await db.SaveChangesAsync(cancellationToken);

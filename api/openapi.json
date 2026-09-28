@@ -735,7 +735,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Makes a user the campaign's Umpire. A Player is promoted; anyone else joins as the Umpire.\nThe previous Umpire, if there is one, becomes a Player. Choosing the current Umpire changes\nnothing.",
+        "summary": "Makes a user the campaign's Umpire. A Player is promoted (and their army left unassigned);\nanyone else joins as the Umpire.\nThe previous Umpire, if there is one, becomes a Player. Choosing the current Umpire changes\nnothing.",
         "operationId": "SetCampaignUmpire",
         "parameters": [
           {
@@ -1068,7 +1068,7 @@
         "tags": [
           "Campaigns"
         ],
-        "summary": "The campaign's members: the Umpire first, then Players by name.",
+        "summary": "The campaign's members, with the army each Player commands: the Umpire first, then Players\nby name.",
         "operationId": "ListCampaignMembers",
         "parameters": [
           {
@@ -1755,7 +1755,8 @@
           "firstName",
           "lastName",
           "role",
-          "joinedAt"
+          "joinedAt",
+          "army"
         ],
         "type": "object",
         "properties": {
@@ -1785,6 +1786,17 @@
             "type": "string",
             "description": "When they joined (UTC).",
             "format": "date-time"
+          },
+          "army": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The army they command, or null.",
+                "$ref": "#/components/schemas/MemberArmy"
+              }
+            ]
           }
         },
         "description": "A member of a campaign."
@@ -2174,6 +2186,25 @@
           }
         },
         "description": "Sign in with email and password."
+      },
+      "MemberArmy": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The army's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          }
+        },
+        "description": "The army a member commands."
       },
       "MeResponse": {
         "required": [
