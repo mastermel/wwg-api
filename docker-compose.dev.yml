@@ -1,0 +1,12 @@
+# Local development extras. Started by scripts/dev.sh when Docker is available, or by hand:
+#   docker compose -f docker-compose.dev.yml up -d
+services:
+  # A local SMTP server with a web inbox: emails the API sends in development (password resets)
+  # land here instead of anyone's real inbox. Inbox: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    container_name: wwg-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # Web inbox

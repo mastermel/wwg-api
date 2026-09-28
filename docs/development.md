@@ -8,7 +8,7 @@ repo root unless they say otherwise.
 - **.NET SDK 10.** The exact version is pinned in `global.json` (newer feature bands are allowed).
 - **Node.js 24** with npm. The version is pinned in `web/.nvmrc`; nvm, fnm and asdf (with
   `legacy_version_file = yes` in `~/.asdfrc`) all pick it up.
-- **Docker**, later, for Mailpit (a local mail catcher for password-reset emails, step 11).
+- **Docker** (optional), for Mailpit: a local mail catcher for the emails the API sends.
 
 ## First-time setup
 
@@ -28,7 +28,9 @@ that.
 scripts/dev.sh
 ```
 
-This starts both halves and stops both on Ctrl+C (or when either one exits):
+This starts both halves and stops both on Ctrl+C (or when either one exits). With Docker
+available it also starts Mailpit (`docker-compose.dev.yml`), which keeps running in the
+background:
 
 | What | URL | Started by |
 |---|---|---|
@@ -36,6 +38,7 @@ This starts both halves and stops both on Ctrl+C (or when either one exits):
 | API (`dotnet watch`, reloads on change) | http://localhost:5102 | `dotnet watch --project api/src/Wwg.Api` |
 | Swagger UI | http://localhost:5102/swagger (or via :5173) | the API |
 | OpenAPI document | http://localhost:5102/openapi/v1.json | the API |
+| Mailpit inbox (emails the API sent) | http://localhost:8025 | `docker compose -f docker-compose.dev.yml up -d` |
 
 Use the app through **:5173**. Vite forwards `/api`, `/openapi`, `/swagger` and `/health` to the
 API, so the browser only ever talks to one origin (like production, where the API serves the
@@ -61,6 +64,16 @@ npm run build --prefix web && npm run preview --prefix web   # http://localhost:
 again with a different value while the preview is open triggers the update prompt. To start
 clean, remove the service worker and site data in the browser's dev tools (Application tab in
 Chrome).
+
+### Email
+
+In development the API sends email through Mailpit on `localhost:1025` (`Smtp` in
+`appsettings.Development.json`); open http://localhost:8025 to read password-reset emails and
+follow their links. Without Mailpit running, sending fails and the API logs the error. Stop it
+with `docker compose -f docker-compose.dev.yml down`.
+
+With no `Smtp:Host` at all (e.g. production before SMTP is set up), emails are written to the
+API's log instead of sent.
 
 ### Development database
 

@@ -46,7 +46,7 @@ public sealed class ConfigurationValidationTests
     public void Startup_SmtpHostWithoutFromAddress_Fails()
     {
         var exception = StartupException(builder =>
-            builder.UseSetting("Smtp:Host", "smtp.example.com")
+            builder.UseSetting("Smtp:Host", "smtp.example.com").UseSetting("Smtp:FromAddress", "")
         );
 
         Assert.Contains("FromAddress", exception.Message, StringComparison.Ordinal);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the API (dotnet watch, http://localhost:5102) and the Vite dev server
-# (http://localhost:5173) together. Ctrl+C stops both; so do closing the terminal and either one
+# (http://localhost:5173) together, plus Mailpit if Docker is available. Ctrl+C stops both; so do closing the terminal and either one
 # exiting.
 set -euo pipefail
 
@@ -9,6 +9,14 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 if [ ! -d "$root/web/node_modules" ]; then
   echo "Installing web dependencies (npm ci)..."
   npm ci --prefix "$root/web"
+fi
+
+# Mailpit catches the emails the API sends (inbox: http://localhost:8025). Optional: without
+# Docker, emails fail to send and the API logs the error.
+if command -v docker >/dev/null 2>&1; then
+  docker compose -f "$root/docker-compose.dev.yml" up -d --quiet-pull >/dev/null 2>&1 \
+    && echo "Mailpit inbox: http://localhost:8025" \
+    || echo "Couldn't start Mailpit (docker compose); emails won't be delivered locally."
 fi
 
 # Job control: each background job gets its own process group, so it can be stopped whole,
