@@ -8,6 +8,10 @@ namespace Wwg.Api.Data;
 internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
     : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>(options)
 {
+    public DbSet<Campaign> Campaigns => Set<Campaign>();
+
+    public DbSet<CampaignMember> CampaignMembers => Set<CampaignMember>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
