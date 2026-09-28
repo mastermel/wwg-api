@@ -1,0 +1,63 @@
+# The stack the end-to-end tests run against: the production image as deployed, behind a TLS
+# proxy (as Traefik is in production), plus Mailpit to catch its emails. Every `up` starts from an
+# empty database. The app is at https://localhost:8443. Start it with ./stack.sh up.
+services:
+  # HTTPS matters: WebKit won't keep the Secure refresh cookie over plain http, even on localhost.
+  proxy:
+    image: caddy:2.10-alpine
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks: [e2e]
+    depends_on:
+      - app
+
+  app:
+    # CI builds the image first and passes its tag; locally it's built from the Dockerfile.
+    image: ${E2E_IMAGE:-wwg:e2e}
+    build:
+      context: ..
+      args:
+        APP_VERSION: e2e
+    # No published port: only reachable through the proxy, as in production.
+    networks: [e2e]
+    # Thrown away by `./stack.sh up` and `down`, so every run starts empty. (Not tmpfs: stack.sh
+    # restarts the app once, and the data must survive that.)
+    volumes:
+      - data:/data
+    environment:
+      App__PublicUrl: https://localhost:8443
+      # Trust the proxy's X-Forwarded-* headers, as production trusts Traefik's.
+      ForwardedHeaders__KnownNetworks__0: 10.99.0.0/24
+      # Given the Admin role at startup, once the account exists: stack.sh registers it, then
+      # restarts the app.
+      Admin__Emails__0: admin@e2e.test
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
+      Smtp__Security: None
+      Smtp__FromAddress: noreply@e2e.test
+      Smtp__FromName: WWG e2e
+      # Every test registers its own users, all from one IP. The limits themselves are covered by
+      # the API's integration tests.
+      RateLimits__Auth__PermitLimit: 10000
+      RateLimits__Refresh__PermitLimit: 10000
+      RateLimits__Email__PermitLimit: 10000
+    depends_on:
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    ports:
+      - "127.0.0.1:8025:8025" # Web inbox and API, which the tests read emails from.
+    networks: [e2e]
+
+volumes:
+  data:
+
+networks:
+  # Pinned, so the app can be told to trust the proxy on it.
+  e2e:
+    ipam:
+      config:
+        - subnet: 10.99.0.0/24

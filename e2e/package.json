@@ -1,0 +1,31 @@
+{
+  "name": "wwg-e2e",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "stack:up": "./stack.sh up",
+    "stack:down": "./stack.sh down",
+    "test": "playwright test",
+    "test:docker": "./run-in-docker.sh",
+    "report": "playwright show-report",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.19.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-playwright": "^2.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.70.1"
+  }
+}
