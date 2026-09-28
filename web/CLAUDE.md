@@ -37,6 +37,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   ("signed-in" by default, "signed-out" or "offline").
 - Page data goes through `QueryState` (loading / error / "not available offline", and saved data
   wins over a failed refetch). Wrap each page in `Page`, which sets the title and focus.
+- Admin screens live under `routes/_app/admin/` (the layout gives non-admins the not-found page).
+  Lists keep their search and page in the URL (`validateSearch`), so they can be shared.
+- Show dates with `formatDate` / `formatDateTime` (`lib/format`): the API sends UTC.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

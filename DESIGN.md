@@ -1,8 +1,8 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phase 1 done and deployed (steps 1–9 and 19–21, decision
-> [0006](docs/decisions/0006-deploy-after-phase-1.md)). Phase 2 in progress
-> (steps 10–12 done).
+> **Status:** Phases 1 and 2 done (steps 1–13); the app is deployed (steps
+> 19–21, decision [0006](docs/decisions/0006-deploy-after-phase-1.md)).
+> Phase 3 next.
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -199,11 +199,15 @@ metadata.
     they'd have no `Z`, and the browser would read them as local time. A
     **global EF convention** (`ConfigureConventions`) applies a value converter
     to every `DateTime` / `DateTime?` that marks it as `Utc` when read.
-  - Text comparison is **case-sensitive** by default (`BINARY` collation), and
-    EF translates `.Contains()` to `instr()`. So searches and sorts on
-    `FirstName`, `LastName` and `Email` would miss "Mel" when searching "mel".
-    These columns use **`COLLATE NOCASE`**. It only folds ASCII letters, which
-    is acceptable here.
+  - Text comparison is **case-sensitive** by default (`BINARY` collation).
+    `FirstName`, `LastName` and `Email` use **`COLLATE NOCASE`**, so sorting
+    and equality ignore case (ASCII letters only, which is acceptable here).
+  - **Searches use `LIKE`, not `.Contains()`.** EF translates `.Contains()`
+    to `instr()`, which is case-sensitive *even on `NOCASE` columns*
+    (checked against SQLite in step 13), so "mel" wouldn't find "Mel".
+    `LIKE` ignores ASCII case. `Search.ContainsPattern` builds the pattern
+    with `%` and `_` escaped, for `EF.Functions.Like(column, pattern,
+    Search.EscapeCharacter)`.
   - No `decimal` math in SQL. Avoid `decimal` for anything sorted or aggregated.
   - No `rowversion`. Optimistic concurrency, if needed, uses a manual token.
   - Limited `ALTER TABLE`. EF rebuilds tables for some migrations, which is
@@ -1231,8 +1235,8 @@ it, which makes the old link stop working. The React app builds the link
 | Method | Route | Purpose |
 |---|---|---|
 | GET | `/api/admin/users` | Paged list, `?search=` on name/email |
-| GET | `/api/admin/users/{id}` | User details + campaigns and roles |
-| DELETE | `/api/admin/users/{id}` | Delete user (not self) |
+| GET | `/api/admin/users/{id}` | User details (campaigns and roles join in Phase 3) |
+| DELETE | `/api/admin/users/{id}` | Delete user (not self: 409) |
 | GET | `/api/admin/campaigns` | Paged list of every campaign, incl. umpire-less ones |
 | PUT | `/api/admin/campaigns/{id}/umpire` | Set the Umpire `{ userId }` |
 
@@ -1383,7 +1387,7 @@ generated SDK, and the app installs as a PWA and opens offline.
     and reset password.
 12. ✅ **Account:** `PUT /api/me`, change email (+ notice to old address),
     change password, sign out everywhere. **Screens:** account page.
-13. **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
+13. ✅ **Admin users:** list/search (paged, `NOCASE`), details, delete (not self).
     **Screens:** admin user list and details.
 
 ### Phase 3 — Campaigns

@@ -64,6 +64,10 @@ true, because the build launches the app to write the document.
   configured in `Data/Configurations/` with `IEntityTypeConfiguration<T>`, not data attributes.
   Name/email columns that are searched or sorted use `UseCollation("NOCASE")`.
 - Never return entities from endpoints; project to DTOs.
+- Lists that can grow: `PagedResponse<T>` via `ToPagedAsync(page, pageSize)` after a stable
+  `OrderBy` (a sort key, then `Id`); validate `page >= 1` and `pageSize` 1–100 on the parameters.
+- Text search: `EF.Functions.Like(column, Search.ContainsPattern(term), Search.EscapeCharacter)`.
+  Never `.Contains()`: on SQLite it's case-sensitive even on NOCASE columns.
 - EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL
   only through the interpolated `FromSql` / `ExecuteSql`.
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
