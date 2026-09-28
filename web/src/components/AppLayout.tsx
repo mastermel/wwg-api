@@ -3,6 +3,7 @@ import {
   IconChevronDown,
   IconInfoCircle,
   IconLogout,
+  IconMap,
   IconSwords,
   IconUser,
   IconUsers,
@@ -15,18 +16,19 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { useSession, useSessionStore } from "@/features/auth/session-context";
 
 interface NavItem {
-  to: "/campaigns" | "/admin/users" | "/about";
+  to: "/campaigns" | "/admin/campaigns" | "/admin/users" | "/about";
   label: string;
   icon: Icon;
 }
 
 const campaigns: NavItem = { to: "/campaigns", label: "Campaigns", icon: IconSwords };
+const allCampaigns: NavItem = { to: "/admin/campaigns", label: "All campaigns", icon: IconMap };
 const users: NavItem = { to: "/admin/users", label: "Users", icon: IconUsers };
 const about: NavItem = { to: "/about", label: "About", icon: IconInfoCircle };
 
 const memberNavItems = [campaigns, about];
 // Admins also get the admin screens. (The API enforces access regardless.)
-const adminNavItems = [campaigns, users, about];
+const adminNavItems = [campaigns, allCampaigns, users, about];
 
 /**
  * The app frame: a header, a sidebar on desktop, and a bottom tab bar on phones (below Mantine's

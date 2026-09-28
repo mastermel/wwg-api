@@ -1,4 +1,16 @@
-import { Alert, Anchor, Badge, Button, Group, Modal, SimpleGrid, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Group,
+  List,
+  Modal,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconArrowLeft, IconTrash } from "@tabler/icons-react";
@@ -85,6 +97,7 @@ function UserDetailsView({ user }: { user: UserDetails }) {
           <Field label="Sign-in locked until">{formatDateTime(user.lockedOutUntil)}</Field>
         )}
       </SimpleGrid>
+      <UserCampaigns user={user} />
       {user.isAdmin && (
         <Alert color="gray">
           Admins are set by the server&apos;s Admin:Emails setting, not here.
@@ -120,6 +133,38 @@ function UserDetailsView({ user }: { user: UserDetails }) {
           </Button>
         </Group>
       </Modal>
+    </Stack>
+  );
+}
+
+function UserCampaigns({ user }: { user: UserDetails }) {
+  return (
+    <Stack gap="xs" component="section" aria-labelledby="user-campaigns-heading">
+      <Title order={2} size="h4" id="user-campaigns-heading">
+        Campaigns
+      </Title>
+      {user.campaigns.length === 0 ? (
+        <Text c="dimmed">Not in any campaigns.</Text>
+      ) : (
+        <List listStyleType="none" spacing={4} p={0}>
+          {user.campaigns.map((campaign) => (
+            <List.Item key={campaign.id}>
+              <Group gap="xs">
+                <Anchor
+                  renderRoot={(props) => (
+                    <Link to="/campaigns/$id" params={{ id: campaign.id }} {...props} />
+                  )}
+                >
+                  {campaign.name}
+                </Anchor>
+                <Badge size="sm" variant={campaign.role === "Umpire" ? "filled" : "light"}>
+                  {campaign.role}
+                </Badge>
+              </Group>
+            </List.Item>
+          ))}
+        </List>
+      )}
     </Stack>
   );
 }

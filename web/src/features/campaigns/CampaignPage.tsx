@@ -18,6 +18,7 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { JoinLinkSection } from "@/features/campaigns/JoinLinkSection";
 import { LeaveCampaignButton } from "@/features/campaigns/LeaveCampaignButton";
 import { MembersSection } from "@/features/campaigns/MembersSection";
+import { SetUmpireButton } from "@/features/campaigns/SetUmpireButton";
 import { useOnline } from "@/lib/use-online";
 
 export function CampaignPage({ id }: { id: string }) {
@@ -93,6 +94,7 @@ function CampaignDetails({ campaign }: { campaign: CampaignResponse }) {
           >
             Delete campaign
           </Button>
+          {user?.isAdmin && <SetUmpireButton campaign={campaign} />}
         </Group>
       )}
       {campaign.myRole === "Player" && (

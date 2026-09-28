@@ -94,7 +94,9 @@ describe("admin users", () => {
     mockUserList([mel]);
     let deleted: string | undefined;
     server.use(
-      http.get("*/api/admin/users/:id", () => HttpResponse.json({ ...mel, lockedOutUntil: null })),
+      http.get("*/api/admin/users/:id", () =>
+        HttpResponse.json({ ...mel, lockedOutUntil: null, campaigns: [] }),
+      ),
       http.delete("*/api/admin/users/:id", ({ params }) => {
         deleted = params.id as string;
         return new HttpResponse(null, { status: 204 });
@@ -119,6 +121,7 @@ describe("admin users", () => {
           ...testAdmin,
           createdAt: "2026-09-01T12:00:00Z",
           lockedOutUntil: null,
+          campaigns: [],
         }),
       ),
     );
