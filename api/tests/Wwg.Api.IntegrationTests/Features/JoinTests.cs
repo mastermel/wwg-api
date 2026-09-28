@@ -68,7 +68,7 @@ public sealed class JoinTests : ApiTest
         var details = await scenario
             .As(Role.NonMember)
             .GetAsAsync<CampaignResponse>($"/api/campaigns/{scenario.CampaignId}");
-        Assert.Equal((CampaignRole.Player, 2), (details?.MyRole, details?.PlayerCount));
+        Assert.Equal((CampaignRole.Player, 3), (details?.MyRole, details?.PlayerCount));
     }
 
     [Theory]
@@ -86,7 +86,7 @@ public sealed class JoinTests : ApiTest
             await response.Content.ReadAsAsync<JoinCampaignResponse>()
         );
         Assert.Equal(
-            2,
+            3,
             await WithDbAsync(db =>
                 Task.FromResult(db.CampaignMembers.Count(m => m.CampaignId == scenario.CampaignId))
             )

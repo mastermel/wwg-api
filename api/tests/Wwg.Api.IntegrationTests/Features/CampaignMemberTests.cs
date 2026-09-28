@@ -9,7 +9,7 @@ namespace Wwg.Api.IntegrationTests.Features;
 public sealed class CampaignMemberTests : ApiTest
 {
     [Fact]
-    public async Task ListMembers_ShowsTheUmpireFirstThenPlayers()
+    public async Task ListMembers_ShowsTheUmpireFirstThenPlayersWithTheirArmies()
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
@@ -19,12 +19,14 @@ public sealed class CampaignMemberTests : ApiTest
                 $"/api/campaigns/{scenario.CampaignId}/members"
             );
 
+        // The Players have the same name, so they're in the order they joined (their IDs).
         Assert.Equal(
             [
-                (scenario.UmpireMemberId, CampaignRole.Umpire),
-                (scenario.PlayerMemberId, CampaignRole.Player),
+                (scenario.UmpireMemberId, CampaignRole.Umpire, null),
+                (scenario.CommanderMemberId, CampaignRole.Player, "First Corps"),
+                (scenario.PlayerMemberId, CampaignRole.Player, null),
             ],
-            members?.Select(m => (m.Id, m.Role))
+            members?.Select(m => (m.Id, m.Role, m.Army?.Name))
         );
         Assert.All(members!, m => Assert.Equal("Test", m.FirstName));
     }
@@ -57,7 +59,7 @@ public sealed class CampaignMemberTests : ApiTest
             CancellationToken
         );
         Assert.Equal(HttpStatusCode.OK, newLink.StatusCode);
-        Assert.Equal(2, await CountMembersAsync(scenario));
+        Assert.Equal(3, await CountMembersAsync(scenario));
     }
 
     [Fact]
@@ -77,7 +79,7 @@ public sealed class CampaignMemberTests : ApiTest
             CancellationToken
         );
         Assert.Equal(HttpStatusCode.NotFound, details.StatusCode);
-        Assert.Equal(1, await CountMembersAsync(scenario));
+        Assert.Equal(2, await CountMembersAsync(scenario));
     }
 
     [Fact]
@@ -93,7 +95,7 @@ public sealed class CampaignMemberTests : ApiTest
             );
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
-        Assert.Equal(2, await CountMembersAsync(scenario));
+        Assert.Equal(3, await CountMembersAsync(scenario));
     }
 
     [Fact]
@@ -137,7 +139,7 @@ public sealed class CampaignMemberTests : ApiTest
             );
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
-        Assert.Equal(2, await CountMembersAsync(scenario));
+        Assert.Equal(3, await CountMembersAsync(scenario));
     }
 
     [Fact]
@@ -161,7 +163,7 @@ public sealed class CampaignMemberTests : ApiTest
         );
 
         await response.AssertProblemAsync(HttpStatusCode.NotFound);
-        Assert.Equal(2, await CountMembersAsync(scenario));
+        Assert.Equal(3, await CountMembersAsync(scenario));
     }
 
     private Task<int> CountMembersAsync(CampaignScenario scenario) =>

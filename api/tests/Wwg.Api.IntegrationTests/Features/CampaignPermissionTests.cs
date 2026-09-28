@@ -15,6 +15,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.OK)]
     [InlineData(Role.Player, HttpStatusCode.OK)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task ViewCampaign_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
@@ -34,6 +35,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task EditCampaign_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
@@ -54,6 +56,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.NoContent)]
     [InlineData(Role.Umpire, HttpStatusCode.NoContent)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task DeleteCampaign_ByRole_ReturnsExpectedStatus(
@@ -76,6 +79,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task ViewJoinCode_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
@@ -92,6 +96,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task RegenerateJoinCode_ByRole_ReturnsExpectedStatus(
@@ -111,6 +116,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.OK)]
     [InlineData(Role.Player, HttpStatusCode.OK)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task ViewMembers_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
@@ -127,6 +133,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.NoContent)]
     [InlineData(Role.Umpire, HttpStatusCode.NoContent)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task RemovePlayer_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
@@ -148,6 +155,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.NotFound)]
     [InlineData(Role.Umpire, HttpStatusCode.Conflict)]
+    [InlineData(Role.Commander, HttpStatusCode.NoContent)]
     [InlineData(Role.Player, HttpStatusCode.NoContent)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task LeaveCampaign_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
@@ -165,6 +173,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.Forbidden)]
     public async Task ListAllCampaigns_ByRole_ReturnsExpectedStatus(
@@ -184,6 +193,7 @@ public sealed class CampaignPermissionTests : ApiTest
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.Forbidden)]
     public async Task SetUmpire_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)

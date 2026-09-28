@@ -67,9 +67,12 @@ public sealed class AdminCampaignTests : ApiTest
         var campaign = await scenario
             .As(Role.Player)
             .GetAsAsync<CampaignResponse>($"/api/campaigns/{scenario.CampaignId}");
-        Assert.Equal((null, 1), (campaign?.Umpire, campaign?.PlayerCount));
+        Assert.Equal((null, 2), (campaign?.Umpire, campaign?.PlayerCount));
         Assert.Equal(
-            [("player@example.com", CampaignRole.Player)],
+            [
+                ("commander@example.com", CampaignRole.Player),
+                ("player@example.com", CampaignRole.Player),
+            ],
             await MembersAsync(scenario.CampaignId)
         );
         // Only an Admin can manage it now.
@@ -106,7 +109,7 @@ public sealed class AdminCampaignTests : ApiTest
             );
 
         Assert.Equal(
-            [("austerlitz", "Test User", 0), ("The Peninsular War", null, 1)],
+            [("austerlitz", "Test User", 0), ("The Peninsular War", null, 2)],
             all?.Items.Select(c => (c.Name, c.UmpireName, c.PlayerCount))
         );
         Assert.Equal(scenario.CampaignId, Assert.Single(orphans!.Items).Id);
@@ -144,6 +147,7 @@ public sealed class AdminCampaignTests : ApiTest
         Assert.Null(campaign?.MyRole);
         Assert.Equal(
             [
+                ("commander@example.com", CampaignRole.Player),
                 ("player@example.com", CampaignRole.Umpire),
                 ("umpire@example.com", CampaignRole.Player),
             ],
@@ -164,6 +168,7 @@ public sealed class AdminCampaignTests : ApiTest
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
             [
+                ("commander@example.com", CampaignRole.Player),
                 ("outsider@example.com", CampaignRole.Umpire),
                 ("player@example.com", CampaignRole.Player),
                 ("umpire@example.com", CampaignRole.Player),

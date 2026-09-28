@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Infrastructure.Auth;
@@ -102,8 +103,9 @@ public abstract class ApiTest : IAsyncDisposable
     }
 
     /// <summary>
-    /// A campaign created by its Umpire through the API, with one Player, plus an Admin and a
-    /// signed-in outsider. (The Player is added directly until the join flow exists.)
+    /// A campaign created by its Umpire through the API, with two Players who joined with the join
+    /// link: one commands the army "First Corps", the other commands nothing. Plus an Admin and a
+    /// signed-in outsider.
     /// </summary>
     private protected async Task<CampaignScenario> CreateCampaignScenarioAsync(
         string name = "The Peninsular War"
@@ -111,6 +113,7 @@ public abstract class ApiTest : IAsyncDisposable
     {
         var admin = await CreateAdminClientAsync("admin@example.com");
         var umpire = await CreateUserClientAsync("umpire@example.com");
+        var commander = await CreateUserClientAsync("commander@example.com");
         var player = await CreateUserClientAsync("player@example.com");
         var outsider = await CreateUserClientAsync("outsider@example.com");
 
@@ -123,33 +126,62 @@ public abstract class ApiTest : IAsyncDisposable
         var campaign = await created.Content.ReadAsAsync<CampaignResponse>();
         var campaignId = campaign?.Id ?? throw new InvalidOperationException("No campaign.");
 
-        var joinCode = await umpire.GetAsAsync<JoinCodeResponse>(
-            $"/api/campaigns/{campaignId}/join-code"
+        await JoinAsync(umpire, campaignId, commander, player);
+
+        var memberIds = await WithDbAsync(db =>
+            Task.FromResult(
+                db.CampaignMembers.Where(m => m.CampaignId == campaignId)
+                    .Select(m => new { m.Id, Email = m.User.NormalizedEmail })
+                    .ToDictionary(m => m.Email ?? "", m => m.Id, StringComparer.Ordinal)
+            )
         );
-        using var joined = await player.PostAsync(
-            new Uri($"/api/join/{joinCode?.JoinCode}", UriKind.Relative),
-            null,
+
+        using var army = await umpire.PostAsJsonAsync(
+            new Uri($"/api/campaigns/{campaignId}/armies", UriKind.Relative),
+            new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"]),
             CancellationToken
         );
-        joined.EnsureSuccessStatusCode();
-
-        var members =
-            await umpire.GetAsAsync<List<CampaignMemberResponse>>(
-                $"/api/campaigns/{campaignId}/members"
-            ) ?? [];
+        army.EnsureSuccessStatusCode();
+        var armyId =
+            (await army.Content.ReadAsAsync<ArmyResponse>())?.Id
+            ?? throw new InvalidOperationException("No army.");
 
         return new CampaignScenario(
             campaignId,
-            members.Single(m => m.Role == CampaignRole.Umpire).Id,
-            members.Single(m => m.Role == CampaignRole.Player).Id,
+            memberIds["UMPIRE@EXAMPLE.COM"],
+            memberIds["COMMANDER@EXAMPLE.COM"],
+            memberIds["PLAYER@EXAMPLE.COM"],
+            armyId,
             new Dictionary<Role, HttpClient>
             {
                 [Role.Admin] = admin,
                 [Role.Umpire] = umpire,
+                [Role.Commander] = commander,
                 [Role.Player] = player,
                 [Role.NonMember] = outsider,
             }
         );
+    }
+
+    /// <summary>The <paramref name="joiners"/> join the campaign with its join link.</summary>
+    private static async Task JoinAsync(
+        HttpClient umpire,
+        Guid campaignId,
+        params HttpClient[] joiners
+    )
+    {
+        var joinCode = await umpire.GetAsAsync<JoinCodeResponse>(
+            $"/api/campaigns/{campaignId}/join-code"
+        );
+        foreach (var joiner in joiners)
+        {
+            using var joined = await joiner.PostAsync(
+                new Uri($"/api/join/{joinCode?.JoinCode}", UriKind.Relative),
+                null,
+                CancellationToken
+            );
+            joined.EnsureSuccessStatusCode();
+        }
     }
 
     /// <summary>Runs <paramref name="action"/> with a fresh DbContext, for seeding and checking data.</summary>

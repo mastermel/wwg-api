@@ -107,7 +107,7 @@ public sealed class CampaignTests : ApiTest
         Assert.Equal(CampaignRole.Umpire, Assert.Single(umpire!.Items).MyRole);
         var seen = Assert.Single(player!.Items);
         Assert.Equal(
-            (CampaignRole.Player, "Test User", 1),
+            (CampaignRole.Player, "Test User", 2),
             (seen.MyRole, seen.UmpireName, seen.PlayerCount)
         );
         Assert.Empty(outsider!.Items);
@@ -141,7 +141,7 @@ public sealed class CampaignTests : ApiTest
             .GetAsAsync<CampaignResponse>($"/api/campaigns/{scenario.CampaignId}");
 
         Assert.Null(campaign?.MyRole);
-        Assert.Equal(1, campaign?.PlayerCount);
+        Assert.Equal(2, campaign?.PlayerCount);
         Assert.NotNull(campaign?.Umpire);
     }
 
