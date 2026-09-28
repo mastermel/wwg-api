@@ -41,6 +41,12 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   wins over a failed refetch). Wrap each page in `Page`, which sets the title and focus.
 - Admin screens live under `routes/_app/admin/` (the layout gives non-admins the not-found page).
   Lists keep their search and page in the URL (`validateSearch`), so they can be shared.
+- Page layout: `Page` takes `back` (a `BackLink`), `summary` and `actions`; its content is
+  `Section`s (a titled panel; `flush` for a table, `tone="danger"` for deleting and leaving,
+  which go last). Empty lists use `EmptyState`. Don't hand-roll headings and panels.
+- Colours come from the theme's variables (`--app-canvas`, `--app-header`, Mantine's); a new
+  colour pair gets its contrast checked and noted in `theme.ts`. Component styles that need more
+  than props go in a `*.module.css` next to the component.
 - Anything that deletes, removes or can't be undone asks first with `ConfirmModal`.
 - Mantine's `Select` is a `combobox` to Testing Library, and its options need `hidden: true`
   (the dropdown's transition leaves it `display: none` in jsdom).

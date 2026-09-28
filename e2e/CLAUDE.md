@@ -38,3 +38,6 @@ npm run lint && npm run typecheck && npm run format:check
   so offline tests skip WebKit.
 - A test that can't run in one browser uses a conditional `test.skip(condition, reason)`.
 - Emails: `latestEmailText(to)` and `linkIn(text, prefix)` (tests/support/mailpit.ts).
+- A new page or section belongs in `accessibility.spec.ts`, which axe-scans every page in both
+  colour schemes (it's the only place colour contrast is checked).
+- Long multi-user tests call `test.slow()`: beside the rest of the suite they can pass 30s.

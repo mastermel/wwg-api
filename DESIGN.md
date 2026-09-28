@@ -850,6 +850,29 @@ PWA (decision [0005](docs/decisions/0005-front-end-stack.md)).
 - Colour contrast of the navy/silver palettes is checked against AA in both
   light and dark mode (Mantine's default greys on dark can fall short).
 
+**Visual design** (the polish pass after step 23)
+- **Layered surfaces**, as CSS variables in `web/src/app/theme.ts`: a tinted
+  page **canvas** (`--app-canvas`), **panels** on it in
+  `--mantine-color-body` with a light shadow, and a **navy header**
+  (`--app-header`). Dark mode uses blue-tinted greys (canvas `dark-8`, panels
+  `dark-7`), not Mantine's neutral ones.
+- **Page anatomy:** `Page` has a back link above the title, a one-line summary
+  and the page's actions beside it, then a divider. The page's content is
+  **`Section`s**: titled panels (h2) with an optional description and actions,
+  a divider under the header, and a padded or edge-to-edge (`flush`, for
+  tables) body. Detail pages use two columns on wide screens (the main content,
+  and what the thing is beside it), one on phones.
+- **Destructive actions** (delete, leave, sign out everywhere) sit in a
+  red-edged **danger zone** `Section` at the end, apart from everyday actions.
+- **`EmptyState`** for anything empty: an icon, what's missing, what to do.
+- Tables: column headings as small, uppercase, dimmed labels; on phones
+  secondary columns fold under the first (a unit's type, a member's role)
+  rather than scroll sideways.
+- Every colour pair is checked against AA with the WCAG formula (the numbers
+  are in `theme.ts`), including input borders at 3:1 (WCAG 1.4.11). Links
+  inside sentences are underlined (WCAG 1.4.1); status is a word, with colour
+  as a dot beside it.
+
 **Layout**
 
 ```
@@ -999,7 +1022,9 @@ web/
   screens and logic: session handling, forms, and role-dependent UI. Not
   every screen, and no coverage threshold.
 - Key screens also get an automated **axe** accessibility check in their
-  component tests.
+  component tests. jsdom has no layout or computed colours, so those can't
+  check contrast: the e2e suite's `accessibility.spec.ts` scans every main page
+  in real browsers, light and dark, against WCAG 2.1 A and AA.
 - Playwright end-to-end tests run against the production image (§3.8).
 
 **Tooling**
