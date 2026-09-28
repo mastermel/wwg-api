@@ -30,6 +30,12 @@ window.ResizeObserver = class {
   }
 };
 
+// jsdom has no document.fonts; Mantine's auto-sizing Textarea listens on it for font loads.
+Object.defineProperty(document, "fonts", {
+  value: { addEventListener: () => undefined, removeEventListener: () => undefined },
+  configurable: true,
+});
+
 // jsdom doesn't implement these; the router's scroll restoration and axe call them.
 window.scrollTo = () => undefined;
 HTMLCanvasElement.prototype.getContext = () => null;
