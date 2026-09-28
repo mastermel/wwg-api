@@ -1266,6 +1266,316 @@
           }
         ]
       }
+    },
+    "/api/campaigns/{id}/armies": {
+      "get": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "Every army in the campaign, with its commander, sorted by name. All members see them all,\nunassigned ones included.",
+        "operationId": "ListArmies",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArmySummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "Adds an army, optionally with a commander (Umpire or Admin).",
+        "operationId": "CreateArmy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArmyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/armies/{id}": {
+      "get": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "An army's details (its commander, the campaign's Umpire, or an Admin; other Players get\n403).",
+        "operationId": "GetArmy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmyResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "Renames an army (Umpire or Admin).",
+        "operationId": "RenameArmy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameArmyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmyResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "Deletes an army (Umpire or Admin). The database deletes its units too.",
+        "operationId": "DeleteArmy",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/armies/{id}/commander": {
+      "put": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "Makes a Player the army's commander, replacing any other (Umpire or Admin). A Player\ncommands at most one army: 409 if they already command another.",
+        "operationId": "AssignCommander",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignCommanderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArmyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Armies"
+        ],
+        "summary": "Leaves the army without a commander (Umpire or Admin).",
+        "operationId": "UnassignCommander",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1308,6 +1618,135 @@
           }
         },
         "description": "A campaign in the admin list of every campaign."
+      },
+      "ArmyCommander": {
+        "required": [
+          "memberId",
+          "userId",
+          "firstName",
+          "lastName"
+        ],
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "description": "Their membership ID.",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Their user ID.",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name."
+          }
+        },
+        "description": "The Player commanding an army."
+      },
+      "ArmyResponse": {
+        "required": [
+          "id",
+          "campaignId",
+          "campaignName",
+          "name",
+          "commander",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The army's ID.",
+            "format": "uuid"
+          },
+          "campaignId": {
+            "type": "string",
+            "description": "The campaign it's in.",
+            "format": "uuid"
+          },
+          "campaignName": {
+            "type": "string",
+            "description": "That campaign's name."
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "commander": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Its commander, or null if unassigned.",
+                "$ref": "#/components/schemas/ArmyCommander"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it was created (UTC).",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When it last changed (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "An army's details."
+      },
+      "ArmySummary": {
+        "required": [
+          "id",
+          "name",
+          "commander"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The army's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "commander": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Its commander, or null if unassigned.",
+                "$ref": "#/components/schemas/ArmyCommander"
+              }
+            ]
+          }
+        },
+        "description": "An army in the campaign's army list. Every member sees every army."
+      },
+      "AssignCommanderRequest": {
+        "required": [
+          "memberId"
+        ],
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "description": "The Player's membership ID.",
+            "format": "uuid"
+          }
+        },
+        "description": "Gives an army a commander."
       },
       "CampaignMemberResponse": {
         "required": [
@@ -1534,6 +1973,30 @@
           }
         },
         "description": "Changes the password. Other sessions are signed out; this one continues."
+      },
+      "CreateArmyRequest": {
+        "required": [
+          "name",
+          "commanderMemberId"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The army's name."
+          },
+          "commanderMemberId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A Player to command it (their membership ID), or null.",
+            "format": "uuid"
+          }
+        },
+        "description": "Adds an army to the campaign."
       },
       "CreateCampaignRequest": {
         "required": [
@@ -1917,6 +2380,21 @@
         },
         "description": "Sign up. The account is signed in straight away."
       },
+      "RenameArmyRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The army's new name."
+          }
+        },
+        "description": "Renames an army."
+      },
       "ResetPasswordRequest": {
         "required": [
           "email",
@@ -2168,6 +2646,9 @@
     },
     {
       "name": "Join"
+    },
+    {
+      "name": "Armies"
     }
   ]
 }

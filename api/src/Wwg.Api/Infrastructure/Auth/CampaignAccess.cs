@@ -12,8 +12,24 @@ internal enum CampaignAccess
     /// <summary>Any member (Umpire or Player), or an Admin.</summary>
     Member,
 
+    /// <summary>
+    /// The army's commander, the campaign's Umpire, or an Admin. Army routes only: other members
+    /// get 403.
+    /// </summary>
+    Commander,
+
     /// <summary>The campaign's Umpire, or an Admin.</summary>
     Umpire,
+}
+
+/// <summary>What the route's <c>{id}</c> is, and so how the campaign is found from it.</summary>
+internal enum CampaignRouteId
+{
+    /// <summary>The campaign itself (<c>/api/campaigns/{id}/...</c>).</summary>
+    Campaign,
+
+    /// <summary>An army in the campaign (<c>/api/armies/{id}/...</c>).</summary>
+    Army,
 }
 
 /// <summary>
@@ -35,19 +51,29 @@ internal static class CampaignAccessExtensions
 {
     /// <summary>
     /// Declares a campaign endpoint's access rule (DESIGN.md §3.5). The campaign comes from the
-    /// route's <c>{id}</c>; the handler should still take <c>Guid id</c>, which documents it in the
-    /// OpenAPI document (a path parameter nothing binds is left out, and the document is invalid). Not a member (or no such campaign): 404, so outsiders can't tell it
-    /// exists. A member without enough access: 403. Admins always pass.
+    /// route's <c>{id}</c>: the campaign's, or an army's (<paramref name="routeId"/>). The handler
+    /// should still take <c>Guid id</c>, which documents it in the OpenAPI document (a path
+    /// parameter nothing binds is left out, and the document is invalid).
+    /// Not a member (or no such campaign or army): 404, so outsiders can't tell it exists. A member
+    /// without enough access: 403. Admins always pass.
     /// </summary>
     public static TBuilder RequireCampaignAccess<TBuilder>(
         this TBuilder builder,
-        CampaignAccess access
+        CampaignAccess access,
+        CampaignRouteId routeId = CampaignRouteId.Campaign
     )
-        where TBuilder : IEndpointConventionBuilder =>
-        builder
+        where TBuilder : IEndpointConventionBuilder
+    {
+        if (access == CampaignAccess.Commander && routeId != CampaignRouteId.Army)
+        {
+            throw new ArgumentException("Commander access needs an army route.", nameof(access));
+        }
+
+        return builder
             .RequireAuthorization()
             .WithMetadata(new AccessRuleMetadata($"campaign:{access}"))
-            .AddEndpointFilter(new CampaignAccessFilter(access));
+            .AddEndpointFilter(new CampaignAccessFilter(access, routeId));
+    }
 
     /// <summary>The <see cref="CampaignContext"/> the access filter resolved for this request.</summary>
     public static CampaignContext CampaignContext(this HttpContext httpContext) =>
@@ -63,7 +89,8 @@ internal static class CampaignAccessExtensions
                 ?? throw new InvalidOperationException("Not signed in.")
         );
 
-    private sealed class CampaignAccessFilter(CampaignAccess access) : IEndpointFilter
+    private sealed class CampaignAccessFilter(CampaignAccess access, CampaignRouteId routeId)
+        : IEndpointFilter
     {
         public async ValueTask<object?> InvokeAsync(
             EndpointFilterInvocationContext context,
@@ -71,13 +98,21 @@ internal static class CampaignAccessExtensions
         )
         {
             var httpContext = context.HttpContext;
-            if (!Guid.TryParse(httpContext.GetRouteValue("id") as string, out var campaignId))
+            if (!Guid.TryParse(httpContext.GetRouteValue("id") as string, out var id))
+            {
+                return NotFound();
+            }
+
+            var db = httpContext.RequestServices.GetRequiredService<WwgDbContext>();
+            if (
+                await ResolveAsync(db, id, httpContext.RequestAborted)
+                is not var (campaignId, commanderId)
+            )
             {
                 return NotFound();
             }
 
             var userId = httpContext.User.GetUserId();
-            var db = httpContext.RequestServices.GetRequiredService<WwgDbContext>();
             var campaign = await db
                 .Campaigns.AsNoTracking()
                 .Where(c => c.Id == campaignId)
@@ -97,11 +132,18 @@ internal static class CampaignAccessExtensions
             }
 
             var role = campaign.Member?.Role;
-            if (!isAdmin && access == CampaignAccess.Umpire && role != CampaignRole.Umpire)
+            var allowed =
+                isAdmin
+                || role == CampaignRole.Umpire
+                || access == CampaignAccess.Member
+                || (access == CampaignAccess.Commander && campaign.Member?.Id == commanderId);
+            if (!allowed)
             {
                 return TypedResults.Problem(
                     statusCode: StatusCodes.Status403Forbidden,
-                    detail: "Only the campaign's Umpire can do this."
+                    detail: access == CampaignAccess.Commander
+                        ? "Only the army's commander or the campaign's Umpire can see this."
+                        : "Only the campaign's Umpire can do this."
                 );
             }
 
@@ -109,6 +151,29 @@ internal static class CampaignAccessExtensions
                 new CampaignContext(campaignId, isAdmin, role, campaign.Member?.Id)
             );
             return await next(context);
+        }
+
+        /// <summary>
+        /// The campaign the route's ID belongs to, and (for an army) the army's commander. Null if
+        /// there's no such army.
+        /// </summary>
+        private async Task<(Guid CampaignId, Guid? CommanderId)?> ResolveAsync(
+            WwgDbContext db,
+            Guid id,
+            CancellationToken cancellationToken
+        )
+        {
+            if (routeId == CampaignRouteId.Campaign)
+            {
+                return (id, null);
+            }
+
+            var army = await db
+                .Armies.AsNoTracking()
+                .Where(a => a.Id == id)
+                .Select(a => new { a.CampaignId, a.CommanderId })
+                .FirstOrDefaultAsync(cancellationToken);
+            return army is null ? null : (army.CampaignId, army.CommanderId);
         }
 
         private static ProblemHttpResult NotFound() =>
