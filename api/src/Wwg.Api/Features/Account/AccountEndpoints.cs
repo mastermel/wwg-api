@@ -5,6 +5,7 @@ using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Account;
 
@@ -22,6 +23,15 @@ internal static class AccountEndpoints
             // A stolen access token mustn't allow quick guessing of the current password.
             .RequireRateLimiting(RateLimiting.AuthPolicy)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        account
+            .MapPut("/email", ChangeEmailAsync)
+            .WithName("ChangeEmail")
+            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        account
+            .MapPost("/sign-out-everywhere", SignOutEverywhereAsync)
+            .WithName("SignOutEverywhere");
 
         return app;
     }
@@ -104,6 +114,98 @@ internal static class AccountEndpoints
 
         // The password change rotated the security stamp; these tokens carry the new one.
         return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+    }
+
+    /// <summary>
+    /// Changes the email the account signs in with (the current password is required). Every other
+    /// session is signed out, a notice goes to the old address, and the response carries new
+    /// tokens so this session keeps working.
+    /// </summary>
+    internal static async Task<
+        Results<Ok<TokenResponse>, ValidationProblem, ProblemHttpResult, UnauthorizedHttpResult>
+    > ChangeEmailAsync(
+        ChangeEmailRequest request,
+        ClaimsPrincipal principal,
+        UserManager<AppUser> userManager,
+        TokenService tokens,
+        IEmailQueue emails,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.GetUserAsync(principal);
+        if (user is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!await userManager.CheckPasswordAsync(user, request.CurrentPassword))
+        {
+            return TypedResults.ValidationProblem(
+                Errors("currentPassword", "The current password is incorrect.")
+            );
+        }
+
+        if (
+            string.Equals(
+                userManager.NormalizeEmail(request.NewEmail),
+                user.NormalizedEmail,
+                StringComparison.Ordinal
+            )
+        )
+        {
+            return TypedResults.ValidationProblem(Errors("newEmail", "That's already your email."));
+        }
+
+        var oldEmail = user.Email ?? "";
+        // Email and username (which is the email) change together, with the new security stamp,
+        // in one save: UpdateSecurityStampAsync validates (unique email) and saves.
+        user.Email = request.NewEmail;
+        user.UserName = request.NewEmail;
+        await userManager.UpdateNormalizedEmailAsync(user);
+        await userManager.UpdateNormalizedUserNameAsync(user);
+        var result = await userManager.UpdateSecurityStampAsync(user);
+        if (!result.Succeeded)
+        {
+            return result.Errors.Any(e => e.Code is "DuplicateEmail" or "DuplicateUserName")
+                ? TypedResults.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Email already in use",
+                    detail: "An account with this email already exists."
+                )
+                : TypedResults.ValidationProblem(
+                    Errors("newEmail", [.. result.Errors.Select(e => e.Description)])
+                );
+        }
+
+        await emails.QueueAsync(
+            EmailChangedEmail.Create(user, oldEmail, request.NewEmail),
+            cancellationToken
+        );
+        return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+    }
+
+    /// <summary>
+    /// Signs out every session, this one included: every access and refresh token stops working.
+    /// </summary>
+    internal static async Task<Results<NoContent, UnauthorizedHttpResult>> SignOutEverywhereAsync(
+        ClaimsPrincipal principal,
+        UserManager<AppUser> userManager,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.GetUserAsync(principal);
+        if (user is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        (await userManager.UpdateSecurityStampAsync(user)).ThrowIfFailed();
+        TokenService.ClearRefreshCookie(httpContext);
+        return TypedResults.NoContent();
     }
 
     private static MeResponse ToMe(AppUser user, ClaimsPrincipal principal) =>

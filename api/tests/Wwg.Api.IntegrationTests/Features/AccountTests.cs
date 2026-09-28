@@ -213,4 +213,164 @@ public sealed class AccountTests : ApiTest
 
         await response.AssertValidationProblemAsync("newPassword");
     }
+
+    private async Task<HttpClient> SignInOnAnotherDeviceAsync(string email)
+    {
+        var client = CreateClient();
+        using var login = await client.PostAsJsonAsync(
+            new Uri("/api/auth/login", UriKind.Relative),
+            new LoginRequest(email, TestPassword),
+            CancellationToken
+        );
+        var token = await login.Content.ReadFromJsonAsync<TokenResponse>(CancellationToken);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", token?.AccessToken);
+        return client;
+    }
+
+    [Fact]
+    public async Task ChangeEmail_Valid_ChangesWhatTheAccountSignsInWith()
+    {
+        using var client = await CreateUserClientAsync("mel@example.com");
+
+        using var response = await PutAsync(
+            client,
+            "/api/me/email",
+            new ChangeEmailRequest(" melanie@example.com ", TestPassword)
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var token = await response.Content.ReadFromJsonAsync<TokenResponse>(CancellationToken);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", token?.AccessToken);
+        var me = await client.GetFromJsonAsync<MeResponse>(
+            new Uri("/api/me", UriKind.Relative),
+            CancellationToken
+        );
+        Assert.Equal("melanie@example.com", me?.Email);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            await LoginStatusAsync("melanie@example.com", TestPassword)
+        );
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            await LoginStatusAsync("mel@example.com", TestPassword)
+        );
+    }
+
+    [Fact]
+    public async Task ChangeEmail_Valid_SendsANoticeToTheOldAddress()
+    {
+        using var client = await CreateUserClientAsync("mel@example.com");
+
+        (
+            await PutAsync(
+                client,
+                "/api/me/email",
+                new ChangeEmailRequest("melanie@example.com", TestPassword)
+            )
+        ).EnsureSuccessStatusCode();
+
+        var notice = await Emails.WaitForEmailToAsync("mel@example.com");
+        Assert.Contains("melanie@example.com", notice.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ChangeEmail_Valid_SignsOutOtherSessions()
+    {
+        using var thisDevice = await CreateUserClientAsync("mel@example.com");
+        using var otherDevice = await SignInOnAnotherDeviceAsync("mel@example.com");
+
+        (
+            await PutAsync(
+                thisDevice,
+                "/api/me/email",
+                new ChangeEmailRequest("melanie@example.com", TestPassword)
+            )
+        ).EnsureSuccessStatusCode();
+        using var me = await GetMeAsync(otherDevice);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChangeEmail_WrongPassword_IsAnErrorOnCurrentPassword()
+    {
+        using var client = await CreateUserClientAsync();
+
+        using var response = await PutAsync(
+            client,
+            "/api/me/email",
+            new ChangeEmailRequest("new@example.com", "not my password")
+        );
+
+        await response.AssertValidationProblemAsync("currentPassword");
+    }
+
+    [Fact]
+    public async Task ChangeEmail_SameEmailInAnotherCase_IsAnErrorOnNewEmail()
+    {
+        using var client = await CreateUserClientAsync("mel@example.com");
+
+        using var response = await PutAsync(
+            client,
+            "/api/me/email",
+            new ChangeEmailRequest("MEL@example.com", TestPassword)
+        );
+
+        await response.AssertValidationProblemAsync("newEmail");
+    }
+
+    [Fact]
+    public async Task ChangeEmail_UsedByAnotherAccount_Returns409AndChangesNothing()
+    {
+        (await CreateUserClientAsync("taken@example.com")).Dispose();
+        using var client = await CreateUserClientAsync("mel@example.com");
+
+        using var response = await PutAsync(
+            client,
+            "/api/me/email",
+            new ChangeEmailRequest("Taken@example.com", TestPassword)
+        );
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+        Assert.Equal(HttpStatusCode.OK, await LoginStatusAsync("mel@example.com", TestPassword));
+    }
+
+    [Fact]
+    public async Task ChangeEmail_NotAnEmail_IsAValidationError()
+    {
+        using var client = await CreateUserClientAsync();
+
+        using var response = await PutAsync(
+            client,
+            "/api/me/email",
+            new ChangeEmailRequest("nope", TestPassword)
+        );
+
+        await response.AssertValidationProblemAsync("newEmail");
+    }
+
+    [Fact]
+    public async Task SignOutEverywhere_EndsEverySessionIncludingThisOne()
+    {
+        using var thisDevice = await CreateUserClientAsync("mel@example.com");
+        using var otherDevice = await SignInOnAnotherDeviceAsync("mel@example.com");
+
+        using var response = await thisDevice.PostAsync(
+            new Uri("/api/me/sign-out-everywhere", UriKind.Relative),
+            null,
+            CancellationToken
+        );
+        using var thisMe = await GetMeAsync(thisDevice);
+        using var otherMe = await GetMeAsync(otherDevice);
+        using var otherRefresh = await otherDevice.PostAsync(
+            new Uri("/api/auth/refresh", UriKind.Relative),
+            null,
+            CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, thisMe.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, otherMe.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, otherRefresh.StatusCode);
+    }
 }

@@ -417,10 +417,116 @@
           }
         ]
       }
+    },
+    "/api/me/email": {
+      "put": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Changes the email the account signs in with (the current password is required). Every other\nsession is signed out, a notice goes to the old address, and the response carries new\ntokens so this session keeps working.",
+        "operationId": "ChangeEmail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/me/sign-out-everywhere": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Signs out every session, this one included: every access and refresh token stops working.",
+        "operationId": "SignOutEverywhere",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "ChangeEmailRequest": {
+        "required": [
+          "newEmail",
+          "currentPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "newEmail": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string",
+            "format": "email"
+          },
+          "currentPassword": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "description": "Changes the email the account signs in with. Other sessions are signed out, and a notice goes\nto the old address."
+      },
       "ChangePasswordRequest": {
         "required": [
           "currentPassword",

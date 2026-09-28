@@ -28,3 +28,12 @@ public sealed record ChangePasswordRequest(
     [property: Required, StringLength(128)] string CurrentPassword,
     [property: Required, StringLength(128, MinimumLength = 8)] string NewPassword
 );
+
+/// <summary>
+/// Changes the email the account signs in with. Other sessions are signed out, and a notice goes
+/// to the old address.
+/// </summary>
+public sealed record ChangeEmailRequest(
+    [property: Trimmed, Required, EmailAddress, StringLength(256)] string NewEmail,
+    [property: Required, StringLength(128)] string CurrentPassword
+);
