@@ -901,8 +901,12 @@ web/
 - The query cache is persisted to IndexedDB (`persistQueryClient`). It's tied
   to the signed-in user's id, so nobody sees another user's cached data, and
   it's cleared on sign-out or when refresh returns 401.
-  - `maxAge` and `gcTime` are about **30 days**, matching the session (the
-    library's 24-hour default would drop offline data after a day).
+  - `maxAge` is **30 days**, matching the session (the library's 24-hour
+    default would drop offline data after a day). `gcTime` is as long as a
+    timer allows (about 24.8 days): anything longer overflows and drops data
+    at once.
+  - Restored data is refetched (if online) as soon as it's restored, however
+    recent, so a reload always shows current data.
   - The cache's `buster` is the app version, so **a new deploy clears it**:
     persisted data can never have an older response shape than the code
     reading it. Offline data comes back on the next online visit.
@@ -1403,9 +1407,19 @@ generated SDK, and the app installs as a PWA and opens offline.
       parameter (a test checks every path parameter is declared).
     - Offline restore was broken since step 9.4 and fixed here: `gcTime` was
       30 days, which overflows timers, so restored data was dropped at once.
-15. **Join flow:** join codes, preview/join/regenerate, member list,
+15. ✅ **Join flow:** join codes, preview/join/regenerate, member list,
     remove Player, leave (`/members/me`). **Screens:** join page (including
     the sign-in round trip), members, join link sharing.
+    - Joining returns 201 when it adds the caller, and 200 with their existing
+      role when they're already a member (including the Umpire).
+    - The Umpire leaving, or being removed, is a **409**: an Admin sets a new
+      Umpire instead (step 16). An Admin who isn't a member gets 404 from
+      `/members/me`.
+    - The member list doesn't include emails; Players see each other's names
+      only. The commanded army joins it in step 17.
+    - `/join/:code` is a public page, signed in or not. Signed out, it offers
+      sign-in and register, which return to it.
+    - The test scenario's Player joins through the join link, not the database.
 16. **Admin campaigns:** `/api/admin/campaigns` list and set Umpire, including
     the umpire-less campaign cases and the user-deletion test. **Screens:**
     admin campaign list, set Umpire.
