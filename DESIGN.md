@@ -2,7 +2,7 @@
 
 > **Status:** Phase 1 done and deployed (steps 1–9 and 19–21, decision
 > [0006](docs/decisions/0006-deploy-after-phase-1.md)). Phase 2 in progress
-> (step 10 done).
+> (steps 10–11 done).
 > **Last updated:** 2026-09-27
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -361,15 +361,20 @@ Identity has two layers:
   - `POST /api/me/sign-out-everywhere` rotates the security stamp, which
     immediately invalidates every access and refresh token for that user.
 - **Password reset:**
-  1. `POST /api/auth/forgot-password { email }` always returns 200, whether or
+  1. `POST /api/auth/forgot-password { email }` always returns 204, whether or
      not the account exists, so the endpoint can't be used to find out which
-     emails are registered.
+     emails are registered. The email is queued and sent in the background,
+     so the response time doesn't give it away either.
   2. If the account exists, an email is sent with a link to the React app:
      `{App:PublicUrl}/reset-password?email=…&code=…`. The URL comes from config,
      never from the request's `Host` header, which an attacker could forge
      to point reset links at their own site.
   3. The React page calls `POST /api/auth/reset-password { email, code,
-     newPassword }`.
+     newPassword }`. A bad code and an unknown email get the same error.
+     Success ends every session (security stamp) and clears any lockout.
+  - Links last `Auth:PasswordResetLinkLifetime` (default 2 hours). Like
+    lockout, Identity checks this against the system clock, not the injected
+    `TimeProvider`.
 - **Change password** (logged in): requires the current password. This updates
   the security stamp, which signs out every other session. The response
   includes **new tokens** so the current session keeps working.
@@ -464,10 +469,17 @@ Identity has two layers:
   | `Smtp:FromAddress` | `noreply@example.com` |
   | `Smtp:FromName` | `Wasatch Wargamers` |
 
+- **Emails are queued** (`IEmailQueue`, a bounded in-memory channel) and sent
+  by a background service. Requests never wait on SMTP, and forgot-password's
+  response time doesn't reveal whether an account exists. A failed send is
+  logged; there's no retry yet.
 - **If `Smtp:Host` is empty**, emails are logged instead of sent (with a warning
   at startup). This lets the app run before a real SMTP service is set up.
+  Reset links then appear in the log, so configure SMTP before real use.
 - **Local dev:** `docker-compose.dev.yml` runs **Mailpit**, a local SMTP server
-  with a web inbox, so emails can be checked by hand.
+  with a web inbox (http://localhost:8025), so emails can be checked by hand.
+  `scripts/dev.sh` starts it when Docker is available, and the Development
+  `Smtp` settings point at it.
 - **Tests:** `IEmailService` is replaced with a fake that records messages, so
   tests can pull the reset code out of the "sent" email and finish the flow.
 - Email bodies are simple HTML + text templates in code. No template engine
@@ -1200,7 +1212,7 @@ it, which makes the old link stop working. The React app builds the link
 | POST | `/api/auth/login` | Email + password → access token + refresh cookie |
 | POST | `/api/auth/refresh` | Refresh cookie → new access token + refresh cookie |
 | POST | `/api/auth/logout` | Expire the refresh cookie |
-| POST | `/api/auth/forgot-password` | Send reset email (always 200) |
+| POST | `/api/auth/forgot-password` | Send reset email (always 204) |
 | POST | `/api/auth/reset-password` | Email + code + new password |
 
 **Account** (signed in)
@@ -1364,7 +1376,7 @@ generated SDK, and the app installs as a PWA and opens offline.
    - **Screens:** register, sign in, sign out; session handling (in-memory
      access token, refresh on start-up and before expiry, offline vs signed
      out, cross-tab sign-out).
-11. **Email & password reset:** `IEmailService`, MailKit SMTP + logging
+11. ✅ **Email & password reset:** `IEmailService`, MailKit SMTP + logging
     fallback, fake email service for tests, Mailpit dev compose;
     forgot/reset endpoints with the `email` rate limit. **Screens:** forgot
     and reset password.

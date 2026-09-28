@@ -66,6 +66,8 @@ true, because the build launches the app to write the document.
 - Never return entities from endpoints; project to DTOs.
 - EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL
   only through the interpolated `FromSql` / `ExecuteSql`.
+- Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
+  `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.
 - No `!` (null-forgiving) without a comment saying why it's safe.
 - Logging uses message templates with named placeholders, never interpolation.
