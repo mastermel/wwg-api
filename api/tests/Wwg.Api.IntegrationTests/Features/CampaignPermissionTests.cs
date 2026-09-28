@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Wwg.Api.Features.Admin;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.IntegrationTests.Support;
 
@@ -156,6 +157,49 @@ public sealed class CampaignPermissionTests : ApiTest
         using var response = await scenario
             .As(role)
             .DeleteAsync(CampaignUri(scenario, "/members/me"), CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    // Site-wide admin actions (§5.2, admin table): anyone else gets 403, members or not.
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.Forbidden)]
+    public async Task ListAllCampaigns_ByRole_ReturnsExpectedStatus(
+        Role role,
+        HttpStatusCode expected
+    )
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .GetAsync(new Uri("/api/admin/campaigns", UriKind.Relative), CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.Forbidden)]
+    public async Task SetUmpire_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        var playerId = await WithDbAsync(db =>
+            Task.FromResult(db.CampaignMembers.Single(m => m.Id == scenario.PlayerMemberId).UserId)
+        );
+
+        using var response = await scenario
+            .As(role)
+            .PutAsJsonAsync(
+                new Uri($"/api/admin/campaigns/{scenario.CampaignId}/umpire", UriKind.Relative),
+                new SetUmpireRequest(playerId),
+                CancellationToken
+            );
 
         Assert.Equal(expected, response.StatusCode);
     }
