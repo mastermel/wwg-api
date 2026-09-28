@@ -14,6 +14,8 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Army> Armies => Set<Army>();
 
+    public DbSet<Unit> Units => Set<Unit>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
