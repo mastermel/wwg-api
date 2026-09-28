@@ -1,9 +1,9 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phases 1 and 2 done (steps 1–13); the app is deployed (steps
-> 19–21, decision [0006](docs/decisions/0006-deploy-after-phase-1.md)).
-> Phase 3 next.
-> **Last updated:** 2026-09-27
+> **Status:** Every step of the plan is done: Phases 1–3 (steps 1–18), and the
+> deploy (steps 19–21, decision [0006](docs/decisions/0006-deploy-after-phase-1.md)).
+> What's next is in §6.
+> **Last updated:** 2026-09-28
 >
 > This document describes the design **as it currently stands**. The reasons
 > for significant changes are recorded in the decision log,
@@ -1455,8 +1455,14 @@ generated SDK, and the app installs as a PWA and opens offline.
     - Screens: an Armies section on the campaign page (every member sees every
       army; links only where the user can open it), an Army column in the
       member list, and `/campaigns/:id/armies/:armyId`.
-18. **Units:** create/rename/delete; units visible only to Umpire, Admin and
+18. ✅ **Units:** create/rename/delete; units visible only to Umpire, Admin and
     the commander. **Screens:** units within the army page.
+    - Units are listed in the army's details (`GET /api/armies/{id}`, Commander
+      access), so there's no separate list endpoint. Unit routes find their
+      campaign through the unit's army (`CampaignRouteId.Unit`).
+    - The test scenario's army has one unit, "1st Division".
+    - Also in this step: token refresh got its own rate limit (§3.5), after
+      three people on one network hit the sign-in limit.
 
 ### Phase 4 — Release
 
@@ -1470,7 +1476,7 @@ generated SDK, and the app installs as a PWA and opens offline.
 20. ✅ **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmmss` tags and
     OCI labels. The version tag is also passed into the image build, for the
     app's About page.
-21. **First deploy** to the server behind Traefik, with the SMTP values and
+21. ✅ **First deploy** to the server behind Traefik, with the SMTP values and
     `ForwardedHeaders__KnownNetworks__0` (the shared network's subnet) filled
     in. Register the Admin account, then add it to `Admin:Emails` and restart.
 
