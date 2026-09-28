@@ -35,11 +35,31 @@ test("armies and units are seen only by those who should", async ({ signUp }) =>
   await umpire.page.getByRole("link", { name: "First Corps" }).click();
   const armyUrl = umpire.page.url();
   const units = umpire.page.getByRole("region", { name: "Units" });
-  for (const name of ["1st Division", "Light Division"]) {
-    await units.getByRole("textbox", { name: "New unit" }).fill(name);
+  for (const unit of [
+    { name: "1st Division", type: "Heavy Infantry", ff: "5", points: "30" },
+    { name: "Light Division", type: "Light Infantry", ff: "6", points: "25" },
+  ]) {
     await units.getByRole("button", { name: "Add unit" }).click();
-    await expect(units.getByText(name)).toBeVisible();
+    const dialog = umpire.page.getByRole("dialog");
+    await dialog.getByRole("textbox", { name: "Name" }).fill(unit.name);
+    await dialog.getByRole("combobox", { name: "Type" }).click();
+    await dialog.getByRole("option", { name: unit.type }).click();
+    await dialog.getByRole("textbox", { name: "Fighting Factor (FF)" }).fill(unit.ff);
+    await dialog.getByRole("textbox", { name: "Points" }).fill(unit.points);
+    await dialog.getByRole("button", { name: "Add unit" }).click();
+    await expect(units.getByRole("row").filter({ hasText: unit.name })).toContainText(unit.type);
   }
+  await expect(units.getByRole("rowheader", { name: "2 units" })).toBeVisible();
+  await expect(units.getByRole("row", { name: /2 units/ })).toContainText("55");
+
+  // The Umpire edits one.
+  await units.getByRole("button", { name: "Edit Light Division" }).click();
+  await umpire.page
+    .getByRole("dialog")
+    .getByRole("textbox", { name: "Fighting Factor (FF)" })
+    .fill("7");
+  await umpire.page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(units.getByRole("row", { name: /Light Division/ })).toContainText("7");
 
   // Every Player sees every army; only the commander can open theirs, and see its units.
   for (const player of [commander, other]) {
