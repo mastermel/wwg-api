@@ -89,6 +89,12 @@ internal static class AdminUserEndpoints
                 u.CreatedAt,
                 u.LockoutEnd,
                 IsAdmin = db.UserRoles.Any(r => r.UserId == u.Id && r.RoleId == adminRoleId),
+                Campaigns = db
+                    .CampaignMembers.Where(m => m.UserId == u.Id)
+                    .OrderBy(m => m.Campaign.Name)
+                    .ThenBy(m => m.CampaignId)
+                    .Select(m => new UserCampaign(m.CampaignId, m.Campaign.Name, m.Role))
+                    .ToList(),
             })
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -102,7 +108,8 @@ internal static class AdminUserEndpoints
                     user.LastName,
                     user.IsAdmin,
                     user.CreatedAt,
-                    user.LockoutEnd > now ? user.LockoutEnd.Value.UtcDateTime : null
+                    user.LockoutEnd > now ? user.LockoutEnd.Value.UtcDateTime : null,
+                    user.Campaigns
                 )
             );
     }

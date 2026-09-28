@@ -10,7 +10,11 @@ internal static class AdminEndpoints
     /// </summary>
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGroup("/api/admin").WithTags("Admin").AdminOnly().MapAdminUserEndpoints();
+        app.MapGroup("/api/admin")
+            .WithTags("Admin")
+            .AdminOnly()
+            .MapAdminUserEndpoints()
+            .MapAdminCampaignEndpoints();
         return app;
     }
 }

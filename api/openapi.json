@@ -653,6 +653,140 @@
         ]
       }
     },
+    "/api/admin/campaigns": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Every campaign, sorted by name, one page at a time. `search` matches any part of the\nname, ignoring case; `withoutUmpire` keeps only campaigns with no Umpire.",
+        "operationId": "ListAllCampaigns",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "minLength": 0,
+              "type": "string"
+            }
+          },
+          {
+            "name": "withoutUmpire",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponseOfAdminCampaignSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/admin/campaigns/{id}/umpire": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Makes a user the campaign's Umpire. A Player is promoted; anyone else joins as the Umpire.\nThe previous Umpire, if there is one, becomes a Player. Choosing the current Umpire changes\nnothing.",
+        "operationId": "SetCampaignUmpire",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUmpireRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns": {
       "get": {
         "tags": [
@@ -1136,6 +1270,45 @@
   },
   "components": {
     "schemas": {
+      "AdminCampaignSummary": {
+        "required": [
+          "id",
+          "name",
+          "umpireName",
+          "playerCount",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The campaign's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "umpireName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The Umpire's name, or null if it has none."
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": "How many Players it has.",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it was created (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A campaign in the admin list of every campaign."
+      },
       "CampaignMemberResponse": {
         "required": [
           "id",
@@ -1573,6 +1746,40 @@
         },
         "description": "The signed-in user."
       },
+      "PagedResponseOfAdminCampaignSummary": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminCampaignSummary"
+            },
+            "description": "This page's items, in a stable order."
+          },
+          "page": {
+            "type": "integer",
+            "description": "The page number, from 1.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "The requested page size (the last page can have fewer items).",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "How many items there are across all pages.",
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list that can grow large."
+      },
       "PagedResponseOfCampaignSummary": {
         "required": [
           "items",
@@ -1737,6 +1944,20 @@
         },
         "description": "Sets a new password with the code from a reset link."
       },
+      "SetUmpireRequest": {
+        "required": [
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The new Umpire: a Player in the campaign, or any other user.",
+            "format": "uuid"
+          }
+        },
+        "description": "Makes a user the campaign's Umpire."
+      },
       "TokenResponse": {
         "required": [
           "accessToken",
@@ -1799,6 +2020,30 @@
         },
         "description": "Updates the signed-in user's name."
       },
+      "UserCampaign": {
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The campaign's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "role": {
+            "description": "The user's role in it.",
+            "$ref": "#/components/schemas/CampaignRole"
+          }
+        },
+        "description": "A campaign a user is in."
+      },
       "UserDetails": {
         "required": [
           "id",
@@ -1807,7 +2052,8 @@
           "lastName",
           "isAdmin",
           "createdAt",
-          "lockedOutUntil"
+          "lockedOutUntil",
+          "campaigns"
         ],
         "type": "object",
         "properties": {
@@ -1844,9 +2090,16 @@
             ],
             "description": "When a sign-in lockout ends (UTC), if they're locked out now.",
             "format": "date-time"
+          },
+          "campaigns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserCampaign"
+            },
+            "description": "The campaigns they're in, with their role, sorted by name."
           }
         },
-        "description": "One user, for admins. Their campaigns and roles are added with campaigns (Phase 3)."
+        "description": "One user, for admins, with the campaigns they're in."
       },
       "UserSummary": {
         "required": [
