@@ -10,6 +10,14 @@ export const testUser: MeResponse = {
   isAdmin: false,
 };
 
+export const testAdmin: MeResponse = {
+  id: "0192f5c1-0000-7000-8000-0000000000ad",
+  email: "admin@example.com",
+  firstName: "Ada",
+  lastName: "Admin",
+  isAdmin: true,
+};
+
 /**
  * Mocks the session endpoints: a valid refresh cookie for `user` ("signed-in"), none
  * ("signed-out"), or the API unreachable ("offline"). Returns counters for the calls made.

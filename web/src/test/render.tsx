@@ -7,7 +7,8 @@ import { createQueryClient } from "@/app/query-client";
 import { createAppRouter } from "@/app/router";
 import { SessionProvider } from "@/features/auth/SessionProvider";
 import { createSessionStore, type SessionStore } from "@/features/auth/session-store";
-import { mockSession } from "@/test/session";
+import type { MeResponse } from "@/api/generated/model";
+import { mockSession, testUser } from "@/test/session";
 
 const stores: SessionStore[] = [];
 afterEach(() => {
@@ -18,6 +19,8 @@ afterEach(() => {
 interface RenderAppOptions {
   /** The session the mock API has. Default: signed in as testUser. */
   session?: "signed-in" | "signed-out" | "offline";
+  /** Who's signed in. Default: testUser (not an admin). */
+  user?: MeResponse;
 }
 
 /**
@@ -25,8 +28,11 @@ interface RenderAppOptions {
  * session. API calls go to the MSW test server; add handlers with `server.use(...)` first (the
  * session endpoints are mocked here).
  */
-export async function renderApp(path: string, { session = "signed-in" }: RenderAppOptions = {}) {
-  const calls = mockSession(session);
+export async function renderApp(
+  path: string,
+  { session = "signed-in", user = testUser }: RenderAppOptions = {},
+) {
+  const calls = mockSession(session, user);
   const queryClient = createQueryClient();
   queryClient.setDefaultOptions({
     queries: { ...queryClient.getDefaultOptions().queries, retry: false },

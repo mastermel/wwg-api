@@ -5,6 +5,7 @@ import {
   IconLogout,
   IconSwords,
   IconUser,
+  IconUsers,
   type Icon,
 } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
@@ -14,15 +15,18 @@ import { OfflineBanner } from "@/components/OfflineBanner";
 import { useSession, useSessionStore } from "@/features/auth/session-context";
 
 interface NavItem {
-  to: "/campaigns" | "/about";
+  to: "/campaigns" | "/admin/users" | "/about";
   label: string;
   icon: Icon;
 }
 
-const navItems: NavItem[] = [
-  { to: "/campaigns", label: "Campaigns", icon: IconSwords },
-  { to: "/about", label: "About", icon: IconInfoCircle },
-];
+const campaigns: NavItem = { to: "/campaigns", label: "Campaigns", icon: IconSwords };
+const users: NavItem = { to: "/admin/users", label: "Users", icon: IconUsers };
+const about: NavItem = { to: "/about", label: "About", icon: IconInfoCircle };
+
+const memberNavItems = [campaigns, about];
+// Admins also get the admin screens. (The API enforces access regardless.)
+const adminNavItems = [campaigns, users, about];
 
 /**
  * The app frame: a header, a sidebar on desktop, and a bottom tab bar on phones (below Mantine's
@@ -33,6 +37,7 @@ export function AppLayout() {
   const matchRoute = useMatchRoute();
   const session = useSessionStore();
   const { user } = useSession();
+  const navItems = user?.isAdmin ? adminNavItems : memberNavItems;
   const isActive = (to: NavItem["to"]) => Boolean(matchRoute({ to, fuzzy: true }));
 
   return (
