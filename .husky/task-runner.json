@@ -20,12 +20,31 @@
       "include": ["web/**/*"]
     },
     {
+      "name": "e2e-dependencies",
+      "group": "pre-commit",
+      "filteringRule": "staged",
+      "command": "bash",
+      "args": [
+        "-c",
+        "test -d e2e/node_modules || { echo 'e2e/node_modules is missing: run npm ci in e2e/'; exit 1; }"
+      ],
+      "include": ["e2e/**/*"]
+    },
+    {
       "name": "eslint",
       "group": "pre-commit",
       "cwd": "web",
       "pathMode": "absolute",
       "command": "npm",
-      "args": ["exec", "--no", "--", "eslint", "--fix", "--no-warn-ignored", "${staged}"],
+      "args": [
+        "exec",
+        "--no",
+        "--",
+        "eslint",
+        "--fix",
+        "--no-warn-ignored",
+        "${staged}"
+      ],
       "include": ["web/**/*.ts", "web/**/*.tsx", "web/**/*.js"]
     },
     {
@@ -34,8 +53,50 @@
       "cwd": "web",
       "pathMode": "absolute",
       "command": "npm",
-      "args": ["exec", "--no", "--", "prettier", "--write", "--ignore-unknown", "${staged}"],
+      "args": [
+        "exec",
+        "--no",
+        "--",
+        "prettier",
+        "--write",
+        "--ignore-unknown",
+        "${staged}"
+      ],
       "include": ["web/**/*"]
+    },
+    {
+      "name": "e2e-eslint",
+      "group": "pre-commit",
+      "cwd": "e2e",
+      "pathMode": "absolute",
+      "command": "npm",
+      "args": [
+        "exec",
+        "--no",
+        "--",
+        "eslint",
+        "--fix",
+        "--no-warn-ignored",
+        "${staged}"
+      ],
+      "include": ["e2e/**/*.ts", "e2e/**/*.js"]
+    },
+    {
+      "name": "e2e-prettier",
+      "group": "pre-commit",
+      "cwd": "e2e",
+      "pathMode": "absolute",
+      "command": "npm",
+      "args": [
+        "exec",
+        "--no",
+        "--",
+        "prettier",
+        "--write",
+        "--ignore-unknown",
+        "${staged}"
+      ],
+      "include": ["e2e/**/*"]
     }
   ]
 }

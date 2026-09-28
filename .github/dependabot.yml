@@ -74,6 +74,33 @@ updates:
           - jsdom
           - msw
 
+  # npm packages for the end-to-end tests. Playwright's browsers come with the package, and
+  # e2e/run-in-docker.sh picks the matching Playwright image, so a bump updates everything.
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule:
+      interval: weekly
+    ignore:
+      # Held back with web/ (see there).
+      - dependency-name: eslint
+        versions: [">=10"]
+      - dependency-name: "@eslint/js"
+        versions: [">=10"]
+      - dependency-name: typescript
+        versions: [">=7"]
+      - dependency-name: "@types/node"
+        versions: [">=25"]
+    groups:
+      e2e:
+        patterns:
+          - "*"
+
+  # The images the end-to-end stack runs beside the app (the proxy and Mailpit).
+  - package-ecosystem: docker-compose
+    directory: /e2e
+    schedule:
+      interval: weekly
+
   # Base images in the Dockerfile.
   - package-ecosystem: docker
     directory: /

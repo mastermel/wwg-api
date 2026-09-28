@@ -113,11 +113,95 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Publishes the image on main only, after both checks pass: latest and vYYYYMMdd.HHmmss (UTC,
-  # computed once per run), for linux/amd64 and linux/arm64.
+  # End-to-end tests (e2e/): the production image, built here for linux/amd64, behind a TLS proxy
+  # with Mailpit, driven by Playwright in Chromium and mobile WebKit.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: e2e/.nvmrc
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Its own cache scope, so it doesn't evict the multi-arch cache the docker job uses.
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: wwg:e2e
+          build-args: APP_VERSION=e2e
+          cache-from: type=gha,scope=e2e
+          cache-to: type=gha,scope=e2e,mode=max
+
+      - name: Start the stack
+        run: ./stack.sh up
+        env:
+          E2E_IMAGE: wwg:e2e
+
+      - uses: actions/cache@v6
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
+      # The system libraries are installed every time; the browsers only when not cached.
+      - name: Install browsers
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium webkit
+          else
+            npx playwright install --with-deps chromium webkit
+          fi
+
+      - name: Test
+        run: npm test
+
+      - name: App logs
+        if: failure()
+        run: ./stack.sh logs
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
+
+      - name: Stop the stack
+        if: always()
+        run: ./stack.sh down
+
+  # Publishes the image on main only, after every check passes: latest and vYYYYMMdd.HHmmss
+  # (UTC, computed once per run), for linux/amd64 and linux/arm64.
   docker:
     name: docker
-    needs: [api, web]
+    needs: [api, web, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
