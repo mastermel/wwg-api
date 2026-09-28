@@ -652,10 +652,325 @@
           }
         ]
       }
+    },
+    "/api/campaigns": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "The campaigns the caller is in, with their role, sorted by name.",
+        "operationId": "ListMyCampaigns",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponseOfCampaignSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Starts a campaign. The caller becomes its Umpire.",
+        "operationId": "CreateCampaign",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "A campaign's details: its Umpire (if it has one) and the caller's role.",
+        "operationId": "GetCampaign",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Changes the campaign's name and description (Umpire or Admin).",
+        "operationId": "UpdateCampaign",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Deletes the campaign and everything in it: members now, armies and units later (Umpire or\nAdmin). The database's cascades do the rest.",
+        "operationId": "DeleteCampaign",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "CampaignResponse": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "umpire",
+          "myRole",
+          "playerCount",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The campaign's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its description, if any."
+          },
+          "umpire": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The Umpire, or null if the campaign has none (their account was deleted).",
+                "$ref": "#/components/schemas/CampaignUmpire"
+              }
+            ]
+          },
+          "myRole": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The caller's role, or null for an Admin who isn't a member.",
+                "$ref": "#/components/schemas/CampaignRole"
+              }
+            ]
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": "How many Players it has.",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it was created (UTC).",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "When it last changed (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A campaign's details."
+      },
+      "CampaignRole": {
+        "enum": [
+          "Umpire",
+          "Player"
+        ],
+        "description": "A campaign role (stored as its name)."
+      },
+      "CampaignSummary": {
+        "required": [
+          "id",
+          "name",
+          "myRole",
+          "umpireName",
+          "playerCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The campaign's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "myRole": {
+            "description": "The caller's role in it.",
+            "$ref": "#/components/schemas/CampaignRole"
+          },
+          "umpireName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The Umpire's name, or null if it has none."
+          },
+          "playerCount": {
+            "type": "integer",
+            "description": "How many Players it has.",
+            "format": "int32"
+          }
+        },
+        "description": "A campaign in the \"my campaigns\" list."
+      },
+      "CampaignUmpire": {
+        "required": [
+          "memberId",
+          "userId",
+          "firstName",
+          "lastName"
+        ],
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "description": "Their membership's ID.",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "description": "Their user ID.",
+            "format": "uuid"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "First name."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "Last name."
+          }
+        },
+        "description": "The campaign's Umpire."
+      },
       "ChangeEmailRequest": {
         "required": [
           "newEmail",
@@ -696,6 +1011,29 @@
           }
         },
         "description": "Changes the password. Other sessions are signed out; this one continues."
+      },
+      "CreateCampaignRequest": {
+        "required": [
+          "name",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Starts a campaign; the caller becomes its Umpire."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -831,6 +1169,40 @@
           }
         },
         "description": "The signed-in user."
+      },
+      "PagedResponseOfCampaignSummary": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignSummary"
+            },
+            "description": "This page's items, in a stable order."
+          },
+          "page": {
+            "type": "integer",
+            "description": "The page number, from 1.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "description": "The requested page size (the last page can have fewer items).",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "description": "How many items there are across all pages.",
+            "format": "int32"
+          }
+        },
+        "description": "One page of a list that can grow large."
       },
       "PagedResponseOfUserSummary": {
         "required": [
@@ -981,6 +1353,29 @@
         },
         "description": "A signed-in session. The access token goes in `Authorization: Bearer …`; the refresh\ntoken is never in a body: it's set as an HttpOnly cookie that only /api/auth receives."
       },
+      "UpdateCampaignRequest": {
+        "required": [
+          "name",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Changes a campaign's name and description."
+      },
       "UpdateProfileRequest": {
         "required": [
           "firstName",
@@ -1111,6 +1506,9 @@
     },
     {
       "name": "Admin"
+    },
+    {
+      "name": "Campaigns"
     }
   ]
 }

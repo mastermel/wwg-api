@@ -1,6 +1,7 @@
 using Wwg.Api.Features.Account;
 using Wwg.Api.Features.Admin;
 using Wwg.Api.Features.Auth;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Health;
 
 namespace Wwg.Api.Features;
@@ -13,6 +14,7 @@ internal static class EndpointRouteBuilderExtensions
         return app.MapHealthEndpoints()
             .MapAuthEndpoints()
             .MapAccountEndpoints()
-            .MapAdminEndpoints();
+            .MapAdminEndpoints()
+            .MapCampaignEndpoints();
     }
 }
