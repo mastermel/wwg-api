@@ -4,6 +4,7 @@ import {
   IconInfoCircle,
   IconLogout,
   IconSwords,
+  IconUser,
   type Icon,
 } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
@@ -62,6 +63,12 @@ export function AppLayout() {
                 <Menu.Label>
                   {user.firstName} {user.lastName}
                 </Menu.Label>
+                <Menu.Item
+                  leftSection={<IconUser size={16} aria-hidden />}
+                  renderRoot={(props) => <Link to="/account" {...props} />}
+                >
+                  Account
+                </Menu.Item>
                 <Menu.Item
                   leftSection={<IconLogout size={16} aria-hidden />}
                   onClick={() => void session.signOut()}

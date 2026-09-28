@@ -33,6 +33,8 @@ export interface SessionStore {
   start: () => Promise<void>;
   signIn: (token: TokenResponse) => Promise<void>;
   signOut: () => Promise<void>;
+  /** After the user's profile changes (e.g. their name). */
+  setUser: (user: MeResponse) => void;
   dispose: () => void;
 }
 
@@ -176,6 +178,10 @@ export function createSessionStore({
     start,
     signIn,
     signOut,
+    setUser(user) {
+      storage.write(lastUserKey, user);
+      set({ ...state, user });
+    },
     dispose() {
       stopSignedOut();
       stopOnline();
