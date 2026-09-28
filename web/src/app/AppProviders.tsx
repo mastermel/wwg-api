@@ -27,9 +27,16 @@ export function AppProviders({ queryClient, persistOptions, children }: AppProvi
       cssVariablesResolver={cssVariablesResolver}
       defaultColorScheme="auto"
     >
-      <Notifications />
+      {/* At the top: at the bottom they'd cover the phone tab bar. */}
+      <Notifications position="top-right" />
       {persistOptions ? (
-        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          // Restored data is a saved copy, however recent: refetch what's on screen, as a reload
+          // should. (Offline, the refetch waits and the saved copy stays.)
+          onSuccess={() => void queryClient.invalidateQueries()}
+        >
           {children}
         </PersistQueryClientProvider>
       ) : (

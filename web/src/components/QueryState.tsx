@@ -45,5 +45,5 @@ export function QueryState<TData>({ query, children }: QueryStateProps<TData>) {
     );
   }
 
-  return <Loader size="sm" aria-label="Loading" />;
+  return <Loader size="sm" role="status" aria-label="Loading" />;
 }
