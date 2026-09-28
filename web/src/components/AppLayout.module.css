@@ -1,0 +1,79 @@
+/* The app frame's surfaces: navy header, raised sidebar and tab bar, content on the canvas. */
+
+.header {
+  background-color: var(--app-header);
+  color: var(--app-header-text);
+  border-bottom: 0;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
+}
+
+.brand {
+  color: var(--app-header-text);
+  border-radius: var(--mantine-radius-sm);
+}
+
+.userButton {
+  color: var(--app-header-text);
+
+  &:hover {
+    background-color: rgb(255 255 255 / 12%);
+  }
+}
+
+.navbar {
+  background-color: var(--mantine-color-body);
+  border-right: 1px solid var(--mantine-color-default-border);
+  box-shadow: 2px 0 8px rgb(0 0 0 / 6%);
+}
+
+.navLabel {
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+  padding: var(--mantine-spacing-md) var(--mantine-spacing-sm) var(--mantine-spacing-xs);
+}
+
+.navLink {
+  border-radius: var(--mantine-radius-md);
+  font-weight: 500;
+
+  &[data-active] {
+    font-weight: 650;
+    box-shadow: inset 3px 0 0 var(--mantine-color-anchor);
+  }
+}
+
+.main {
+  background-color: var(--app-canvas);
+}
+
+/* Keeps long lines readable on wide screens. */
+.content {
+  max-width: 1080px;
+}
+
+.footer {
+  background-color: var(--mantine-color-body);
+  border-top: 1px solid var(--mantine-color-default-border);
+  box-shadow: 0 -2px 8px rgb(0 0 0 / 8%);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  color: var(--mantine-color-dimmed);
+  /* The active tab's marker; transparent so every tab lines up the same. */
+  border-top: 3px solid transparent;
+
+  &[aria-current="page"] {
+    color: var(--mantine-color-anchor);
+    border-top-color: var(--mantine-color-anchor);
+    font-weight: 650;
+  }
+}

@@ -1,4 +1,14 @@
-import { AppShell, Button, Group, Menu, NavLink, Text, UnstyledButton } from "@mantine/core";
+import {
+  AppShell,
+  Box,
+  Button,
+  Divider,
+  Group,
+  Menu,
+  NavLink,
+  Text,
+  UnstyledButton,
+} from "@mantine/core";
 import {
   IconChevronDown,
   IconInfoCircle,
@@ -10,6 +20,8 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { Fragment } from "react";
+import classes from "@/components/AppLayout.module.css";
 import { BrandMark } from "@/components/BrandMark";
 import { InstallHint } from "@/components/InstallHint";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -29,6 +41,7 @@ const about: NavItem = { to: "/about", label: "About", icon: IconInfoCircle };
 const memberNavItems = [campaigns, about];
 // Admins also get the admin screens. (The API enforces access regardless.)
 const adminNavItems = [campaigns, allCampaigns, users, about];
+const adminOnly = new Set<NavItem>([allCampaigns, users]);
 
 /**
  * The app frame: a header, a sidebar on desktop, and a bottom tab bar on phones (below Mantine's
@@ -44,14 +57,19 @@ export function AppLayout() {
 
   return (
     <AppShell
-      header={{ height: 56 }}
+      header={{ height: 60 }}
       navbar={{ width: 240, breakpoint: "sm", collapsed: { mobile: true } }}
       footer={{ height: { base: 64, sm: 0 } }}
       padding="lg"
     >
-      <AppShell.Header px="lg">
+      <AppShell.Header px="lg" className={classes.header}>
         <Group h="100%" justify="space-between" wrap="nowrap">
-          <UnstyledButton component={Link} to="/" aria-label="WWG Campaigner, start page">
+          <UnstyledButton
+            component={Link}
+            to="/"
+            aria-label="WWG Campaigner, start page"
+            className={classes.brand}
+          >
             <Group gap="xs">
               <BrandMark size={32} />
               <Text fw={700} size="lg">
@@ -62,7 +80,11 @@ export function AppLayout() {
           {user && (
             <Menu position="bottom-end">
               <Menu.Target>
-                <Button variant="subtle" rightSection={<IconChevronDown size={16} aria-hidden />}>
+                <Button
+                  variant="subtle"
+                  className={classes.userButton}
+                  rightSection={<IconChevronDown size={16} aria-hidden />}
+                >
                   {user.firstName}
                 </Button>
               </Menu.Target>
@@ -90,27 +112,45 @@ export function AppLayout() {
 
       {/* Hidden below sm, not just slid away: otherwise its links stay in the tab order and the
           accessibility tree on phones, off-screen, next to the tab bar's. */}
-      <AppShell.Navbar p="sm" aria-label="Main" visibleFrom="sm">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            component={Link}
-            to={item.to}
-            label={item.label}
-            leftSection={<item.icon size={20} aria-hidden />}
-            active={isActive(item.to)}
-            aria-current={isActive(item.to) ? "page" : undefined}
-          />
+      <AppShell.Navbar p="sm" aria-label="Main" visibleFrom="sm" className={classes.navbar}>
+        {navItems.map((item, index) => (
+          <Fragment key={item.to}>
+            {/* Admin screens under their own label (a visual grouping, not a heading). */}
+            {adminOnly.has(item) && !adminOnly.has(navItems[index - 1] ?? item) && (
+              <Text className={classes.navLabel} aria-hidden>
+                Admin
+              </Text>
+            )}
+            {!adminOnly.has(item) && adminOnly.has(navItems[index - 1] ?? item) && (
+              <Divider my="sm" />
+            )}
+            <NavLink
+              component={Link}
+              to={item.to}
+              label={item.label}
+              leftSection={<item.icon size={20} aria-hidden />}
+              active={isActive(item.to)}
+              aria-current={isActive(item.to) ? "page" : undefined}
+              className={classes.navLink}
+            />
+          </Fragment>
         ))}
       </AppShell.Navbar>
 
-      <AppShell.Main>
-        <OfflineBanner />
-        <InstallHint />
-        <Outlet />
+      <AppShell.Main className={classes.main}>
+        <Box className={classes.content}>
+          <OfflineBanner />
+          <InstallHint />
+          <Outlet />
+        </Box>
       </AppShell.Main>
 
-      <AppShell.Footer hiddenFrom="sm" component="nav" aria-label="Main tabs">
+      <AppShell.Footer
+        hiddenFrom="sm"
+        component="nav"
+        aria-label="Main tabs"
+        className={classes.footer}
+      >
         <Group grow h="100%" gap={0}>
           {navItems.map((item) => (
             <UnstyledButton
@@ -119,14 +159,7 @@ export function AppLayout() {
               to={item.to}
               aria-current={isActive(item.to) ? "page" : undefined}
               // The anchor colour meets AA in both schemes; the filled primary is too dark on dark.
-              c={isActive(item.to) ? "var(--mantine-color-anchor)" : "dimmed"}
-              h="100%"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              className={classes.tab}
             >
               <item.icon size={22} aria-hidden />
               <Text size="xs" c="inherit">

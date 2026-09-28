@@ -1,0 +1,32 @@
+/* Global touches the theme object can't express. Colours come from theme.ts's variables. */
+
+/* The canvas behind the panels, on every page (the app frame and the sign-in pages). */
+body {
+  background-color: var(--app-canvas);
+}
+
+/*
+ * Input borders that meet WCAG 1.4.11 (3:1). Not while focused or in error: Mantine sets its own
+ * colours for those through the same variable.
+ */
+.mantine-Input-input:not([data-error]):not(:focus):not(:focus-within) {
+  --input-bd: var(--app-input-border);
+}
+
+/* Table column headings read as quiet labels, so the data stands out. Header rows only. */
+.mantine-Table-thead .mantine-Table-th {
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mantine-color-dimmed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
