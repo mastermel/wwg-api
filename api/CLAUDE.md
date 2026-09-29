@@ -57,10 +57,12 @@ true, because the build launches the app to write the document.
   strings), so the SDK's generated Zod schemas validate the same way the API does.
 - **Access rules:** sign-in is required by default, but every endpoint declares its rule:
   `.AllowAnonymous()`, `.RequireSignedIn()`, `.AdminOnly()` (on the `/api/admin` group) or
-  `.RequireCampaignAccess(CampaignAccess.Member | Commander | Umpire, routeId)`.
+  `.RequireCampaignAccess(CampaignAccess.Member | Commander | Umpire | OwnCommander, routeId)`.
+  `OwnCommander` is the army's commander alone (not the Umpire, not Admins): giving orders.
   `EndpointConventionTests` fails for any endpoint without one.
 - Campaign endpoints: the `RequireCampaignAccess` filter finds the campaign from the route's `{id}`
-  (a campaign's, or an army's with `CampaignRouteId.Army`). It gives 404 to non-members (Admins pass)
+  (a campaign's; an army's with `CampaignRouteId.Army`; an army turn's with
+  `CampaignRouteId.ArmyTurn`). It gives 404 to non-members (Admins pass)
   and 403 to members without the role, then sets `HttpContext.CampaignContext()` (campaign ID,
   Admin flag, role, member ID) for the handler. Handlers still take `Guid id`, or OpenAPI
   doesn't declare the path parameter. Row-level rules are checked in the handler.
@@ -74,7 +76,9 @@ true, because the build launches the app to write the document.
   `OrderBy` (a sort key, then `Id`); validate `page >= 1` and `pageSize` 1–100 on the parameters.
 - Text search: `EF.Functions.Like(column, Search.ContainsPattern(term), Search.EscapeCharacter)`.
   Never `.Contains()`: on SQLite it's case-sensitive even on NOCASE columns.
-- EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL
+- EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. A list nested in a list
+  that refers to its outer row needs SQL APPLY, which SQLite lacks (a 500 at runtime): query each
+  level flat and put them together in memory, as `ListArmyTurns` does. No lazy loading. Raw SQL
   only through the interpolated `FromSql` / `ExecuteSql`.
 - Races: a row the access filter found is loaded with `SingleOrGoneAsync` (404 if deleted
   meanwhile), never `SingleAsync` (500). `ConflictExceptionHandler` turns unique, foreign-key and

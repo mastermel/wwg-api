@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
-using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
@@ -16,57 +15,6 @@ namespace Wwg.Api.IntegrationTests.Features;
 /// </summary>
 public sealed class TurnTests : ApiTest
 {
-    /// <summary>Waterloo and around.</summary>
-    private static readonly MapBounds Area = new(4.2, 50.6, 4.6, 50.8);
-
-    private static async Task SetAreaAsync(CampaignScenario scenario)
-    {
-        using var response = await scenario
-            .As(Role.Umpire)
-            .PutAsJsonAsync(
-                new Uri($"/api/campaigns/{scenario.CampaignId}/map", UriKind.Relative),
-                new UpdateCampaignMapRequest(
-                    Area,
-                    "en",
-                    DistanceUnit.Kilometres,
-                    CampaignMaps.DefaultLayers,
-                    [
-                        .. Enum.GetValues<UnitType>()
-                            .Select(type => new MovementLimitDto(type, 20_000)),
-                    ]
-                ),
-                TestContext.Current.CancellationToken
-            );
-        response.EnsureSuccessStatusCode();
-    }
-
-    private static Task<HttpResponseMessage> PlaceAsync(
-        CampaignScenario scenario,
-        Guid unitId,
-        double latitude = 50.7,
-        double longitude = 4.4,
-        Role role = Role.Umpire
-    ) =>
-        scenario
-            .As(role)
-            .PutAsJsonAsync(
-                new Uri($"/api/units/{unitId}/placement", UriKind.Relative),
-                new PlaceUnitRequest(latitude, longitude),
-                TestContext.Current.CancellationToken
-            );
-
-    private static Task<HttpResponseMessage> StartAsync(
-        CampaignScenario scenario,
-        Role role = Role.Umpire
-    ) =>
-        scenario
-            .As(role)
-            .PostAsync(
-                new Uri($"/api/campaigns/{scenario.CampaignId}/start", UriKind.Relative),
-                null,
-                TestContext.Current.CancellationToken
-            );
-
     private static Task<CampaignTurnsResponse?> TurnsAsync(CampaignScenario scenario, Role role) =>
         scenario
             .As(role)
@@ -87,9 +35,7 @@ public sealed class TurnTests : ApiTest
     private async Task<CampaignScenario> ReadyAsync()
     {
         var scenario = await CreateCampaignScenarioAsync();
-        await SetAreaAsync(scenario);
-        using var placed = await PlaceAsync(scenario, scenario.UnitId);
-        placed.EnsureSuccessStatusCode();
+        await TurnSteps.ReadyAsync(scenario);
         return scenario;
     }
 
@@ -119,7 +65,7 @@ public sealed class TurnTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var response = await PlaceAsync(scenario, scenario.UnitId);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId);
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -128,9 +74,9 @@ public sealed class TurnTests : ApiTest
     public async Task PlaceUnit_OutsideTheArea_IsAValidationError()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        await SetAreaAsync(scenario);
+        await TurnSteps.SetAreaAsync(scenario);
 
-        using var response = await PlaceAsync(scenario, scenario.UnitId, latitude: 51.5);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, latitude: 51.5);
 
         await response.AssertValidationProblemAsync("latitude");
     }
@@ -139,9 +85,9 @@ public sealed class TurnTests : ApiTest
     public async Task PlaceUnit_WhileSettingUp_IsItsTurnZeroPosition_ForTheUmpireAndItsCommander()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        await SetAreaAsync(scenario);
+        await TurnSteps.SetAreaAsync(scenario);
 
-        using var response = await PlaceAsync(scenario, scenario.UnitId, 50.7, 4.4);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.7, 4.4);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         foreach (var role in new[] { Role.Admin, Role.Umpire, Role.Commander })
@@ -167,10 +113,10 @@ public sealed class TurnTests : ApiTest
     public async Task PlaceUnit_Again_MovesIt()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        await SetAreaAsync(scenario);
-        using var first = await PlaceAsync(scenario, scenario.UnitId, 50.7, 4.4);
+        await TurnSteps.SetAreaAsync(scenario);
+        using var first = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.7, 4.4);
 
-        using var second = await PlaceAsync(scenario, scenario.UnitId, 50.65, 4.5);
+        using var second = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.65, 4.5);
 
         var position = Assert.Single((await PositionsAsync(scenario, Role.Umpire, turn: 0))!);
         Assert.Equal((50.65, 4.5), (position.Latitude, position.Longitude));
@@ -197,7 +143,7 @@ public sealed class TurnTests : ApiTest
     {
         using var scenario = await ReadyAsync();
 
-        using var response = await StartAsync(scenario);
+        using var response = await TurnSteps.StartAsync(scenario);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var turns = await TurnsAsync(scenario, Role.Umpire);
@@ -215,7 +161,7 @@ public sealed class TurnTests : ApiTest
     public async Task StartCampaign_Started_PlacementsAreWhereUnitsAreNow()
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
 
         var now = Assert.Single((await PositionsAsync(scenario, Role.Commander))!);
 
@@ -246,7 +192,7 @@ public sealed class TurnTests : ApiTest
                 CancellationToken
             );
 
-        using var response = await StartAsync(scenario);
+        using var response = await TurnSteps.StartAsync(scenario);
 
         var problem = await response.AssertProblemAsync(HttpStatusCode.Conflict);
         Assert.Equal(
@@ -260,9 +206,9 @@ public sealed class TurnTests : ApiTest
     public async Task StartCampaign_Twice_Returns409()
     {
         using var scenario = await ReadyAsync();
-        using var first = await StartAsync(scenario);
+        using var first = await TurnSteps.StartAsync(scenario);
 
-        using var second = await StartAsync(scenario);
+        using var second = await TurnSteps.StartAsync(scenario);
 
         await second.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -271,9 +217,9 @@ public sealed class TurnTests : ApiTest
     public async Task PlaceUnit_AfterTheStart_AUnitAlreadyPlaced_Returns409()
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
 
-        using var response = await PlaceAsync(scenario, scenario.UnitId, 50.65, 4.5);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.65, 4.5);
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -282,7 +228,7 @@ public sealed class TurnTests : ApiTest
     public async Task PlaceUnit_AfterTheStart_AUnitAddedSince_IsPlacedWhereItsArmyLastWas()
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
         using var created = await scenario
             .As(Role.Umpire)
             .PostAsJsonAsync(
@@ -292,7 +238,7 @@ public sealed class TurnTests : ApiTest
             );
         var hussars = (await created.Content.ReadAsAsync<UnitResponse>())!.Id;
 
-        using var response = await PlaceAsync(scenario, hussars, 50.65, 4.5);
+        using var response = await TurnSteps.PlaceAsync(scenario, hussars, 50.65, 4.5);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var now = (await PositionsAsync(scenario, Role.Commander))!;
@@ -306,7 +252,7 @@ public sealed class TurnTests : ApiTest
     public async Task UnplaceUnit_AfterTheStart_Returns409()
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
 
         using var response = await scenario
             .As(Role.Umpire)
@@ -322,7 +268,7 @@ public sealed class TurnTests : ApiTest
     public async Task DeletingACampaign_WithTurns_DeletesThemToo()
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
 
         using var response = await scenario
             .As(Role.Umpire)
@@ -376,9 +322,9 @@ public sealed class TurnTests : ApiTest
     public async Task PlaceUnit_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        await SetAreaAsync(scenario);
+        await TurnSteps.SetAreaAsync(scenario);
 
-        using var response = await PlaceAsync(scenario, scenario.UnitId, role: role);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, role: role);
 
         Assert.Equal(expected, response.StatusCode);
     }
@@ -393,7 +339,7 @@ public sealed class TurnTests : ApiTest
     {
         using var scenario = await ReadyAsync();
 
-        using var response = await StartAsync(scenario, role);
+        using var response = await TurnSteps.StartAsync(scenario, role);
 
         Assert.Equal(expected, response.StatusCode);
     }
@@ -407,7 +353,7 @@ public sealed class TurnTests : ApiTest
     public async Task ListPositions_ByRole_OnlyThoseWhoMaySeeTheArmy(Role role, bool sees)
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
 
         var positions = await PositionsAsync(scenario, role);
 
@@ -420,7 +366,7 @@ public sealed class TurnTests : ApiTest
     public async Task Delete_AfterTheStart_Returns409AndKeepsIt(string what)
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
         var id = string.Equals(what, "armies", StringComparison.Ordinal)
             ? scenario.ArmyId
             : scenario.UnitId;
@@ -455,7 +401,7 @@ public sealed class TurnTests : ApiTest
     public async Task CreateArmy_AfterTheStart_JoinsTheTurnsAndItsUnitsCanBePlaced()
     {
         using var scenario = await ReadyAsync();
-        using var started = await StartAsync(scenario);
+        using var started = await TurnSteps.StartAsync(scenario);
         using var reserve = await scenario
             .As(Role.Umpire)
             .PostAsJsonAsync(
@@ -473,7 +419,7 @@ public sealed class TurnTests : ApiTest
             );
         var guard = (await unit.Content.ReadAsAsync<UnitResponse>())!.Id;
 
-        using var placed = await PlaceAsync(scenario, guard, 50.62, 4.3);
+        using var placed = await TurnSteps.PlaceAsync(scenario, guard, 50.62, 4.3);
 
         Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
         var turns = (await TurnsAsync(scenario, Role.Umpire))!.Turns;

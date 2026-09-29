@@ -20,6 +20,12 @@ internal enum CampaignAccess
 
     /// <summary>The campaign's Umpire, or an Admin.</summary>
     Umpire,
+
+    /// <summary>
+    /// The army's commander, and no one else: giving orders is theirs alone (DESIGN.md §5.2), the
+    /// one rule Admins don't pass. Army and army-turn routes only.
+    /// </summary>
+    OwnCommander,
 }
 
 /// <summary>What the route's <c>{id}</c> is, and so how the campaign is found from it.</summary>
@@ -36,6 +42,9 @@ internal enum CampaignRouteId
 
     /// <summary>One of the campaign's factions (<c>/api/factions/{id}</c>).</summary>
     Faction,
+
+    /// <summary>An army's turn (<c>/api/army-turns/{id}/...</c>): its army's campaign and commander.</summary>
+    ArmyTurn,
 }
 
 /// <summary>
@@ -71,8 +80,11 @@ internal static class CampaignAccessExtensions
     )
         where TBuilder : IEndpointConventionBuilder
     {
-        // Only an army route knows which army, so which commander.
-        if (access == CampaignAccess.Commander && routeId != CampaignRouteId.Army)
+        // Only an army (or army-turn) route knows which army, so which commander.
+        if (
+            access is CampaignAccess.Commander or CampaignAccess.OwnCommander
+            && routeId is not (CampaignRouteId.Army or CampaignRouteId.ArmyTurn)
+        )
         {
             throw new ArgumentException("Commander access needs an army route.", nameof(access));
         }
@@ -140,19 +152,17 @@ internal static class CampaignAccessExtensions
             }
 
             var role = campaign.Member?.Role;
+            var isCommander = commanderId is not null && campaign.Member?.Id == commanderId;
             var allowed =
-                isAdmin
-                || role == CampaignRole.Umpire
-                || access == CampaignAccess.Member
-                || (access == CampaignAccess.Commander && campaign.Member?.Id == commanderId);
+                access == CampaignAccess.OwnCommander
+                    ? isCommander
+                    : isAdmin
+                        || role == CampaignRole.Umpire
+                        || access == CampaignAccess.Member
+                        || (access == CampaignAccess.Commander && isCommander);
             if (!allowed)
             {
-                return TypedResults.Problem(
-                    statusCode: StatusCodes.Status403Forbidden,
-                    detail: access == CampaignAccess.Commander
-                        ? "Only the army's commander or the campaign's Umpire can see this."
-                        : "Only the campaign's Umpire can do this."
-                );
+                return Forbidden();
             }
 
             httpContext.Features.Set(
@@ -186,6 +196,16 @@ internal static class CampaignAccessExtensions
                 return campaignId is { } found ? (found, null) : null;
             }
 
+            if (routeId == CampaignRouteId.ArmyTurn)
+            {
+                var turn = await db
+                    .ArmyTurns.AsNoTracking()
+                    .Where(t => t.Id == id)
+                    .Select(t => new { t.Army.CampaignId, t.Army.CommanderId })
+                    .FirstOrDefaultAsync(cancellationToken);
+                return turn is null ? null : (turn.CampaignId, turn.CommanderId);
+            }
+
             var army =
                 routeId == CampaignRouteId.Army
                     ? await db
@@ -200,6 +220,18 @@ internal static class CampaignAccessExtensions
                         .FirstOrDefaultAsync(cancellationToken);
             return army is null ? null : (army.CampaignId, army.CommanderId);
         }
+
+        private ProblemHttpResult Forbidden() =>
+            TypedResults.Problem(
+                statusCode: StatusCodes.Status403Forbidden,
+                detail: access switch
+                {
+                    CampaignAccess.Commander =>
+                        "Only the army's commander or the campaign's Umpire can see this.",
+                    CampaignAccess.OwnCommander => "Only the army's commander can give its orders.",
+                    _ => "Only the campaign's Umpire can do this.",
+                }
+            );
 
         private static ProblemHttpResult NotFound() =>
             TypedResults.Problem(statusCode: StatusCodes.Status404NotFound);

@@ -194,6 +194,46 @@
         ]
       }
     },
+    "/api/armies/{id}/turns": {
+      "get": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "An army's turns, newest first, with their orders and history (its commander, the Umpire and\nAdmins: the visibility rule).",
+        "operationId": "ListArmyTurns",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArmyTurnDetails"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -2341,6 +2381,129 @@
           }
         ]
       }
+    },
+    "/api/army-turns/{id}/orders/{unitId}": {
+      "put": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Gives a unit its order for the turn (the army's commander, while the turn is a Draft in\nthe open campaign turn): Move, inside the campaign's area and within the unit type's limit\nof where it is (a straight line); or Hold, where it is. Replaces any order it had.",
+        "operationId": "GiveOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "unitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiveOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitPosition"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Takes back a unit's order for the turn (the army's commander, while it's a Draft).",
+        "operationId": "UndoOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "unitId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2582,6 +2745,122 @@
           }
         },
         "description": "An army in the campaign's army list. Every member sees every army."
+      },
+      "ArmyTurnDetails": {
+        "required": [
+          "id",
+          "turn",
+          "open",
+          "status",
+          "submittedAt",
+          "completedAt",
+          "orders",
+          "history"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The army turn's ID (orders are given through it).",
+            "format": "uuid"
+          },
+          "turn": {
+            "type": "integer",
+            "description": "The campaign turn's number.",
+            "format": "int32"
+          },
+          "open": {
+            "type": "boolean",
+            "description": "Whether it's in the open campaign turn."
+          },
+          "status": {
+            "description": "Draft, Submitted or Completed.",
+            "$ref": "#/components/schemas/ArmyTurnStatus"
+          },
+          "submittedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When it was last submitted (UTC).",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When it was approved (UTC).",
+            "format": "date-time"
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitPosition"
+            },
+            "description": "Its units' orders, and so positions after it."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArmyTurnEventDto"
+            },
+            "description": "What happened to it, oldest first."
+          }
+        },
+        "description": "An army's turn, with its orders and history."
+      },
+      "ArmyTurnEventDto": {
+        "required": [
+          "kind",
+          "at",
+          "byName",
+          "note",
+          "unitNotes"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "description": "Submitted, Approved, SentBack or Reverted.",
+            "$ref": "#/components/schemas/ArmyTurnEventKind"
+          },
+          "at": {
+            "type": "string",
+            "description": "When (UTC).",
+            "format": "date-time"
+          },
+          "byName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who, or null if their account is gone."
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The Umpire's note, when sending back or reverting."
+          },
+          "unitNotes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitNoteDto"
+            },
+            "description": "Notes on particular units' orders."
+          }
+        },
+        "description": "One step in an army turn's history."
+      },
+      "ArmyTurnEventKind": {
+        "enum": [
+          "Submitted",
+          "Approved",
+          "SentBack",
+          "Reverted"
+        ],
+        "description": "What happened to an army's turn."
       },
       "ArmyTurnStatus": {
         "enum": [
@@ -3188,6 +3467,41 @@
           }
         },
         "description": "Asks for a password reset link by email."
+      },
+      "GiveOrderRequest": {
+        "required": [
+          "kind",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "description": "Move (to the position) or Hold (stay where it is).",
+            "$ref": "#/components/schemas/OrderKind"
+          },
+          "latitude": {
+            "maximum": 85,
+            "minimum": -85,
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Where to move, in degrees (Move only).",
+            "format": "double"
+          },
+          "longitude": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Where to move, in degrees (Move only).",
+            "format": "double"
+          }
+        },
+        "description": "A unit's order for the turn."
       },
       "HealthResponse": {
         "required": [
@@ -3836,6 +4150,27 @@
         },
         "description": "A signed-in session. The access token goes in `Authorization: Bearer …`; the refresh\ntoken is never in a body: it's set as an HttpOnly cookie that only /api/auth receives."
       },
+      "UnitNoteDto": {
+        "required": [
+          "unitId",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string",
+            "description": "The note."
+          }
+        },
+        "description": "The Umpire's note on one unit's order."
+      },
       "UnitPosition": {
         "required": [
           "unitId",
@@ -4236,6 +4571,9 @@
       "name": "Maps"
     },
     {
+      "name": "Turns"
+    },
+    {
       "name": "Auth"
     },
     {
@@ -4255,9 +4593,6 @@
     },
     {
       "name": "Armies"
-    },
-    {
-      "name": "Turns"
     }
   ]
 }

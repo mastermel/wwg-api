@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Turns;
 
@@ -68,4 +69,56 @@ public sealed record UnitPosition(
 public sealed record PlaceUnitRequest(
     [property: JsonRequired, Range(-85.0, 85.0)] double Latitude,
     [property: JsonRequired, Range(-180.0, 180.0)] double Longitude
+);
+
+/// <summary>A unit's order for the turn.</summary>
+/// <param name="Kind">Move (to the position) or Hold (stay where it is).</param>
+/// <param name="Latitude">Where to move, in degrees (Move only).</param>
+/// <param name="Longitude">Where to move, in degrees (Move only).</param>
+public sealed record GiveOrderRequest(
+    [property: JsonRequired, EnumDataType(typeof(OrderKind))] OrderKind Kind,
+    [property: Range(-85.0, 85.0)] double? Latitude,
+    [property: Range(-180.0, 180.0)] double? Longitude
+);
+
+/// <summary>The Umpire's note on one unit's order.</summary>
+/// <param name="UnitId">The unit.</param>
+/// <param name="Text">The note.</param>
+public sealed record UnitNoteDto(
+    Guid UnitId,
+    [property: Trimmed, Required, StringLength(1000)] string Text
+);
+
+/// <summary>One step in an army turn's history.</summary>
+/// <param name="Kind">Submitted, Approved, SentBack or Reverted.</param>
+/// <param name="At">When (UTC).</param>
+/// <param name="ByName">Who, or null if their account is gone.</param>
+/// <param name="Note">The Umpire's note, when sending back or reverting.</param>
+/// <param name="UnitNotes">Notes on particular units' orders.</param>
+public sealed record ArmyTurnEventDto(
+    ArmyTurnEventKind Kind,
+    DateTime At,
+    string? ByName,
+    string? Note,
+    IReadOnlyList<UnitNoteDto> UnitNotes
+);
+
+/// <summary>An army's turn, with its orders and history.</summary>
+/// <param name="Id">The army turn's ID (orders are given through it).</param>
+/// <param name="Turn">The campaign turn's number.</param>
+/// <param name="Open">Whether it's in the open campaign turn.</param>
+/// <param name="Status">Draft, Submitted or Completed.</param>
+/// <param name="SubmittedAt">When it was last submitted (UTC).</param>
+/// <param name="CompletedAt">When it was approved (UTC).</param>
+/// <param name="Orders">Its units' orders, and so positions after it.</param>
+/// <param name="History">What happened to it, oldest first.</param>
+public sealed record ArmyTurnDetails(
+    Guid Id,
+    int Turn,
+    bool Open,
+    ArmyTurnStatus Status,
+    DateTime? SubmittedAt,
+    DateTime? CompletedAt,
+    IReadOnlyList<UnitPosition> Orders,
+    IReadOnlyList<ArmyTurnEventDto> History
 );

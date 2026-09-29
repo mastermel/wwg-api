@@ -144,4 +144,20 @@ internal static class TurnRules
             title: "Campaign started",
             detail: $"The campaign has started: deleting this {what} would erase its history."
         );
+
+    /// <summary>Where a unit is now: its latest Completed order's position; null if it has none.</summary>
+    public static async Task<(double Latitude, double Longitude)?> CurrentPositionAsync(
+        WwgDbContext db,
+        Guid unitId,
+        CancellationToken cancellationToken
+    )
+    {
+        var order = await db
+            .UnitOrders.AsNoTracking()
+            .Where(o => o.UnitId == unitId && o.ArmyTurn.Status == ArmyTurnStatus.Completed)
+            .OrderByDescending(o => o.ArmyTurn.CampaignTurn.Number)
+            .Select(o => new { o.Latitude, o.Longitude })
+            .FirstOrDefaultAsync(cancellationToken);
+        return order is null ? null : (order.Latitude, order.Longitude);
+    }
 }
