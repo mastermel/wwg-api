@@ -1,8 +1,7 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Every step of the plan is done: Phases 1–3 (steps 1–18), and the
-> deploy (steps 19–21, decision [0006](docs/decisions/0006-deploy-after-phase-1.md)).
-> Then end-to-end tests (step 22). What's next is in §6.
+> **Status:** Phases 1–6 (steps 1–23) are done. Phase 7, hardening (steps 24–29), is in
+> progress.
 > **Last updated:** 2026-09-28
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -1571,3 +1570,32 @@ generated SDK, and the app installs as a PWA and opens offline.
       total). On phones the type sits under the name.
     - Also fixed: in Development an unreadable request body was a 500, not a
       400 (§3.3).
+
+### Phase 7 — Hardening
+
+From a review of the app, the design and the plan on 2026-09-28. Each step fixes what the review
+found in one area; product features come after it.
+
+24. **Backups:** a SQLite snapshot before every startup migration, and scheduled snapshots with
+    a retention limit, on the data volume. How to restore, and how to roll back a deploy, written
+    down.
+25. **Logs and health:** JSON console logs in production, one log line per request, retries
+    for failed emails, and a health check that reports healthy within a second or two of start-up.
+26. **Web fixes:**
+    - Start-up never hangs when the refresh response isn't what it should be.
+    - `/api/me` is fetched after every successful refresh.
+    - Every change refreshes the data it affects: removing a Player and setting the Umpire
+      refresh the armies; a deleted or left campaign is removed from the saved (offline) cache.
+    - Information messages aren't announced as alerts.
+    - 429 and 5xx errors show as notifications, and other errors show the API's `detail`.
+    - A Player can't open the campaign edit page.
+27. **API fixes:**
+    - Nested settings (the rate limits) are validated at startup.
+    - A wrong current password on change-email or change-password counts towards lockout.
+    - Races give 409 or 404, not 500: Identity concurrency failures, rows deleted mid-request,
+      and foreign-key failures.
+    - A member can't end up as both the Umpire and a commander.
+28. **Docs and cruft:** bring DESIGN up to date with the code, and remove what's unused.
+29. **Test gaps:** 401s and the missing permission and validation cases in the API tests; the
+    web's data refreshes and session failure paths; the account flows and 409 messages end to
+    end.
