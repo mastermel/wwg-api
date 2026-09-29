@@ -11,7 +11,8 @@ namespace Wwg.Api.Features.Turns;
 
 /// <summary>
 /// Moving a turn along (DESIGN.md §5.1): a commander submits their army's turn; the Umpire
-/// approves it, sends it back or reverts it. Each action emails the other side.
+/// approves it, sends it back or reverts it; once every army's turn is Completed, the Umpire
+/// starts the next. Each action emails the other side.
 /// </summary>
 internal static class TurnActionEndpoints
 {
@@ -33,6 +34,12 @@ internal static class TurnActionEndpoints
         turn.MapPost("/revert", RevertTurnAsync)
             .WithName("RevertTurn")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.ArmyTurn)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        app.MapPost("/api/campaigns/{id:guid}/turns", StartNextTurnAsync)
+            .WithName("StartNextTurn")
+            .WithTags("Turns")
+            .RequireCampaignAccess(CampaignAccess.Umpire)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
@@ -180,6 +187,112 @@ internal static class TurnActionEndpoints
             httpContext,
             cancellationToken
         );
+
+    /// <summary>
+    /// Starts the next turn (Umpire or Admin), once every army's turn in the open one is Completed
+    /// and every unit is on the map: the open turn closes and the next opens, a Draft for every
+    /// army. Every commander is emailed.
+    /// </summary>
+    internal static async Task<
+        Results<Ok<CampaignTurnsResponse>, ProblemHttpResult>
+    > StartNextTurnAsync(
+        Guid id,
+        WwgDbContext db,
+        TimeProvider time,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var open = await TurnRules.OpenTurnAsync(db, id, cancellationToken);
+        if (open is not { Number: > 0 })
+        {
+            return Conflict("Not started", "Start the campaign first.");
+        }
+
+        var problems = await NextTurnProblemsAsync(db, id, open.Id, cancellationToken);
+        if (problems.Count > 0)
+        {
+            return Conflict("Not ready for the next turn", string.Join(" ", problems));
+        }
+
+        var now = time.GetUtcNow().UtcDateTime;
+        var next = new CampaignTurn
+        {
+            CampaignId = id,
+            Number = open.Number + 1,
+            OpenedAt = now,
+        };
+        db.CampaignTurns.Add(next);
+        var armies = await db
+            .Armies.Where(a => a.CampaignId == id)
+            .Select(a => new { a.Id, a.Name })
+            .ToListAsync(cancellationToken);
+        db.ArmyTurns.AddRange(
+            armies.Select(a => new ArmyTurn
+            {
+                CampaignTurnId = next.Id,
+                ArmyId = a.Id,
+                Status = ArmyTurnStatus.Draft,
+            })
+        );
+        open.ClosedAt = now;
+        await db.SaveChangesAsync(cancellationToken);
+
+        await EmailTurnStartedAsync(db, emails, appOptions, id, next.Number, cancellationToken);
+        return await TurnEndpoints.ListTurnsAsync(id, db, httpContext, cancellationToken);
+    }
+
+    /// <summary>What stops the next turn starting, in sentences; empty when it's ready.</summary>
+    internal static async Task<List<string>> NextTurnProblemsAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        Guid openTurnId,
+        CancellationToken cancellationToken
+    )
+    {
+        var armies = await db
+            .Armies.AsNoTracking()
+            .Where(a => a.CampaignId == campaignId)
+            .OrderBy(a => a.Name)
+            .ThenBy(a => a.Id)
+            .Select(a => new
+            {
+                a.Name,
+                HasCommander = a.CommanderId != null,
+                Status = db
+                    .ArmyTurns.Where(t => t.ArmyId == a.Id && t.CampaignTurnId == openTurnId)
+                    .Select(t => (ArmyTurnStatus?)t.Status)
+                    .SingleOrDefault(),
+            })
+            .ToListAsync(cancellationToken);
+        var problems = armies
+            .Where(a => a.Status != ArmyTurnStatus.Completed)
+            .Select(a =>
+                a.Status == ArmyTurnStatus.Submitted ? $"Approve or send back {a.Name}'s turn."
+                : a.HasCommander ? $"{a.Name} hasn't submitted yet."
+                : $"{a.Name} has no commander to submit its turn."
+            )
+            .ToList();
+
+        var unplaced = await db.Units.CountAsync(
+            u =>
+                u.Army.CampaignId == campaignId
+                && !db.UnitOrders.Any(o =>
+                    o.UnitId == u.Id && o.ArmyTurn.Status == ArmyTurnStatus.Completed
+                ),
+            cancellationToken
+        );
+        if (unplaced > 0)
+        {
+            problems.Add(
+                unplaced == 1 ? "Place 1 unit on the map." : $"Place {unplaced} units on the map."
+            );
+        }
+
+        return problems;
+    }
 
     /// <summary>An army turn, and what the emails about it say.</summary>
     private sealed record TurnInfo(
@@ -378,6 +491,48 @@ internal static class TurnActionEndpoints
                     map,
                     notes?.Note,
                     notes?.UnitNotes
+                ),
+                cancellationToken
+            );
+        }
+    }
+
+    private static async Task EmailTurnStartedAsync(
+        WwgDbContext db,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
+        Guid campaignId,
+        int number,
+        CancellationToken cancellationToken
+    )
+    {
+        var commanders = await db
+            .Armies.AsNoTracking()
+            .Where(a => a.CampaignId == campaignId && a.Commander != null)
+            .Select(a => new
+            {
+                Army = a.Name,
+                Campaign = a.Campaign.Name,
+                To = db
+                    .CampaignMembers.Where(m => m.Id == a.CommanderId)
+                    .Select(m => new TurnRecipient(
+                        m.User.Email ?? "",
+                        m.User.FirstName,
+                        m.User.LastName
+                    ))
+                    .Single(),
+            })
+            .ToListAsync(cancellationToken);
+        var map = MapLink(appOptions, campaignId);
+        foreach (var commander in commanders)
+        {
+            await emails.QueueAsync(
+                TurnEmails.Create(
+                    commander.To,
+                    $"{commander.Campaign}: turn {number} has started",
+                    $"Turn {number} of {commander.Campaign} has started. Give {commander.Army} its orders.",
+                    "Give orders on the map",
+                    map
                 ),
                 cancellationToken
             );

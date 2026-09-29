@@ -8,7 +8,7 @@ using Wwg.Api.IntegrationTests.Support;
 namespace Wwg.Api.IntegrationTests.Features;
 
 /// <summary>
-/// Moving turns along: submit, approve, send back and revert, with their history
+/// Moving turns along: submit, approve, send back, revert and the next turn, with their history
 /// and emails (DESIGN.md §5.1, §5.2).
 /// </summary>
 public sealed class TurnActionTests : ApiTest
@@ -118,6 +118,22 @@ public sealed class TurnActionTests : ApiTest
             role,
             new ReviewTurnRequest(null, null)
         );
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task StartNextTurn_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await StartedAsync();
+        await TurnSteps.CompletedAsync(scenario);
+
+        using var response = await TurnSteps.StartNextTurnAsync(scenario, role);
 
         Assert.Equal(expected, response.StatusCode);
     }
@@ -392,5 +408,134 @@ public sealed class TurnActionTests : ApiTest
             Emails.Sent.Select(e => e.Subject),
             StringComparer.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task RevertTurn_InAClosedTurn_Returns409()
+    {
+        using var scenario = await StartedAsync();
+        var first = await TurnSteps.CompletedAsync(scenario);
+        using var next = await TurnSteps.StartNextTurnAsync(scenario);
+        next.EnsureSuccessStatusCode();
+
+        using var response = await TurnSteps.ActAsync(
+            scenario,
+            first.Id,
+            "revert",
+            Role.Umpire,
+            new ReviewTurnRequest(null, null)
+        );
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task RevertTurn_AUnitPlacedSinceTheStart_StaysOnTheMap()
+    {
+        using var scenario = await StartedAsync();
+        var completed = await TurnSteps.CompletedAsync(scenario);
+        var added = await AddUnitAsync(scenario, place: true);
+
+        using var response = await TurnSteps.ActAsync(
+            scenario,
+            completed.Id,
+            "revert",
+            Role.Umpire,
+            new ReviewTurnRequest(null, null)
+        );
+
+        response.EnsureSuccessStatusCode();
+        var positions = await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<List<UnitPosition>>($"/api/campaigns/{scenario.CampaignId}/positions");
+        Assert.Contains(positions!, p => p.UnitId == added);
+    }
+
+    [Fact]
+    public async Task StartNextTurn_EveryArmyCompleted_OpensTheNextTurnAndEmailsCommanders()
+    {
+        using var scenario = await StartedAsync();
+        await TurnSteps.CompletedAsync(scenario);
+
+        using var response = await TurnSteps.StartNextTurnAsync(scenario);
+
+        var turns = await response.Content.ReadAsAsync<CampaignTurnsResponse>();
+        Assert.Equal((2, 3), (turns?.OpenTurn, turns?.Turns.Count));
+        Assert.Equal(ArmyTurnStatus.Draft, (await TurnSteps.OpenArmyTurnAsync(scenario)).Status);
+        await Emails.WaitForEmailToAsync("commander@example.com");
+        Assert.Contains(
+            "The Peninsular War: turn 2 has started",
+            Emails.Sent.Select(e => e.Subject),
+            StringComparer.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task StartNextTurn_AnArmyNotCompleted_Returns409AndSaysWhy()
+    {
+        using var scenario = await StartedAsync();
+        await TurnSteps.SubmittedAsync(scenario);
+
+        using var response = await TurnSteps.StartNextTurnAsync(scenario);
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+        var turns = await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<CampaignTurnsResponse>($"/api/campaigns/{scenario.CampaignId}/turns");
+        Assert.Equal(["Approve or send back First Corps's turn."], turns!.StartProblems);
+    }
+
+    [Fact]
+    public async Task StartNextTurn_AUnitNotYetPlaced_Returns409()
+    {
+        using var scenario = await StartedAsync();
+        await TurnSteps.CompletedAsync(scenario);
+        await AddUnitAsync(scenario, place: false);
+
+        using var response = await TurnSteps.StartNextTurnAsync(scenario);
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task StartNextTurn_BeforeTheStart_Returns409()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.ReadyAsync(scenario);
+
+        using var response = await TurnSteps.StartNextTurnAsync(scenario);
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task GiveOrder_InTheNextTurn_MeasuresFromWhereTheLastTurnLeftTheUnit()
+    {
+        using var scenario = await StartedAsync();
+        var first = await TurnSteps.OpenArmyTurnAsync(scenario);
+        // About 3.3 km each: two moves take the unit further than one turn's 5 km.
+        using var moved = await TurnSteps.OrderAsync(
+            scenario,
+            first.Id,
+            new GiveOrderRequest(OrderKind.Move, 50.73, 4.4)
+        );
+        using var submitted = await TurnSteps.ActAsync(
+            scenario,
+            first.Id,
+            "submit",
+            Role.Commander
+        );
+        using var approved = await TurnSteps.ActAsync(scenario, first.Id, "approve", Role.Umpire);
+        using var next = await TurnSteps.StartNextTurnAsync(scenario);
+        next.EnsureSuccessStatusCode();
+        var second = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        using var response = await TurnSteps.OrderAsync(
+            scenario,
+            second.Id,
+            new GiveOrderRequest(OrderKind.Move, 50.76, 4.4)
+        );
+
+        response.EnsureSuccessStatusCode();
     }
 }

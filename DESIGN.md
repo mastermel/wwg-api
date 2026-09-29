@@ -1504,8 +1504,9 @@ UnitOrder                      ArmyTurnEvent (the turn's history)
     current position.
   - After the campaign starts, armies and units can be added but not deleted.
     The Umpire places a new unit before the next turn starts; the placement is
-    an order added to its army's latest Completed turn (which becomes its
-    current position), the only change ever made to a Completed turn. A new
+    an order added to its army's turn in the last closed campaign turn (which
+    becomes its current position, and which no revert can reach), the only
+    change ever made to a Completed turn. A new
     army gets a Completed turn for the last closed campaign turn to hold its
     placements, and a Draft for the open one.
 - **Umpire-less campaigns:** if an Admin deletes a user who was an Umpire,
@@ -1656,22 +1657,23 @@ each step)
 | PUT | `/api/armies/{id}` | `UpdateArmy` (was `RenameArmy`): name, faction, colour and nation |
 | GET / PUT | `/api/campaigns/{id}/map` | The map settings, with the movement limits |
 | GET | `/api/campaigns/{id}/places?search=` | Place search for the bounds (Umpire; server-side geocoder, rate-limited) |
-| GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts |
+| GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts; for the Umpire, what stops the start or the next turn |
 | POST | `/api/campaigns/{id}/start` | Start the campaign (close turn 0, open turn 1) |
-| POST | `/api/campaigns/{id}/turns` | Start the next turn |
+| POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander) |
 | GET | `/api/campaigns/{id}/positions?turn=` | Units' positions in a turn (default: current), as the caller may see them |
 | GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
 | PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, latitude?, longitude? }` / undo it |
-| POST | `/api/army-turns/{id}/submit` | Submit (every unit has an order) |
-| POST | `/api/army-turns/{id}/approve` | Approve: Completed |
+| POST | `/api/army-turns/{id}/submit` | Submit (every unit on the map has an order; emails the Umpire) |
+| POST | `/api/army-turns/{id}/approve` | Approve: Completed (this and the next two email the commander) |
 | POST | `/api/army-turns/{id}/send-back` | Back to Draft `{ note?, unitNotes? }` |
 | POST | `/api/army-turns/{id}/revert` | Completed back to Draft, open turn only `{ note?, unitNotes? }` |
 | GET | `/api/campaigns/{id}/units` | Every unit in the campaign (every member), for the map |
 | PUT / DELETE | `/api/units/{id}/placement` | The Umpire places a unit (turn 0, or added later) / takes it off again (setup only) |
 
 Status changes that aren't allowed now (submitting a Submitted turn, reverting
-in a closed turn) are **409**s; a Move out of range or bounds is a validation
-error on the position.
+in a closed turn) are **409**s, as is losing a race for the same change; a Move
+out of range or bounds is a validation error on the position. Each change is
+recorded in the army turn's history (who, when, the notes).
 
 ## 6. Open questions
 
@@ -2002,6 +2004,20 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
 33. **Orders:** Move (with the range circle, bounds and limit checks), Hold and undo; ghost
     moves; the turn panel and Submit; the Umpire's Approve, Send back and Revert with notes;
     **Start turn N+1**; progress counts; the turn emails.
+    - API done: orders, submit, approve, send back, revert, the next turn and the emails.
+      The UI is next.
+    - `OwnCommander` access (the army's commander alone, not the Umpire or Admins) guards
+      orders and submitting, found through the army turn (`CampaignRouteId.ArmyTurn`).
+    - Moves are measured from the unit's current position (haversine, `Geo.Metres`), with a
+      metre's grace for rounding between the browser and the API.
+    - Status changes are conditional updates in a transaction with their history event, so the
+      loser of a race gets a 409. Send back and revert clear the submitted and completed times.
+    - Submit needs an order for every unit *on the map*: a unit added since the start and not
+      yet placed doesn't hold its army up, but it does hold up the next turn.
+    - Units added after the start are placed in their army's turn for the last closed campaign
+      turn, not the latest Completed one, which could be the open turn's and then reverted.
+    - `GET /turns` gives the Umpire what stops the next turn starting while running, as it does
+      the start while setting up.
 34. **History and the Umpire's overview:** stepping through an army's past turns; the Umpire's
     view of every army in its colours, highlighting one; the turn list with its counts and each
     army's status, times and actions.

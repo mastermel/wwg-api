@@ -37,7 +37,7 @@ public sealed record CampaignTurnSummary(
 /// <param name="Stage">Setting up (turn 0) or running.</param>
 /// <param name="OpenTurn">The open turn's number (0 while setting up).</param>
 /// <param name="Turns">Every turn so far, oldest first.</param>
-/// <param name="StartProblems">While setting up, for the Umpire: what stops the campaign starting.</param>
+/// <param name="StartProblems">For the Umpire: what stops the campaign starting (while setting up) or the next turn (once running).</param>
 public sealed record CampaignTurnsResponse(
     CampaignStage Stage,
     int OpenTurn,

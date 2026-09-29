@@ -154,4 +154,16 @@ internal static class TurnSteps
         approved.EnsureSuccessStatusCode();
         return turn;
     }
+
+    public static Task<HttpResponseMessage> StartNextTurnAsync(
+        CampaignScenario scenario,
+        Role role = Role.Umpire
+    ) =>
+        scenario
+            .As(role)
+            .PostAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/turns", UriKind.Relative),
+                null,
+                CancellationToken
+            );
 }

@@ -154,7 +154,7 @@ public sealed class TurnTests : ApiTest
                 (t.Number, Assert.Single(t.ArmyTurns).Status, t.ClosedAt is not null)
             )
         );
-        Assert.Empty(turns.StartProblems);
+        Assert.Equal(["First Corps hasn't submitted yet."], turns.StartProblems);
     }
 
     [Fact]

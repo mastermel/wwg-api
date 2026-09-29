@@ -43,8 +43,8 @@ internal static class TurnEndpoints
 
     /// <summary>
     /// The campaign's turns and where each stands (every member). The Umpire sees every army's
-    /// turn, and while setting up what stops the campaign starting; a commander sees their own
-    /// army's, and everyone the counts.
+    /// turn, and what stops the campaign (or, once it's running, the next turn) starting; a
+    /// commander sees their own army's, and everyone the counts.
     /// </summary>
     internal static async Task<Ok<CampaignTurnsResponse>> ListTurnsAsync(
         Guid id,
@@ -83,9 +83,17 @@ internal static class TurnEndpoints
         var open = turns.SingleOrDefault(t => t.ClosedAt is null)?.Number ?? 0;
         var stage = open == 0 ? CampaignStage.Setup : CampaignStage.Running;
         var problems =
-            stage == CampaignStage.Setup && access.CanManage
-                ? await StartProblemsAsync(db, id, cancellationToken)
-                : [];
+            !access.CanManage ? []
+            : stage == CampaignStage.Setup ? await StartProblemsAsync(db, id, cancellationToken)
+            : await TurnActionEndpoints.NextTurnProblemsAsync(
+                db,
+                id,
+                await db
+                    .CampaignTurns.Where(t => t.CampaignId == id && t.ClosedAt == null)
+                    .Select(t => t.Id)
+                    .SingleAsync(cancellationToken),
+                cancellationToken
+            );
         return TypedResults.Ok(new CampaignTurnsResponse(stage, open, turns, problems));
     }
 
@@ -134,7 +142,8 @@ internal static class TurnEndpoints
     /// <summary>
     /// Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a
     /// unit added since that has no position yet (it's placed where its army last was, in the
-    /// army's latest Completed turn). Inside the campaign's area, which must be set.
+    /// army's turn in the last closed campaign turn, which can't be reverted). Inside the
+    /// campaign's area, which must be set.
     /// </summary>
     internal static async Task<
         Results<Ok<UnitPosition>, ValidationProblem, ProblemHttpResult>
@@ -332,7 +341,8 @@ internal static class TurnEndpoints
 
     /// <summary>
     /// The army turn a placement goes in: turn 0's while setting up; once started, the army's
-    /// latest Completed turn, but only for a unit with no position yet. Null if it can't be placed.
+    /// Completed turn in the last closed campaign turn (so reverting the open turn can't take it
+    /// off the map), but only for a unit with no position yet. Null if it can't be placed.
     /// </summary>
     private static async Task<ArmyTurn?> PlacementTurnAsync(
         WwgDbContext db,
@@ -355,7 +365,11 @@ internal static class TurnEndpoints
         return placed
             ? null
             : await db
-                .ArmyTurns.Where(t => t.ArmyId == armyId && t.Status == ArmyTurnStatus.Completed)
+                .ArmyTurns.Where(t =>
+                    t.ArmyId == armyId
+                    && t.Status == ArmyTurnStatus.Completed
+                    && t.CampaignTurn.ClosedAt != null
+                )
                 .OrderByDescending(t => t.CampaignTurn.Number)
                 .FirstOrDefaultAsync(cancellationToken);
     }

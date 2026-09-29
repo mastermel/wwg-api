@@ -234,6 +234,88 @@
         ]
       }
     },
+    "/api/campaigns/{id}/turns": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Starts the next turn (Umpire or Admin), once every army's turn in the open one is Completed\nand every unit is on the map: the open turn closes and the next opens, a Draft for every\narmy. Every commander is emailed.",
+        "operationId": "StartNextTurn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignTurnsResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "The campaign's turns and where each stands (every member). The Umpire sees every army's\nturn, and what stops the campaign (or, once it's running, the next turn) starting; a\ncommander sees their own army's, and everyone the counts.",
+        "operationId": "ListTurns",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignTurnsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -2145,43 +2227,6 @@
         ]
       }
     },
-    "/api/campaigns/{id}/turns": {
-      "get": {
-        "tags": [
-          "Turns"
-        ],
-        "summary": "The campaign's turns and where each stands (every member). The Umpire sees every army's\nturn, and while setting up what stops the campaign starting; a commander sees their own\narmy's, and everyone the counts.",
-        "operationId": "ListTurns",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CampaignTurnsResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "Bearer": [ ]
-          }
-        ]
-      }
-    },
     "/api/campaigns/{id}/positions": {
       "get": {
         "tags": [
@@ -2282,7 +2327,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a\nunit added since that has no position yet (it's placed where its army last was, in the\narmy's latest Completed turn). Inside the campaign's area, which must be set.",
+        "summary": "Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a\nunit added since that has no position yet (it's placed where its army last was, in the\narmy's turn in the last closed campaign turn, which can't be reverted). Inside the\ncampaign's area, which must be set.",
         "operationId": "PlaceUnit",
         "parameters": [
           {
@@ -3368,7 +3413,7 @@
             "items": {
               "type": "string"
             },
-            "description": "While setting up, for the Umpire: what stops the campaign starting."
+            "description": "For the Umpire: what stops the campaign starting (while setting up) or the next turn (once running)."
           }
         },
         "description": "Where the campaign's turns are."
