@@ -17,6 +17,10 @@ interface CampaignMapProps {
   free?: boolean;
   /** Called with the map, once it's loaded (e.g. to read the view the Umpire chose). */
   mapRef?: React.Ref<MapRef>;
+  /** A click (or tap) on the map itself, not on a marker, at a point in degrees. */
+  onMapClick?: (point: { longitude: number; latitude: number }) => void;
+  /** The cursor over the map, e.g. "crosshair" while choosing a point. */
+  cursor?: string;
   children?: ReactNode;
 }
 
@@ -30,6 +34,8 @@ export function CampaignMap({
   bounds,
   free = false,
   mapRef,
+  onMapClick,
+  cursor,
   children,
 }: CampaignMapProps) {
   const scheme = useComputedColorScheme("light");
@@ -56,6 +62,10 @@ export function CampaignMap({
         dragRotate={false}
         touchPitch={false}
         pitchWithRotate={false}
+        cursor={cursor}
+        onClick={(event) =>
+          onMapClick?.({ longitude: event.lngLat.lng, latitude: event.lngLat.lat })
+        }
         style={{ width: "100%", height: "100%" }}
       >
         <NavigationControl position="top-right" showCompass={false} />

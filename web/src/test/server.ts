@@ -14,6 +14,12 @@ const defaults = [
   http.get("*/api/campaigns/:id/members", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/armies", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/factions", () => HttpResponse.json([])),
+  // The map page: a campaign setting up, with nothing on the map.
+  http.get("*/api/campaigns/:id/units", () => HttpResponse.json([])),
+  http.get("*/api/campaigns/:id/positions", () => HttpResponse.json([])),
+  http.get("*/api/campaigns/:id/turns", () =>
+    HttpResponse.json({ stage: "Setup", openTurn: 0, turns: [], startProblems: [] }),
+  ),
   http.get("*/api/campaigns/:id/join-code", () =>
     HttpResponse.json({ joinCode: "test-join-code" }),
   ),

@@ -1,5 +1,6 @@
 import { onlineManager } from "@tanstack/react-query";
-import { act, screen } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import type { CampaignMapResponse, CampaignResponse } from "@/api/generated/model";
@@ -8,15 +9,22 @@ import { server } from "@/test/server";
 
 // MapLibre needs WebGL, which jsdom lacks: the map is a stand-in that shows what it was given.
 vi.mock("@/features/maps/CampaignMap", () => ({
+  // Its children (the unit markers) need a real map, so they aren't drawn; clicking "the map"
+  // clicks at a fixed point.
   CampaignMap: ({
     bounds,
     settings,
+    onMapClick,
   }: {
     bounds: CampaignMapResponse["bounds"];
     settings: CampaignMapResponse;
+    onMapClick?: (point: { longitude: number; latitude: number }) => void;
   }) => (
     <div role="application" aria-label="Campaign map">
       {JSON.stringify({ bounds, language: settings.labelLanguage })}
+      <button type="button" onClick={() => onMapClick?.({ longitude: 4.4, latitude: 50.7 })}>
+        Click the map
+      </button>
     </div>
   ),
 }));
@@ -96,5 +104,149 @@ describe("the map page", () => {
       "href",
       `/campaigns/${campaignId}/map`,
     );
+  });
+
+  describe("setting up", () => {
+    const waterloo = { west: 4.2, south: 50.55, east: 4.7, north: 50.8 };
+    const armyId = "0192f5c1-0000-7000-8000-00000000a001";
+    const unitId = "0192f5c1-0000-7000-8000-00000000b001";
+
+    function serveSetup(startProblems: string[]) {
+      const requests: { method: string; url: string; body: unknown }[] = [];
+      server.use(
+        http.get(`*/api/campaigns/${campaignId}/armies`, () =>
+          HttpResponse.json([
+            {
+              id: armyId,
+              name: "Armée du Nord",
+              commander: null,
+              faction: null,
+              color: "Blue",
+              nation: "France",
+            },
+          ]),
+        ),
+        http.get(`*/api/campaigns/${campaignId}/units`, () =>
+          HttpResponse.json([
+            {
+              id: unitId,
+              armyId,
+              name: "Imperial Guard",
+              type: "HeavyInfantry",
+              fightingFactor: 6,
+              points: 30,
+            },
+          ]),
+        ),
+        http.get(`*/api/campaigns/${campaignId}/turns`, () =>
+          HttpResponse.json({ stage: "Setup", openTurn: 0, turns: [], startProblems }),
+        ),
+        http.put(`*/api/units/${unitId}/placement`, async ({ request }) => {
+          requests.push({ method: "PUT", url: request.url, body: await request.json() });
+          return HttpResponse.json({
+            unitId,
+            armyId,
+            turn: 0,
+            status: "Draft",
+            kind: "Move",
+            latitude: 50.7,
+            longitude: 4.4,
+          });
+        }),
+        http.post(`*/api/campaigns/${campaignId}/start`, ({ request }) => {
+          requests.push({ method: "POST", url: request.url, body: null });
+          return HttpResponse.json({ stage: "Running", openTurn: 1, turns: [], startProblems: [] });
+        }),
+      );
+      return requests;
+    }
+
+    it("lets the Umpire place a unit by clicking the map", async () => {
+      serveCampaign("Umpire", settings(waterloo));
+      const requests = serveSetup(["Place 1 unit on the map."]);
+      const user = userEvent.setup();
+      await renderApp(`/campaigns/${campaignId}/map`);
+
+      expect(await screen.findByText("Place 1 unit on the map.")).toBeInTheDocument();
+      expect(screen.getByText("Not placed yet")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start campaign" })).toBeDisabled();
+      await user.click(screen.getByRole("button", { name: "Place Imperial Guard" }));
+      expect(screen.getByText(/Click the map where/)).toHaveTextContent("Imperial Guard");
+      await user.click(screen.getByRole("button", { name: "Click the map" }));
+
+      expect(await screen.findByText("Placed Imperial Guard.")).toBeInTheDocument();
+      expect(requests).toEqual([
+        {
+          method: "PUT",
+          url: expect.stringContaining(unitId) as unknown,
+          body: { longitude: 4.4, latitude: 50.7 },
+        },
+      ]);
+      expect(screen.queryByText(/Click the map where/)).not.toBeInTheDocument();
+    });
+
+    it("starts the campaign after confirming, once nothing stops it", async () => {
+      serveCampaign("Umpire", settings(waterloo));
+      const requests = serveSetup([]);
+      const user = userEvent.setup();
+      await renderApp(`/campaigns/${campaignId}/map`);
+
+      await user.click(await screen.findByRole("button", { name: "Start campaign" }));
+      await user.click(
+        within(await screen.findByRole("dialog")).getByRole("button", { name: "Start campaign" }),
+      );
+
+      expect(
+        await screen.findByText("The campaign has started: turn 1 is open."),
+      ).toBeInTheDocument();
+      expect(requests.map((r) => r.method)).toEqual(["POST"]);
+    });
+
+    it("tells a Player the Umpire is setting up", async () => {
+      serveCampaign("Player", settings(waterloo));
+      serveSetup(["Place 1 unit on the map."]);
+
+      await renderApp(`/campaigns/${campaignId}/map`);
+
+      expect(await screen.findByText(/The Umpire is placing the armies/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start campaign" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Place 1 unit on the map.")).not.toBeInTheDocument();
+    });
+
+    it("shows how far the open turn has got, once running", async () => {
+      serveCampaign("Player", settings(waterloo));
+      server.use(
+        http.get(`*/api/campaigns/${campaignId}/turns`, () =>
+          HttpResponse.json({
+            stage: "Running",
+            openTurn: 1,
+            startProblems: [],
+            turns: [
+              {
+                number: 0,
+                openedAt: "2026-09-01T12:00:00Z",
+                closedAt: "2026-09-02T12:00:00Z",
+                submitted: 2,
+                armies: 2,
+                armyTurns: [],
+              },
+              {
+                number: 1,
+                openedAt: "2026-09-02T12:00:00Z",
+                closedAt: null,
+                submitted: 1,
+                armies: 2,
+                armyTurns: [],
+              },
+            ],
+          }),
+        ),
+      );
+
+      await renderApp(`/campaigns/${campaignId}/map`);
+
+      expect(await screen.findByRole("heading", { level: 2, name: "Turn 1" })).toBeInTheDocument();
+      expect(screen.getByText("1 of 2 armies have submitted this turn.")).toBeInTheDocument();
+    });
   });
 });

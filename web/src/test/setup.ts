@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { notifications } from "@mantine/notifications";
 import { onlineManager } from "@tanstack/react-query";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
@@ -48,6 +49,9 @@ beforeAll(() => {
 });
 
 afterEach(() => {
+  // Mantine's notifications live in one store for the whole run: without this, earlier tests'
+  // fill the three on screen and a test's own wait unseen in the queue.
+  notifications.clean();
   // Vitest globals are off, so Testing Library can't register its own cleanup.
   cleanup();
   // Back online only after unmounting: done while a page is still mounted, it resumes paused

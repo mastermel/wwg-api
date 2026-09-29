@@ -29,7 +29,7 @@ export function AppProviders({ queryClient, persistOptions, children }: AppProvi
       defaultColorScheme="auto"
     >
       {/* At the top: at the bottom they'd cover the phone tab bar. */}
-      <Notifications position="top-right" />
+      <Notifications position="top-right" limit={3} />
       {persistOptions ? (
         <PersistQueryClientProvider
           client={queryClient}
