@@ -76,6 +76,18 @@ with `docker compose -f docker-compose.dev.yml down`.
 With no `Smtp:Host` at all (e.g. production before SMTP is set up), emails are written to the
 API's log instead of sent.
 
+### Place search (the campaign map)
+
+The map settings page searches for places through the API. With a MapTiler key it uses MapTiler;
+without one, Photon's public server (fine for trying it out). Keep the key out of the repo, in
+.NET user-secrets:
+
+```sh
+dotnet user-secrets set "Geocoding:MapTilerApiKey" "<your key>" --project api/src/Wwg.Api
+```
+
+In production it's the `Geocoding__MapTilerApiKey` environment variable. The tests never use it.
+
 ### Development database
 
 The API uses SQLite at `api/src/Wwg.Api/wwg.db` (git-ignored), created and migrated on start-up.

@@ -824,8 +824,9 @@ for amd64 and arm64. The shared `traefik` network is pinned to
   (defaults to `/data/keys`), `Smtp__*`, `Admin__Emails__0…`,
   `App__PublicUrl`, `ForwardedHeaders__*`, `RateLimits__Auth__*` (defaults
   to 10 per minute), `RateLimits__Refresh__*` (120 per minute),
-  `RateLimits__Email__*` (3 per 15 minutes), `Backup__*` (`Path` defaults to
-  `/data/backups`).
+  `RateLimits__Email__*` (3 per 15 minutes), `RateLimits__Places__*` (30 per
+  minute), `Backup__*` (`Path` defaults to `/data/backups`),
+  `Geocoding__MapTilerApiKey` (a secret; without it, place search uses Photon).
 
 ### 3.11 Front-end hosting & local development
 
@@ -1176,9 +1177,12 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   `name:en`, `name:de`, `name:fr`…, falling back to the local name). Names are
   modern ones.
 - **Bounds:** the Umpire pans and zooms to the campaign's area and saves it as
-  a rectangle. Everyone's map is held inside it (MapLibre's `maxBounds`), with
-  the minimum zoom worked out for each screen so the whole area fits; zooming
-  in is unlimited. Place search (our API, §5.3) helps the Umpire find the area.
+  a rectangle (**Use this view**). Everyone's map opens framed on it and is held
+  inside it (MapLibre's `maxBounds`): nothing outside it can be seen, so on a
+  screen of another shape zooming out stops once the area fills it one way, and
+  the rest is a pan away. Zooming in is unlimited. Place search (our API, §5.3)
+  helps the Umpire find the area; the settings page previews layers and the
+  label language as they change.
 - **Unit icons:** NATO symbols from `milsymbol`, one per unit type (the mapping
   from our seven types to symbols is fixed in step 32, with a legend on the
   map), filled with the army's colour.
@@ -1248,7 +1252,7 @@ e2e suite (Chromium) drives the real map.
 | Concern | Approach |
 |---|---|
 | Logging | Built-in `ILogger`. **JSON console logs** in production (`Logging:Console:FormatterName`, UTC timestamps); plain text in development. **One line per API request** (`HttpLogging`: method, path, status, duration; never headers, bodies or query strings); static files and `/health` aren't logged. EF Core's SQL is only logged in development |
-| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `Backup`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. Nested objects (each rate limit) need `[ValidateObjectMembers]`, or they aren't checked; lists are checked in `Validate` (`IValidatableObject`), e.g. that every `Admin:Emails` entry is an email. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
+| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `Backup`, `Geocoding`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. Nested objects (each rate limit) need `[ValidateObjectMembers]`, or they aren't checked; lists are checked in `Validate` (`IValidatableObject`), e.g. that every `Admin:Emails` entry is an email. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
 | Code quality | See §4.1 |
@@ -1953,10 +1957,21 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
     - The flags' designs are simplified and some are approximate (Portugal, Westphalia,
       Baden, Naples, Brunswick, Hanover and Württemberg in particular): worth a look by
       someone who knows the period.
-31. **The map:** map settings (bounds, layers, label language, distance unit, movement limits)
+31. ✅ **The map:** map settings (bounds, layers, label language, distance unit, movement limits)
     and their page; place search through our API (a `Geocoding` settings section: MapTiler
     with a key, or Photon); the map page on MapLibre and OpenFreeMap with our light and dark
     styles and Mapterhorn hills; the CSP changes; online only.
+    - Until the Umpire saves, `GET /map` returns the defaults: no bounds, English names,
+      miles, every layer but contours, and a day's march for each type (20 km for heavy
+      infantry to 40 km for light cavalry).
+    - Place search returns areas and settlements (MapTiler's `types`, Photon's `layer`s), 30 a
+      minute per IP; a failing service is a 503. Development keeps the MapTiler key in
+      user-secrets; tests blank it and stub the geocoders' HTTP (`StubHttpHandler`).
+      HttpClient's request logs (which would show the key in a URL) are off in production.
+    - MapLibre 6 looks for its worker beside its own module, which bundling moves:
+      `maplibre-worker.ts` has Vite build it as a file and points `setWorkerUrl` at it.
+    - Mantine's unselected segmented-control labels (3.2:1 in light mode) are darkened to
+      4.9:1, which the e2e axe scan of the settings page caught.
 32. **Setup and turn 0:** campaign and army turns, orders, the visibility rule and the
     positions endpoint; unit icons by type (`milsymbol`, with a legend), stacks and the unit
     drawer; the Umpire placing units, and **Start campaign**; units and armies added later

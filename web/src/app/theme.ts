@@ -90,7 +90,8 @@ export const theme = createTheme({
  * panels in light mode (Mantine's is 4.2:1 on the canvas), 7.0:1 and more in dark; dark mode's
  * links and light-variant text 5.6:1; yellow and orange light-variant text in light mode (the
  * offline banner, the admin list's "None" badge) 4.6:1 and 6.3:1; header text 10:1 and more. Input borders are 3.8:1 (light) and 4.1:1 (dark) against
- * their background, for WCAG 1.4.11 (Mantine's are about 2:1). The army colours
+ * their background, for WCAG 1.4.11 (Mantine's are about 2:1). Unselected segmented-control labels
+ * in light mode are silver 9 on gray 1, 4.9:1 (app.css; Mantine's are 3.2:1). The army colours
  * (`--army-red`…) are checked in `army-colors.ts`.
  */
 export const cssVariablesResolver: CSSVariablesResolver = (t) => ({

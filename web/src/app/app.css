@@ -30,3 +30,9 @@ body {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Mantine's unselected segmented-control labels are gray 7 on gray 1 in light mode, 3.2:1;
+   silver 9 is 4.9:1 (theme.ts). */
+:where([data-mantine-color-scheme="light"]) .mantine-SegmentedControl-label:not([data-active]) {
+  color: var(--mantine-color-silver-9);
+}

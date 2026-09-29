@@ -33,6 +33,11 @@ npm run lint && npm run typecheck && npm run format:check
   `waitForTimeout`, and not `waitForFunction` with an async predicate: it doesn't wait for the
   promise.
 - Debounced searches keep their query in the URL: wait for the URL before using the results.
+- Mantine's hidden inputs: click a `Switch` itself (`getByRole("switch")`: its input lies over
+  the label), but a `SegmentedControl` option by its label (its input is off-screen). Don't
+  `force`; it can click without toggling.
+- The campaign map is a MapLibre canvas: `getByRole("region", { name: "Map", exact: true })`.
+  Don't drive place search here (it calls a service over the internet).
 - Offline: `waitForServiceWorker` and `waitUntilSaved` (tests/support/offline.ts) before going
   offline; the app saves at most once a second. Service workers are Chromium-only in Playwright,
   so offline tests skip WebKit.

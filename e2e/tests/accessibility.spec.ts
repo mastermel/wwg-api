@@ -72,6 +72,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["campaigns", "/campaigns", "Campaigns"],
         ["campaign", campaignUrl, "The Peninsular War"],
         ["army", armyUrl, "First Corps"],
+        ["map (no area yet)", `${campaignUrl}/map`, "Map"],
+        ["map settings", `${campaignUrl}/map/settings`, "Map settings"],
         ["new campaign", "/campaigns/new", "New campaign"],
         ["account", "/account", "Account"],
         ["about", "/about", "About"],

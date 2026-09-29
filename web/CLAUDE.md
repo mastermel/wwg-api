@@ -65,6 +65,10 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Name an army with `ArmyBadge` (`features/armies/identity`): its flag, framed in its colour,
   beside the name. Army colours are the theme's `--army-*` variables (`armyColorVar`), checked
   in `army-colors.ts`; flags come from `NationFlag`, names from `nationLabel`.
+- The campaign map (`features/maps`): `CampaignMap` draws our style (`map-style.ts`, colours
+  contrast-checked there) with MapLibre. jsdom has no WebGL, so tests `vi.mock` `CampaignMap`
+  with a stand-in (and `useImperativeHandle` for its `mapRef`); the e2e suite drives the real one.
+  Import it only through `CampaignMap`, which sets MapLibre's worker URL (`maplibre-worker.ts`).
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and
