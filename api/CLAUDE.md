@@ -76,6 +76,14 @@ true, because the build launches the app to write the document.
   Never `.Contains()`: on SQLite it's case-sensitive even on NOCASE columns.
 - EF Core: reads use `AsNoTracking()` and project to DTOs with `Select`. No lazy loading. Raw SQL
   only through the interpolated `FromSql` / `ExecuteSql`.
+- Races: a row the access filter found is loaded with `SingleOrGoneAsync` (404 if deleted
+  meanwhile), never `SingleAsync` (500). `ConflictExceptionHandler` turns unique, foreign-key and
+  trigger violations and concurrency failures into 409s; Identity results go through
+  `ThrowIfFailed` / `ThrowIfConcurrencyFailure`.
+- `ExecuteUpdate` / `ExecuteDelete` skip `AuditInterceptor`: set `UpdatedAt` yourself.
+- The commander rules are also SQLite triggers (migration `AddCommanderRules`). A migration that
+  rebuilds `Armies` or `CampaignMembers` drops them; recreate them (a `DatabaseTests` test fails
+  otherwise).
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.
@@ -100,3 +108,6 @@ true, because the build launches the app to write the document.
   Corps"), a Player with no army and an outsider; `scenario.As(role)` is that user's client. Permission tests are theories over the roles, one row per §5.2 cell.
 - Read JSON with `ReadAsAsync<T>()` / `GetAsAsync<T>(path)` (`TestJson`: string enums).
 - A test that truly needs a banned API uses `#pragma warning disable RS0030` with a comment.
+- Extra test services (an EF interceptor, say) go in `App.TestServices` in the test class's
+  constructor, before the first client. `InterruptingInterceptor` forces a race: it runs a
+  statement just before the next matching SQL command (see `ConcurrencyTests`).

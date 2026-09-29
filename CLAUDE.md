@@ -27,6 +27,7 @@ generated from the API's OpenAPI document.
 ## Repo-wide tooling
 
 - `global.json` pins the .NET SDK and enables Microsoft Testing Platform.
-- `.config/dotnet-tools.json` holds local tools (`dotnet tool restore`): CSharpier, Husky.Net.
+- `.config/dotnet-tools.json` holds local tools (`dotnet tool restore`): CSharpier, Husky.Net,
+  dotnet-ef.
 - `.editorconfig` holds style rules and analyzer tuning. Every suppressed or lowered rule gets a
   comment saying why.

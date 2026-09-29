@@ -103,15 +103,19 @@ wwg/
 ├── .husky/                      # pre-commit hook config (covers api/ and web/)
 ├── .vscode/extensions.json      # recommended editor extensions
 ├── .github/
-│   ├── workflows/ci.yml         # api + web jobs, Docker image on main
-│   └── dependabot.yml           # NuGet, npm, Actions, Docker
+│   ├── workflows/ci.yml         # api, web and e2e jobs; Docker image on main
+│   └── dependabot.yml           # NuGet, npm (web, e2e), Actions, Docker
 ├── CLAUDE.md                    # repo-wide conventions for AI-assisted work
 ├── DESIGN.md
 ├── README.md
-├── Dockerfile                   # node build → dotnet publish → runtime image
-├── docker-compose.yml           # production-style run
+├── Dockerfile                   # web build → dotnet publish → runtime image
 ├── docker-compose.dev.yml       # local dev extras (Mailpit)
-├── docs/decisions/              # decision log (one short file per decision)
+├── docs/
+│   ├── decisions/               # decision log (one short file per decision)
+│   ├── development.md           # local development guide
+│   └── operations.md            # backups, restoring, rolling back a deploy
+├── scripts/dev.sh               # API + Vite (+ Mailpit) together
+├── e2e/                         # Playwright end-to-end tests and their stack (§3.8)
 ├── api/
 │   ├── Wwg.slnx
 │   ├── Directory.Build.props    # nullable, warnings-as-errors, analyzers
@@ -136,7 +140,7 @@ wwg/
 │   │       │   ├── Entities/
 │   │       │   ├── Configurations/  # IEntityTypeConfiguration<T> per entity
 │   │       │   └── Migrations/
-│   │       └── Infrastructure/  # errors, OpenAPI, auth, email, SPA hosting, interceptors
+│   │       └── Infrastructure/  # errors, OpenAPI, auth, email, backups, SPA hosting, interceptors
 │   └── tests/
 │       └── Wwg.Api.IntegrationTests/
 └── web/                         # React app; full layout in §3.12
@@ -211,7 +215,10 @@ metadata.
   - No `decimal` math in SQL. Avoid `decimal` for anything sorted or aggregated.
   - No `rowversion`. Optimistic concurrency, if needed, uses a manual token.
   - Limited `ALTER TABLE`. EF rebuilds tables for some migrations, which is
-    fine, but generated migrations should be reviewed.
+    fine, but generated migrations should be reviewed. A rebuild drops the
+    table's triggers (§5.1), and a test checks they're still there.
+  - `ExecuteUpdate` / `ExecuteDelete` skip the audit interceptor, so a bulk
+    update sets `UpdatedAt` itself.
   - Enable **WAL journal mode** for better concurrent reads.
   - Enforce foreign keys (on by default in `Microsoft.Data.Sqlite`), since the
     cascade/set-null rules in §5.1 depend on them.
@@ -228,6 +235,9 @@ metadata.
 - Status codes: `GET` 200, `POST` 201 + `Location`, `PUT` 200, `DELETE` 204,
   400 validation, 401 not signed in, 403/404 per below, **409 conflict**,
   **429 rate limited**.
+  - `POST`s that create nothing return 200: register, login and refresh (a
+    token), regenerating a join code (the new code) and joining a campaign
+    you're already in (201 when it adds you).
 - **Conflicts:** handlers check business rules first (e.g. "email already in
   use", "this Player already commands an army") and return a clear error. The
   database's unique indexes are the final guarantee. If two requests race past
@@ -345,7 +355,9 @@ Identity has two layers:
   - Swagger UI's **Authorize** button takes the access token from a login
     response.
   - **Data Protection keys are persisted** to the mounted volume. Otherwise
-    every container restart would log everyone out.
+    every container restart would log everyone out. They're stored
+    unencrypted (ASP.NET logs a warning about that at startup), which is
+    acceptable on a volume only the app's container mounts.
 - **Security stamp checked on every request.** By default, bearer access tokens
   aren't checked against the database, so a deleted user or changed password
   would keep working until the token expired. A deleted user could even cause
@@ -452,8 +464,8 @@ Identity has two layers:
     `.RequireCampaignAccess(CampaignAccess.Member)` or
     `.RequireCampaignAccess(CampaignAccess.Umpire)`.
   - A shared **endpoint filter** resolves the campaign from the route's
-    `{id}`: the campaign's own, or an army's (or later a unit's) with one
-    small query. It loads the caller's relationship (Admin / Umpire / Player /
+    `{id}`: the campaign's own, or an army's or a unit's with one small
+    query. It loads the caller's relationship (Admin / Umpire / Player /
     none), applies the 404-vs-403 rule (§3.3), and then puts a
     `CampaignContext` (campaign ID, caller's role, member ID) in the request
     for the handler to use.
@@ -553,10 +565,8 @@ Identity has two layers:
     fail the check, because a coordinated change in the same PR is normal now.
   - The front-end detects a new deploy through its service worker and
     prompts the user to reload (§3.12).
-- ⚠️ .NET 10 emits **OpenAPI 3.1** by default. Orval's handling of 3.1 (notably
-  nullable written as a type array) is checked when the front-end is
-  scaffolded (Phase 1). If it's a problem, one option switches the document to
-  3.0.
+- .NET 10 emits **OpenAPI 3.1** by default, and Orval handles it (checked in
+  step 9.3, §3.12).
 
 ### 3.8 Integration testing
 
@@ -699,15 +709,16 @@ always built last. (Dependabot's own update checks show up as separate
 "Dependabot Updates" runs; they aren't part of this workflow.)
 
 **CI never commits to the repo**, so the workflow only needs read access to
-the repo contents. Protecting `main` later just means making the `api` and
-`web` jobs required checks; nothing else changes.
+the repo contents. Protecting `main` later just means making the `api`, `web`
+and `e2e` jobs required checks; nothing else changes.
 
 **Dependency updates:** `.github/dependabot.yml` opens weekly PRs for:
 - NuGet packages in `api/` (Dependabot understands `Directory.Packages.props`),
   grouped so related packages (e.g. all `Microsoft.*`, EF Core) arrive together;
-- npm packages in `web/`, grouped similarly;
+- npm packages in `web/` and `e2e/`, grouped similarly;
 - GitHub Actions versions;
-- the Docker base images in `Dockerfile`.
+- the Docker base images in `Dockerfile`, and the images in the e2e stack's
+  compose file.
 
 Each Dependabot PR runs the normal PR checks, so an update that breaks the
 build or tests is visible before merging.
@@ -729,8 +740,8 @@ for amd64 and arm64. The shared `traefik` network is pinned to
 `ForwardedHeaders__KnownNetworks__0` to it.
 
 - Multi-stage `Dockerfile` at the repo root:
-  1. **`node` stage:** `npm ci` + `npm run build` in `web/` → `web/dist/`.
-  2. **`sdk` stage:** `dotnet publish` the API.
+  1. **`web` stage:** `npm ci` + `npm run build` in `web/` → `web/dist/`.
+  2. **`api` stage:** `dotnet publish` the API.
   3. **Runtime stage:** `aspnet:10.0-noble-chiseled-extra` (non-root UID
      1654, no shell, ICU and tzdata). It contains the published API with the
      front-end build copied into its `wwwroot/`.
@@ -770,8 +781,8 @@ for amd64 and arm64. The shared `traefik` network is pinned to
 - **Forwarded headers:** `UseForwardedHeaders` (for `X-Forwarded-For` and
   `X-Forwarded-Proto`), trusting loopback plus the configured proxies
   (`ForwardedHeaders:KnownProxies` / `KnownNetworks`). Behind Traefik, trust
-  the shared network's subnet (e.g.
-  `ForwardedHeaders__KnownNetworks__0=172.20.0.0/16`), not Traefik's IP,
+  the shared network's subnet (production's:
+  `ForwardedHeaders__KnownNetworks__0=172.21.0.0/16`), not Traefik's IP,
   which can change. Without this, every request appears to come from the
   proxy, which breaks per-IP rate limiting, and generated URLs (`Location`
   headers) use `http://`.
@@ -784,16 +795,18 @@ for amd64 and arm64. The shared `traefik` network is pinned to
   exits 0 or 1. The image's `HEALTHCHECK` runs it every 30 seconds, and every
   second during the 30-second start period (`--start-interval`), so a new
   container reports healthy as soon as it is.
-- `docker-compose.yml` for running it on the server, with the Traefik labels,
-  the shared network and the `/data` volume. Updating means pulling the new
-  `latest` (or a specific `vYYYYMMdd.HHmmss`) and restarting.
+- The server's Compose file (Traefik labels, the shared network and the
+  `/data` volume) lives in its config repo, not here (decision 0006).
+  Updating means pulling the new `latest` (or a specific `vYYYYMMdd.HHmmss`)
+  and restarting; `docs/operations.md` covers rolling back.
 - Production configuration comes from environment variables:
   `ConnectionStrings__Default` (defaults to `Data Source=/data/wwg.db`),
   `Database__MigrateOnStartup` (default `true`), `Auth__DataProtectionKeysPath`
   (defaults to `/data/keys`), `Smtp__*`, `Admin__Emails__0…`,
   `App__PublicUrl`, `ForwardedHeaders__*`, `RateLimits__Auth__*` (defaults
-  to 10 per minute), `RateLimits__Refresh__*` (120 per minute), `Backup__*` (`Path` defaults
-  to `/data/backups`).
+  to 10 per minute), `RateLimits__Refresh__*` (120 per minute),
+  `RateLimits__Email__*` (3 per 15 minutes), `Backup__*` (`Path` defaults to
+  `/data/backups`).
 
 ### 3.11 Front-end hosting & local development
 
@@ -876,9 +889,9 @@ PWA (decision [0005](docs/decisions/0005-front-end-stack.md)).
   `jsx-a11y` linting, and keyboard/screen-reader checks on key flows.
 - English only, no i18n library. Dates and times use `Intl` in the user's
   locale and time zone.
-- Browsers: the last two versions of **Chrome, Safari and iOS Safari**
-  (`browserslist`, which also sets Vite's build target). Other modern
-  browsers (Firefox, Edge) should work but aren't tested.
+- Browsers: the last two versions of **Chrome, Safari and iOS Safari**, which
+  Vite's default build target (baseline "widely available") covers. Other
+  modern browsers (Firefox, Edge) should work but aren't tested.
 - **System fonts** only: no web font download, which is faster, works
   offline and keeps the CSP simple.
 - Colour contrast of the navy/silver palettes is checked against AA in both
@@ -932,7 +945,7 @@ web/
 
 **Talking to the API**
 - Orval generates from `api/openapi.json`: TanStack Query hooks (fetch
-  client), Zod schemas, and MSW mock handlers for tests.
+  client) and Zod schemas.
 - Every generated call goes through one custom fetch function, which:
   - uses same-origin relative URLs;
   - adds the access token;
@@ -1071,8 +1084,8 @@ web/
   respect `prefers-reduced-motion`.
 
 **Testing**
-- Vitest + React Testing Library + MSW (Orval-generated handlers) for key
-  screens and logic: session handling, forms, and role-dependent UI. Not
+- Vitest + React Testing Library + MSW (handlers written in each test, with
+  shared defaults in `test/server.ts`) for key screens and logic: session handling, forms, and role-dependent UI. Not
   every screen, and no coverage threshold.
 - Key screens also get an automated **axe** accessibility check in their
   component tests. jsdom has no layout or computed colours, so those can't
@@ -1099,16 +1112,15 @@ web/
 - Local development: `scripts/dev.sh`, `docs/development.md` and the
   optional VS Code configuration (§3.11).
 
-**To check during the scaffold**
-- ✅ Orval with OpenAPI 3.1: checked in step 9.3. Nullable type arrays become
+**Checked during the scaffold**
+- ✅ Orval with OpenAPI 3.1 (step 9.3). Nullable type arrays become
   `string | null` (Zod `.nullable()`), `minLength` becomes `.min(1)`, and
   enums without `"type": "string"` become string unions. The document stays
   on 3.1.
-- Mantine injects its CSS variables in a `<style>` tag, so the CSP (§3.11)
-  needs a style nonce or `'unsafe-inline'` for styles. Scripts stay strict.
-- Whether Chrome accepts the `__Secure-` cookie prefix from
-  `http://localhost` through the Vite proxy (checked in step 10). If not,
-  development drops the prefix.
+- ✅ Mantine injects its CSS variables in a `<style>` tag, so the CSP (§3.11)
+  allows `'unsafe-inline'` for styles only. Scripts stay strict.
+- ✅ Chrome accepts the `__Secure-` cookie prefix from `http://localhost`
+  through the Vite proxy (step 10), so development keeps it.
 
 ## 4. Cross-cutting concerns
 
@@ -1222,8 +1234,8 @@ Format-on-save is recommended.
   - Setup goes through the shared helpers and scenario builders.
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat:`, `fix:`, `chore:`, `docs:`, `build:`, `ci:`, `test:`, `refactor:`).
-- A `CLAUDE.md` summarising these conventions and the commit rules will be
-  added, so AI-assisted changes follow them too.
+- `CLAUDE.md` files (the root, `api/`, `web/` and `e2e/`) summarise these
+  conventions and the commit rules, so AI-assisted changes follow them too.
 
 ## 5. Domain model
 
@@ -1324,7 +1336,7 @@ it, which makes the old link stop working. The React app builds the link
 - Any signed-in user can create a campaign, and becomes its Umpire.
 - The join link preview is public; anyone with the code can see the campaign
   name. Joining requires signing in. Joining a campaign you're already in does
-  nothing.
+  nothing (two joins racing: the second gets a 409 from the unique index).
 - Players see every Army's name and commander, **including unassigned
   armies**, but only see Units for the Army they command.
 
@@ -1334,11 +1346,11 @@ it, which makes the old link stop working. The React app builds the link
 |---|:-:|:-:|
 | List / search users | ✅ | 403 |
 | View a user (incl. their campaigns and roles) | ✅ | 403 |
-| Delete a user | ✅ (not themselves) | 403 |
+| Delete a user | ✅ (not themselves; another Admin, yes) | 403 |
 | List all campaigns (`/api/admin/campaigns`) | ✅ | 403 |
 | Set a campaign's Umpire | ✅ | 403 |
 
-### 5.3 Endpoints (first pass)
+### 5.3 Endpoints
 
 **Auth** (anonymous)
 
@@ -1581,7 +1593,7 @@ generated SDK, and the app installs as a PWA and opens offline.
       access), so there's no separate list endpoint. Unit routes find their
       campaign through the unit's army (`CampaignRouteId.Unit`).
     - The test scenario's army has one unit, "1st Division".
-    - Also in this step: token refresh got its own rate limit (§3.5), after
+    - Also in this step: token refresh got its own rate limit (§3.4), after
       three people on one network hit the sign-in limit.
 
 ### Phase 4 — Release
@@ -1589,8 +1601,9 @@ generated SDK, and the app installs as a PWA and opens offline.
 19. ✅ **Docker & SPA hosting:** API serves the SPA (static files, fallback,
     `/api` 404s, caching and security headers, §3.11); multi-stage
     `Dockerfile` (node → sdk → runtime), `.dockerignore`,
-    `docker-compose.yml` for Traefik (labels, shared network with a fixed
-    subnet, no published ports), volume layout, health check (§3.10). The
+    a Compose file for Traefik (labels, shared network with a fixed subnet,
+    no published ports; it later moved to the server's config repo), volume
+    layout, health check (§3.10). The
     CSP and PWA caching rules in §3.11; the node stage copies in
     `api/openapi.json` for Orval.
 20. ✅ **CD:** Docker Hub push step in CI with `latest` + `vYYYYMMdd.HHmmss` tags and
@@ -1659,7 +1672,7 @@ found in one area; product features come after it.
     - Races give 409 or 404, not 500: Identity concurrency failures, rows deleted mid-request,
       and foreign-key failures.
     - A member can't end up as both the Umpire and a commander.
-28. **Docs and cruft:** bring DESIGN up to date with the code, and remove what's unused.
+28. ✅ **Docs and cruft:** bring DESIGN up to date with the code, and remove what's unused.
 29. **Test gaps:** 401s and the missing permission and validation cases in the API tests; the
     web's data refreshes and session failure paths; the account flows and 409 messages end to
     end.
