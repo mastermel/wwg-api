@@ -1,5 +1,6 @@
 using Wwg.Api.Infrastructure.Auth;
 using Wwg.Api.Infrastructure.Email;
+using Wwg.Api.Infrastructure.Geocoding;
 
 namespace Wwg.Api.Infrastructure;
 
@@ -21,6 +22,7 @@ internal static class ServiceCollectionExtensions
             .AddDatabase()
             .AddAuth()
             .AddApiRateLimiting()
-            .AddEmail();
+            .AddEmail()
+            .AddGeocoding();
     }
 }

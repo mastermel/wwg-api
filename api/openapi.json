@@ -84,6 +84,76 @@
         ]
       }
     },
+    "/api/campaigns/{id}/places": {
+      "get": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "Places matching search (areas and settlements, not addresses), for the\nUmpire to frame the map on (Umpire or Admin). 503 if the geocoding service fails.",
+        "operationId": "SearchPlaces",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 2,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlaceResult"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -3136,6 +3206,48 @@
         },
         "description": "One page of a list that can grow large."
       },
+      "PlaceResult": {
+        "required": [
+          "name",
+          "description",
+          "longitude",
+          "latitude",
+          "bounds"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Its name with where it is (\"Leipzig, Saxony, Germany\")."
+          },
+          "longitude": {
+            "type": "number",
+            "description": "Its centre's longitude.",
+            "format": "double"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Its centre's latitude.",
+            "format": "double"
+          },
+          "bounds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Its extent, if the service knows it.",
+                "$ref": "#/components/schemas/MapBounds"
+              }
+            ]
+          }
+        },
+        "description": "A place found by a search, to frame the map on."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -3629,6 +3741,9 @@
       "name": "Units"
     },
     {
+      "name": "Maps"
+    },
+    {
       "name": "Auth"
     },
     {
@@ -3648,9 +3763,6 @@
     },
     {
       "name": "Armies"
-    },
-    {
-      "name": "Maps"
     }
   ]
 }

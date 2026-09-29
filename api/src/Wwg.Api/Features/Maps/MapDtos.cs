@@ -84,3 +84,17 @@ public sealed record UpdateCampaignMapRequest(
     [property: Required] MapLayers Layers,
     [property: Required] IReadOnlyList<MovementLimitDto> MovementLimits
 );
+
+/// <summary>A place found by a search, to frame the map on.</summary>
+/// <param name="Name">Its name.</param>
+/// <param name="Description">Its name with where it is ("Leipzig, Saxony, Germany").</param>
+/// <param name="Longitude">Its centre's longitude.</param>
+/// <param name="Latitude">Its centre's latitude.</param>
+/// <param name="Bounds">Its extent, if the service knows it.</param>
+public sealed record PlaceResult(
+    string Name,
+    string Description,
+    double Longitude,
+    double Latitude,
+    MapBounds? Bounds
+);

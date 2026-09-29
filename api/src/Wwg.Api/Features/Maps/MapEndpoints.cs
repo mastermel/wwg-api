@@ -1,12 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
+using Wwg.Api.Infrastructure.Geocoding;
 
 namespace Wwg.Api.Features.Maps;
 
-internal static class MapEndpoints
+internal static partial class MapEndpoints
 {
     public static IEndpointRouteBuilder MapMapEndpoints(this IEndpointRouteBuilder app)
     {
@@ -17,6 +21,14 @@ internal static class MapEndpoints
         map.MapPut("", UpdateCampaignMapAsync)
             .WithName("UpdateCampaignMap")
             .RequireCampaignAccess(CampaignAccess.Umpire);
+
+        app.MapGet("/api/campaigns/{id:guid}/places", SearchPlacesAsync)
+            .WithName("SearchPlaces")
+            .WithTags("Maps")
+            .RequireCampaignAccess(CampaignAccess.Umpire)
+            .RequireRateLimiting(RateLimiting.PlacesPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
         return app;
     }
@@ -30,6 +42,54 @@ internal static class MapEndpoints
         WwgDbContext db,
         CancellationToken cancellationToken
     ) => TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
+
+    /// <summary>
+    /// Places matching <paramref name="search"/> (areas and settlements, not addresses), for the
+    /// Umpire to frame the map on (Umpire or Admin). 503 if the geocoding service fails.
+    /// </summary>
+    internal static async Task<Results<Ok<List<PlaceResult>>, ProblemHttpResult>> SearchPlacesAsync(
+        Guid id,
+        [Required, StringLength(200, MinimumLength = 2)] string search,
+        IGeocoder geocoder,
+        ILogger<CampaignMap> logger,
+        CancellationToken cancellationToken
+    )
+    {
+        IReadOnlyList<Place> places;
+        try
+        {
+            places = await geocoder.SearchAsync(search.Trim(), cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is HttpRequestException or TaskCanceledException or JsonException
+                && !cancellationToken.IsCancellationRequested
+            )
+        {
+            LogSearchFailed(logger, exception);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Place search unavailable",
+                detail: "Place search isn't working right now. Try again later, or pan and zoom to the area."
+            );
+        }
+
+        return TypedResults.Ok(
+            places
+                .Select(p => new PlaceResult(
+                    p.Name,
+                    p.Description,
+                    p.Longitude,
+                    p.Latitude,
+                    p.Bounds is var (west, south, east, north)
+                        ? new MapBounds(west, south, east, north)
+                        : null
+                ))
+                .ToList()
+        );
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Place search failed")]
+    private static partial void LogSearchFailed(ILogger logger, Exception exception);
 
     /// <summary>
     /// Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to

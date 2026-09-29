@@ -62,6 +62,9 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
             .UseSetting("RateLimits:Auth:PermitLimit", "100000")
             .UseSetting("RateLimits:Refresh:PermitLimit", "100000")
             .UseSetting("RateLimits:Email:PermitLimit", "100000")
+            .UseSetting("RateLimits:Places:PermitLimit", "100000")
+            // Development loads user-secrets, which may hold a real key: tests never call MapTiler.
+            .UseSetting("Geocoding:MapTilerApiKey", "")
             .ConfigureTestServices(services =>
             {
                 services.AddSingleton<TimeProvider>(Clock);

@@ -35,6 +35,14 @@ internal sealed class RateLimitOptions
     [Required, ValidateObjectMembers]
     public FixedWindowLimit Email { get; set; } =
         new() { PermitLimit = 3, Window = TimeSpan.FromMinutes(15) };
+
+    /// <summary>
+    /// Place search, which calls a geocoding service (MapTiler counts against a monthly quota):
+    /// plenty for an Umpire typing, not for a script.
+    /// </summary>
+    [Required, ValidateObjectMembers]
+    public FixedWindowLimit Places { get; set; } =
+        new() { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) };
 }
 
 internal sealed class FixedWindowLimit
@@ -57,6 +65,9 @@ internal static class RateLimiting
     /// <summary>Policy for forgot-password.</summary>
     public const string EmailPolicy = "email";
 
+    /// <summary>Policy for place search.</summary>
+    public const string PlacesPolicy = "places";
+
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
         services.AddValidatedOptions<RateLimitOptions>(RateLimitOptions.SectionName);
@@ -72,6 +83,7 @@ internal static class RateLimiting
                 httpContext => PerClientIp(httpContext, o => o.Refresh)
             );
             options.AddPolicy(EmailPolicy, httpContext => PerClientIp(httpContext, o => o.Email));
+            options.AddPolicy(PlacesPolicy, httpContext => PerClientIp(httpContext, o => o.Places));
         });
     }
 

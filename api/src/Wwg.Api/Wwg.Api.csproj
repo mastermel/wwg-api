@@ -8,6 +8,7 @@
   <PropertyGroup>
     <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)../..</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
+    <UserSecretsId>1eecf179-bfa2-4987-815e-bd5b08ea614d</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
