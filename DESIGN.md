@@ -1268,6 +1268,17 @@ Unit
   armies).
 - `Army.CommanderId` points at a **member**, not a user. That keeps the
   commander inside the same campaign.
+- **Triggers** back up the commander rules, which span two tables, so no index
+  can hold them (migration `AddCommanderRules`):
+  - an army's commander must be a **Player in the army's campaign** (on insert,
+    and on a change to `CommanderId` or `CampaignId`);
+  - a member who commands an army **can't become the Umpire** (Set Umpire
+    unassigns the army first).
+
+  The handlers check both first and give clear errors. The triggers only catch
+  two requests racing (a Player made Umpire while being given an army), which
+  gets a **409**. EF rebuilds a SQLite table for some migrations, which drops
+  its triggers, so a test fails if they're missing.
 - **Cascades:**
   - Deleting a Campaign deletes its members, armies and units.
   - Deleting an Army deletes its units.
@@ -1642,7 +1653,7 @@ found in one area; product features come after it.
     - Information messages aren't announced as alerts.
     - 429 and 5xx errors show as notifications, and other errors show the API's `detail`.
     - A Player can't open the campaign edit page.
-27. **API fixes:**
+27. ✅ **API fixes:**
     - Nested settings (the rate limits) are validated at startup.
     - A wrong current password on change-email or change-password counts towards lockout.
     - Races give 409 or 404, not 500: Identity concurrency failures, rows deleted mid-request,

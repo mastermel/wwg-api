@@ -29,10 +29,10 @@ public sealed class ConcurrencyTests : ApiTest
     [Fact]
     public async Task CreateUnit_ArmyDeletedBeforeTheSave_Returns409()
     {
-        var scenario = await CreateCampaignScenarioAsync();
+        using var scenario = await CreateCampaignScenarioAsync();
         _interceptor.BeforeNext(
             sql => sql.Contains("INSERT INTO \"Units\"", StringComparison.Ordinal),
-            $"DELETE FROM \"Armies\" WHERE \"Id\" = '{scenario.ArmyId.ToString().ToUpperInvariant()}';"
+            $"DELETE FROM \"Armies\" WHERE \"Id\" = '{Sql(scenario.ArmyId)}';"
         );
 
         using var response = await scenario
@@ -49,10 +49,10 @@ public sealed class ConcurrencyTests : ApiTest
     [Fact]
     public async Task RenameArmy_DeletedBeforeTheSave_Returns409()
     {
-        var scenario = await CreateCampaignScenarioAsync();
+        using var scenario = await CreateCampaignScenarioAsync();
         _interceptor.BeforeNext(
             sql => sql.StartsWith("UPDATE \"Armies\"", StringComparison.Ordinal),
-            $"DELETE FROM \"Armies\" WHERE \"Id\" = '{scenario.ArmyId.ToString().ToUpperInvariant()}';"
+            $"DELETE FROM \"Armies\" WHERE \"Id\" = '{Sql(scenario.ArmyId)}';"
         );
 
         using var response = await RenameArmyAsync(scenario);
@@ -63,18 +63,53 @@ public sealed class ConcurrencyTests : ApiTest
     [Fact]
     public async Task RenameArmy_DeletedAfterTheAccessCheck_Returns404()
     {
-        var scenario = await CreateCampaignScenarioAsync();
+        using var scenario = await CreateCampaignScenarioAsync();
         // The handler's own load of the army (every column; the access check reads one).
         _interceptor.BeforeNext(
             sql =>
                 sql.Contains("FROM \"Armies\"", StringComparison.Ordinal)
                 && sql.Contains("\"a\".\"Name\"", StringComparison.Ordinal),
-            $"DELETE FROM \"Armies\" WHERE \"Id\" = '{scenario.ArmyId.ToString().ToUpperInvariant()}';"
+            $"DELETE FROM \"Armies\" WHERE \"Id\" = '{Sql(scenario.ArmyId)}';"
         );
 
         using var response = await RenameArmyAsync(scenario);
 
         await response.AssertProblemAsync(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AssignCommander_PlayerMadeUmpireBeforeTheSave_Returns409()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        // What Set Umpire does meanwhile: the Player becomes the Umpire.
+        _interceptor.BeforeNext(
+            sql => sql.StartsWith("UPDATE \"Armies\"", StringComparison.Ordinal),
+            $"""
+            UPDATE "CampaignMembers" SET "Role" = 'Player' WHERE "Id" = '{Sql(
+                scenario.UmpireMemberId
+            )}';
+            UPDATE "CampaignMembers" SET "Role" = 'Umpire' WHERE "Id" = '{Sql(
+                scenario.PlayerMemberId
+            )}';
+            UPDATE "Armies" SET "CommanderId" = NULL WHERE "Id" = '{Sql(scenario.ArmyId)}';
+            """
+        );
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/armies/{scenario.ArmyId}/commander", UriKind.Relative),
+                new AssignCommanderRequest(scenario.PlayerMemberId),
+                CancellationToken
+            );
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+        var commander = await WithDbAsync(db =>
+            db.Armies.Where(a => a.Id == scenario.ArmyId)
+                .Select(a => a.CommanderId)
+                .SingleAsync(CancellationToken)
+        );
+        Assert.Null(commander);
     }
 
     [Fact]
@@ -96,6 +131,9 @@ public sealed class ConcurrencyTests : ApiTest
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
+
+    /// <summary>How EF stores a GUID in SQLite: upper-case text.</summary>
+    private static string Sql(Guid id) => id.ToString().ToUpperInvariant();
 
     private static Task<HttpResponseMessage> RenameArmyAsync(CampaignScenario scenario) =>
         scenario

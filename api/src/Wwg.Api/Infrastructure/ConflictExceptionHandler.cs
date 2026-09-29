@@ -35,8 +35,9 @@ internal static class GoneQueryableExtensions
 /// refuses a change, the answer is a 409 or 404 Problem Details, never a 500:
 /// <list type="bullet">
 /// <item>a unique index: 409, the data already exists;</item>
-/// <item>a foreign key, or a row changed or deleted under an update (EF's and Identity's
-/// concurrency checks): 409, reload and try again;</item>
+/// <item>a foreign key, a trigger enforcing a rule (the commander rules), or a row changed or
+/// deleted under an update (EF's and Identity's concurrency checks): 409, reload and try
+/// again;</item>
 /// <item>a row deleted between the access check and the handler: 404.</item>
 /// </list>
 /// </summary>
@@ -61,7 +62,8 @@ internal sealed class ConflictExceptionHandler(IProblemDetailsService problemDet
                 "The request conflicts with data that already exists."
             ),
             DbUpdateConcurrencyException or ConcurrentChangeException => ChangedMeanwhile,
-            _ when IsConstraintViolation(exception, raw.SQLITE_CONSTRAINT_FOREIGNKEY) =>
+            _ when IsConstraintViolation(exception, raw.SQLITE_CONSTRAINT_FOREIGNKEY)
+                    || IsConstraintViolation(exception, raw.SQLITE_CONSTRAINT_TRIGGER) =>
                 ChangedMeanwhile,
             _ => (0, null),
         };
@@ -86,15 +88,16 @@ internal sealed class ConflictExceptionHandler(IProblemDetailsService problemDet
         "Someone else changed this at the same time. Reload, then try again."
     );
 
+    /// <summary>
+    /// From <c>SaveChanges</c> (wrapped in a <see cref="DbUpdateException"/>) or from
+    /// <c>ExecuteUpdate</c>/<c>ExecuteDelete</c> (not wrapped).
+    /// </summary>
     private static bool IsConstraintViolation(Exception exception, int extendedCode) =>
-        exception
-            is DbUpdateException
-            {
-                InnerException: SqliteException
-                {
-                    SqliteErrorCode: raw.SQLITE_CONSTRAINT,
-                    SqliteExtendedErrorCode: var code,
-                },
-            }
+        (
+            exception is DbUpdateException { InnerException: SqliteException wrapped }
+                ? wrapped
+                : exception as SqliteException
+        )
+            is { SqliteErrorCode: raw.SQLITE_CONSTRAINT, SqliteExtendedErrorCode: var code }
         && code == extendedCode;
 }

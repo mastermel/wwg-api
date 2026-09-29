@@ -22,6 +22,26 @@ public sealed class DatabaseTests : ApiTest
     }
 
     [Fact]
+    public async Task Migrations_Always_LeaveTheCommanderTriggers()
+    {
+        // EF rebuilds a SQLite table for some changes, dropping its triggers: a migration that
+        // rebuilds Armies or CampaignMembers must create them again (see AddCommanderRules).
+        var triggers = await WithDbAsync(db =>
+            db.Database.SqlQuery<string>(
+                    $"SELECT \"name\" AS \"Value\" FROM sqlite_master WHERE \"type\" = 'trigger'"
+                )
+                .ToListAsync(CancellationToken)
+        );
+
+        Assert.Equal(
+            "Armies_CommanderIsAPlayer_Insert, Armies_CommanderIsAPlayer_Update, "
+                + "CampaignMembers_UmpireCommandsNoArmy",
+            string.Join(", ", triggers.Order(StringComparer.Ordinal)),
+            StringComparer.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task NewTest_Always_StartsWithAnEmptyDatabase()
     {
         // Other tests (e.g. AuditTests) add users; each test must get its own copy.
