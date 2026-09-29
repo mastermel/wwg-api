@@ -114,4 +114,44 @@ internal static class TurnSteps
                 order,
                 CancellationToken
             );
+
+    /// <summary>Posts a turn action (submit, approve, send-back, revert) for an army turn.</summary>
+    public static Task<HttpResponseMessage> ActAsync(
+        CampaignScenario scenario,
+        Guid armyTurnId,
+        string action,
+        Role role,
+        ReviewTurnRequest? review = null
+    ) =>
+        scenario
+            .As(role)
+            .PostAsJsonAsync(
+                new Uri($"/api/army-turns/{armyTurnId}/{action}", UriKind.Relative),
+                review,
+                CancellationToken
+            );
+
+    /// <summary>The open turn's army turn, with a Hold for the scenario's unit, submitted.</summary>
+    public static async Task<ArmyTurnDetails> SubmittedAsync(CampaignScenario scenario)
+    {
+        var turn = await OpenArmyTurnAsync(scenario);
+        using var held = await OrderAsync(
+            scenario,
+            turn.Id,
+            new GiveOrderRequest(OrderKind.Hold, null, null)
+        );
+        held.EnsureSuccessStatusCode();
+        using var submitted = await ActAsync(scenario, turn.Id, "submit", Role.Commander);
+        submitted.EnsureSuccessStatusCode();
+        return turn;
+    }
+
+    /// <summary>The open turn's army turn, submitted and approved.</summary>
+    public static async Task<ArmyTurnDetails> CompletedAsync(CampaignScenario scenario)
+    {
+        var turn = await SubmittedAsync(scenario);
+        using var approved = await ActAsync(scenario, turn.Id, "approve", Role.Umpire);
+        approved.EnsureSuccessStatusCode();
+        return turn;
+    }
 }

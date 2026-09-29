@@ -2504,6 +2504,206 @@
           }
         ]
       }
+    },
+    "/api/army-turns/{id}/submit": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Submits the army's turn for the Umpire to approve (the army's commander): a Draft in the\nopen turn, once every unit on the map has an order. Nothing changes while it's Submitted.",
+        "operationId": "SubmitTurn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/army-turns/{id}/approve": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Approves a Submitted turn in the open turn (Umpire or Admin): it's Completed.",
+        "operationId": "ApproveTurn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/army-turns/{id}/send-back": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Sends a Submitted turn in the open turn back to its commander as a Draft (Umpire or\nAdmin), with a note on the turn and on units if wanted.",
+        "operationId": "SendBackTurn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/army-turns/{id}/revert": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Reverts a Completed turn in the open turn to a Draft (Umpire or Admin), with a note on the\nturn and on units if wanted. Turns in closed campaign turns can't be reverted.",
+        "operationId": "RevertTurn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4116,6 +4316,36 @@
           }
         },
         "description": "Sets a new password with the code from a reset link."
+      },
+      "ReviewTurnRequest": {
+        "required": [
+          "note",
+          "unitNotes"
+        ],
+        "type": "object",
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A note on the turn as a whole."
+          },
+          "unitNotes": {
+            "maxItems": 100,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/UnitNoteDto"
+            },
+            "description": "Notes on units in the army, at most one each."
+          }
+        },
+        "description": "Why the Umpire sends a turn back or reverts it: a note, and notes on units."
       },
       "SetUmpireRequest": {
         "required": [

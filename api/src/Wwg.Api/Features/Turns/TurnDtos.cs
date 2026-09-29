@@ -122,3 +122,11 @@ public sealed record ArmyTurnDetails(
     IReadOnlyList<UnitPosition> Orders,
     IReadOnlyList<ArmyTurnEventDto> History
 );
+
+/// <summary>Why the Umpire sends a turn back or reverts it: a note, and notes on units.</summary>
+/// <param name="Note">A note on the turn as a whole.</param>
+/// <param name="UnitNotes">Notes on units in the army, at most one each.</param>
+public sealed record ReviewTurnRequest(
+    [property: Trimmed, StringLength(2000)] string? Note,
+    [property: MaxLength(100)] IReadOnlyList<UnitNoteDto>? UnitNotes
+);
