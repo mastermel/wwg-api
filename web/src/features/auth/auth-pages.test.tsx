@@ -164,8 +164,8 @@ describe("signing out", () => {
     expect(calls.logout).toBe(1);
   });
 
-  it("says the session ended when it ends on its own", async () => {
-    await renderApp("/campaigns");
+  it("says the session ended when it ends on its own, and keeps the way back", async () => {
+    const { router } = await renderApp("/campaigns?page=2");
     await screen.findByRole("heading", { level: 1, name: "Campaigns" });
 
     mockSession("signed-out");
@@ -175,5 +175,6 @@ describe("signing out", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toBeInTheDocument();
     });
+    expect(router.state.location.search).toEqual({ redirect: "/campaigns?page=2" });
   });
 });

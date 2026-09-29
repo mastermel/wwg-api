@@ -106,6 +106,51 @@ describe("campaign members", () => {
     expect(deleted).toEqual([playerMemberId]);
   });
 
+  it("refetches the armies after removing a Player (their army is now unassigned)", async () => {
+    serveCampaign("Umpire", [me("Umpire"), player]);
+    let armyRequests = 0;
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/armies`, () => {
+        armyRequests++;
+        return HttpResponse.json([]);
+      }),
+    );
+    await openCampaign();
+    const table = await membersTable();
+    await waitFor(() => {
+      expect(armyRequests).toBe(1);
+    });
+
+    await userEvent.click(within(table).getByRole("button", { name: "Remove Arthur Wellesley" }));
+    await userEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Remove" }),
+    );
+
+    await waitFor(() => {
+      expect(armyRequests).toBe(2);
+    });
+  });
+
+  it("shows why leaving failed", async () => {
+    serveCampaign("Player", [umpire, me("Player")]);
+    server.use(
+      http.delete(`*/api/campaigns/${campaignId}/members/me`, () =>
+        HttpResponse.json(
+          { status: 409, title: "Conflict", detail: "Hand over the army first." },
+          { status: 409, headers: { "Content-Type": "application/problem+json" } },
+        ),
+      ),
+    );
+    await openCampaign();
+
+    await userEvent.click(screen.getByRole("button", { name: "Leave campaign" }));
+    await userEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Leave campaign" }),
+    );
+
+    expect(await screen.findByText("Hand over the army first.")).toBeInTheDocument();
+  });
+
   it("doesn't offer Players removal or the join link", async () => {
     serveCampaign("Player", [umpire, me("Player")]);
     await openCampaign();

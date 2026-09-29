@@ -55,6 +55,36 @@ describe("campaigns", () => {
     expect(within(card).getByText("3 players")).toBeInTheDocument();
   });
 
+  it("pages through a long list", async () => {
+    const pages: string[] = [];
+    server.use(
+      http.get("*/api/campaigns", ({ request }) => {
+        const page = new URL(request.url).searchParams.get("page") ?? "1";
+        pages.push(page);
+        const summary: CampaignSummary = {
+          id: campaignId,
+          name: `Campaign on page ${page}`,
+          myRole: "Player",
+          umpireName: "Ada Admin",
+          playerCount: 1,
+        };
+        return HttpResponse.json({
+          items: [summary],
+          page: Number(page),
+          pageSize: 25,
+          totalCount: 30,
+        });
+      }),
+    );
+    await renderApp("/campaigns");
+    await screen.findByRole("link", { name: "Campaign on page 1" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(await screen.findByRole("link", { name: "Campaign on page 2" })).toBeInTheDocument();
+    expect(pages).toContain("2");
+  });
+
   it("explains what to do when there are none", async () => {
     await renderApp("/campaigns");
 
