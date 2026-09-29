@@ -1778,7 +1778,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Deletes an army (Umpire or Admin). The database deletes its units too.",
+        "summary": "Deletes an army and its units (Umpire or Admin), while the campaign is setting up; after it\nstarts, that would erase their history (409).",
         "operationId": "DeleteArmy",
         "parameters": [
           {

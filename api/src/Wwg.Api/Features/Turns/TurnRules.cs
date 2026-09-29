@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
@@ -97,4 +98,50 @@ internal static class TurnRules
 
         return armyTurn;
     }
+
+    /// <summary>
+    /// A new army's turns, once the campaign has started (DESIGN.md §5.1): a Completed turn for
+    /// the last closed one, to hold its units' placements, and a Draft for the open one. Nothing
+    /// while setting up. Added to the context, not saved.
+    /// </summary>
+    public static async Task JoinTurnsAsync(
+        WwgDbContext db,
+        Army army,
+        CancellationToken cancellationToken
+    )
+    {
+        var turns = await db
+            .CampaignTurns.Where(t => t.CampaignId == army.CampaignId)
+            .OrderByDescending(t => t.Number)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (turns is not [{ ClosedAt: null, Number: > 0 } open, var lastClosed])
+        {
+            return;
+        }
+
+        db.ArmyTurns.AddRange(
+            new ArmyTurn
+            {
+                CampaignTurnId = lastClosed.Id,
+                ArmyId = army.Id,
+                Status = ArmyTurnStatus.Completed,
+                CompletedAt = lastClosed.ClosedAt,
+            },
+            new ArmyTurn
+            {
+                CampaignTurnId = open.Id,
+                ArmyId = army.Id,
+                Status = ArmyTurnStatus.Draft,
+            }
+        );
+    }
+
+    /// <summary>409: deleting an army or unit once the campaign has started would erase history.</summary>
+    public static ProblemHttpResult CantDeleteAfterTheStart(string what) =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Campaign started",
+            detail: $"The campaign has started: deleting this {what} would erase its history."
+        );
 }

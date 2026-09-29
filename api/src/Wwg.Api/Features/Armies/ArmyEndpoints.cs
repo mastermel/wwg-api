@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Turns;
 using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
@@ -142,6 +143,7 @@ internal static class ArmyEndpoints
             Nation = request.Nation ?? Nation.None,
         };
         db.Armies.Add(army);
+        await TurnRules.JoinTurnsAsync(db, army, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         return TypedResults.Created(
@@ -216,13 +218,30 @@ internal static class ArmyEndpoints
     private static ArmyColor FreeColor(List<ArmyColor> taken) =>
         Enum.GetValues<ArmyColor>().OrderBy(c => taken.Count(t => t == c)).First();
 
-    /// <summary>Deletes an army (Umpire or Admin). The database deletes its units too.</summary>
-    internal static async Task<NoContent> DeleteArmyAsync(
+    /// <summary>
+    /// Deletes an army and its units (Umpire or Admin), while the campaign is setting up; after it
+    /// starts, that would erase their history (409).
+    /// </summary>
+    internal static async Task<Results<NoContent, ProblemHttpResult>> DeleteArmyAsync(
         Guid id,
         WwgDbContext db,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
+        if (
+            await TurnRules.HasStartedAsync(
+                db,
+                httpContext.CampaignContext().CampaignId,
+                cancellationToken
+            )
+        )
+        {
+            return TurnRules.CantDeleteAfterTheStart("army");
+        }
+
+        // While setting up, its only history is its turn 0 (and so its units' placements).
+        await db.ArmyTurns.Where(t => t.ArmyId == id).ExecuteDeleteAsync(cancellationToken);
         await db.Armies.Where(a => a.Id == id).ExecuteDeleteAsync(cancellationToken);
         return TypedResults.NoContent();
     }

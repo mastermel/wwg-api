@@ -413,4 +413,74 @@ public sealed class TurnTests : ApiTest
 
         Assert.Equal(sees, positions!.Any(p => p.UnitId == scenario.UnitId));
     }
+
+    [Theory]
+    [InlineData("armies")]
+    [InlineData("units")]
+    public async Task Delete_AfterTheStart_Returns409AndKeepsIt(string what)
+    {
+        using var scenario = await ReadyAsync();
+        using var started = await StartAsync(scenario);
+        var id = string.Equals(what, "armies", StringComparison.Ordinal)
+            ? scenario.ArmyId
+            : scenario.UnitId;
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .DeleteAsync(new Uri($"/api/{what}/{id}", UriKind.Relative), CancellationToken);
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+        Assert.Single((await PositionsAsync(scenario, Role.Umpire))!);
+    }
+
+    [Theory]
+    [InlineData("armies")]
+    [InlineData("units")]
+    public async Task Delete_WhileSettingUp_ItsPlacementGoesToo(string what)
+    {
+        using var scenario = await ReadyAsync();
+        var id = string.Equals(what, "armies", StringComparison.Ordinal)
+            ? scenario.ArmyId
+            : scenario.UnitId;
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .DeleteAsync(new Uri($"/api/{what}/{id}", UriKind.Relative), CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty((await PositionsAsync(scenario, Role.Umpire, turn: 0))!);
+    }
+
+    [Fact]
+    public async Task CreateArmy_AfterTheStart_JoinsTheTurnsAndItsUnitsCanBePlaced()
+    {
+        using var scenario = await ReadyAsync();
+        using var started = await StartAsync(scenario);
+        using var reserve = await scenario
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
+                new CreateArmyRequest("Reserve", null, scenario.FactionId),
+                CancellationToken
+            );
+        var reserveId = (await reserve.Content.ReadAsAsync<ArmyResponse>())!.Id;
+        using var unit = await scenario
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
+                new CreateUnitRequest("Guard", UnitType.HeavyInfantry, 6, 30),
+                CancellationToken
+            );
+        var guard = (await unit.Content.ReadAsAsync<UnitResponse>())!.Id;
+
+        using var placed = await PlaceAsync(scenario, guard, 50.62, 4.3);
+
+        Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
+        var turns = (await TurnsAsync(scenario, Role.Umpire))!.Turns;
+        Assert.Equal(
+            [ArmyTurnStatus.Completed, ArmyTurnStatus.Draft],
+            turns.Select(t => t.ArmyTurns.Single(a => a.ArmyId == reserveId).Status)
+        );
+        Assert.Contains((await PositionsAsync(scenario, Role.Umpire))!, p => p.UnitId == guard);
+    }
 }

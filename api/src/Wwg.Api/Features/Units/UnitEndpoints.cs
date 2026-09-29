@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Turns;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -68,12 +69,26 @@ internal static class UnitEndpoints
     }
 
     /// <summary>Deletes a unit (Umpire or Admin).</summary>
-    internal static async Task<NoContent> DeleteUnitAsync(
+    internal static async Task<Results<NoContent, ProblemHttpResult>> DeleteUnitAsync(
         Guid id,
         WwgDbContext db,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
+        if (
+            await TurnRules.HasStartedAsync(
+                db,
+                httpContext.CampaignContext().CampaignId,
+                cancellationToken
+            )
+        )
+        {
+            return TurnRules.CantDeleteAfterTheStart("unit");
+        }
+
+        // While setting up, its only history is its placement.
+        await db.UnitOrders.Where(o => o.UnitId == id).ExecuteDeleteAsync(cancellationToken);
         await db.Units.Where(u => u.Id == id).ExecuteDeleteAsync(cancellationToken);
         return TypedResults.NoContent();
     }
