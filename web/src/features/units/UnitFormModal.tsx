@@ -14,6 +14,7 @@ import { unitTypeOptions } from "@/features/units/unit-types";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
+// Orval writes a minimum of 1 inline (.min(1)), with no constant as it has for the others.
 const ffMin = 1;
 
 // The generated schema, with messages people can act on.

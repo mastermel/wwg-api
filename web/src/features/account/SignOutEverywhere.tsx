@@ -3,7 +3,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useSignOutEverywhere } from "@/api/generated/endpoints/account/account";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import { AccountSection } from "@/features/account/AccountSection";
+import { Section } from "@/components/Section";
 import { useSessionStore } from "@/features/auth/session-context";
 import { useOnline } from "@/lib/use-online";
 import { errorMessage } from "@/lib/errors";
@@ -28,7 +28,7 @@ export function SignOutEverywhere() {
   };
 
   return (
-    <AccountSection
+    <Section
       title="Sign out everywhere"
       tone="danger"
       description="Signs out every device and browser, including this one. Use it if you've lost a device or think someone else is signed in."
@@ -48,6 +48,6 @@ export function SignOutEverywhere() {
       >
         You&apos;ll need to sign in again on every device, including this one.
       </ConfirmModal>
-    </AccountSection>
+    </Section>
   );
 }

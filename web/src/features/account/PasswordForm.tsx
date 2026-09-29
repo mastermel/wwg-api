@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useChangePassword } from "@/api/generated/endpoints/account/account";
 import { ChangePasswordBody } from "@/api/generated/zod/account/account.zod";
-import { AccountSection } from "@/features/account/AccountSection";
+import { Section } from "@/components/Section";
 import { useSessionStore } from "@/features/auth/session-context";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
@@ -44,7 +44,7 @@ export function PasswordForm() {
   });
 
   return (
-    <AccountSection title="Password" description="Changing it signs out your other devices.">
+    <Section title="Password" description="Changing it signs out your other devices.">
       {formError && (
         <Alert color="red" role="alert">
           {formError}
@@ -81,6 +81,6 @@ export function PasswordForm() {
           </Group>
         </Stack>
       </form>
-    </AccountSection>
+    </Section>
   );
 }

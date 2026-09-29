@@ -12,8 +12,6 @@ export default defineConfig({
       schemas: "src/api/generated/model",
       client: "react-query",
       httpClient: "fetch",
-      // Mock Service Worker handlers with fake data, for tests.
-      mock: true,
       clean: true,
       override: {
         mutator: { path: "src/lib/api-fetch.ts", name: "apiFetch" },

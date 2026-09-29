@@ -1,7 +1,7 @@
 import { Alert, Anchor, Badge, Button, Group, List, SimpleGrid, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconTrash } from "@tabler/icons-react";
+import { IconSwords, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -9,6 +9,7 @@ import { useDeleteUser, useGetUser } from "@/api/generated/endpoints/admin/admin
 import type { UserDetails } from "@/api/generated/model";
 import { BackLink } from "@/components/BackLink";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { EmptyState } from "@/components/EmptyState";
 import { Page } from "@/components/Page";
 import { Section } from "@/components/Section";
 import { QueryState } from "@/components/QueryState";
@@ -150,7 +151,7 @@ function UserCampaigns({ user }: { user: UserDetails }) {
   return (
     <Section title="Campaigns" description="The campaigns they're in, and their role in each.">
       {user.campaigns.length === 0 ? (
-        <Text c="dimmed">Not in any campaigns.</Text>
+        <EmptyState icon={IconSwords} title="Not in any campaigns." />
       ) : (
         <List listStyleType="none" spacing={4} p={0}>
           {user.campaigns.map((campaign) => (

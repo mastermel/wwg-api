@@ -2,13 +2,12 @@ import { screen } from "@testing-library/react";
 import { onlineManager } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { getGetHealthMockHandler } from "@/api/generated/endpoints/health/health.msw";
-import { server } from "@/test/server";
+import { server, serveHealth } from "@/test/server";
 import { expectNoAxeViolations, renderApp } from "@/test/render";
 
 describe("About page", () => {
   it("shows the server as healthy when the API is", async () => {
-    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+    server.use(serveHealth("Healthy"));
 
     await renderApp("/about");
 
@@ -16,7 +15,7 @@ describe("About page", () => {
   });
 
   it("shows the app version", async () => {
-    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+    server.use(serveHealth("Healthy"));
 
     await renderApp("/about");
 
@@ -50,7 +49,7 @@ describe("About page", () => {
   });
 
   it("has no detectable accessibility problems", async () => {
-    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+    server.use(serveHealth("Healthy"));
     const { container } = await renderApp("/about");
     await screen.findByText("Healthy");
 

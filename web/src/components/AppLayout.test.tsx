@@ -1,8 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { getGetHealthMockHandler } from "@/api/generated/endpoints/health/health.msw";
-import { server } from "@/test/server";
+import { server, serveHealth } from "@/test/server";
 import { renderApp } from "@/test/render";
 
 describe("app layout and routing", () => {
@@ -22,7 +21,7 @@ describe("app layout and routing", () => {
   });
 
   it("marks the current page in the navigation and moves focus to the new heading", async () => {
-    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+    server.use(serveHealth("Healthy"));
     const user = userEvent.setup();
     await renderApp("/campaigns");
     await screen.findByRole("heading", { level: 1, name: "Campaigns" });

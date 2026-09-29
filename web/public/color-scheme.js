@@ -6,6 +6,6 @@
   var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   var root = document.documentElement;
   root.setAttribute("data-mantine-color-scheme", dark ? "dark" : "light");
-  // Mantine's body background (dark[7] / white), until its stylesheet loads.
-  root.style.backgroundColor = dark ? "#242424" : "#ffffff";
+  // The app's page canvas (--app-canvas in src/app/theme.ts), until its stylesheet loads.
+  root.style.backgroundColor = dark ? "#1b1e25" : "#f1f3f7";
 })();

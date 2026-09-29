@@ -1,9 +1,8 @@
 import { Alert } from "@mantine/core";
 import { IconCloudOff } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatDateTime } from "@/lib/format";
 import { useOnline } from "@/lib/use-online";
-
-const timeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 /** Shown while offline: the app is read-only, showing data from when it was last online. */
 export function OfflineBanner() {
@@ -32,7 +31,7 @@ export function OfflineBanner() {
       mb="lg"
     >
       {lastUpdated > 0
-        ? `Showing saved data from ${timeFormat.format(lastUpdated)}. Changes are paused until you're back online.`
+        ? `Showing saved data from ${formatDateTime(lastUpdated)}. Changes are paused until you're back online.`
         : "Changes are paused until you're back online."}
     </Alert>
   );

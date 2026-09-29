@@ -2,10 +2,9 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { getGetHealthMockHandler } from "@/api/generated/endpoints/health/health.msw";
 import { refreshAccessToken } from "@/lib/access-token";
 import { expectNoAxeViolations, renderApp } from "@/test/render";
-import { server } from "@/test/server";
+import { server, serveHealth } from "@/test/server";
 import { mockSession, testUser } from "@/test/session";
 
 const problem = (status: number, body: object) =>
@@ -31,7 +30,7 @@ async function signIn(email = "mel@example.com", password = "correct horse batte
 
 describe("sign-in", () => {
   it("sends signed-out visitors to sign-in, then back where they were going", async () => {
-    server.use(getGetHealthMockHandler({ status: "Healthy" }));
+    server.use(serveHealth("Healthy"));
     loginSucceeds();
     const { router } = await renderApp("/about", { session: "signed-out" });
 

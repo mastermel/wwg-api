@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import type { z } from "zod";
 import { useChangeEmail } from "@/api/generated/endpoints/account/account";
 import { ChangeEmailBody } from "@/api/generated/zod/account/account.zod";
-import { AccountSection } from "@/features/account/AccountSection";
+import { Section } from "@/components/Section";
 import { useSessionStore } from "@/features/auth/session-context";
 import { ApiError } from "@/lib/api-fetch";
 import { applyServerErrors } from "@/lib/form-errors";
@@ -44,7 +44,7 @@ export function EmailForm({ currentEmail }: { currentEmail: string }) {
   });
 
   return (
-    <AccountSection
+    <Section
       title="Email"
       description={`You sign in with ${currentEmail}. Changing it signs out your other devices, and we'll tell your old address.`}
     >
@@ -77,6 +77,6 @@ export function EmailForm({ currentEmail }: { currentEmail: string }) {
           </Group>
         </Stack>
       </form>
-    </AccountSection>
+    </Section>
   );
 }

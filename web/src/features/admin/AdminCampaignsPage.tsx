@@ -5,18 +5,19 @@ import {
   Divider,
   Group,
   Pagination,
-  Paper,
   Table,
   Text,
   TextInput,
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
-import { IconSearch } from "@tabler/icons-react";
+import { IconSearch, IconSwords } from "@tabler/icons-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useListAllCampaigns } from "@/api/generated/endpoints/admin/admin";
+import { EmptyState } from "@/components/EmptyState";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
+import { Section } from "@/components/Section";
 import { formatDate } from "@/lib/format";
 
 const pageSize = 25;
@@ -53,7 +54,7 @@ export function AdminCampaignsPage({ search, withoutUmpire, page }: AdminCampaig
 
   return (
     <Page title="All campaigns" summary="Every campaign, including those without an Umpire.">
-      <Paper withBorder>
+      <Section title="Campaigns" flush>
         <Group align="flex-end" px="lg" py="md">
           <TextInput
             label="Search"
@@ -77,9 +78,10 @@ export function AdminCampaignsPage({ search, withoutUmpire, page }: AdminCampaig
         <QueryState query={campaigns}>
           {(result) =>
             result.items.length === 0 ? (
-              <Text c="dimmed" px="lg" py="md">
-                {search || withoutUmpire ? "No campaigns match." : "No campaigns yet."}
-              </Text>
+              <EmptyState
+                icon={IconSwords}
+                title={search || withoutUmpire ? "No campaigns match." : "No campaigns yet."}
+              />
             ) : (
               <>
                 <Table.ScrollContainer minWidth={360} type="native">
@@ -139,7 +141,7 @@ export function AdminCampaignsPage({ search, withoutUmpire, page }: AdminCampaig
             )
           }
         </QueryState>
-      </Paper>
+      </Section>
     </Page>
   );
 }

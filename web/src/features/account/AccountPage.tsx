@@ -15,8 +15,8 @@ export function AccountPage() {
   return (
     <Page title="Account" summary={`Signed in as ${user.email}`}>
       <Stack maw={720} gap="xl">
-        {/* Keyed so the form's defaults follow the saved name. */}
-        <ProfileForm key={user.id} user={user} />
+        {/* Keyed so the form's defaults follow the saved name (it can change on another device). */}
+        <ProfileForm key={`${user.id} ${user.firstName} ${user.lastName}`} user={user} />
         <EmailForm currentEmail={user.email} />
         <PasswordForm />
         <SignOutEverywhere />

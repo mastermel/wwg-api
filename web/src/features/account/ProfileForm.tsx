@@ -7,7 +7,7 @@ import type { z } from "zod";
 import { useUpdateMe } from "@/api/generated/endpoints/account/account";
 import type { MeResponse } from "@/api/generated/model";
 import { UpdateMeBody } from "@/api/generated/zod/account/account.zod";
-import { AccountSection } from "@/features/account/AccountSection";
+import { Section } from "@/components/Section";
 import { useSessionStore } from "@/features/auth/session-context";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
@@ -39,7 +39,7 @@ export function ProfileForm({ user }: { user: MeResponse }) {
   });
 
   return (
-    <AccountSection title="Your name">
+    <Section title="Your name">
       {formError && (
         <Alert color="red" role="alert">
           {formError}
@@ -68,6 +68,6 @@ export function ProfileForm({ user }: { user: MeResponse }) {
           </Button>
         </Group>
       </form>
-    </AccountSection>
+    </Section>
   );
 }

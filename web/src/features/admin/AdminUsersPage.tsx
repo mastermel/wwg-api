@@ -5,18 +5,19 @@ import {
   Divider,
   Group,
   Pagination,
-  Paper,
   Table,
   Text,
   TextInput,
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
-import { IconSearch } from "@tabler/icons-react";
+import { IconSearch, IconUsers } from "@tabler/icons-react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useListUsers } from "@/api/generated/endpoints/admin/admin";
+import { EmptyState } from "@/components/EmptyState";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
+import { Section } from "@/components/Section";
 import { formatDate } from "@/lib/format";
 
 const pageSize = 25;
@@ -39,7 +40,7 @@ export function AdminUsersPage({ search, page }: { search: string; page: number 
 
   return (
     <Page title="Users" summary="Everyone with an account.">
-      <Paper withBorder>
+      <Section title="Accounts" flush>
         <Box px="lg" py="md">
           <TextInput
             label="Search"
@@ -57,9 +58,10 @@ export function AdminUsersPage({ search, page }: { search: string; page: number 
         <QueryState query={users}>
           {(result) =>
             result.items.length === 0 ? (
-              <Text c="dimmed" px="lg" py="md">
-                {search ? `No users match "${search}".` : "No users yet."}
-              </Text>
+              <EmptyState
+                icon={IconUsers}
+                title={search ? `No users match "${search}".` : "No users yet."}
+              />
             ) : (
               <>
                 <Table.ScrollContainer minWidth={560} type="native">
@@ -123,7 +125,7 @@ export function AdminUsersPage({ search, page }: { search: string; page: number 
             )
           }
         </QueryState>
-      </Paper>
+      </Section>
     </Page>
   );
 }
