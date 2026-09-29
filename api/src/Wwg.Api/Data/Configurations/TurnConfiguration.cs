@@ -59,3 +59,41 @@ internal sealed class UnitOrderConfiguration : IEntityTypeConfiguration<UnitOrde
             .OnDelete(DeleteBehavior.NoAction);
     }
 }
+
+internal sealed class ArmyTurnEventConfiguration : IEntityTypeConfiguration<ArmyTurnEvent>
+{
+    public void Configure(EntityTypeBuilder<ArmyTurnEvent> builder)
+    {
+        builder.Property(e => e.Kind).HasMaxLength(16);
+        builder.Property(e => e.Note).HasMaxLength(2000);
+        builder
+            .HasOne(e => e.ArmyTurn)
+            .WithMany()
+            .HasForeignKey(e => e.ArmyTurnId)
+            .OnDelete(DeleteBehavior.Cascade);
+        // Deleting a user keeps what they did, without them.
+        builder
+            .HasOne(e => e.ByUser)
+            .WithMany()
+            .HasForeignKey(e => e.ByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder
+            .HasMany(e => e.UnitNotes)
+            .WithOne()
+            .HasForeignKey(n => n.ArmyTurnEventId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class UnitNoteConfiguration : IEntityTypeConfiguration<UnitNote>
+{
+    public void Configure(EntityTypeBuilder<UnitNote> builder)
+    {
+        builder.Property(n => n.Text).HasMaxLength(1000);
+        builder
+            .HasOne(n => n.Unit)
+            .WithMany()
+            .HasForeignKey(n => n.UnitId)
+            .OnDelete(DeleteBehavior.NoAction);
+    }
+}

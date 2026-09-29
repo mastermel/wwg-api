@@ -28,6 +28,10 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<UnitOrder> UnitOrders => Set<UnitOrder>();
 
+    public DbSet<ArmyTurnEvent> ArmyTurnEvents => Set<ArmyTurnEvent>();
+
+    public DbSet<UnitNote> UnitNotes => Set<UnitNote>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

@@ -77,3 +77,48 @@ internal sealed class UnitOrder : Entity
 
     public double Longitude { get; set; }
 }
+
+/// <summary>What happened to an army's turn.</summary>
+public enum ArmyTurnEventKind
+{
+    Submitted,
+    Approved,
+    SentBack,
+    Reverted,
+}
+
+/// <summary>
+/// One step in an army turn's history (DESIGN.md §5.1): who did what, when, and the Umpire's note
+/// if they sent it back or reverted it, with notes on particular units.
+/// </summary>
+internal sealed class ArmyTurnEvent : Entity
+{
+    public Guid ArmyTurnId { get; set; }
+
+    public ArmyTurn ArmyTurn { get; set; } = null!; // Set by EF Core when loaded.
+
+    public ArmyTurnEventKind Kind { get; set; }
+
+    public DateTime At { get; set; }
+
+    /// <summary>Who did it; null if their account has since been deleted.</summary>
+    public Guid? ByUserId { get; set; }
+
+    public AppUser? ByUser { get; set; }
+
+    public string? Note { get; set; }
+
+    public List<UnitNote> UnitNotes { get; } = [];
+}
+
+/// <summary>The Umpire's note on one unit's order, when sending a turn back or reverting it.</summary>
+internal sealed class UnitNote : Entity
+{
+    public Guid ArmyTurnEventId { get; set; }
+
+    public Guid UnitId { get; set; }
+
+    public Unit Unit { get; set; } = null!; // Set by EF Core when loaded.
+
+    public required string Text { get; set; }
+}
