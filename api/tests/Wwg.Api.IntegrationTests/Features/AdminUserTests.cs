@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Admin;
@@ -143,6 +144,41 @@ public sealed class AdminUserTests : ApiTest
             (user?.Email, user?.FirstName, user?.LastName, user?.IsAdmin)
         );
         Assert.Null(user?.LockedOutUntil);
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("DELETE")]
+    public async Task UserDetailsAndDelete_NotAnAdmin_Return403(string method)
+    {
+        using var admin = await CreateAdminClientAsync();
+        using var user = await CreateUserClientAsync();
+        var target = await WithDbAsync(db =>
+            db.Users.Where(u => u.NormalizedEmail == "ADMIN@EXAMPLE.COM")
+                .Select(u => u.Id)
+                .SingleAsync(CancellationToken)
+        );
+
+        using var request = new HttpRequestMessage(
+            new HttpMethod(method),
+            $"/api/admin/users/{target}"
+        );
+        using var response = await user.SendAsync(request, CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteUser_Unknown_Returns404()
+    {
+        using var admin = await CreateAdminClientAsync();
+
+        using var response = await admin.DeleteAsync(
+            new Uri($"/api/admin/users/{Guid.CreateVersion7()}", UriKind.Relative),
+            CancellationToken
+        );
+
+        await response.AssertProblemAsync(HttpStatusCode.NotFound);
     }
 
     [Fact]

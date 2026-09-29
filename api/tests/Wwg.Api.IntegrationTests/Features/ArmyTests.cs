@@ -141,6 +141,34 @@ public sealed class ArmyTests : ApiTest
         );
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RenameArmy_BlankName_IsAValidationError(string name)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
+                new RenameArmyRequest(name),
+                CancellationToken
+            );
+
+        await response.AssertValidationProblemAsync("name");
+    }
+
+    [Fact]
+    public async Task AssignCommander_NoMember_IsAValidationError()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await AssignAsync(scenario, scenario.ArmyId, Guid.Empty);
+
+        await response.AssertValidationProblemAsync("memberId");
+    }
+
     [Fact]
     public async Task RenameArmy_ChangesItsName()
     {

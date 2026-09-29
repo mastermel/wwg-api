@@ -81,6 +81,45 @@ public sealed class CampaignTests : ApiTest
         await response.AssertValidationProblemAsync("name");
     }
 
+    [Theory]
+    [InlineData("   ")]
+    [InlineData(
+        "A name that is far too long, going on and on well past the one hundred characters that a campaign name is allowed"
+    )]
+    public async Task UpdateCampaign_BadName_IsAValidationError(string name)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}", UriKind.Relative),
+                new UpdateCampaignRequest(name, ""),
+                CancellationToken
+            );
+
+        await response.AssertValidationProblemAsync("name");
+    }
+
+    [Theory]
+    [InlineData("?pageSize=101", "pageSize")]
+    [InlineData("?pageSize=0", "pageSize")]
+    [InlineData("?page=0", "page")]
+    public async Task ListMyCampaigns_PagingOutOfRange_IsAValidationError(
+        string query,
+        string field
+    )
+    {
+        using var client = await CreateUserClientAsync();
+
+        using var response = await client.GetAsync(
+            new Uri($"/api/campaigns{query}", UriKind.Relative),
+            CancellationToken
+        );
+
+        await response.AssertValidationProblemAsync(field);
+    }
+
     [Fact]
     public async Task CreateCampaign_Anonymous_Returns401()
     {

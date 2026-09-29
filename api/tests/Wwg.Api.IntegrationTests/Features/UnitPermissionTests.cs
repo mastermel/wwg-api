@@ -18,6 +18,7 @@ public sealed class UnitPermissionTests : ApiTest
     [InlineData(Role.Umpire, true)]
     [InlineData(Role.Commander, true)]
     [InlineData(Role.Player, false)]
+    [InlineData(Role.NonMember, false)]
     public async Task ViewUnits_ByRole_OnlyThoseWhoSeeTheArmy(Role role, bool expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();

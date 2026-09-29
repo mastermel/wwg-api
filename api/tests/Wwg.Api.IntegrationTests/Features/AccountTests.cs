@@ -116,6 +116,20 @@ public sealed class AccountTests : ApiTest
     }
 
     [Fact]
+    public async Task UpdateMe_TooLongName_IsAValidationError()
+    {
+        using var client = await CreateUserClientAsync();
+
+        using var response = await PutAsync(
+            client,
+            "/api/me",
+            new UpdateProfileRequest("Melanie", new string('x', 101))
+        );
+
+        await response.AssertValidationProblemAsync("lastName");
+    }
+
+    [Fact]
     public async Task UpdateMe_BlankName_IsAValidationError()
     {
         using var client = await CreateUserClientAsync();

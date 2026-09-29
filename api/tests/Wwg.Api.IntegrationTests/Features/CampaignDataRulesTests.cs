@@ -114,6 +114,25 @@ public sealed class CampaignDataRulesTests : ApiTest
     }
 
     [Fact]
+    public async Task DeletingACampaign_DeletesItsArmiesAndTheirUnits()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        await WithDbAsync(db =>
+            db.Campaigns.Where(c => c.Id == scenario.CampaignId)
+                .ExecuteDeleteAsync(CancellationToken)
+        );
+
+        Assert.Equal(
+            (0, 0),
+            (
+                await WithDbAsync(db => db.Armies.CountAsync(CancellationToken)),
+                await WithDbAsync(db => db.Units.CountAsync(CancellationToken))
+            )
+        );
+    }
+
+    [Fact]
     public async Task DeletingAUser_DeletesTheirMembershipsButKeepsTheCampaign()
     {
         var umpire = await UserAsync("u@example.com");
