@@ -6,6 +6,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { AccountSection } from "@/features/account/AccountSection";
 import { useSessionStore } from "@/features/auth/session-context";
 import { useOnline } from "@/lib/use-online";
+import { errorMessage } from "@/lib/errors";
 
 export function SignOutEverywhere() {
   const session = useSessionStore();
@@ -17,8 +18,11 @@ export function SignOutEverywhere() {
     try {
       await signOutEverywhere.mutateAsync();
       await session.signOut();
-    } catch {
-      notifications.show({ color: "red", message: "That didn't work. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "That didn't work. Try again."),
+      });
       close();
     }
   };

@@ -48,12 +48,12 @@ export function SignInPage({
   return (
     <Page title="Sign in">
       {passwordReset && !formError && (
-        <Alert color="green" title="Password changed">
+        <Alert role="status" color="green" title="Password changed">
           Sign in with your new password. You&apos;ve been signed out everywhere else.
         </Alert>
       )}
       {ended && !passwordReset && !formError && (
-        <Alert color="yellow" title="You've been signed out">
+        <Alert role="status" color="yellow" title="You've been signed out">
           Your session ended, for example after a password change. Sign in again.
         </Alert>
       )}

@@ -37,7 +37,7 @@ export function ForgotPasswordPage() {
     <Page title="Reset your password">
       {sentTo ? (
         // The same message whether or not there's an account, like the API's answer.
-        <Alert color="green" title="Check your email">
+        <Alert role="status" color="green" title="Check your email">
           If there&apos;s an account for {sentTo}, we&apos;ve sent it a link to choose a new
           password. The link works for 2 hours.
         </Alert>

@@ -14,6 +14,7 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { useConfirmTarget } from "@/lib/use-confirm-target";
 import { useOnline } from "@/lib/use-online";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
+import { errorMessage } from "@/lib/errors";
 
 const fullName = (member: CampaignMemberResponse) => `${member.firstName} ${member.lastName}`;
 
@@ -36,8 +37,11 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
       notifications.show({ color: "green", message: `Removed ${fullName(member)}.` });
       // Their army (if any) is now unassigned, so the armies change too.
       await refreshCampaign(queryClient, campaign.id);
-    } catch {
-      notifications.show({ color: "red", message: "They couldn't be removed. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "They couldn't be removed. Try again."),
+      });
     }
     removing.close();
   };

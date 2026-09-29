@@ -1,5 +1,7 @@
-import { QueryClient } from "@tanstack/react-query";
+import { notifications } from "@mantine/notifications";
+import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api-fetch";
+import { errorMessage, isServerTrouble } from "@/lib/errors";
 
 /** How long cached API data is kept (and persisted for offline use): the session's length. */
 export const cacheMaxAge = 30 * 24 * 60 * 60 * 1000;
@@ -18,6 +20,20 @@ declare module "@tanstack/react-query" {
 
 export function createQueryClient() {
   return new QueryClient({
+    queryCache: new QueryCache({
+      // Pages show their own "didn't load" for a query with nothing to show. A rate limit or a
+      // server error also gets a notification, since it's also why data on screen didn't
+      // update. One of each at a time (the id), however many queries fail together.
+      onError: (error) => {
+        if (isServerTrouble(error)) {
+          notifications.show({
+            id: error instanceof ApiError && error.status === 429 ? "rate-limited" : "server-error",
+            color: "red",
+            message: errorMessage(error, ""),
+          });
+        }
+      },
+    }),
     defaultOptions: {
       queries: {
         // Refetched on window focus and reconnect (the defaults) once older than this.

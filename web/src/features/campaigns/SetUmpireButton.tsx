@@ -9,6 +9,7 @@ import { getGetCampaignQueryKey } from "@/api/generated/endpoints/campaigns/camp
 import type { CampaignResponse } from "@/api/generated/model";
 import { useOnline } from "@/lib/use-online";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
+import { errorMessage } from "@/lib/errors";
 
 /** For Admins: choose any user as the campaign's Umpire (§5.1, umpire-less campaigns). */
 export function SetUmpireButton({ campaign }: { campaign: CampaignResponse }) {
@@ -69,8 +70,11 @@ function SetUmpireModal({
           : "The Umpire is set.",
       });
       onClose();
-    } catch {
-      notifications.show({ color: "red", message: "The Umpire couldn't be set. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "The Umpire couldn't be set. Try again."),
+      });
     }
   };
 
@@ -93,7 +97,7 @@ function SetUmpireModal({
           comboboxProps={{ withinPortal: false }}
         />
         {campaign.umpire && (
-          <Alert color="gray">
+          <Alert role="status" color="gray">
             <Text size="sm">
               {campaign.umpire.firstName} {campaign.umpire.lastName} will become a Player.
             </Text>

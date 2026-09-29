@@ -1,5 +1,6 @@
 import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
 import { ApiError } from "@/lib/api-fetch";
+import { errorMessage } from "@/lib/errors";
 
 /**
  * Puts an API error on the form: validation errors (camelCase keys, as the API sends them) on
@@ -11,7 +12,7 @@ export function applyServerErrors<T extends FieldValues>(
   fields: readonly Path<T>[],
 ): string | null {
   if (!(error instanceof ApiError)) {
-    return "Couldn't reach the server. Check your connection and try again.";
+    return errorMessage(error, "");
   }
 
   let unplaced = false;
@@ -28,5 +29,5 @@ export function applyServerErrors<T extends FieldValues>(
   if (hasFieldErrors && !unplaced) {
     return null;
   }
-  return error.problem?.detail ?? error.problem?.title ?? "Something went wrong. Try again.";
+  return errorMessage(error, error.problem?.title ?? "Something went wrong. Try again.");
 }

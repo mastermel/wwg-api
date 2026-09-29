@@ -15,6 +15,7 @@ import { QueryState } from "@/components/QueryState";
 import { useSession } from "@/features/auth/session-context";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useOnline } from "@/lib/use-online";
+import { errorMessage } from "@/lib/errors";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -77,8 +78,11 @@ function UserDetailsView({ user }: { user: UserDetails }) {
         message: `Deleted ${user.firstName} ${user.lastName}.`,
       });
       await navigate({ to: "/admin/users" });
-    } catch {
-      notifications.show({ color: "red", message: "That user couldn't be deleted. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "That user couldn't be deleted. Try again."),
+      });
       close();
     }
   };
@@ -98,7 +102,7 @@ function UserDetailsView({ user }: { user: UserDetails }) {
             )}
           </SimpleGrid>
           {user.isAdmin && (
-            <Alert color="gray">
+            <Alert role="status" color="gray">
               Admins are set by the server&apos;s Admin:Emails setting, not here.
             </Alert>
           )}

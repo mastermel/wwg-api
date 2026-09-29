@@ -19,6 +19,7 @@ import { MembersSection } from "@/features/campaigns/MembersSection";
 import { SetUmpireButton } from "@/features/campaigns/SetUmpireButton";
 import { useOnline } from "@/lib/use-online";
 import { forgetCampaign } from "@/features/campaigns/campaign-cache";
+import { errorMessage } from "@/lib/errors";
 
 export function CampaignPage({ id }: { id: string }) {
   const campaign = useGetCampaign(id);
@@ -142,8 +143,11 @@ function DeleteCampaignButton({ campaign }: { campaign: CampaignResponse }) {
   const confirmDelete = async () => {
     try {
       await remove.mutateAsync({ id: campaign.id });
-    } catch {
-      notifications.show({ color: "red", message: "The campaign couldn't be deleted. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "The campaign couldn't be deleted. Try again."),
+      });
       close();
       return;
     }

@@ -52,7 +52,7 @@ export function ResetPasswordPage({
   if (!email || !code) {
     return (
       <Page title="Choose a new password">
-        <Alert color="yellow" title="This link is incomplete">
+        <Alert role="status" color="yellow" title="This link is incomplete">
           Open the link from the email again, or <RequestNewLink />.
         </Alert>
       </Page>

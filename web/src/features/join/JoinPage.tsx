@@ -11,6 +11,7 @@ import { useSession } from "@/features/auth/session-context";
 import { ApiError } from "@/lib/api-fetch";
 import { useOnline } from "@/lib/use-online";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
+import { errorMessage } from "@/lib/errors";
 
 /**
  * Where a join link lands. Anyone can see which campaign it's for; signed out, it offers sign-in
@@ -23,7 +24,12 @@ export function JoinPage({ code }: { code: string }) {
   return (
     <Page title="Join a campaign">
       {preview.error instanceof ApiError && preview.error.status === 404 ? (
-        <Alert color="gray" icon={<IconLinkOff aria-hidden />} title="This join link doesn't work">
+        <Alert
+          role="status"
+          color="gray"
+          icon={<IconLinkOff aria-hidden />}
+          title="This join link doesn't work"
+        >
           It may have been replaced by a new one. Ask your Umpire for the current link.
         </Alert>
       ) : (
@@ -55,8 +61,11 @@ function JoinOffer({ code, campaign }: { code: string; campaign: JoinPreviewResp
       });
       await refreshCampaign(queryClient, joined.campaignId);
       await navigate({ to: "/campaigns/$id", params: { id: joined.campaignId } });
-    } catch {
-      notifications.show({ color: "red", message: "You couldn't join. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "You couldn't join. Try again."),
+      });
     }
   };
 

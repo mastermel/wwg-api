@@ -3,6 +3,7 @@ import { IconAlertTriangle, IconCloudOff } from "@tabler/icons-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ApiError } from "@/lib/api-fetch";
+import { errorMessage } from "@/lib/errors";
 
 interface QueryStateProps<TData> {
   query: UseQueryResult<TData>;
@@ -27,7 +28,12 @@ export function QueryState<TData>({ query, children }: QueryStateProps<TData>) {
 
   if (query.isPending && query.fetchStatus === "paused") {
     return (
-      <Alert color="gray" icon={<IconCloudOff aria-hidden />} title="Not available offline">
+      <Alert
+        role="status"
+        color="gray"
+        icon={<IconCloudOff aria-hidden />}
+        title="Not available offline"
+      >
         This hasn't been saved on this device yet. It will load when you're back online.
       </Alert>
     );
@@ -35,7 +41,7 @@ export function QueryState<TData>({ query, children }: QueryStateProps<TData>) {
 
   if (gone) {
     return (
-      <Alert color="gray" icon={<IconAlertTriangle aria-hidden />} title="Not found">
+      <Alert role="status" color="gray" icon={<IconAlertTriangle aria-hidden />} title="Not found">
         This doesn&apos;t exist, or you don&apos;t have access to it.
       </Alert>
     );
@@ -44,7 +50,7 @@ export function QueryState<TData>({ query, children }: QueryStateProps<TData>) {
   if (query.isError) {
     return (
       <Alert color="red" icon={<IconAlertTriangle aria-hidden />} title="This didn't load">
-        <Text size="sm">{query.error.message}</Text>
+        <Text size="sm">{errorMessage(query.error, "Try again in a moment.")}</Text>
       </Alert>
     );
   }

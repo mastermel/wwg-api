@@ -24,7 +24,13 @@ export function OfflineBanner() {
   );
 
   return (
-    <Alert color="yellow" icon={<IconCloudOff aria-hidden />} title="You're offline" mb="lg">
+    <Alert
+      role="status"
+      color="yellow"
+      icon={<IconCloudOff aria-hidden />}
+      title="You're offline"
+      mb="lg"
+    >
       {lastUpdated > 0
         ? `Showing saved data from ${timeFormat.format(lastUpdated)}. Changes are paused until you're back online.`
         : "Changes are paused until you're back online."}

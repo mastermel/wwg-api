@@ -15,6 +15,7 @@ import { UnitFormModal } from "@/features/units/UnitFormModal";
 import { unitTypeLabels } from "@/features/units/unit-types";
 import { useConfirmTarget } from "@/lib/use-confirm-target";
 import { useOnline } from "@/lib/use-online";
+import { errorMessage } from "@/lib/errors";
 
 /**
  * The army's units. Only its commander, the Umpire and Admins get this far (the army page is
@@ -37,8 +38,11 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
       await remove.mutateAsync({ id: unit.id });
       notifications.show({ color: "green", message: `Deleted ${unit.name}.` });
       await refresh();
-    } catch {
-      notifications.show({ color: "red", message: "The unit couldn't be deleted. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "The unit couldn't be deleted. Try again."),
+      });
     }
     deleting.close();
   };

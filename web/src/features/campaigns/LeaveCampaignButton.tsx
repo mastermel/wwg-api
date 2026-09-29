@@ -9,6 +9,7 @@ import type { CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useOnline } from "@/lib/use-online";
 import { forgetCampaign } from "@/features/campaigns/campaign-cache";
+import { errorMessage } from "@/lib/errors";
 
 /** For Players: leave the campaign. (The Umpire can't; an Admin sets a new one instead.) */
 export function LeaveCampaignButton({ campaign }: { campaign: CampaignResponse }) {
@@ -21,8 +22,11 @@ export function LeaveCampaignButton({ campaign }: { campaign: CampaignResponse }
   const confirmLeave = async () => {
     try {
       await leave.mutateAsync({ id: campaign.id });
-    } catch {
-      notifications.show({ color: "red", message: "You couldn't leave the campaign. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "You couldn't leave the campaign. Try again."),
+      });
       close();
       return;
     }

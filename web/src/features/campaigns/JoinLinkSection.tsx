@@ -13,6 +13,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
 import { useOnline } from "@/lib/use-online";
+import { errorMessage } from "@/lib/errors";
 
 /** The link to send to Players (Umpire or Admin), and a way to replace it. */
 export function JoinLinkSection({ campaign }: { campaign: CampaignResponse }) {
@@ -30,8 +31,11 @@ export function JoinLinkSection({ campaign }: { campaign: CampaignResponse }) {
         color: "green",
         message: "New join link made. The old one no longer works.",
       });
-    } catch {
-      notifications.show({ color: "red", message: "A new link couldn't be made. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "A new link couldn't be made. Try again."),
+      });
     }
     close();
   };

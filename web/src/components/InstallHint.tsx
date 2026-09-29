@@ -72,6 +72,7 @@ export function InstallHint() {
 
   return (
     <Alert
+      role="status"
       icon={<IconDeviceMobile aria-hidden />}
       title="Install WWG Campaigner"
       withCloseButton

@@ -27,9 +27,9 @@ import { ArmyFormModal } from "@/features/armies/ArmyFormModal";
 import { useSession } from "@/features/auth/session-context";
 import { UnitsSection } from "@/features/units/UnitsSection";
 import { canManage } from "@/features/campaigns/campaign-access";
-import { ApiError } from "@/lib/api-fetch";
 import { useOnline } from "@/lib/use-online";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
+import { errorMessage } from "@/lib/errors";
 
 export function ArmyPage({ campaignId, armyId }: { campaignId: string; armyId: string }) {
   const army = useGetArmy(armyId);
@@ -123,10 +123,7 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
     } catch (error) {
       notifications.show({
         color: "red",
-        message:
-          error instanceof ApiError && error.problem?.detail
-            ? error.problem.detail
-            : "The commander couldn't be changed. Try again.",
+        message: errorMessage(error, "The commander couldn't be changed. Try again."),
       });
     }
   };
@@ -136,10 +133,10 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
       await unassign.mutateAsync({ id: army.id });
       notifications.show({ color: "green", message: `${army.name} has no commander now.` });
       await refresh();
-    } catch {
+    } catch (error) {
       notifications.show({
         color: "red",
-        message: "The commander couldn't be removed. Try again.",
+        message: errorMessage(error, "The commander couldn't be removed. Try again."),
       });
     }
   };
@@ -217,8 +214,11 @@ function DeleteArmyButton({ army }: { army: ArmyResponse }) {
   const confirmDelete = async () => {
     try {
       await remove.mutateAsync({ id: army.id });
-    } catch {
-      notifications.show({ color: "red", message: "The army couldn't be deleted. Try again." });
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "The army couldn't be deleted. Try again."),
+      });
       deleteModal.close();
       return;
     }
