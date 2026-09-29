@@ -67,7 +67,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   in `army-colors.ts`; flags come from `NationFlag`, names from `nationLabel`.
 - The campaign map (`features/maps`): `CampaignMap` draws our style (`map-style.ts`, colours
   contrast-checked there) with MapLibre. jsdom has no WebGL, so tests `vi.mock` `CampaignMap`
-  with a stand-in (and `useImperativeHandle` for its `mapRef`); the e2e suite drives the real one.
+  with a stand-in (`useImperativeHandle` for its `mapRef`, a button calling `onMapClick`); the
+  stand-in can't draw its children (markers need a real map), so marker behaviour is e2e's.
+  Stacking (`stacks.ts`) is a pure function, tested alone.
   Import it only through `CampaignMap`, which sets MapLibre's worker URL (`maplibre-worker.ts`).
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.

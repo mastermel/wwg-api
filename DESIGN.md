@@ -88,7 +88,7 @@ every army and its units; only where they are is private.
 | Repository | **One repo** (`wwg`): `api/` (.NET) and `web/` (React), shared config at the root |
 | Client SDK | **Orval**, run in `web/` against the committed `api/openapi.json`; generated code not committed |
 | Front-end | **WWG Campaigner**: React + TypeScript SPA, **npm**, Vite, **Mantine**, TanStack Router + Query, React Hook Form + Zod; installable **PWA**, read-only offline (§3.12) |
-| Campaign map | **MapLibre GL JS** with **OpenFreeMap** vector tiles, **Mapterhorn** hillshading, `milsymbol` unit icons, place search through our own endpoint (decision [0009](docs/decisions/0009-campaign-map-stack.md)); §3.13 |
+| Campaign map | **MapLibre GL JS** with **OpenFreeMap** vector tiles, **Mapterhorn** hillshading, NATO-style unit symbols (drawn by the app), place search through our own endpoint (decision [0009](docs/decisions/0009-campaign-map-stack.md)); §3.13 |
 | Turns | In step across armies, per army, one order per unit (Move or Hold), approved by the Umpire; one visibility rule for positions (decision [0010](docs/decisions/0010-turns-factions-and-visibility.md)) |
 | API evolution | Prefer additive changes; `oasdiff` **warns** about breaking changes on PRs |
 | Testing | xUnit + `WebApplicationFactory`, fresh in-memory SQLite DB per test |
@@ -1183,9 +1183,15 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   the rest is a pan away. Zooming in is unlimited. Place search (our API, §5.3)
   helps the Umpire find the area; the settings page previews layers and the
   label language as they change.
-- **Unit icons:** NATO symbols from `milsymbol`, one per unit type (the mapping
-  from our seven types to symbols is fixed in step 32, with a legend on the
-  map), filled with the army's colour.
+- **Unit icons:** NATO-style symbols (APP-6), drawn by the app (`UnitSymbol`):
+  a frame in the army's colour with the arm's glyph: a cross for infantry, a
+  slash for cavalry, a dot for artillery; L and S mark light infantry and
+  skirmishers, an oval (armour) heavy cavalry, a slash (mounted) horse
+  artillery. A black frame and white halo keep them clear on any map. Not
+  `milsymbol` (decision 0009's choice): none of its codes gave seven distinct
+  types, with nothing for skirmishers or horse artillery. A legend on the map
+  says what each means. Each unit on the map is a button named for screen
+  readers ("Imperial Guard, Heavy Infantry, Armée du Nord").
 - **Stacks:** units close together at the current zoom are drawn as one
   **stack** marker with the count and the armies' colours. Tapping it lists the
   units in it; choosing one selects it. The unit list beside the map selects
@@ -1660,7 +1666,8 @@ each step)
 | POST | `/api/army-turns/{id}/approve` | Approve: Completed |
 | POST | `/api/army-turns/{id}/send-back` | Back to Draft `{ note?, unitNotes? }` |
 | POST | `/api/army-turns/{id}/revert` | Completed back to Draft, open turn only `{ note?, unitNotes? }` |
-| PUT | `/api/units/{id}/placement` | The Umpire places a unit (turn 0, or added later) |
+| GET | `/api/campaigns/{id}/units` | Every unit in the campaign (every member), for the map |
+| PUT / DELETE | `/api/units/{id}/placement` | The Umpire places a unit (turn 0, or added later) / takes it off again (setup only) |
 
 Status changes that aren't allowed now (submitting a Submitted turn, reverting
 in a closed turn) are **409**s; a Move out of range or bounds is a validation
@@ -1972,10 +1979,26 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
       `maplibre-worker.ts` has Vite build it as a file and points `setWorkerUrl` at it.
     - Mantine's unselected segmented-control labels (3.2:1 in light mode) are darkened to
       4.9:1, which the e2e axe scan of the settings page caught.
-32. **Setup and turn 0:** campaign and army turns, orders, the visibility rule and the
-    positions endpoint; unit icons by type (`milsymbol`, with a legend), stacks and the unit
-    drawer; the Umpire placing units, and **Start campaign**; units and armies added later
+32. ✅ **Setup and turn 0:** campaign and army turns, orders, the visibility rule and the
+    positions endpoint; unit icons by type (drawn by the app, with a legend), stacks and the
+    unit drawer; the Umpire placing units, and **Start campaign**; units and armies added later
     need placing, and can't be deleted once started.
+    - Turn 0 is made the first time it's needed (placing a unit, or starting), so existing
+      campaigns need nothing; an army's turn-0 row likewise. `GET /positions` without `turn` is
+      where units are now: each unit's latest Completed order (so a unit placed after the start,
+      into its army's latest Completed turn, counts).
+    - The foreign keys from turns to armies and from orders to units are `NO ACTION`, not
+      `RESTRICT`: SQLite checks them at the end of the statement, so deleting a campaign still
+      cascades through its armies and turns in either order. The handlers refuse (409) deleting
+      an army or unit once started; while setting up, its placements go with it.
+    - `GET /api/campaigns/{id}/units` lists every unit for the map (every member sees them all).
+    - Placing: the Umpire presses Place (or Move) for a unit, then clicks the map, or a unit
+      or stack to put it there too. On a phone, where the list is under the map, the map
+      scrolls back into view (after the banner renders, below the header).
+    - Stacks are recomputed on zoom: units within 26 px are one marker, at the first one's
+      position, showing how many; choosing it lists them in the drawer.
+    - Notifications show three at a time (placing a dozen units piled them up); component tests
+      clear them after each test, as the store is shared.
 33. **Orders:** Move (with the range circle, bounds and limit checks), Hold and undo; ghost
     moves; the turn panel and Submit; the Umpire's Approve, Send back and Revert with notes;
     **Start turn N+1**; progress counts; the turn emails.

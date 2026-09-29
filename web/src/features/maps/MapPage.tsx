@@ -3,7 +3,7 @@ import { notifications } from "@mantine/notifications";
 import { IconCloudOff, IconMap, IconMapPin, IconSettings } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useListArmies } from "@/api/generated/endpoints/armies/armies";
 import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import { useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
@@ -123,6 +123,12 @@ function MapWorkspace({ campaignId, settings, bounds, manager }: MapWorkspacePro
   });
   const place = usePlaceUnit();
   const [placing, setPlacing] = useState<string | null>(null);
+  const mapArea = useRef<HTMLDivElement>(null);
+  // On a phone the setup list is under the map: once the banner is drawn, bring it and the map
+  // back into view (below the header: the Stack's scroll margin).
+  useEffect(() => {
+    if (placing) mapArea.current?.scrollIntoView({ block: "start" });
+  }, [placing]);
   const [chosen, setChosen] = useState<PlacedUnit[]>([]);
   const [selected, setSelected] = useState<PlacedUnit | null>(null);
 
@@ -169,7 +175,11 @@ function MapWorkspace({ campaignId, settings, bounds, manager }: MapWorkspacePro
   return (
     <Grid gap="xl">
       <Grid.Col span={{ base: 12, md: 8 }}>
-        <Stack gap="sm">
+        <Stack
+          gap="sm"
+          ref={mapArea}
+          style={{ scrollMarginTop: "calc(var(--app-shell-header-height, 60px) + 0.5rem)" }}
+        >
           {placingUnit && (
             <Alert role="status" color="navy" icon={<IconMapPin aria-hidden />}>
               <Group justify="space-between" gap="xs">

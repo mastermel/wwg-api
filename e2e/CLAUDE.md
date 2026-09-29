@@ -37,7 +37,13 @@ npm run lint && npm run typecheck && npm run format:check
   the label), but a `SegmentedControl` option by its label (its input is off-screen). Don't
   `force`; it can click without toggling.
 - The campaign map is a MapLibre canvas: `getByRole("region", { name: "Map", exact: true })`.
-  Don't drive place search here (it calls a service over the internet).
+  Click a point on it with `page.mouse.click` at its bounding box (read it after anything that
+  scrolls). Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
+  place search here (it calls a service over the internet).
+- Setup the test isn't about (a map's area, armies, units) goes through the API: `apiAs(page)`
+  (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.
+- `scan(page, label)` (tests/support/axe.ts) is axe's violations, for pages that need data only a
+  flow sets up; the rest belong in `accessibility.spec.ts`.
 - Offline: `waitForServiceWorker` and `waitUntilSaved` (tests/support/offline.ts) before going
   offline; the app saves at most once a second. Service workers are Chromium-only in Playwright,
   so offline tests skip WebKit.
