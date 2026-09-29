@@ -12,8 +12,12 @@ internal static class UnitEndpoints
 {
     public static IEndpointRouteBuilder MapUnitEndpoints(this IEndpointRouteBuilder app)
     {
-        // Units are listed with their army (GET /api/armies/{id}), which only its commander, the
-        // Umpire and Admins can see. Changing them is the Umpire's (or an Admin's) job.
+        // Every member sees every unit: with its army (GET /api/armies/{id}), or all the
+        // campaign's at once (for the map). Changing them is the Umpire's (or an Admin's) job.
+        app.MapGet("/api/campaigns/{id:guid}/units", ListCampaignUnitsAsync)
+            .WithName("ListCampaignUnits")
+            .WithTags("Units")
+            .RequireCampaignAccess(CampaignAccess.Member);
         app.MapPost("/api/armies/{id:guid}/units", CreateUnitAsync)
             .WithName("CreateUnit")
             .WithTags("Units")
@@ -28,6 +32,34 @@ internal static class UnitEndpoints
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Unit);
 
         return app;
+    }
+
+    /// <summary>
+    /// Every unit in the campaign, sorted by army then name (every member): what the map draws
+    /// where it may (positions follow the visibility rule).
+    /// </summary>
+    internal static async Task<Ok<List<UnitResponse>>> ListCampaignUnitsAsync(
+        Guid id,
+        WwgDbContext db,
+        CancellationToken cancellationToken
+    )
+    {
+        var units = await db
+            .Units.AsNoTracking()
+            .Where(u => u.Army.CampaignId == id)
+            .OrderBy(u => u.Army.Name)
+            .ThenBy(u => u.Name)
+            .ThenBy(u => u.Id)
+            .Select(u => new UnitResponse(
+                u.Id,
+                u.ArmyId,
+                u.Name,
+                u.Type,
+                u.FightingFactor,
+                u.Points
+            ))
+            .ToListAsync(cancellationToken);
+        return TypedResults.Ok(units);
     }
 
     /// <summary>Adds a unit to the army (Umpire or Admin).</summary>

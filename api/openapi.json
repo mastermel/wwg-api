@@ -37,6 +37,46 @@
         }
       }
     },
+    "/api/campaigns/{id}/units": {
+      "get": {
+        "tags": [
+          "Units"
+        ],
+        "summary": "Every unit in the campaign, sorted by army then name (every member): what the map draws\nwhere it may (positions follow the visibility rule).",
+        "operationId": "ListCampaignUnits",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/armies/{id}/units": {
       "post": {
         "tags": [

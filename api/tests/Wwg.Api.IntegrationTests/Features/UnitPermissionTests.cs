@@ -119,4 +119,31 @@ public sealed class UnitPermissionTests : ApiTest
 
     private static Uri UnitUri(CampaignScenario scenario) =>
         new($"/api/units/{scenario.UnitId}", UriKind.Relative);
+
+    [Theory]
+    [InlineData(Role.Admin, 1)]
+    [InlineData(Role.Umpire, 1)]
+    [InlineData(Role.Commander, 1)]
+    [InlineData(Role.Player, 1)]
+    [InlineData(Role.NonMember, -1)]
+    public async Task ListCampaignUnits_ByRole_EveryMemberSeesThemAll(Role role, int expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await scenario
+            .As(role)
+            .GetAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/units", UriKind.Relative),
+                CancellationToken
+            );
+
+        if (expected < 0)
+        {
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            return;
+        }
+
+        var units = await response.Content.ReadAsAsync<List<UnitResponse>>();
+        Assert.Equal(scenario.UnitId, Assert.Single(units!).Id);
+    }
 }
