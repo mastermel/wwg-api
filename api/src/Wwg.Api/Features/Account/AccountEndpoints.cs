@@ -105,6 +105,7 @@ internal static class AccountEndpoints
             request.CurrentPassword,
             request.NewPassword
         );
+        result.ThrowIfConcurrencyFailure();
         if (!result.Succeeded)
         {
             return TypedResults.ValidationProblem(
@@ -168,6 +169,7 @@ internal static class AccountEndpoints
         await userManager.UpdateNormalizedEmailAsync(user);
         await userManager.UpdateNormalizedUserNameAsync(user);
         var result = await userManager.UpdateSecurityStampAsync(user);
+        result.ThrowIfConcurrencyFailure();
         if (!result.Succeeded)
         {
             return result.Errors.Any(e => e.Code is "DuplicateEmail" or "DuplicateUserName")

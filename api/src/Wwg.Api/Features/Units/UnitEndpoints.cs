@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Units;
@@ -57,7 +58,7 @@ internal static class UnitEndpoints
         CancellationToken cancellationToken
     )
     {
-        var unit = await db.Units.SingleAsync(u => u.Id == id, cancellationToken);
+        var unit = await db.Units.Where(u => u.Id == id).SingleOrGoneAsync(cancellationToken);
         unit.Name = request.Name;
         unit.Type = request.Type;
         unit.FightingFactor = request.FightingFactor;

@@ -111,7 +111,9 @@ internal static class CampaignEndpoints
     )
     {
         var access = httpContext.CampaignContext();
-        var campaign = await db.Campaigns.SingleAsync(c => c.Id == id, cancellationToken);
+        var campaign = await db
+            .Campaigns.Where(c => c.Id == id)
+            .SingleOrGoneAsync(cancellationToken);
         campaign.Name = request.Name;
         campaign.Description = EmptyToNull(request.Description);
         await db.SaveChangesAsync(cancellationToken);
@@ -163,5 +165,5 @@ internal static class CampaignEndpoints
                 c.CreatedAt,
                 c.UpdatedAt
             ))
-            .SingleAsync(cancellationToken);
+            .SingleOrGoneAsync(cancellationToken);
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Campaigns;
@@ -49,7 +50,7 @@ internal static class MemberEndpoints
             .Campaigns.AsNoTracking()
             .Where(c => c.Id == id)
             .Select(c => c.JoinCode)
-            .SingleAsync(cancellationToken);
+            .SingleOrGoneAsync(cancellationToken);
         return TypedResults.Ok(new JoinCodeResponse(joinCode));
     }
 
@@ -63,7 +64,9 @@ internal static class MemberEndpoints
         CancellationToken cancellationToken
     )
     {
-        var campaign = await db.Campaigns.SingleAsync(c => c.Id == id, cancellationToken);
+        var campaign = await db
+            .Campaigns.Where(c => c.Id == id)
+            .SingleOrGoneAsync(cancellationToken);
         campaign.JoinCode = JoinCodes.Generate();
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(new JoinCodeResponse(campaign.JoinCode));

@@ -233,6 +233,17 @@ metadata.
   database's unique indexes are the final guarantee. If two requests race past
   the check, the `DbUpdateException` for the unique-constraint failure is caught
   centrally and returned as **409** Problem Details, never a 500.
+  The same handler (`ConflictExceptionHandler`) covers the other races:
+  - a foreign key failing (the army a unit is being added to was just
+    deleted), or a row changed or deleted under an update (EF's concurrency
+    check, and Identity's on the user's `ConcurrencyStamp`): **409**, reload
+    and try again;
+  - a row deleted after the access filter found it and before the handler
+    loaded it (`SingleOrGoneAsync`): **404**.
+
+  `ConcurrencyTests` makes each race happen on cue, with an EF command
+  interceptor that runs the "other request's" statement just before the
+  command it would break.
 - **Operations that change several rows** (e.g. set Umpire: demote old, promote
   new, unassign army) happen in a **single `SaveChanges`**, so they succeed or
   fail as a whole.

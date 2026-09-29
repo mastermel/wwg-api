@@ -25,7 +25,7 @@ internal static class DatabaseExtensions
         services.AddHostedService<BackupService>();
 
         services.AddSingleton<AuditInterceptor>();
-        services.AddExceptionHandler<UniqueConstraintExceptionHandler>();
+        services.AddExceptionHandler<ConflictExceptionHandler>();
         services.AddDbContext<WwgDbContext>(
             (serviceProvider, options) =>
                 options

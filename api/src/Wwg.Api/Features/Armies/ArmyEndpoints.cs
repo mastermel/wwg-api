@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Units;
+using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Armies;
@@ -141,7 +142,7 @@ internal static class ArmyEndpoints
         CancellationToken cancellationToken
     )
     {
-        var army = await db.Armies.SingleAsync(a => a.Id == id, cancellationToken);
+        var army = await db.Armies.Where(a => a.Id == id).SingleOrGoneAsync(cancellationToken);
         army.Name = request.Name;
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
@@ -171,7 +172,7 @@ internal static class ArmyEndpoints
         CancellationToken cancellationToken
     )
     {
-        var army = await db.Armies.SingleAsync(a => a.Id == id, cancellationToken);
+        var army = await db.Armies.Where(a => a.Id == id).SingleOrGoneAsync(cancellationToken);
         var invalid = await Commanders.ValidateAsync(
             db,
             army.CampaignId,
@@ -249,5 +250,5 @@ internal static class ArmyEndpoints
                 a.CreatedAt,
                 a.UpdatedAt
             ))
-            .SingleAsync(cancellationToken);
+            .SingleOrGoneAsync(cancellationToken);
 }

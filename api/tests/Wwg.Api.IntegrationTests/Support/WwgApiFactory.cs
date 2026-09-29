@@ -37,6 +37,12 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
 
     public string ConnectionString { get; }
 
+    /// <summary>
+    /// More test services for this app, e.g. an EF interceptor. Add them before the first client
+    /// is created (in a test class's constructor), since the app is built then.
+    /// </summary>
+    internal List<Action<IServiceCollection>> TestServices { get; } = [];
+
     /// <summary>Every email the app sent.</summary>
     internal FakeEmailService Emails { get; } = new();
 
@@ -67,6 +73,10 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
                 // Identity's 100,000 PBKDF2 iterations are deliberate in production; tests create
                 // many users, so one iteration here.
                 services.Configure<PasswordHasherOptions>(options => options.IterationCount = 1);
+                foreach (var configure in TestServices)
+                {
+                    configure(services);
+                }
             });
     }
 
