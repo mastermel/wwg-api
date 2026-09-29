@@ -8,7 +8,8 @@ import { appVersion } from "@/lib/app-version";
 /**
  * Saves the API cache to IndexedDB so the app can show the last-known data offline (read-only).
  * The buster is the app version: a new deploy discards the saved copy, so saved data never has
- * an older shape than the code reading it. (Tying it to the signed-in user comes with sign-in.)
+ * an older shape than the code reading it. It's cleared on sign-out, and when someone other than
+ * the last user signs in (the session store).
  */
 export const persistOptions: PersistQueryClientProviderProps["persistOptions"] = {
   persister: createAsyncStoragePersister({

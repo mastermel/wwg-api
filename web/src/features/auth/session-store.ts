@@ -5,6 +5,7 @@ import type { MeResponse, TokenResponse } from "@/api/generated/model";
 import { GetMeResponse } from "@/api/generated/zod/account/account.zod";
 import {
   clearAccessToken,
+  onRefreshed,
   onSignedOut,
   refreshAccessToken,
   setAccessToken,
@@ -71,7 +72,11 @@ export function createSessionStore({
 
   async function forgetData() {
     queryClient.clear();
-    await clearSavedData?.();
+    try {
+      await clearSavedData?.();
+    } catch {
+      // IndexedDB unavailable: the in-memory cache is gone, and it's saved again from that.
+    }
   }
 
   async function forgetSession(ended: boolean) {
@@ -82,9 +87,10 @@ export function createSessionStore({
   }
 
   async function becomeSignedIn(user: MeResponse) {
-    const last = readLastUser();
-    if (last && last.id !== user.id) {
-      // A different person on this device: never show them the previous user's saved data.
+    if (readLastUser()?.id !== user.id) {
+      // Saved data is only kept for the same person signing back in: never show anyone else the
+      // previous user's data. (That includes data restored from IndexedDB just after signing out
+      // cleared it.)
       await forgetData();
     }
     storage.write(lastUserKey, user);
@@ -101,28 +107,38 @@ export function createSessionStore({
   }
 
   async function start() {
-    if (storage.read(signOutPendingKey) === true) {
-      // Finish signing out before anything else; stay signed out either way.
-      await tryLogout();
-      await forgetSession(false);
-      resolveReady();
-      return;
-    }
+    try {
+      if (storage.read(signOutPendingKey) === true) {
+        // Finish signing out before anything else; stay signed out either way.
+        await tryLogout();
+        await forgetSession(false);
+        return;
+      }
 
-    const outcome = await refreshAccessToken();
-    if (outcome === "refreshed") {
-      const user = await getMe().catch(() => null);
-      if (user) {
-        await becomeSignedIn(user);
+      const outcome = await refreshAccessToken();
+      if (outcome === "refreshed") {
+        await loadUser();
+      } else if (outcome === "signed-out") {
+        await forgetSession(false);
       } else {
         goOffline();
       }
-    } else if (outcome === "signed-out") {
-      await forgetSession(false);
-    } else {
+    } catch {
+      // Nothing above should throw, but a start-up that never settles is a blank app.
+      goOffline();
+    } finally {
+      resolveReady();
+    }
+  }
+
+  /** Fetches the signed-in user (after a refresh); offline if that fails. */
+  async function loadUser() {
+    const user = await getMe().catch(() => null);
+    if (user) {
+      await becomeSignedIn(user);
+    } else if (state.status !== "signed-in") {
       goOffline();
     }
-    resolveReady();
   }
 
   async function tryLogout() {
@@ -137,7 +153,15 @@ export function createSessionStore({
   async function signIn(token: TokenResponse) {
     storage.remove(signOutPendingKey);
     setAccessToken(token);
-    await becomeSignedIn(await getMe());
+    let user: MeResponse;
+    try {
+      user = await getMe();
+    } catch (error) {
+      // Stay cleanly signed out rather than holding a token with no user.
+      clearAccessToken();
+      throw error;
+    }
+    await becomeSignedIn(user);
     channel?.postMessage("signed-in");
   }
 
@@ -150,6 +174,13 @@ export function createSessionStore({
   const stopSignedOut = onSignedOut(() => {
     if (state.status !== "signed-out") {
       void forgetSession(true);
+    }
+  });
+  // Keeps the user (name, isAdmin) current, and brings an offline start back online once the API
+  // answers. At start-up and sign-in the user is fetched there instead.
+  const stopRefreshed = onRefreshed(() => {
+    if (state.status === "signed-in" || state.status === "offline") {
+      void loadUser();
     }
   });
   const stopOnline = onlineManager.subscribe((online) => {
@@ -184,6 +215,7 @@ export function createSessionStore({
     },
     dispose() {
       stopSignedOut();
+      stopRefreshed();
       stopOnline();
       channel?.close();
     },

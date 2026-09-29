@@ -1,8 +1,10 @@
 import { onlineManager } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/app/query-client";
 import { createSessionStore, type SessionStore } from "@/features/auth/session-store";
-import { refreshAccessToken } from "@/lib/access-token";
+import { getAccessToken, refreshAccessToken } from "@/lib/access-token";
+import { server } from "@/test/server";
 import { mockSession, testUser } from "@/test/session";
 
 const stores: SessionStore[] = [];
@@ -164,5 +166,62 @@ describe("session store", () => {
     await vi.waitFor(() => {
       expect(tab2.getState().status).toBe("signed-in");
     });
+  });
+
+  it("starts offline, not stuck, when the refresh answers 200 with something other than a token", async () => {
+    mockSession("signed-in");
+    server.use(
+      http.post("*/api/auth/refresh", () => HttpResponse.html("<p>Sign in to the Wi-Fi</p>")),
+    );
+    localStorage.setItem("wwg:last-user", JSON.stringify(testUser));
+    const { store } = newStore();
+
+    await store.start();
+    await store.ready;
+
+    expect(store.getState().status).toBe("offline");
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it("still signs out when the saved data can't be deleted", async () => {
+    mockSession("signed-out");
+    const store = createSessionStore({
+      queryClient: createQueryClient(),
+      clearSavedData: () => Promise.reject(new Error("IndexedDB is unavailable")),
+    });
+    stores.push(store);
+
+    await store.start();
+    await store.ready;
+
+    expect(store.getState().status).toBe("signed-out");
+  });
+
+  it("fetches the user again after a later refresh", async () => {
+    mockSession("signed-in");
+    const { store } = newStore();
+    await store.start();
+
+    const promoted = { ...testUser, firstName: "Melanie", isAdmin: true };
+    mockSession("signed-in", promoted);
+    await refreshAccessToken();
+
+    await vi.waitFor(() => {
+      expect(store.getState().user).toEqual(promoted);
+    });
+  });
+
+  it("keeps no token when signing in can't load the user", async () => {
+    mockSession("signed-out");
+    const { store } = newStore();
+    await store.start();
+    server.use(http.get("*/api/me", () => HttpResponse.error()));
+
+    await expect(
+      store.signIn({ accessToken: `token-for-${testUser.id}`, expiresIn: 1800 }),
+    ).rejects.toThrow();
+
+    expect(store.getState().status).toBe("signed-out");
+    expect(getAccessToken()).toBeNull();
   });
 });

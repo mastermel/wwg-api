@@ -1,4 +1,5 @@
 import type { TokenResponse } from "@/api/generated/model";
+import { RefreshResponse } from "@/api/generated/zod/auth/auth.zod";
 
 /**
  * The access token, in memory only (the refresh token is an HttpOnly cookie script can't read;
@@ -11,6 +12,7 @@ let accessToken: string | null = null;
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let inFlight: Promise<RefreshOutcome> | null = null;
 const signedOutListeners = new Set<() => void>();
+const refreshedListeners = new Set<() => void>();
 
 export function getAccessToken() {
   return accessToken;
@@ -32,6 +34,14 @@ export function onSignedOut(listener: () => void) {
   signedOutListeners.add(listener);
   return () => {
     signedOutListeners.delete(listener);
+  };
+}
+
+/** Called after every successful refresh (on a timer, after a 401 or at start-up). */
+export function onRefreshed(listener: () => void) {
+  refreshedListeners.add(listener);
+  return () => {
+    refreshedListeners.delete(listener);
   };
 }
 
@@ -58,7 +68,18 @@ async function requestRefresh(): Promise<RefreshOutcome> {
   }
 
   if (response.ok) {
-    setAccessToken((await response.json()) as TokenResponse);
+    // Something between us and the API (a captive portal, a proxy) can answer 200 with a page of
+    // its own: that's "unavailable", not a session.
+    const token = RefreshResponse.safeParse(await response.json().catch(() => null));
+    if (!token.success) {
+      scheduleRefresh(60);
+      return "unavailable";
+    }
+
+    setAccessToken(token.data);
+    for (const listener of refreshedListeners) {
+      listener();
+    }
     return "refreshed";
   }
 
@@ -84,4 +105,5 @@ export function resetAccessToken() {
   clearAccessToken();
   inFlight = null;
   signedOutListeners.clear();
+  refreshedListeners.clear();
 }
