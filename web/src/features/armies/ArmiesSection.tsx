@@ -4,15 +4,8 @@ import { notifications } from "@mantine/notifications";
 import { IconFlag, IconPlus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  getListArmiesQueryKey,
-  useCreateArmy,
-  useListArmies,
-} from "@/api/generated/endpoints/armies/armies";
-import {
-  getListCampaignMembersQueryKey,
-  useListCampaignMembers,
-} from "@/api/generated/endpoints/campaigns/campaigns";
+import { useCreateArmy, useListArmies } from "@/api/generated/endpoints/armies/armies";
+import { useListCampaignMembers } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { ArmyCommander, CampaignResponse } from "@/api/generated/model";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryState } from "@/components/QueryState";
@@ -22,6 +15,7 @@ import { ArmyFormModal } from "@/features/armies/ArmyFormModal";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { useOnline } from "@/lib/use-online";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 const commanderName = (commander: ArmyCommander) => `${commander.firstName} ${commander.lastName}`;
 
@@ -115,12 +109,7 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
           onSubmit={async (values) => {
             const army = await create.mutateAsync({ id: campaign.id, data: values });
             notifications.show({ color: "green", message: `Added ${army.name}.` });
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: getListArmiesQueryKey(campaign.id) }),
-              queryClient.invalidateQueries({
-                queryKey: getListCampaignMembersQueryKey(campaign.id),
-              }),
-            ]);
+            await refreshCampaign(queryClient, campaign.id);
           }}
         />
       )}

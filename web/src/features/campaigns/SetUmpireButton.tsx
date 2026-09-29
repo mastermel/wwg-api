@@ -4,18 +4,11 @@ import { notifications } from "@mantine/notifications";
 import { IconCrown } from "@tabler/icons-react";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  getListAllCampaignsQueryKey,
-  useListUsers,
-  useSetCampaignUmpire,
-} from "@/api/generated/endpoints/admin/admin";
-import {
-  getGetCampaignQueryKey,
-  getListCampaignMembersQueryKey,
-  getListMyCampaignsQueryKey,
-} from "@/api/generated/endpoints/campaigns/campaigns";
+import { useListUsers, useSetCampaignUmpire } from "@/api/generated/endpoints/admin/admin";
+import { getGetCampaignQueryKey } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { CampaignResponse } from "@/api/generated/model";
 import { useOnline } from "@/lib/use-online";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 /** For Admins: choose any user as the campaign's Umpire (§5.1, umpire-less campaigns). */
 export function SetUmpireButton({ campaign }: { campaign: CampaignResponse }) {
@@ -66,11 +59,8 @@ function SetUmpireModal({
     try {
       const updated = await setUmpire.mutateAsync({ id: campaign.id, data: { userId } });
       queryClient.setQueryData(getGetCampaignQueryKey(campaign.id), updated);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getListCampaignMembersQueryKey(campaign.id) }),
-        queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() }),
-        queryClient.invalidateQueries({ queryKey: getListAllCampaignsQueryKey() }),
-      ]);
+      // Roles change, and a promoted Player's army is now unassigned.
+      await refreshCampaign(queryClient, campaign.id);
       const umpire = updated.umpire;
       notifications.show({
         color: "green",

@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   getGetArmyQueryKey,
-  getListArmiesQueryKey,
   useAssignCommander,
   useDeleteArmy,
   useGetArmy,
@@ -14,7 +13,6 @@ import {
   useUnassignCommander,
 } from "@/api/generated/endpoints/armies/armies";
 import {
-  getListCampaignMembersQueryKey,
   useGetCampaign,
   useListCampaignMembers,
 } from "@/api/generated/endpoints/campaigns/campaigns";
@@ -31,6 +29,7 @@ import { UnitsSection } from "@/features/units/UnitsSection";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { ApiError } from "@/lib/api-fetch";
 import { useOnline } from "@/lib/use-online";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 export function ArmyPage({ campaignId, armyId }: { campaignId: string; armyId: string }) {
   const army = useGetArmy(armyId);
@@ -109,12 +108,7 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
   const assign = useAssignCommander();
   const unassign = useUnassignCommander();
 
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: getGetArmyQueryKey(army.id) }),
-      queryClient.invalidateQueries({ queryKey: getListArmiesQueryKey(army.campaignId) }),
-      queryClient.invalidateQueries({ queryKey: getListCampaignMembersQueryKey(army.campaignId) }),
-    ]);
+  const refresh = () => refreshCampaign(queryClient, army.campaignId);
 
   const choose = async (memberId: string | null) => {
     if (!memberId || memberId === army.commander?.memberId) return;
@@ -204,9 +198,7 @@ function RenameArmyButton({ army }: { army: ArmyResponse }) {
           onSubmit={async ({ name }) => {
             const updated = await rename.mutateAsync({ id: army.id, data: { name } });
             queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
-            await queryClient.invalidateQueries({
-              queryKey: getListArmiesQueryKey(army.campaignId),
-            });
+            await refreshCampaign(queryClient, army.campaignId);
           }}
         />
       )}
@@ -233,10 +225,7 @@ function DeleteArmyButton({ army }: { army: ArmyResponse }) {
     notifications.show({ color: "green", message: `Deleted ${army.name}.` });
     await navigate({ to: "/campaigns/$id", params: { id: army.campaignId } });
     queryClient.removeQueries({ queryKey: getGetArmyQueryKey(army.id) });
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: getListArmiesQueryKey(army.campaignId) }),
-      queryClient.invalidateQueries({ queryKey: getListCampaignMembersQueryKey(army.campaignId) }),
-    ]);
+    await refreshCampaign(queryClient, army.campaignId);
   };
 
   return (

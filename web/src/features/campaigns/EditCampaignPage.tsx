@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   getGetCampaignQueryKey,
-  getListMyCampaignsQueryKey,
   useGetCampaign,
   useUpdateCampaign,
 } from "@/api/generated/endpoints/campaigns/campaigns";
@@ -11,6 +10,7 @@ import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
 import { CampaignForm } from "@/features/campaigns/CampaignForm";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 export function EditCampaignPage({ id }: { id: string }) {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ export function EditCampaignPage({ id }: { id: string }) {
               onSubmit={async (values) => {
                 const updated = await update.mutateAsync({ id, data: values });
                 queryClient.setQueryData(getGetCampaignQueryKey(id), updated);
-                await queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() });
+                await refreshCampaign(queryClient, id);
                 await back();
               }}
               onCancel={() => void back()}

@@ -113,23 +113,24 @@ describe("set Umpire", () => {
 
   it("lets an Admin choose any user as the Umpire", async () => {
     const bodies: unknown[] = [];
+    // Like the API: once set, the campaign comes back with its new Umpire.
+    let current = campaign();
     server.use(
-      http.get(`*/api/campaigns/${campaignId}`, () => HttpResponse.json(campaign())),
+      http.get(`*/api/campaigns/${campaignId}`, () => HttpResponse.json(current)),
       http.get("*/api/admin/users", () =>
         HttpResponse.json({ items: [arthur], page: 1, pageSize: 20, totalCount: 1 }),
       ),
       http.put(`*/api/admin/campaigns/${campaignId}/umpire`, async ({ request }) => {
         bodies.push(await request.json());
-        return HttpResponse.json(
-          campaign({
-            umpire: {
-              memberId: "0192f5c1-0000-7000-8000-00000000d009",
-              userId: arthur.id,
-              firstName: "Arthur",
-              lastName: "Wellesley",
-            },
-          }),
-        );
+        current = campaign({
+          umpire: {
+            memberId: "0192f5c1-0000-7000-8000-00000000d009",
+            userId: arthur.id,
+            firstName: "Arthur",
+            lastName: "Wellesley",
+          },
+        });
+        return HttpResponse.json(current);
       }),
     );
     const user = userEvent.setup();

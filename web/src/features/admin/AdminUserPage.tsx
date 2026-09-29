@@ -5,11 +5,7 @@ import { IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import {
-  getListUsersQueryKey,
-  useDeleteUser,
-  useGetUser,
-} from "@/api/generated/endpoints/admin/admin";
+import { useDeleteUser, useGetUser } from "@/api/generated/endpoints/admin/admin";
 import type { UserDetails } from "@/api/generated/model";
 import { BackLink } from "@/components/BackLink";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -73,8 +69,9 @@ function UserDetailsView({ user }: { user: UserDetails }) {
   const confirmDelete = async () => {
     try {
       await remove.mutateAsync({ id: user.id });
-      // Every page of the list (any search) is now out of date.
-      await queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+      // Their memberships, Umpire roles and commands are gone: nearly anything cached can be out
+      // of date, so refetch it all (only what's on screen is fetched now).
+      await queryClient.invalidateQueries();
       notifications.show({
         color: "green",
         message: `Deleted ${user.firstName} ${user.lastName}.`,

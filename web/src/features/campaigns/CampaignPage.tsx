@@ -4,11 +4,7 @@ import { notifications } from "@mantine/notifications";
 import { IconCrown, IconEdit, IconTrash, IconUsers } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  getListMyCampaignsQueryKey,
-  useDeleteCampaign,
-  useGetCampaign,
-} from "@/api/generated/endpoints/campaigns/campaigns";
+import { useDeleteCampaign, useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Page } from "@/components/Page";
@@ -22,6 +18,7 @@ import { LeaveCampaignButton } from "@/features/campaigns/LeaveCampaignButton";
 import { MembersSection } from "@/features/campaigns/MembersSection";
 import { SetUmpireButton } from "@/features/campaigns/SetUmpireButton";
 import { useOnline } from "@/lib/use-online";
+import { forgetCampaign } from "@/features/campaigns/campaign-cache";
 
 export function CampaignPage({ id }: { id: string }) {
   const campaign = useGetCampaign(id);
@@ -145,13 +142,15 @@ function DeleteCampaignButton({ campaign }: { campaign: CampaignResponse }) {
   const confirmDelete = async () => {
     try {
       await remove.mutateAsync({ id: campaign.id });
-      await queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() });
-      notifications.show({ color: "green", message: `Deleted ${campaign.name}.` });
-      await navigate({ to: "/campaigns" });
     } catch {
       notifications.show({ color: "red", message: "The campaign couldn't be deleted. Try again." });
       close();
+      return;
     }
+    notifications.show({ color: "green", message: `Deleted ${campaign.name}.` });
+    await navigate({ to: "/campaigns" });
+    // Gone for good: drop the saved copies rather than keep showing them offline.
+    await forgetCampaign(queryClient, campaign.id);
   };
 
   return (

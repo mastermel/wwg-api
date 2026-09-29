@@ -3,7 +3,6 @@ import { notifications } from "@mantine/notifications";
 import { IconLinkOff } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { getListMyCampaignsQueryKey } from "@/api/generated/endpoints/campaigns/campaigns";
 import { useGetJoinPreview, useJoinCampaign } from "@/api/generated/endpoints/join/join";
 import type { JoinPreviewResponse } from "@/api/generated/model";
 import { Page } from "@/components/Page";
@@ -11,6 +10,7 @@ import { QueryState } from "@/components/QueryState";
 import { useSession } from "@/features/auth/session-context";
 import { ApiError } from "@/lib/api-fetch";
 import { useOnline } from "@/lib/use-online";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 /**
  * Where a join link lands. Anyone can see which campaign it's for; signed out, it offers sign-in
@@ -53,7 +53,7 @@ function JoinOffer({ code, campaign }: { code: string; campaign: JoinPreviewResp
             ? `You're in ${campaign.campaignName}.`
             : `You're already the ${joined.myRole} of ${campaign.campaignName}.`,
       });
-      await queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() });
+      await refreshCampaign(queryClient, joined.campaignId);
       await navigate({ to: "/campaigns/$id", params: { id: joined.campaignId } });
     } catch {
       notifications.show({ color: "red", message: "You couldn't join. Try again." });

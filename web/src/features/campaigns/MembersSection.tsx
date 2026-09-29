@@ -2,9 +2,6 @@ import { Badge, Button, Table, Text, VisuallyHidden } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  getGetCampaignQueryKey,
-  getListCampaignMembersQueryKey,
-  getListMyCampaignsQueryKey,
   useListCampaignMembers,
   useRemoveCampaignMember,
 } from "@/api/generated/endpoints/campaigns/campaigns";
@@ -16,6 +13,7 @@ import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { useConfirmTarget } from "@/lib/use-confirm-target";
 import { useOnline } from "@/lib/use-online";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 const fullName = (member: CampaignMemberResponse) => `${member.firstName} ${member.lastName}`;
 
@@ -36,11 +34,8 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
     try {
       await remove.mutateAsync({ id: campaign.id, memberId: member.id });
       notifications.show({ color: "green", message: `Removed ${fullName(member)}.` });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getListCampaignMembersQueryKey(campaign.id) }),
-        queryClient.invalidateQueries({ queryKey: getGetCampaignQueryKey(campaign.id) }),
-        queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() }),
-      ]);
+      // Their army (if any) is now unassigned, so the armies change too.
+      await refreshCampaign(queryClient, campaign.id);
     } catch {
       notifications.show({ color: "red", message: "They couldn't be removed. Try again." });
     }

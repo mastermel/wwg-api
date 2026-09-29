@@ -4,15 +4,11 @@ import { notifications } from "@mantine/notifications";
 import { IconDoorExit } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  getGetCampaignQueryKey,
-  getListCampaignMembersQueryKey,
-  getListMyCampaignsQueryKey,
-  useLeaveCampaign,
-} from "@/api/generated/endpoints/campaigns/campaigns";
+import { useLeaveCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useOnline } from "@/lib/use-online";
+import { forgetCampaign } from "@/features/campaigns/campaign-cache";
 
 /** For Players: leave the campaign. (The Umpire can't; an Admin sets a new one instead.) */
 export function LeaveCampaignButton({ campaign }: { campaign: CampaignResponse }) {
@@ -33,9 +29,7 @@ export function LeaveCampaignButton({ campaign }: { campaign: CampaignResponse }
     notifications.show({ color: "green", message: `You left ${campaign.name}.` });
     await navigate({ to: "/campaigns" });
     // Gone for good: drop the saved copies rather than keep showing them offline.
-    queryClient.removeQueries({ queryKey: getGetCampaignQueryKey(campaign.id) });
-    queryClient.removeQueries({ queryKey: getListCampaignMembersQueryKey(campaign.id) });
-    await queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() });
+    await forgetCampaign(queryClient, campaign.id);
   };
 
   return (
