@@ -10,11 +10,25 @@ namespace Wwg.Api.IntegrationTests.Support;
 internal sealed class FakeEmailService : IEmailService
 {
     private readonly ConcurrentQueue<EmailMessage> _sent = new();
+    private int _failuresLeft;
+    private int _attempts;
 
     public IReadOnlyCollection<EmailMessage> Sent => _sent;
 
+    /// <summary>How many times sending was tried, failures included.</summary>
+    public int Attempts => Volatile.Read(ref _attempts);
+
+    /// <summary>The next <paramref name="count"/> sends fail, as if SMTP were down.</summary>
+    public void FailNext(int count) => Volatile.Write(ref _failuresLeft, count);
+
     public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref _attempts);
+        if (Interlocked.Decrement(ref _failuresLeft) >= 0)
+        {
+            throw new InvalidOperationException("Simulated SMTP failure.");
+        }
+
         _sent.Enqueue(message);
         return Task.CompletedTask;
     }

@@ -42,6 +42,8 @@ COPY --from=web /src/web/dist ./wwwroot
 COPY --from=api --chown=1654:1654 /out/data /data
 VOLUME /data
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+# Probed every second while starting (--start-interval), so the container reports healthy as soon
+# as it is (deploys and `compose up --wait` don't wait out a 30s interval); then every 30s.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=1s --retries=3 \
   CMD ["./Wwg.Api", "--health-check"]
 ENTRYPOINT ["./Wwg.Api"]

@@ -10,11 +10,11 @@ internal static class ServiceCollectionExtensions
     {
         services.AddValidatedOptions<AppOptions>(AppOptions.SectionName);
         services.AddSingleton(TimeProvider.System);
-        services.AddHealthChecks();
         services.AddValidation();
 
         return services
             .AddErrorHandling()
+            .AddRequestLogging()
             .AddJsonOptions()
             .AddTrustedForwardedHeaders()
             .AddApiDocument()

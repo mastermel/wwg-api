@@ -480,8 +480,12 @@ Identity has two layers:
 
 - **Emails are queued** (`IEmailQueue`, a bounded in-memory channel) and sent
   by a background service. Requests never wait on SMTP, and forgot-password's
-  response time doesn't reveal whether an account exists. A failed send is
-  logged; there's no retry yet.
+  response time doesn't reveal whether an account exists.
+  - A failed send is tried again after 10 seconds, 1 minute and 5 minutes, then
+    given up and logged as an error. A retry waits on its own, so the emails
+    behind it still go out.
+  - Emails still queued or waiting to retry are lost if the app stops. They're
+    a reset link or a notice, which the user can ask for again.
 - **If `Smtp:Host` is empty**, emails are logged instead of sent (with a warning
   at startup). This lets the app run before a real SMTP service is set up.
   Reset links then appear in the log, so configure SMTP before real use.
@@ -763,7 +767,9 @@ for amd64 and arm64. The shared `traefik` network is pinned to
     need adjusting.
 - **Health checks:** the runtime image has no `curl`, so the app has a
   check mode: `Wwg.Api --health-check` calls `GET /health` on localhost and
-  exits 0 or 1. The image's `HEALTHCHECK` runs it.
+  exits 0 or 1. The image's `HEALTHCHECK` runs it every 30 seconds, and every
+  second during the 30-second start period (`--start-interval`), so a new
+  container reports healthy as soon as it is.
 - `docker-compose.yml` for running it on the server, with the Traefik labels,
   the shared network and the `/data` volume. Updating means pulling the new
   `latest` (or a specific `vYYYYMMdd.HHmmss`) and restarting.
@@ -1075,7 +1081,7 @@ web/
 
 | Concern | Approach |
 |---|---|
-| Logging | Built-in `ILogger`, structured JSON console logs in production |
+| Logging | Built-in `ILogger`. **JSON console logs** in production (`Logging:Console:FormatterName`, UTC timestamps); plain text in development. **One line per API request** (`HttpLogging`: method, path, status, duration; never headers, bodies or query strings); static files and `/health` aren't logged. EF Core's SQL is only logged in development |
 | Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
@@ -1593,7 +1599,7 @@ found in one area; product features come after it.
 24. ✅ **Backups:** a SQLite snapshot before every startup migration, and scheduled snapshots with
     a retention limit, on the data volume. How to restore, and how to roll back a deploy, written
     down.
-25. **Logs and health:** JSON console logs in production, one log line per request, retries
+25. ✅ **Logs and health:** JSON console logs in production, one log line per request, retries
     for failed emails, and a health check that reports healthy within a second or two of start-up.
 26. **Web fixes:**
     - Start-up never hangs when the refresh response isn't what it should be.
