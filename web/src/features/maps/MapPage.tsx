@@ -1,6 +1,12 @@
 import { Alert, Box, Button, Grid, Group, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCloudOff, IconMap, IconMapPin, IconSettings } from "@tabler/icons-react";
+import {
+  IconArrowMoveRight,
+  IconCloudOff,
+  IconMap,
+  IconMapPin,
+  IconSettings,
+} from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +30,10 @@ import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { CampaignMap } from "@/features/maps/CampaignMap";
+import { distanceMetres, inBounds, type Point } from "@/features/maps/geo";
+import { OrderActions } from "@/features/maps/OrderActions";
+import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
+import { formatDistance } from "@/features/maps/orders";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
@@ -130,9 +140,11 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const mapArea = useRef<HTMLDivElement>(null);
   // On a phone the setup list is under the map: once the banner is drawn, bring it and the map
   // back into view (below the header: the Stack's scroll margin).
+  const [moving, setMoving] = useState<PlacedUnit | null>(null);
+  const [target, setTarget] = useState<Point | null>(null);
   useEffect(() => {
-    if (placing) mapArea.current?.scrollIntoView({ block: "start" });
-  }, [placing]);
+    if (placing || moving) mapArea.current?.scrollIntoView({ block: "start" });
+  }, [placing, moving]);
   const [chosen, setChosen] = useState<PlacedUnit[]>([]);
   const [selected, setSelected] = useState<PlacedUnit | null>(null);
 
@@ -164,6 +176,48 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const commanded = useCommandedTurns(turns.data?.stage === "Running" ? myArmies : []);
   const orders = useOrders(campaignId);
   const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
+  const turnOf = (armyId: string) => commanded.find((c) => c.army.id === armyId)?.turn;
+  const limitOf = (placed: PlacedUnit) =>
+    settings.movementLimits.find((l) => l.unitType === placed.unit.type)?.metres ?? 0;
+  const moves: PendingMove[] = [
+    ...commanded.flatMap(({ turn }) =>
+      turn && turn.status !== "Completed"
+        ? turn.orders.flatMap((order) => {
+            const placed = onMap.find((p) => p.unit.id === order.unitId);
+            return placed && order.kind === "Move" && placed.unit.id !== moving?.unit.id
+              ? [{ placed, to: order }]
+              : [];
+          })
+        : [],
+    ),
+    ...(moving && target ? [{ placed: moving, to: target }] : []),
+  ];
+
+  const stopMoving = () => {
+    setMoving(null);
+    setTarget(null);
+  };
+  const chooseTarget = (point: Point) => {
+    if (!moving) return;
+    const limit = limitOf(moving);
+    const problem = !inBounds(point, bounds)
+      ? "That's outside the campaign's area."
+      : // A metre's grace, as the API allows, for rounding.
+        distanceMetres(moving, point) > limit + 1
+        ? `That's further than ${moving.unit.name} can move in a turn (${formatDistance(limit, settings.distanceUnit)}).`
+        : null;
+    if (problem) {
+      notifications.show({ color: "red", message: problem });
+    } else {
+      setTarget(point);
+    }
+  };
+  const confirmMove = async () => {
+    const turn = moving && turnOf(moving.army.id);
+    if (!moving || !turn || !target) return;
+    const order = { kind: "Move", ...target } as const;
+    if (await orders.give(moving.army.id, turn.id, moving.unit, order)) stopMoving();
+  };
 
   const placeAt = async (point: { longitude: number; latitude: number }) => {
     if (!placingUnit) return;
@@ -211,20 +265,65 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               </Group>
             </Alert>
           )}
+          {moving && (
+            <Alert role="status" color="navy" icon={<IconArrowMoveRight aria-hidden />}>
+              <Group justify="space-between" gap="xs">
+                <Text size="sm">
+                  {target ? (
+                    <>
+                      Move <strong>{moving.unit.name}</strong>{" "}
+                      {formatDistance(distanceMetres(moving, target), settings.distanceUnit)} to
+                      here?
+                    </>
+                  ) : (
+                    <>
+                      Tap the map inside the circle where <strong>{moving.unit.name}</strong> moves
+                      to.
+                    </>
+                  )}
+                </Text>
+                <Group gap="xs">
+                  {target && (
+                    <Button
+                      size="compact-sm"
+                      loading={orders.busy}
+                      onClick={() => void confirmMove()}
+                    >
+                      Confirm
+                    </Button>
+                  )}
+                  <Button size="compact-sm" variant="default" onClick={stopMoving}>
+                    Cancel
+                  </Button>
+                </Group>
+              </Group>
+            </Alert>
+          )}
           {/* The map takes the rest of the screen, and at least enough to be useful. */}
           <Box h="calc(100dvh - 15rem)" mih={360}>
             <CampaignMap
               settings={settings}
               bounds={bounds}
-              cursor={placingUnit ? "crosshair" : undefined}
-              onMapClick={placingUnit ? (point) => void placeAt(point) : undefined}
+              cursor={placingUnit || moving ? "crosshair" : undefined}
+              onMapClick={
+                placingUnit ? (point) => void placeAt(point) : moving ? chooseTarget : undefined
+              }
             >
+              <OrderOverlay
+                moves={moves}
+                range={moving ? { centre: moving, metres: limitOf(moving) } : undefined}
+              />
               <UnitMarkers
                 units={onMap}
                 onSelect={(stack) => {
                   // While placing, choosing a unit (or stack) puts the new one there too.
                   if (placingUnit) {
                     void placeAt({ longitude: stack.longitude, latitude: stack.latitude });
+                    return;
+                  }
+                  // While moving, choosing a unit (or stack) moves there.
+                  if (moving) {
+                    chooseTarget({ longitude: stack.longitude, latitude: stack.latitude });
                     return;
                   }
                   setChosen(stack.units);
@@ -296,7 +395,35 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                   Move on the map
                 </Button>
               )
-            : undefined
+            : (unit) => {
+                const turn = turnOf(unit.army.id);
+                return (
+                  turn?.open && (
+                    <OrderActions
+                      placed={unit}
+                      turn={turn}
+                      distanceUnit={settings.distanceUnit}
+                      busy={orders.busy}
+                      onMove={() => {
+                        setMoving(unit);
+                        setTarget(null);
+                        closeDrawer();
+                      }}
+                      onHold={() => {
+                        void orders
+                          .give(unit.army.id, turn.id, unit.unit, {
+                            kind: "Hold",
+                            latitude: null,
+                            longitude: null,
+                          })
+                          .then((saved) => {
+                            if (saved) closeDrawer();
+                          });
+                      }}
+                    />
+                  )
+                );
+              }
         }
       />
     </Grid>

@@ -37,11 +37,15 @@ npm run lint && npm run typecheck && npm run format:check
   the label), but a `SegmentedControl` option by its label (its input is off-screen). Don't
   `force`; it can click without toggling.
 - The campaign map is a MapLibre canvas: `getByRole("region", { name: "Map", exact: true })`.
-  `clickMapCentre(page)` (tests/support/map.ts) clicks it where it is now (call it after anything
-  that scrolls). Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
+  `clickMapCentre(page)` and `clickMap(page, right, down)` (tests/support/map.ts) click it where
+  it is now (call them after anything that scrolls). After a drawer closes, wait for
+  `getByRole("dialog")` to have a count of 0 before clicking the map or scanning: its overlay
+  fades out, taking the click (and failing axe while it fades). Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
   place search here (it calls a service over the internet).
 - Setup the test isn't about (a map's area, armies, units) goes through the API: `apiAs(page)`
   (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.
+  `startedCampaign(umpire, commander, name)` (tests/support/turns.ts) is a campaign at turn 1,
+  with the commander's army and two units placed.
 - `scan(page, label)` (tests/support/axe.ts) is axe's violations, for pages that need data only a
   flow sets up; the rest belong in `accessibility.spec.ts`.
 - Offline: `waitForServiceWorker` and `waitUntilSaved` (tests/support/offline.ts) before going

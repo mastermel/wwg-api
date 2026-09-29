@@ -1,0 +1,70 @@
+import { Button, Group, Stack, Text } from "@mantine/core";
+import { IconArrowMoveRight, IconHandStop } from "@tabler/icons-react";
+import type { ArmyTurnDetails, DistanceUnit } from "@/api/generated/model";
+import { describeOrder } from "@/features/maps/orders";
+import type { PlacedUnit } from "@/features/maps/stacks";
+import { reviewOf } from "@/features/maps/use-orders";
+import { useOnline } from "@/lib/use-online";
+
+interface OrderActionsProps {
+  placed: PlacedUnit;
+  /** The unit's army's turn in the open campaign turn. */
+  turn: ArmyTurnDetails;
+  distanceUnit: DistanceUnit;
+  busy: boolean;
+  onMove: () => void;
+  onHold: () => void;
+}
+
+/** In the unit drawer, for the unit's commander: its order this turn, the Umpire's note, Move and Hold. */
+export function OrderActions({
+  placed,
+  turn,
+  distanceUnit,
+  busy,
+  onMove,
+  onHold,
+}: OrderActionsProps) {
+  const online = useOnline();
+  const order = turn.orders.find((o) => o.unitId === placed.unit.id);
+  const note = reviewOf(turn)?.unitNotes.find((n) => n.unitId === placed.unit.id);
+
+  return (
+    <Stack gap="xs">
+      <Text size="sm">
+        Turn {turn.turn}: {describeOrder(order, placed, distanceUnit)}
+      </Text>
+      {note && (
+        <Text size="sm" fw={500}>
+          Umpire: {note.text}
+        </Text>
+      )}
+      {turn.status === "Draft" ? (
+        <Group grow>
+          <Button
+            variant="light"
+            leftSection={<IconArrowMoveRight size={16} aria-hidden />}
+            disabled={!online || busy}
+            onClick={onMove}
+          >
+            Move
+          </Button>
+          <Button
+            variant="default"
+            leftSection={<IconHandStop size={16} aria-hidden />}
+            disabled={!online || busy}
+            onClick={onHold}
+          >
+            Hold
+          </Button>
+        </Group>
+      ) : (
+        <Text size="sm" c="dimmed">
+          {turn.status === "Submitted"
+            ? "Submitted: orders can't change unless the Umpire sends them back."
+            : "Approved for this turn."}
+        </Text>
+      )}
+    </Stack>
+  );
+}

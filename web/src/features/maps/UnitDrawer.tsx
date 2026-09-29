@@ -33,6 +33,7 @@ export function UnitDrawer({ units, selected, onSelect, onClose, actions }: Unit
       position={phone ? "bottom" : "right"}
       size={phone ? "auto" : "sm"}
       title={shown ? shown.unit.name : `${String(units.length)} units here`}
+      closeButtonProps={{ "aria-label": "Close" }}
     >
       {shown ? (
         <Stack>

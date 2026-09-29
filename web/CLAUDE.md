@@ -71,6 +71,11 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   stand-in can't draw its children (markers need a real map), so marker behaviour is e2e's.
   Stacking (`stacks.ts`) is a pure function, tested alone.
   Import it only through `CampaignMap`, which sets MapLibre's worker URL (`maplibre-worker.ts`).
+  Distances and the range circle come from `geo.ts` (haversine, the same Earth radius as the
+  API's `Geo.cs`); orders in words from `orders.ts`. Ghost moves and the range are
+  `OrderOverlay`, inside the map: sight only, as the turn panel lists the same orders.
+  A commander's turn changes go through `useOrders` (`use-orders.ts`), which also refetches the
+  army's turns: they're keyed by the army, so `refreshCampaign` doesn't reach them.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

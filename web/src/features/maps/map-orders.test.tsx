@@ -192,6 +192,72 @@ describe("a commander's turn", () => {
     await expectNoAxeViolations(document.body);
   });
 
+  it("orders a unit to hold from its drawer", async () => {
+    const requests = serveCommander(draft());
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Hold" }),
+    );
+
+    expect(await screen.findByText("Imperial Guard will hold.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        method: "PUT",
+        url: `/api/army-turns/${turnId}/orders/${unitId}`,
+        body: { kind: "Hold", latitude: null, longitude: null },
+      },
+    ]);
+  });
+
+  it("moves a unit: choose Move, tap inside its range, then confirm", async () => {
+    const requests = serveCommander(draft());
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Move" }),
+    );
+    expect(screen.getByText(/Tap the map inside the circle/)).toHaveTextContent("Imperial Guard");
+    await user.click(screen.getByRole("button", { name: "Click the map" }));
+    expect(screen.getByText(/to here\?/)).toHaveTextContent("Move Imperial Guard 2.2 km to here?");
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("Imperial Guard will move.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        method: "PUT",
+        url: `/api/army-turns/${turnId}/orders/${unitId}`,
+        body: { kind: "Move", longitude: 4.4, latitude: 50.72 },
+      },
+    ]);
+    expect(screen.queryByText(/to here\?/)).not.toBeInTheDocument();
+  });
+
+  it("won't pick a point further than the unit can move", async () => {
+    const requests = serveCommander(draft());
+    const user = userEvent.setup();
+    click.at = { longitude: 4.4, latitude: 50.78 };
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Move" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Click the map" }));
+
+    expect(
+      await screen.findByText("That's further than Imperial Guard can move in a turn (5 km)."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText(/Tap the map inside the circle/)).not.toBeInTheDocument();
+    expect(requests).toEqual([]);
+  });
+
   it("takes an order back", async () => {
     const requests = serveCommander(draft({ orders: [hold] }));
     const user = userEvent.setup();

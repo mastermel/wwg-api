@@ -2004,8 +2004,12 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
 33. **Orders:** Move (with the range circle, bounds and limit checks), Hold and undo; ghost
     moves; the turn panel and Submit; the Umpire's Approve, Send back and Revert with notes;
     **Start turn N+1**; progress counts; the turn emails.
-    - API done: orders, submit, approve, send back, revert, the next turn and the emails.
-      The UI is next.
+    - Done: the API (orders, submit, approve, send back, revert, the next turn, the emails)
+      and the commander's side (the turn panel, Move and Hold, ghosts, the range, undo, Submit).
+      The Umpire's review and Start turn N+1 are next.
+    - Move: the drawer closes and the map comes into view; a tap outside the range or the area
+      says why, and picks nothing; a tap inside shows the ghost and asks to confirm. Tapping a
+      unit or stack moves there too.
     - `OwnCommander` access (the army's commander alone, not the Umpire or Admins) guards
       orders and submitting, found through the army turn (`CampaignRouteId.ArmyTurn`).
     - Moves are measured from the unit's current position (haversine, `Geo.Metres`), with a

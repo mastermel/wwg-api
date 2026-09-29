@@ -18,7 +18,8 @@ export async function apiAs(page: Page) {
         `${method} ${path} failed: ${String(response.status())} ${await response.text()}`,
       );
     }
-    return (await response.json()) as unknown;
+    // Actions (submit, approve) answer 204, with nothing to read.
+    return response.status() === 204 ? null : ((await response.json()) as unknown);
   };
   return {
     get: <T>(path: string) => send("GET", path) as Promise<T>,
