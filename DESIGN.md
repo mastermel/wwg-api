@@ -1,7 +1,7 @@
 # wwg — Design & Implementation Plan
 
 > **Status:** Phases 1–7 (steps 1–29) are done; Phase 7 was hardening, from a review.
-> Product features come next.
+> Next: Phase 8, the campaign map and turns (steps 30–34).
 > **Last updated:** 2026-09-28
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -27,6 +27,14 @@ Players can see who is in the campaign and which Armies exist, but only see the
 Units of the Army they command. A site-wide **Admin** can see and edit
 everything, and manage user accounts.
 
+Next (Phase 8, §7): each campaign gets a **map** of its area, and progresses in
+**turns**. Armies belong to **factions**. In each turn, every army's commander
+gives each unit an order (Move or Hold) on the map and submits the turn; the
+Umpire approves it, and opens the next turn once every army has moved
+(decisions [0009](docs/decisions/0009-campaign-map-stack.md) and
+[0010](docs/decisions/0010-turns-factions-and-visibility.md)). Everyone sees
+every army and its units; only where they are is private.
+
 > Note: the repo was first created (2023) as `wwg-api`, a planned *GraphQL*
 > API. That direction was replaced by a **.NET 10 REST API**, and the repo later
 > became the home of the front-end too (decision
@@ -50,8 +58,10 @@ everything, and manage user accounts.
   is an accepted trade-off for a club-sized app.
 - Email verification (at sign-up or on email change).
 - Two-factor authentication.
-- Extra campaign fields (dates, game system, status…). Unit details beyond name, type, FF and
-  points.
+- Extra campaign fields (dates, game system…); a campaign's stage (setup, running) follows
+  from its turns. Unit details beyond name, type, FF and points.
+- The campaign map offline (it needs a connection), and movement along roads (distances are
+  straight lines).
 - GraphQL.
 
 ## 2. Decisions
@@ -78,6 +88,8 @@ everything, and manage user accounts.
 | Repository | **One repo** (`wwg`): `api/` (.NET) and `web/` (React), shared config at the root |
 | Client SDK | **Orval**, run in `web/` against the committed `api/openapi.json`; generated code not committed |
 | Front-end | **WWG Campaigner**: React + TypeScript SPA, **npm**, Vite, **Mantine**, TanStack Router + Query, React Hook Form + Zod; installable **PWA**, read-only offline (§3.12) |
+| Campaign map | **MapLibre GL JS** with **OpenFreeMap** vector tiles, **Mapterhorn** hillshading, `milsymbol` unit icons, place search through our own endpoint (decision [0009](docs/decisions/0009-campaign-map-stack.md)); §3.13 |
+| Turns | In step across armies, per army, one order per unit (Move or Hold), approved by the Umpire; one visibility rule for positions (decision [0010](docs/decisions/0010-turns-factions-and-visibility.md)) |
 | API evolution | Prefer additive changes; `oasdiff` **warns** about breaking changes on PRs |
 | Testing | xUnit + `WebApplicationFactory`, fresh in-memory SQLite DB per test |
 | CI | **GitHub Actions** on every PR and push to `main`: `api` job (format, build, test, contract up to date) and `web` job (lint, format, typecheck, test, build) |
@@ -491,7 +503,12 @@ Identity has two layers:
   is discouraged by Microsoft for new code, can't do implicit TLS (port 465),
   and has no OAuth2 support.
 - Emails sent: **password reset link**, **email-changed notice** (to the old
-  address).
+  address). From Phase 8, the **turn emails**, each to the other side of the
+  action:
+  - an army's turn submitted → the Umpire;
+  - approved, sent back or reverted (with the Umpire's notes) → the army's
+    commander;
+  - a new turn opened (or the campaign started) → every commander.
 - Settings are bound from config section `Smtp` and validated at startup:
 
   | Key | Example |
@@ -838,6 +855,10 @@ for amd64 and arm64. The shared `traefik` network is pinned to
     variables Mantine injects; `img-src 'self' data:`; `connect-src 'self'`;
     `worker-src 'self'` and `manifest-src 'self'` for the PWA;
     `frame-ancestors 'none'`. Tightened to what the built app actually needs.
+  - The campaign map (§3.13) adds the tile, glyph, sprite and elevation hosts
+    to `connect-src`, and `blob:` to `worker-src` and `img-src` (MapLibre's
+    web workers and images). Place search goes through our API, so it adds
+    nothing.
 - Serving the SPA is skipped if `wwwroot/index.html` doesn't exist (in
   development and in tests).
 - One origin means no CORS, and reset/join links use `App:PublicUrl`.
@@ -1124,6 +1145,103 @@ web/
 - ✅ Chrome accepts the `__Secure-` cookie prefix from `http://localhost`
   through the Vite proxy (step 10), so development keeps it.
 
+### 3.13 Campaign map and turns (front-end)
+
+Decisions [0009](docs/decisions/0009-campaign-map-stack.md) (the map) and
+[0010](docs/decisions/0010-turns-factions-and-visibility.md) (turns, factions,
+visibility); the data is in §5.1. Built in Phase 8 (§7).
+
+**The map**
+- **MapLibre GL JS** through `react-map-gl`, on **OpenFreeMap** vector tiles
+  (OpenMapTiles schema). The OpenStreetMap and OpenFreeMap attribution is
+  always shown.
+- **Our own style**, built in code from the campaign's map settings and the
+  colour scheme, in light and dark (following the OS, like the rest of the
+  app). It's distinctive rather than a period imitation, and every colour pair
+  is checked against AA like the rest of the theme (§3.12). Only these layers
+  exist, each one the Umpire can switch off:
+  - **Roads:** only the main classes (trunk, primary, secondary); motorways and
+    smaller roads are left out.
+  - **Towns and cities:** cities, towns and villages; not suburbs or
+    neighbourhoods.
+  - **Rivers and water:** rivers, canals, lakes and the sea.
+  - **Forests:** wood and forest land cover.
+  - **Hills:** hillshading from **Mapterhorn** elevation tiles (Terrarium
+    encoding), with optional contour lines drawn in the browser
+    (`maplibre-contour`).
+
+  Never shown, as anachronisms: railways, motorways, modern borders,
+  buildings, points of interest and built-up areas.
+- **Place names** in the language the Umpire chooses (the tiles carry
+  `name:en`, `name:de`, `name:fr`…, falling back to the local name). Names are
+  modern ones.
+- **Bounds:** the Umpire pans and zooms to the campaign's area and saves it as
+  a rectangle. Everyone's map is held inside it (MapLibre's `maxBounds`), with
+  the minimum zoom worked out for each screen so the whole area fits; zooming
+  in is unlimited. Place search (our API, §5.3) helps the Umpire find the area.
+- **Unit icons:** NATO symbols from `milsymbol`, one per unit type (the mapping
+  from our seven types to symbols is fixed in step 32, with a legend on the
+  map), filled with the army's colour.
+- **Stacks:** units close together at the current zoom are drawn as one
+  **stack** marker with the count and the armies' colours. Tapping it lists the
+  units in it; choosing one selects it. The unit list beside the map selects
+  units too (and flies the map to them), which is also the way in for keyboard
+  and screen-reader users.
+- **Online only:** offline, the map page says it needs a connection; nothing
+  about the map is saved for offline use (`persist: false`).
+
+**Pages**
+- `/campaigns/:id/map`: the map, for every member (what's on it follows §5.2).
+- `/campaigns/:id/map/settings` (Umpire, Admin): bounds and place search, the
+  layer switches, the label language, the distance unit (km or miles) and each
+  unit type's movement limit per turn.
+- The campaign page gains a **Factions** section (the Umpire creates, renames
+  and deletes them); the army page gains faction, colour and flag.
+- **`ArmyBadge`**, the army's flag in its colour beside its name, everywhere an
+  army is named: the armies list, the army page, the members list, the admin
+  views and the map. The name is always there, so colour is never the only
+  signal. The flags are a library of simplified SVG flags of the period's
+  nations (France, Britain, Prussia, Austria, Russia, Spain, Portugal, Sweden,
+  the Confederation of the Rhine states and others), drawn for the app from
+  public-domain designs, plus a plain one.
+
+**A commander's view** (one army)
+- Their units at their current positions (the latest Completed turn), and,
+  in a Draft, each ordered move as a **ghost** icon at the destination with a
+  line from where the unit is.
+- **Turn panel:** the turn number and its status; each unit Moved, Held or
+  without an order, with an **undo** button for those with one; the Umpire's
+  notes, if the turn was sent back or reverted; how far the turn has got
+  ("4 of 6 armies submitted", no names); and **Submit** once every unit has an
+  order. While Submitted, nothing can be changed.
+- **Unit drawer** (tap a unit): name, type, FF, points, the army, this turn's
+  order and any note on it, with **Move** and **Hold**.
+- **Move:** the rest of the interface steps aside; a circle shows the unit's
+  range this turn, measured from its current position; tapping inside it (and
+  inside the bounds) picks the destination; **Confirm** or **Cancel**. Each
+  order saves straight away, so a draft survives closing the tab.
+- **History:** their army's turns, newest first; choosing one shows the units
+  where they were in that turn. The arrow keys step through them, so moving
+  forward and back through the campaign is quick.
+
+**The Umpire's view** (Admins see the same)
+- Every army's units at their current positions, in the armies' colours.
+- **Armies list:** choosing one highlights its units and fades the rest.
+- **Turn list**, from 0 to the open turn, each with its progress ("Turn 4 – 5
+  of 6"). Choosing a turn shows everyone's positions in it, and each army's turn
+  under it: status, submitted and completed times, and **Approve**, **Send
+  back** or **Revert** (the last two with a note for the turn and for units),
+  for the open turn only.
+- **Start turn N+1**, with confirmation, once every army's turn is Completed.
+- **Setup (turn 0):** the units not yet placed are listed; the Umpire places
+  each one on the map, then presses **Start campaign** (every army needs a
+  faction, and every unit a position). A unit or army added later appears in
+  that list until it's placed; the next turn can't start until then.
+
+**Testing:** MapLibre needs WebGL, which jsdom lacks. Component tests stub the
+map component and test the panels, drawer, lists and move flow around it; the
+e2e suite (Chromium) drives the real map.
+
 ## 4. Cross-cutting concerns
 
 | Concern | Approach |
@@ -1270,6 +1388,50 @@ Unit
   CreatedAt / UpdatedAt
 ```
 
+**Phase 8** (§7, decisions 0009 and 0010) adds:
+
+```
+Faction                       Army (new fields)
+  Id           Guid             FactionId    → Faction? (null = "Unassigned")
+  CampaignId   → Campaign       Color        ArmyColor (one of 8 palette keys)
+  Name         string (≤100)    Flag         ArmyFlag (a key into the flag library)
+  CreatedAt / UpdatedAt
+
+CampaignMap (one per campaign)         MovementLimit
+  CampaignId     → Campaign (key)        CampaignId  → Campaign
+  West/South/East/North  double (bounds)  UnitType    (as Unit.Type)
+  LabelLanguage  string ("local", "en"…)  Metres      int (per turn)
+  DistanceUnit   Kilometres | Miles
+  ShowRoads / ShowPlaces / ShowWater /
+  ShowForests / ShowHills / ShowContours  bool
+
+CampaignTurn                   ArmyTurn
+  Id           Guid              Id              Guid
+  CampaignId   → Campaign        CampaignTurnId  → CampaignTurn
+  Number       int (0 = setup)   ArmyId          → Army
+  OpenedAt / ClosedAt?           Status          Draft | Submitted | Completed
+                                 SubmittedAt? / CompletedAt?
+
+UnitOrder                      ArmyTurnEvent (the turn's history)
+  Id           Guid              Id           Guid
+  ArmyTurnId   → ArmyTurn        ArmyTurnId   → ArmyTurn
+  UnitId       → Unit            Kind         Submitted | Approved | SentBack | Reverted
+  Kind         Move | Hold       At / ByUserId
+  Latitude / Longitude  double   Note         string? (≤2000)
+  (Hold copies the current
+   position, so every turn is    UnitNote
+   complete on its own)            EventId → ArmyTurnEvent, UnitId → Unit, Text (≤1000)
+```
+
+- **Current position** of a unit: its order's position in its army's latest
+  Completed turn. Turn 0's orders are the Umpire's placements.
+- Distances are stored in metres and checked as straight lines (great-circle);
+  km or miles is only how they're shown.
+- Colours and flags are keys, not values: the palette (8 colours, distinct for
+  colour-blind users, 3:1 against the map and the app in both schemes) and the
+  flag SVGs live in the front-end, and the API validates the keys (enums in the
+  contract). A new army gets the first colour no other army has.
+
 **Rules enforced in the database:**
 
 - `CampaignMember (CampaignId, UserId)` unique: a user is in a campaign at most
@@ -1293,8 +1455,15 @@ Unit
   two requests racing (a Player made Umpire while being given an army), which
   gets a **409**. EF rebuilds a SQLite table for some migrations, which drops
   its triggers, so a test fails if they're missing.
+- Phase 8: `CampaignTurn (CampaignId, Number)`, `ArmyTurn (CampaignTurnId,
+  ArmyId)` and `UnitOrder (ArmyTurnId, UnitId)` are unique, and
+  `MovementLimit (CampaignId, UnitType)`. A `UnitOrder` **restricts** deleting
+  its unit, and an `ArmyTurn` its army, so no history can be deleted by
+  accident (during setup the handler deletes the turn-0 order first).
 - **Cascades:**
-  - Deleting a Campaign deletes its members, armies and units.
+  - Deleting a Campaign deletes its members, armies and units (and, from
+    Phase 8, its factions, map, turns and orders).
+  - Deleting a Faction sets its armies' `FactionId` to NULL.
   - Deleting an Army deletes its units.
   - Deleting a CampaignMember (Player leaves/removed, or user deleted) sets
     `Army.CommanderId` to NULL. The Army and its Units are kept.
@@ -1306,6 +1475,24 @@ Unit
 - A commander must be a member with the **Player** role in the Army's campaign.
   The Umpire can't command an Army.
 - The Umpire can't leave or be removed as a normal member.
+- **Phase 8:**
+  - At most **8 armies** per campaign.
+  - **Start campaign** (closing turn 0, opening turn 1) needs every army to have
+    a faction, and every unit a position.
+  - **Start turn N+1** needs every army's turn N to be Completed and every unit
+    placed. An army with no commander can't submit, so it holds the campaign up.
+  - Turn statuses only move Draft → Submitted (the commander, once every unit
+    has an order) → Completed (the Umpire approves). The Umpire can send a
+    Submitted turn back to Draft, and revert a Completed one to Draft, only in
+    the open campaign turn. Nothing changes while Submitted.
+  - A Move must end inside the bounds and within the unit type's limit of its
+    current position.
+  - After the campaign starts, armies and units can be added but not deleted.
+    The Umpire places a new unit before the next turn starts; the placement is
+    an order added to its army's latest Completed turn (which becomes its
+    current position), the only change ever made to a Completed turn. A new
+    army gets a Completed turn for the last closed campaign turn to hold its
+    placements, and a Draft for the open one.
 - **Umpire-less campaigns:** if an Admin deletes a user who was an Umpire,
   their campaigns remain with no Umpire. Only an Admin can manage them until an
   Admin **sets a new Umpire** (`PUT /api/admin/campaigns/{id}/umpire`, §5.3):
@@ -1335,12 +1522,39 @@ it, which makes the old link stop working. The React app builds the link
 | Assign / unassign commander | ✅ | ✅ | 403 | 403 | 404 |
 | Create / rename / delete unit | ✅ | ✅ | 403 | 403 | 404 |
 
+**Phase 8** (decision 0010). One change to the table above: **viewing an
+army's units becomes ✅ for every member**, read-only, whatever their faction.
+New rows:
+
+| Action | Admin | Umpire | Player (commander) | Player (other) | Non-member |
+|---|:-:|:-:|:-:|:-:|:-:|
+| List factions; see each army's faction, colour, flag | ✅ | ✅ | ✅ | ✅ | 404 |
+| Create / rename / delete faction; set an army's faction, colour, flag | ✅ | ✅ | 403 | 403 | 404 |
+| View the map settings (bounds, layers, language, limits) | ✅ | ✅ | ✅ | ✅ | 404 |
+| Edit the map settings; search for places | ✅ | ✅ | 403 | 403 | 404 |
+| View turn progress (numbers, statuses, counts) | ✅ | ✅ | ✅ | ✅ | 404 |
+| View **positions and orders** (the visibility rule) | ✅ all | ✅ all | own army | 403 | 404 |
+| Give orders, undo, submit (the open turn, a Draft) | 403 | 403 | own army | 403 | 404 |
+| Place units (turn 0, and units added later) | ✅ | ✅ | 403 | 403 | 404 |
+| Approve / send back / revert an army's turn | ✅ | ✅ | 403 | 403 | 404 |
+| Start the campaign; start the next turn | ✅ | ✅ | 403 | 403 | 404 |
+
+- **The visibility rule** is one server-side check, "can this user see army
+  A's positions in turn N?", that every read of positions or orders goes
+  through (queries apply it too). Today: the Umpire and Admins, and the army's
+  commander. Later, intelligence sharing (allies' positions for a past turn)
+  and scouting (chosen enemy units for a chosen turn) add grants to it.
+- Orders are the commander's alone, the one exception to Admins passing every
+  campaign check (§3.5). The Umpire only places units (turn 0, and units added
+  later); editing anything in any turn comes later.
+
 - Any signed-in user can create a campaign, and becomes its Umpire.
 - The join link preview is public; anyone with the code can see the campaign
   name. Joining requires signing in. Joining a campaign you're already in does
   nothing (two joins racing: the second gets a 409 from the unique index).
 - Players see every Army's name and commander, **including unassigned
-  armies**, but only see Units for the Army they command.
+  armies**, but only see Units for the Army they command. (Phase 8: every
+  army's units, read-only; positions follow the visibility rule.)
 
 **Admin (site-wide):**
 
@@ -1417,6 +1631,32 @@ it, which makes the old link stop working. The React app builds the link
 | PUT | `/api/units/{id}` | Edit unit (the same four fields) |
 | DELETE | `/api/units/{id}` | Delete unit |
 
+**Phase 8: factions, the map and turns** (first pass; operationIds settled in
+each step)
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET / POST | `/api/campaigns/{id}/factions` | List / create factions |
+| PUT / DELETE | `/api/factions/{id}` | Rename / delete a faction |
+| PUT | `/api/armies/{id}` | Edit an army: name, and now faction, colour and flag |
+| GET / PUT | `/api/campaigns/{id}/map` | The map settings, with the movement limits |
+| GET | `/api/campaigns/{id}/places?search=` | Place search for the bounds (Umpire; server-side geocoder, rate-limited) |
+| GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts |
+| POST | `/api/campaigns/{id}/start` | Start the campaign (close turn 0, open turn 1) |
+| POST | `/api/campaigns/{id}/turns` | Start the next turn |
+| GET | `/api/campaigns/{id}/positions?turn=` | Units' positions in a turn (default: current), as the caller may see them |
+| GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
+| PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, latitude?, longitude? }` / undo it |
+| POST | `/api/army-turns/{id}/submit` | Submit (every unit has an order) |
+| POST | `/api/army-turns/{id}/approve` | Approve: Completed |
+| POST | `/api/army-turns/{id}/send-back` | Back to Draft `{ note?, unitNotes? }` |
+| POST | `/api/army-turns/{id}/revert` | Completed back to Draft, open turn only `{ note?, unitNotes? }` |
+| PUT | `/api/units/{id}/placement` | The Umpire places a unit (turn 0, or added later) |
+
+Status changes that aren't allowed now (submitting a Submitted turn, reverting
+in a closed turn) are **409**s; a Move out of range or bounds is a validation
+error on the position.
+
 ## 6. Open questions
 
 None blocking. Items to revisit later:
@@ -1424,6 +1664,12 @@ None blocking. Items to revisit later:
 - Offline edits that sync later; push notifications.
 - More unit details, extra campaign fields.
 - Letting users delete their own account.
+- After Phase 8 (decision 0010): the Umpire editing anything about a unit or
+  turn for any army; destroyed units; other ways past an army with no
+  commander; intelligence sharing and scouting (grants in the visibility
+  rule); per-faction visibility of armies and units; turn deadlines and
+  reminders; turning emails off; the map offline (a self-hosted Protomaps
+  extract); movement along roads.
 
 ## 7. Implementation plan
 
@@ -1678,3 +1924,30 @@ found in one area; product features come after it.
 29. ✅ **Test gaps:** 401s and the missing permission and validation cases in the API tests; the
     web's data refreshes and session failure paths; the account flows and 409 messages end to
     end.
+
+### Phase 8 — The campaign map and turns
+
+Decisions [0009](docs/decisions/0009-campaign-map-stack.md) and
+[0010](docs/decisions/0010-turns-factions-and-visibility.md); the design is in §3.13, §5.1,
+§5.2 and §5.3. Each step ships its API, screens, tests (the permission rows for every role,
+including the e2e flows) and DESIGN updates, in commits under 500 lines.
+
+30. **Factions, army colours and flags:** factions (CRUD, an army's faction, "Unassigned"),
+    each army's colour (the 8-colour palette, contrast-checked in both schemes) and flag (the
+    SVG flag library), the 8-army limit, and `ArmyBadge` everywhere an army is named. Every
+    member now sees every army's units, read-only (the §5.2 change). The test scenario gains
+    factions.
+31. **The map:** map settings (bounds, layers, label language, distance unit, movement limits)
+    and their page; place search through our API (a `Geocoding` settings section: MapTiler
+    with a key, or Photon); the map page on MapLibre and OpenFreeMap with our light and dark
+    styles and Mapterhorn hills; the CSP changes; online only.
+32. **Setup and turn 0:** campaign and army turns, orders, the visibility rule and the
+    positions endpoint; unit icons by type (`milsymbol`, with a legend), stacks and the unit
+    drawer; the Umpire placing units, and **Start campaign**; units and armies added later
+    need placing, and can't be deleted once started.
+33. **Orders:** Move (with the range circle, bounds and limit checks), Hold and undo; ghost
+    moves; the turn panel and Submit; the Umpire's Approve, Send back and Revert with notes;
+    **Start turn N+1**; progress counts; the turn emails.
+34. **History and the Umpire's overview:** stepping through an army's past turns; the Umpire's
+    view of every army in its colours, highlighting one; the turn list with its counts and each
+    army's status, times and actions.

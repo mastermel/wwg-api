@@ -49,3 +49,5 @@ A reversal gets a new entry.
 | [0006](0006-deploy-after-phase-1.md) | Deploy after Phase 1, on Komodo, before building accounts | 2026-09-27 |
 | [0007](0007-end-to-end-tests.md) | End-to-end tests against the production image | 2026-09-28 |
 | [0008](0008-backups-in-the-app.md) | Database backups, made by the app | 2026-09-28 |
+| [0009](0009-campaign-map-stack.md) | The campaign map: MapLibre, OpenFreeMap, Mapterhorn and a server-side geocoder | 2026-09-28 |
+| [0010](0010-turns-factions-and-visibility.md) | Turns in step, per army; orders; factions; one visibility rule | 2026-09-28 |
