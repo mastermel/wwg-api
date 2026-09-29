@@ -11,10 +11,11 @@ import type { ArmySummary, ArmyTurnDetails, GiveOrderRequest } from "@/api/gener
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
 
-/** An army, and its turn in the open campaign turn (once loaded). */
+/** An army, its turn in the open campaign turn, and all its turns, newest first (once loaded). */
 export interface OpenArmyTurn {
   army: ArmySummary;
   turn: ArmyTurnDetails | undefined;
+  turns: readonly ArmyTurnDetails[];
 }
 
 /** The open turn of each army (those a commander commands; every one, for the Umpire). Online only. */
@@ -27,6 +28,7 @@ export function useOpenTurns(armies: readonly ArmySummary[]): OpenArmyTurn[] {
   return armies.map((army, index) => ({
     army,
     turn: results[index]?.data?.find((turn) => turn.open),
+    turns: results[index]?.data ?? [],
   }));
 }
 

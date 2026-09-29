@@ -1,0 +1,24 @@
+/* A turn in the list: a full-width row, marked while it's the one on the map. */
+.turn {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--mantine-spacing-xs);
+  padding: 6px var(--mantine-spacing-xs);
+  border-radius: var(--mantine-radius-sm);
+}
+
+.turn:hover {
+  background: var(--mantine-color-default-hover);
+}
+
+.turn[aria-pressed="true"] {
+  background: var(--mantine-primary-color-light);
+  box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
+}
+
+.turn:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: 1px;
+}

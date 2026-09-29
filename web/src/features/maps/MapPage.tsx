@@ -3,6 +3,7 @@ import { notifications } from "@mantine/notifications";
 import {
   IconArrowMoveRight,
   IconCloudOff,
+  IconHistory,
   IconMap,
   IconMapPin,
   IconSettings,
@@ -33,9 +34,11 @@ import { CampaignMap } from "@/features/maps/CampaignMap";
 import { distanceMetres, inBounds, type Point } from "@/features/maps/geo";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
+import { PastTurnPanel } from "@/features/maps/PastTurnPanel";
 import { formatDistance } from "@/features/maps/orders";
 import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
+import { TurnList } from "@/features/maps/TurnList";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
 import { UnitDrawer } from "@/features/maps/UnitDrawer";
@@ -133,8 +136,13 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const units = useListCampaignUnits(campaignId, live);
   const armies = useListArmies(campaignId, live);
   const setup = turns.data?.stage === "Setup";
-  // While setting up, the Umpire works on turn 0's placements; otherwise, where units are now.
-  const positions = useListPositions(campaignId, setup && manager ? { turn: 0 } : undefined, {
+  // A past turn chosen from the turn list; null for now (the open turn).
+  const [viewing, setViewing] = useState<number | null>(null);
+  const past = !setup && viewing !== null && viewing !== turns.data?.openTurn ? viewing : null;
+  // While setting up, the Umpire works on turn 0's placements; for a past turn, where units were
+  // after it; otherwise, where units are now.
+  const positionsOf = setup && manager ? { turn: 0 } : past !== null ? { turn: past } : undefined;
+  const positions = useListPositions(campaignId, positionsOf, {
     query: { meta: { persist: false }, enabled: turns.data !== undefined },
   });
   const place = usePlaceUnit();
@@ -186,19 +194,22 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const turnOf = (armyId: string) => commanded.find((c) => c.army.id === armyId)?.turn;
   const limitOf = (placed: PlacedUnit) =>
     settings.movementLimits.find((l) => l.unitType === placed.unit.type)?.metres ?? 0;
-  const moves: PendingMove[] = [
-    ...openTurns.flatMap(({ turn }) =>
-      turn && turn.status !== "Completed"
-        ? turn.orders.flatMap((order) => {
-            const placed = onMap.find((p) => p.unit.id === order.unitId);
-            return placed && order.kind === "Move" && placed.unit.id !== moving?.unit.id
-              ? [{ placed, to: order }]
-              : [];
-          })
-        : [],
-    ),
-    ...(moving && target ? [{ placed: moving, to: target }] : []),
-  ];
+  const moves: PendingMove[] =
+    past !== null
+      ? []
+      : [
+          ...openTurns.flatMap(({ turn }) =>
+            turn && turn.status !== "Completed"
+              ? turn.orders.flatMap((order) => {
+                  const placed = onMap.find((p) => p.unit.id === order.unitId);
+                  return placed && order.kind === "Move" && placed.unit.id !== moving?.unit.id
+                    ? [{ placed, to: order }]
+                    : [];
+                })
+              : [],
+          ),
+          ...(moving && target ? [{ placed: moving, to: target }] : []),
+        ];
 
   const stopMoving = () => {
     setMoving(null);
@@ -245,6 +256,12 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     setChosen([]);
     setSelected(null);
   };
+  const view = (number: number) => {
+    setViewing(number);
+    stopMoving();
+    setPlacing(null);
+    closeDrawer();
+  };
 
   return (
     <Grid gap="xl">
@@ -268,6 +285,26 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                   }}
                 >
                   Cancel
+                </Button>
+              </Group>
+            </Alert>
+          )}
+          {past !== null && (
+            <Alert role="status" color="gray" icon={<IconHistory aria-hidden />}>
+              <Group justify="space-between" gap="xs">
+                <Text size="sm">
+                  {past === 0
+                    ? "Showing where the Umpire placed the units."
+                    : `Showing where the units were after turn ${String(past)}.`}
+                </Text>
+                <Button
+                  size="compact-sm"
+                  variant="default"
+                  onClick={() => {
+                    setViewing(null);
+                  }}
+                >
+                  Back to now
                 </Button>
               </Group>
             </Alert>
@@ -344,7 +381,18 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
       <Grid.Col span={{ base: 12, md: 4 }}>
         <Stack gap="xl">
           {turns.data &&
-            (setup && manager ? (
+            (past !== null && turns.data.turns[past] ? (
+              <PastTurnPanel
+                turn={turns.data.turns[past]}
+                armies={armies.data ?? []}
+                armyTurns={openTurns}
+                units={units.data ?? []}
+                openTurn={turns.data.openTurn}
+                onBack={() => {
+                  setViewing(null);
+                }}
+              />
+            ) : setup && manager ? (
               <SetupPanel
                 campaignId={campaignId}
                 turns={turns.data}
@@ -386,6 +434,14 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 </Text>
               </Section>
             ))}
+          {turns.data && !setup && (
+            <TurnList
+              turns={turns.data}
+              viewing={past ?? turns.data.openTurn}
+              onView={view}
+              manager={manager}
+            />
+          )}
           <Section title="Legend">
             <UnitLegend />
           </Section>
@@ -397,48 +453,50 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         onSelect={setSelected}
         onClose={closeDrawer}
         actions={
-          setup && manager
-            ? (unit) => (
-                <Button
-                  variant="light"
-                  leftSection={<IconMapPin size={16} aria-hidden />}
-                  onClick={() => {
-                    setPlacing(unit.unit.id);
-                    closeDrawer();
-                  }}
-                >
-                  Move on the map
-                </Button>
-              )
-            : (unit) => {
-                const turn = turnOf(unit.army.id);
-                return (
-                  turn?.open && (
-                    <OrderActions
-                      placed={unit}
-                      turn={turn}
-                      distanceUnit={settings.distanceUnit}
-                      busy={orders.busy}
-                      onMove={() => {
-                        setMoving(unit);
-                        setTarget(null);
-                        closeDrawer();
-                      }}
-                      onHold={() => {
-                        void orders
-                          .give(unit.army.id, turn.id, unit.unit, {
-                            kind: "Hold",
-                            latitude: null,
-                            longitude: null,
-                          })
-                          .then((saved) => {
-                            if (saved) closeDrawer();
-                          });
-                      }}
-                    />
-                  )
-                );
-              }
+          past !== null
+            ? undefined
+            : setup && manager
+              ? (unit) => (
+                  <Button
+                    variant="light"
+                    leftSection={<IconMapPin size={16} aria-hidden />}
+                    onClick={() => {
+                      setPlacing(unit.unit.id);
+                      closeDrawer();
+                    }}
+                  >
+                    Move on the map
+                  </Button>
+                )
+              : (unit) => {
+                  const turn = turnOf(unit.army.id);
+                  return (
+                    turn?.open && (
+                      <OrderActions
+                        placed={unit}
+                        turn={turn}
+                        distanceUnit={settings.distanceUnit}
+                        busy={orders.busy}
+                        onMove={() => {
+                          setMoving(unit);
+                          setTarget(null);
+                          closeDrawer();
+                        }}
+                        onHold={() => {
+                          void orders
+                            .give(unit.army.id, turn.id, unit.unit, {
+                              kind: "Hold",
+                              latitude: null,
+                              longitude: null,
+                            })
+                            .then((saved) => {
+                              if (saved) closeDrawer();
+                            });
+                        }}
+                      />
+                    )
+                  );
+                }
         }
       />
     </Grid>
