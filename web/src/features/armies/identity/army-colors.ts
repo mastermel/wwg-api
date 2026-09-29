@@ -31,3 +31,10 @@ export function armyColorVariables(scheme: "light" | "dark"): Record<string, str
     ]),
   );
 }
+
+/** The colour a new army gets, as the API picks it: the first no army has, else the least used. */
+export function freeColor(taken: readonly ArmyColor[]): ArmyColor {
+  const palette = Object.keys(armyColors) as ArmyColor[];
+  const uses = (color: ArmyColor) => taken.filter((t) => t === color).length;
+  return palette.reduce((best, color) => (uses(color) < uses(best) ? color : best));
+}

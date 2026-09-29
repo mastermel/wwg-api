@@ -97,7 +97,7 @@ internal static class MemberEndpoints
                 m.Role,
                 m.CreatedAt,
                 db.Armies.Where(a => a.CommanderId == m.Id)
-                    .Select(a => new MemberArmy(a.Id, a.Name))
+                    .Select(a => new MemberArmy(a.Id, a.Name, a.Color, a.Nation))
                     .FirstOrDefault()
             ))
             .ToListAsync(cancellationToken);

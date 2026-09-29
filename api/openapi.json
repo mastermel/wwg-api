@@ -2706,7 +2706,9 @@
       "MemberArmy": {
         "required": [
           "id",
-          "name"
+          "name",
+          "color",
+          "nation"
         ],
         "type": "object",
         "properties": {
@@ -2718,6 +2720,14 @@
           "name": {
             "type": "string",
             "description": "Its name."
+          },
+          "color": {
+            "description": "Its colour.",
+            "$ref": "#/components/schemas/ArmyColor"
+          },
+          "nation": {
+            "description": "The nation it fights for, drawn as its flag.",
+            "$ref": "#/components/schemas/Nation"
           }
         },
         "description": "The army a member commands."

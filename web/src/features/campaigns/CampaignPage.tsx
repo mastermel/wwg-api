@@ -16,6 +16,7 @@ import { ArmiesSection } from "@/features/armies/ArmiesSection";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { JoinLinkSection } from "@/features/campaigns/JoinLinkSection";
+import { FactionsSection } from "@/features/factions/FactionsSection";
 import { LeaveCampaignButton } from "@/features/campaigns/LeaveCampaignButton";
 import { MembersSection } from "@/features/campaigns/MembersSection";
 import { SetUmpireButton } from "@/features/campaigns/SetUmpireButton";
@@ -113,6 +114,7 @@ function CampaignDetails({ campaign, manager }: { campaign: CampaignResponse; ma
               <Text c="dimmed">No description yet.</Text>
             )}
           </Section>
+          <FactionsSection campaign={campaign} />
           {manager && <JoinLinkSection campaign={campaign} />}
           {manager && (
             <Section

@@ -1,20 +1,4 @@
-import type {
-  ArmyCommander,
-  CampaignMemberResponse,
-  CampaignResponse,
-  MeResponse,
-} from "@/api/generated/model";
-import { canManage } from "@/features/campaigns/campaign-access";
-
-/**
- * Whether the user can open an army's page: its commander, the Umpire or an Admin. Other Players
- * see the army in the list only. The API enforces the same rule.
- */
-export const canViewArmy = (
-  campaign: CampaignResponse,
-  commander: ArmyCommander | null,
-  user: MeResponse | null,
-) => canManage(campaign, user) || (user !== null && commander?.userId === user.id);
+import type { CampaignMemberResponse } from "@/api/generated/model";
 
 /** Players who could command an army: those without one, plus the army's current commander. */
 export const commanderOptions = (members: CampaignMemberResponse[], armyId?: string) =>

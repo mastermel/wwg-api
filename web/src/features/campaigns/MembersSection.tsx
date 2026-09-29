@@ -15,6 +15,7 @@ import { useConfirmTarget } from "@/lib/use-confirm-target";
 import { useOnline } from "@/lib/use-online";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
+import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
 
 const fullName = (member: CampaignMemberResponse) => `${member.firstName} ${member.lastName}`;
 
@@ -96,7 +97,9 @@ export function MembersSection({ campaign }: { campaign: CampaignResponse }) {
                     </Badge>
                   </Table.Td>
                   <Table.Td>
-                    {member.army?.name ?? (
+                    {member.army ? (
+                      <ArmyBadge army={member.army} />
+                    ) : (
                       <Text span c="dimmed" inherit>
                         {member.role === "Player" ? "None" : "–"}
                       </Text>

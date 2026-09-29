@@ -1,40 +1,58 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Alert, Button, Group, Modal, Select, Stack, TextInput } from "@mantine/core";
+import { Alert, Box, Button, Group, Modal, Select, Stack, TextInput } from "@mantine/core";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
-import { CreateArmyBody } from "@/api/generated/zod/armies/armies.zod";
+import type { ArmyColor } from "@/api/generated/model";
+import { CreateArmyBody, UpdateArmyBody } from "@/api/generated/zod/armies/armies.zod";
+import { armyColors, armyColorVar } from "@/features/armies/identity/army-colors";
+import { NationFlag } from "@/features/armies/identity/NationFlag";
+import { nationOptions } from "@/features/armies/identity/nations";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
-export type ArmyValues = z.infer<typeof CreateArmyBody>;
+// Everything an army is; the commander only when it's created (the army page changes it).
+const ArmyForm = UpdateArmyBody.extend({
+  commanderMemberId: CreateArmyBody.shape.commanderMemberId,
+});
+
+export type ArmyValues = z.infer<typeof ArmyForm>;
+
+const colorOptions = (Object.keys(armyColors) as ArmyColor[]).map((color) => ({
+  value: color,
+  label: armyColors[color].label,
+}));
 
 interface ArmyFormModalProps {
   title: string;
   submitLabel: string;
-  defaultName?: string;
-  /** Offer a commander to choose (creating an army); renaming leaves this out. */
+  defaultValues: ArmyValues;
+  /** Offer a commander to choose (creating an army); editing leaves this out. */
   commanders?: { value: string; label: string }[];
+  /** The campaign's factions, to put the army in one. */
+  factions: { value: string; label: string }[];
   onSubmit: (values: ArmyValues) => Promise<void>;
   onClose: () => void;
 }
 
-/** The army name (and, when creating, its commander), in a modal. Mount it only while open. */
+/**
+ * An army's name, faction, colour and nation (and, when creating, its commander), in a modal.
+ * Mount it only while open.
+ */
 export function ArmyFormModal({
   title,
   submitLabel,
-  defaultName = "",
+  defaultValues,
   commanders,
+  factions,
   onSubmit,
   onClose,
 }: ArmyFormModalProps) {
   const online = useOnline();
   const [formError, setFormError] = useState<string | null>(null);
-  const form = useForm<ArmyValues>({
-    resolver: zodResolver(CreateArmyBody),
-    defaultValues: { name: defaultName, commanderMemberId: null },
-  });
+  const form = useForm<ArmyValues>({ resolver: zodResolver(ArmyForm), defaultValues });
   const { errors, isSubmitting } = form.formState;
+  const color = useWatch({ control: form.control, name: "color" });
 
   const submit = form.handleSubmit(async (values) => {
     setFormError(null);
@@ -42,7 +60,15 @@ export function ArmyFormModal({
       await onSubmit(values);
       onClose();
     } catch (error) {
-      setFormError(applyServerErrors(error, form.setError, ["name", "commanderMemberId"]));
+      setFormError(
+        applyServerErrors(error, form.setError, [
+          "name",
+          "commanderMemberId",
+          "factionId",
+          "color",
+          "nation",
+        ]),
+      );
     }
   });
 
@@ -82,6 +108,76 @@ export function ArmyFormModal({
               )}
             />
           )}
+          <Controller
+            control={form.control}
+            name="factionId"
+            render={({ field }) => (
+              <Select
+                label="Faction"
+                description="Every army needs one before the campaign starts."
+                placeholder={factions.length ? "Unassigned" : "No factions yet"}
+                data={factions}
+                value={field.value}
+                onChange={field.onChange}
+                clearable
+                disabled={factions.length === 0}
+                error={errors.factionId?.message}
+                comboboxProps={{ withinPortal: false }}
+              />
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="color"
+            render={({ field }) => (
+              <Select
+                label="Colour"
+                description="On the map and beside its name. Armies can share one."
+                data={colorOptions}
+                value={field.value}
+                onChange={(value) => {
+                  if (value) field.onChange(value);
+                }}
+                allowDeselect={false}
+                leftSection={<Swatch color={field.value} />}
+                renderOption={({ option }) => (
+                  <Group gap="xs" wrap="nowrap">
+                    <Swatch color={option.value} />
+                    {option.label}
+                  </Group>
+                )}
+                error={errors.color?.message}
+                comboboxProps={{ withinPortal: false }}
+              />
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="nation"
+            render={({ field }) => (
+              <Select
+                label="Nation"
+                description="Its flag. No nation is a plain flag in its colour."
+                data={nationOptions}
+                value={field.value}
+                onChange={(value) => {
+                  if (value) field.onChange(value);
+                }}
+                allowDeselect={false}
+                searchable
+                leftSection={<NationFlag nation={field.value} plainColor={armyColorVar(color)} />}
+                leftSectionWidth={40}
+                renderOption={({ option }) => (
+                  <Group gap="xs" wrap="nowrap">
+                    <NationFlag nation={option.value} plainColor={armyColorVar(color)} />
+                    {option.label}
+                  </Group>
+                )}
+                error={errors.nation?.message}
+                comboboxProps={{ withinPortal: false }}
+              />
+            )}
+          />
           <Group justify="flex-end">
             <Button variant="default" onClick={onClose}>
               Cancel
@@ -93,5 +189,17 @@ export function ArmyFormModal({
         </Stack>
       </form>
     </Modal>
+  );
+}
+
+/** A small square of an army colour. */
+function Swatch({ color }: { color: ArmyColor }) {
+  return (
+    <Box
+      w={14}
+      h={14}
+      style={{ borderRadius: 3, background: armyColorVar(color), flexShrink: 0 }}
+      aria-hidden
+    />
   );
 }

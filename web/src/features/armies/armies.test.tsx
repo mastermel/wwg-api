@@ -14,6 +14,7 @@ import { server } from "@/test/server";
 import { testUser } from "@/test/session";
 
 const campaignId = "0192f5c1-0000-7000-8000-00000000c001";
+const factionId = "0192f5c1-0000-7000-8000-00000000f001";
 const armyId = "0192f5c1-0000-7000-8000-00000000a001";
 const otherArmyId = "0192f5c1-0000-7000-8000-00000000a002";
 
@@ -24,7 +25,7 @@ const me: CampaignMemberResponse = {
   lastName: "Green",
   role: "Player",
   joinedAt: "2026-09-01T12:00:00Z",
-  army: { id: armyId, name: "First Corps" },
+  army: { id: armyId, name: "First Corps", color: "Red", nation: "None" },
 };
 
 const arthur: CampaignMemberResponse = {
@@ -88,7 +89,7 @@ const armiesTable = async () =>
   within(await screen.findByRole("region", { name: "Armies" })).findByRole("table");
 
 describe("armies on the campaign page", () => {
-  it("shows a Player every army, but only their own opens", async () => {
+  it("shows a Player every army, and every one opens", async () => {
     serveCampaign("Player");
     await renderApp(`/campaigns/${campaignId}`);
     const table = await armiesTable();
@@ -97,8 +98,12 @@ describe("armies on the campaign page", () => {
       "href",
       `/campaigns/${campaignId}/armies/${armyId}`,
     );
-    expect(within(table).queryByRole("link", { name: "Reserve" })).not.toBeInTheDocument();
-    expect(within(table).getByText("Unassigned")).toBeInTheDocument();
+    expect(within(table).getByRole("link", { name: "Reserve" })).toHaveAttribute(
+      "href",
+      `/campaigns/${campaignId}/armies/${otherArmyId}`,
+    );
+    // Reserve has no commander; neither army has a faction.
+    expect(within(table).getAllByText("Unassigned").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "New army" })).not.toBeInTheDocument();
   });
 
@@ -139,7 +144,16 @@ describe("armies on the campaign page", () => {
     await user.click(within(dialog).getByRole("button", { name: "Add army" }));
 
     expect(await screen.findByText("Added Second Corps.")).toBeInTheDocument();
-    expect(bodies).toEqual([{ name: "Second Corps", commanderMemberId: arthur.id }]);
+    // Red and Blue are taken, so it suggests Green.
+    expect(bodies).toEqual([
+      {
+        name: "Second Corps",
+        commanderMemberId: arthur.id,
+        factionId: null,
+        color: "Green",
+        nation: "None",
+      },
+    ]);
   });
 
   it("shows the API's reason when an army can't be added", async () => {
@@ -178,19 +192,56 @@ describe("army page", () => {
     expect(screen.queryByRole("button", { name: "Delete army" })).not.toBeInTheDocument();
   });
 
-  it("says so when another Player opens it", async () => {
+  it("shows another Player the army and its faction, read-only", async () => {
     serveCampaign("Player");
     server.use(
       http.get(`*/api/armies/${armyId}`, () =>
-        HttpResponse.json(
-          { status: 403, title: "Forbidden" },
-          { status: 403, headers: { "Content-Type": "application/problem+json" } },
-        ),
+        HttpResponse.json({
+          ...firstCorps,
+          commander: commander(arthur),
+          faction: { id: factionId, name: "Coalition" },
+          nation: "Britain",
+        }),
       ),
     );
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
 
-    expect(await screen.findByText("Not found")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "First Corps" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Coalition")).toBeInTheDocument();
+    expect(screen.getByText("Commanded by Arthur Wellesley")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit army" })).not.toBeInTheDocument();
+  });
+
+  it("lets the Umpire change the army's faction, colour and nation", async () => {
+    serveCampaign("Umpire");
+    const bodies: unknown[] = [];
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/factions`, () =>
+        HttpResponse.json([{ id: factionId, name: "Coalition", armyCount: 0 }]),
+      ),
+      http.put(`*/api/armies/${armyId}`, async ({ request }) => {
+        const body = (await request.json()) as object;
+        bodies.push(body);
+        return HttpResponse.json({ ...firstCorps, ...body });
+      }),
+    );
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
+
+    await user.click(await screen.findByRole("button", { name: "Edit army" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("combobox", { name: "Faction" }));
+    await user.click(await dialog.findByRole("option", { name: "Coalition", hidden: true }));
+    await user.click(dialog.getByRole("combobox", { name: "Colour" }));
+    await user.click(await dialog.findByRole("option", { name: "Gold", hidden: true }));
+    await user.click(dialog.getByRole("combobox", { name: "Nation" }));
+    await user.click(await dialog.findByRole("option", { name: "Prussia", hidden: true }));
+    await user.click(dialog.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Saved First Corps.")).toBeInTheDocument();
+    expect(bodies).toEqual([{ name: "First Corps", factionId, color: "Gold", nation: "Prussia" }]);
   });
 
   it("lets the Umpire change the commander", async () => {

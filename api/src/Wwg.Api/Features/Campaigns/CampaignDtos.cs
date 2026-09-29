@@ -82,4 +82,6 @@ public sealed record CampaignMemberResponse(
 /// <summary>The army a member commands.</summary>
 /// <param name="Id">The army's ID.</param>
 /// <param name="Name">Its name.</param>
-public sealed record MemberArmy(Guid Id, string Name);
+/// <param name="Color">Its colour.</param>
+/// <param name="Nation">The nation it fights for, drawn as its flag.</param>
+public sealed record MemberArmy(Guid Id, string Name, ArmyColor Color, Nation Nation);

@@ -386,6 +386,9 @@ public sealed class ArmyTests : ApiTest
             );
 
         var commander = members!.Single(m => m.Id == scenario.CommanderMemberId);
-        Assert.Equal(new MemberArmy(scenario.ArmyId, "First Corps"), commander.Army);
+        Assert.Equal(
+            new MemberArmy(scenario.ArmyId, "First Corps", ArmyColor.Red, Nation.None),
+            commander.Army
+        );
     }
 }

@@ -13,6 +13,7 @@ const defaults = [
   // Every campaign page shows its armies and members, and its join link to the Umpire.
   http.get("*/api/campaigns/:id/members", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/armies", () => HttpResponse.json([])),
+  http.get("*/api/campaigns/:id/factions", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/join-code", () =>
     HttpResponse.json({ joinCode: "test-join-code" }),
   ),
