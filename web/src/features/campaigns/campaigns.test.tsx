@@ -120,6 +120,17 @@ describe("campaigns", () => {
     ).toBeInTheDocument();
   });
 
+  it("tells a Player who opens the edit page that only the Umpire can edit", async () => {
+    serveCampaign(details({ myRole: "Player" }));
+
+    await renderApp(`/campaigns/${campaignId}/edit`);
+
+    expect(
+      await screen.findByRole("status", { name: "Only the Umpire can edit this campaign" }),
+    ).toHaveTextContent("Ask Mel Green");
+    expect(screen.queryByRole("textbox", { name: "Name" })).not.toBeInTheDocument();
+  });
+
   it("deletes the campaign after confirming", async () => {
     let deleted = false;
     serveCampaign(details());

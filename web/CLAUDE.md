@@ -53,6 +53,12 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Show dates with `formatDate` / `formatDateTime` (`lib/format`): the API sends UTC.
 - Don't set a `gcTime` above 2^31 - 1 ms (about 24.8 days): timers overflow and fire at once,
   dropping the data before it can be saved or restored.
+- After a change inside a campaign, refetch it with `refreshCampaign(queryClient, id)`
+  (`features/campaigns/campaign-cache`), not query by query: changes spread (removing a Player
+  unassigns their army). After deleting or leaving one, `forgetCampaign` (once navigated away).
+- Failed calls: `errorMessage(error, "What didn't happen. Try again.")` (`lib/errors`) for the
+  message; forms use `applyServerErrors`, which does the same for non-field errors.
+- A Mantine `Alert` that informs rather than warns of an error gets `role="status"`.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

@@ -925,7 +925,16 @@ web/
   - on a 401, runs one shared refresh and retries once;
   - turns Problem Details into a typed error.
 - Validation errors (400, camelCase keys) map onto React Hook Form fields.
-  Other errors show as a notification or an inline message.
+  Other errors show as a notification or an inline message, worded by one
+  `errorMessage()`: a rate limit and a server error each get their own message;
+  otherwise the API's `detail` (e.g. why the Umpire can't leave), else what
+  didn't happen.
+- **After a change, the whole campaign is refetched** (`refreshCampaign`): its
+  details, members, armies, each army's details and the campaign lists
+  (including the admin ones). Changes spread: removing a Player unassigns
+  their army, and a new Umpire changes the members and armies. Deleting or
+  leaving a campaign drops everything cached about it (`forgetCampaign`), so
+  it isn't shown offline either.
 - **Required strings:** `[Required]` only makes a property required in the
   OpenAPI document; an empty string would still pass the generated Zod
   schema. An OpenAPI schema transformer adds `minLength: 1` to required
@@ -955,14 +964,19 @@ web/
   to the join page. The return path is a search param, accepted only if it's
   a same-origin path.
 - Admin screens live in the same app and only show when `isAdmin` is true.
-  Campaign screens likewise hide actions the user's role can't perform. The
-  API enforces access regardless.
-- **Only a 401 from refresh means "signed out"**, at any time. A 429, a 5xx
-  or a network error is temporary: keep the current state and retry later.
+  Campaign screens likewise hide actions the user's role can't perform, and a
+  page for an action the user can't take (a Player opening the edit page by
+  its URL) says so instead of showing a form. The API enforces access
+  regardless.
+- **Only a 401 from refresh means "signed out"**, at any time. A 429, a 5xx,
+  a network error, or a 200 that isn't a token (a captive portal's page) is
+  temporary: keep the current state and retry later. Start-up always settles,
+  whatever fails.
 - **Signed out mid-session** (e.g. a password change elsewhere makes refresh
   return 401): clear the cache, go to sign-in, and keep the return path.
 - The signed-in user's profile comes from `GET /api/me` after each
-  successful refresh.
+  successful refresh (at start-up, on the timer and after a 401), so a name or
+  Admin change shows up without a reload.
 - A small **"last user" record** (the `/api/me` response: id, email, names,
   `isAdmin`; no tokens) is kept in `localStorage`, so the app can start
   offline, pick the right cache and draw the shell. It's validated with the
@@ -977,7 +991,8 @@ web/
   offline, with a message saying why.
 - The query cache is persisted to IndexedDB (`persistQueryClient`). It's tied
   to the signed-in user's id, so nobody sees another user's cached data, and
-  it's cleared on sign-out or when refresh returns 401.
+  it's cleared on sign-out, when refresh returns 401, and when anyone but the
+  last user signs in.
   - `maxAge` is **30 days**, matching the session (the library's 24-hour
     default would drop offline data after a day). `gcTime` is as long as a
     timer allows (about 24.8 days): anything longer overflows and drops data
@@ -1031,8 +1046,12 @@ web/
 - **Empty states** say what to do next, e.g. no campaigns yet: "Create a
   campaign" or "Ask your Umpire for a join link".
 - **Errors:** a route error boundary and a 404 page. API 403 and 404 show a
-  "not found / no access" page. 429 and 5xx show as notifications. Mantine
-  notifications confirm successful actions. Deletes ask for confirmation.
+  "not found / no access" page. 429 and 5xx show as notifications (one of each
+  at a time, however many queries fail). Mantine notifications confirm
+  successful actions. Deletes ask for confirmation.
+- Information (offline, not available offline, not found, "check your email")
+  is `role="status"`; only errors are `role="alert"`, which Mantine's `Alert`
+  otherwise defaults to.
 - **Accessibility:** each route sets `document.title` and moves focus to the
   page heading on navigation (WCAG 2.4.2 and focus order). Animations
   respect `prefers-reduced-motion`.
@@ -1601,7 +1620,7 @@ found in one area; product features come after it.
     down.
 25. ✅ **Logs and health:** JSON console logs in production, one log line per request, retries
     for failed emails, and a health check that reports healthy within a second or two of start-up.
-26. **Web fixes:**
+26. ✅ **Web fixes:**
     - Start-up never hangs when the refresh response isn't what it should be.
     - `/api/me` is fetched after every successful refresh.
     - Every change refreshes the data it affects: removing a Player and setting the Umpire
