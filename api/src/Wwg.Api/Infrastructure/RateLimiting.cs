@@ -6,13 +6,16 @@ using Microsoft.Extensions.Options;
 
 namespace Wwg.Api.Infrastructure;
 
-/// <summary>Request limits per client IP (<c>RateLimits</c> section).</summary>
+/// <summary>
+/// Request limits per client IP (<c>RateLimits</c> section). Each limit is a nested object, which
+/// DataAnnotations only validates with <see cref="ValidateObjectMembersAttribute"/>.
+/// </summary>
 internal sealed class RateLimitOptions
 {
     public const string SectionName = "RateLimits";
 
     /// <summary>Register, login and reset-password: tight, against password guessing.</summary>
-    [Required]
+    [Required, ValidateObjectMembers]
     public FixedWindowLimit Auth { get; set; } =
         new() { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) };
 
@@ -21,7 +24,7 @@ internal sealed class RateLimitOptions
     /// IP (the same Wi-Fi at a game night), so this is far looser than <see cref="Auth"/>. It only
     /// works with a valid refresh cookie, so there's nothing to guess.
     /// </summary>
-    [Required]
+    [Required, ValidateObjectMembers]
     public FixedWindowLimit Refresh { get; set; } =
         new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) };
 
@@ -29,7 +32,7 @@ internal sealed class RateLimitOptions
     /// Forgot-password, which sends an email: tight, so it can't be used to flood someone's inbox
     /// or run up SMTP costs.
     /// </summary>
-    [Required]
+    [Required, ValidateObjectMembers]
     public FixedWindowLimit Email { get; set; } =
         new() { PermitLimit = 3, Window = TimeSpan.FromMinutes(15) };
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
@@ -6,7 +7,7 @@ using Wwg.Api.Data.Entities;
 namespace Wwg.Api.Infrastructure.Auth;
 
 /// <summary>The site-wide Admins (<c>Admin</c> section).</summary>
-internal sealed class AdminOptions
+internal sealed class AdminOptions : IValidatableObject
 {
     public const string SectionName = "Admin";
 
@@ -15,6 +16,19 @@ internal sealed class AdminOptions
     /// add its email here and restart (DESIGN.md §3.5).
     /// </summary>
     public IReadOnlyList<string> Emails { get; set; } = [];
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        // A typo would otherwise just mean nobody is made Admin, silently.
+        var email = new EmailAddressAttribute();
+        foreach (var address in Emails.Where(address => !email.IsValid(address)))
+        {
+            yield return new ValidationResult(
+                $"'{address}' isn't an email address.",
+                [nameof(Emails)]
+            );
+        }
+    }
 }
 
 internal static partial class AdminSync

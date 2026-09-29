@@ -1101,7 +1101,7 @@ web/
 | Concern | Approach |
 |---|---|
 | Logging | Built-in `ILogger`. **JSON console logs** in production (`Logging:Console:FormatterName`, UTC timestamps); plain text in development. **One line per API request** (`HttpLogging`: method, path, status, duration; never headers, bodies or query strings); static files and `/health` aren't logged. EF Core's SQL is only logged in development |
-| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
+| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `Backup`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. Nested objects (each rate limit) need `[ValidateObjectMembers]`, or they aren't checked; lists are checked in `Validate` (`IValidatableObject`), e.g. that every `Admin:Emails` entry is an email. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
 | Code quality | See §4.1 |
