@@ -79,6 +79,7 @@ internal static class AccountEndpoints
         ChangePasswordRequest request,
         ClaimsPrincipal principal,
         UserManager<AppUser> userManager,
+        SignInManager<AppUser> signInManager,
         TokenService tokens,
         HttpContext httpContext,
         CancellationToken cancellationToken
@@ -91,6 +92,14 @@ internal static class AccountEndpoints
             return TypedResults.Unauthorized();
         }
 
+        if (
+            await CheckCurrentPasswordAsync(signInManager, user, request.CurrentPassword) is
+            { } wrong
+        )
+        {
+            return wrong;
+        }
+
         var result = await userManager.ChangePasswordAsync(
             user,
             request.CurrentPassword,
@@ -98,17 +107,8 @@ internal static class AccountEndpoints
         );
         if (!result.Succeeded)
         {
-            var wrongPassword = result.Errors.Any(e =>
-                string.Equals(
-                    e.Code,
-                    nameof(IdentityErrorDescriber.PasswordMismatch),
-                    StringComparison.Ordinal
-                )
-            );
             return TypedResults.ValidationProblem(
-                wrongPassword
-                    ? Errors("currentPassword", "The current password is incorrect.")
-                    : Errors("newPassword", [.. result.Errors.Select(e => e.Description)])
+                Errors("newPassword", [.. result.Errors.Select(e => e.Description)])
             );
         }
 
@@ -127,6 +127,7 @@ internal static class AccountEndpoints
         ChangeEmailRequest request,
         ClaimsPrincipal principal,
         UserManager<AppUser> userManager,
+        SignInManager<AppUser> signInManager,
         TokenService tokens,
         IEmailQueue emails,
         HttpContext httpContext,
@@ -140,11 +141,12 @@ internal static class AccountEndpoints
             return TypedResults.Unauthorized();
         }
 
-        if (!await userManager.CheckPasswordAsync(user, request.CurrentPassword))
+        if (
+            await CheckCurrentPasswordAsync(signInManager, user, request.CurrentPassword) is
+            { } wrong
+        )
         {
-            return TypedResults.ValidationProblem(
-                Errors("currentPassword", "The current password is incorrect.")
-            );
+            return wrong;
         }
 
         if (
@@ -206,6 +208,37 @@ internal static class AccountEndpoints
         (await userManager.UpdateSecurityStampAsync(user)).ThrowIfFailed();
         TokenService.ClearRefreshCookie(httpContext);
         return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Checks the current password as sign-in does: a wrong one counts towards lockout, and a
+    /// locked account is refused even with the right one. Otherwise a stolen access token could
+    /// be used to guess the password, slowed only by the rate limit. Null when it's right.
+    /// </summary>
+    private static async Task<ValidationProblem?> CheckCurrentPasswordAsync(
+        SignInManager<AppUser> signInManager,
+        AppUser user,
+        string password
+    )
+    {
+        var result = await signInManager.CheckPasswordSignInAsync(
+            user,
+            password,
+            lockoutOnFailure: true
+        );
+        if (result.Succeeded)
+        {
+            return null;
+        }
+
+        return TypedResults.ValidationProblem(
+            Errors(
+                "currentPassword",
+                result.IsLockedOut
+                    ? "Too many wrong passwords. Try again in a few minutes."
+                    : "The current password is incorrect."
+            )
+        );
     }
 
     private static MeResponse ToMe(AppUser user, ClaimsPrincipal principal) =>

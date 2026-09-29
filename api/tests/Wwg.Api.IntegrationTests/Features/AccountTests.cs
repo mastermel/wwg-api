@@ -200,6 +200,36 @@ public sealed class AccountTests : ApiTest
         await response.AssertValidationProblemAsync("currentPassword");
     }
 
+    [Theory]
+    [InlineData("/api/me/password")]
+    [InlineData("/api/me/email")]
+    public async Task AccountChange_FiveWrongCurrentPasswords_LocksTheAccount(string path)
+    {
+        using var client = await CreateUserClientAsync("mel@example.com");
+        object Body(string password) =>
+            path.EndsWith("/email", StringComparison.Ordinal)
+                ? new ChangeEmailRequest("new@example.com", password)
+                : new ChangePasswordRequest(password, "a brand new password");
+        for (var i = 0; i < 5; i++)
+        {
+            using var wrong = await PutAsync(client, path, Body("not my password"));
+        }
+
+        using var response = await PutAsync(client, path, Body(TestPassword));
+
+        var problem = await response.AssertValidationProblemAsync("currentPassword");
+        Assert.StartsWith(
+            "Too many wrong passwords",
+            problem.Errors["currentPassword"][0],
+            StringComparison.Ordinal
+        );
+        // The same lockout as sign-in: guessing here locks signing in too.
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            await LoginStatusAsync("mel@example.com", TestPassword)
+        );
+    }
+
     [Fact]
     public async Task ChangePassword_TooShortNewPassword_IsAnErrorOnNewPassword()
     {

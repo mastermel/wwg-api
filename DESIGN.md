@@ -390,7 +390,10 @@ Identity has two layers:
   it signs out other sessions and returns new tokens.
 - **Lockout** after repeated failed logins (Identity defaults: 5 attempts, 5
   minutes). Login calls `CheckPasswordSignInAsync(…, lockoutOnFailure:
-  true)`, and that's a tested requirement. Identity's lockout reads the
+  true)`, and that's a tested requirement. So do change-email and
+  change-password when they check the current password: otherwise a stolen
+  access token could be used to guess it, slowed only by the rate limit. A
+  locked account is refused there too (a `currentPassword` error). Identity's lockout reads the
   system clock, not the injected `TimeProvider`, so its expiry test moves
   `LockoutEnd` instead of the fake clock.
 - **Rate limiting** (`AddRateLimiter`), partitioned by client IP. Needs the
