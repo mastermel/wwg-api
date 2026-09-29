@@ -1,7 +1,6 @@
 import {
   Anchor,
   Badge,
-  Button,
   Card,
   Group,
   Pagination,
@@ -14,6 +13,7 @@ import { IconCrown, IconPlus, IconSwords, IconUsers } from "@tabler/icons-react"
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useListMyCampaigns } from "@/api/generated/endpoints/campaigns/campaigns";
 import { EmptyState } from "@/components/EmptyState";
+import { LinkButton } from "@/components/LinkButton";
 import { Page } from "@/components/Page";
 import classes from "@/features/campaigns/CampaignsPage.module.css";
 import { QueryState } from "@/components/QueryState";
@@ -27,13 +27,13 @@ export function CampaignsPage({ page = 1 }: { page?: number }) {
   const campaigns = useListMyCampaigns({ page, pageSize });
 
   const newCampaign = (
-    <Button
+    <LinkButton
       leftSection={<IconPlus size={16} aria-hidden />}
       disabled={!online}
-      renderRoot={(props) => <Link to="/campaigns/new" {...props} />}
+      renderLink={(props) => <Link to="/campaigns/new" {...props} />}
     >
       New campaign
-    </Button>
+    </LinkButton>
   );
 
   return (

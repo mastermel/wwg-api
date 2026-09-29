@@ -1,4 +1,5 @@
-import { screen, within } from "@testing-library/react";
+import { onlineManager } from "@tanstack/react-query";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -85,6 +86,19 @@ describe("campaigns", () => {
     expect(pages).toContain("2");
   });
 
+  it("offers New campaign as a disabled button, not a link, while offline", async () => {
+    await renderApp("/campaigns");
+    await screen.findByRole("link", { name: "New campaign" });
+
+    act(() => {
+      onlineManager.setOnline(false);
+    });
+
+    // A disabled-looking link could still be followed with Enter.
+    expect(await screen.findByRole("button", { name: "New campaign" })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: "New campaign" })).not.toBeInTheDocument();
+  });
+
   it("explains what to do when there are none", async () => {
     await renderApp("/campaigns");
 
@@ -125,6 +139,19 @@ describe("campaigns", () => {
     await screen.findByRole("heading", { level: 1, name: "The Peninsular War" });
     expect(screen.queryByRole("link", { name: "Edit" }) !== null).toBe(offered);
     expect(screen.queryByRole("button", { name: "Delete campaign" }) !== null).toBe(offered);
+  });
+
+  it("leads back to the campaign list", async () => {
+    serveCampaign(details());
+    const { router } = await renderApp(`/campaigns/${campaignId}`);
+
+    await screen.findByRole("heading", { level: 1, name: "The Peninsular War" });
+    // The page's own link (the navigation has one too).
+    await userEvent.click(
+      within(screen.getByRole("main")).getByRole("link", { name: "Campaigns" }),
+    );
+
+    expect(router.state.location.pathname).toBe("/campaigns");
   });
 
   it("edits the campaign and shows the change", async () => {

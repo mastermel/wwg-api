@@ -7,6 +7,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useDeleteCampaign, useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import type { CampaignResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { BackLink } from "@/components/BackLink";
+import { LinkButton } from "@/components/LinkButton";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
@@ -31,21 +33,24 @@ export function CampaignPage({ id }: { id: string }) {
   return (
     <Page
       title={details?.name ?? "Campaign"}
+      back={
+        <BackLink renderLink={(props) => <Link to="/campaigns" {...props} />}>Campaigns</BackLink>
+      }
       summary={details && <CampaignSummary campaign={details} />}
       actions={
         details &&
         manager && (
           <>
-            <Button
+            <LinkButton
               variant="default"
               leftSection={<IconEdit size={16} aria-hidden />}
               disabled={!online}
-              renderRoot={(props) => (
+              renderLink={(props) => (
                 <Link to="/campaigns/$id/edit" params={{ id: details.id }} {...props} />
               )}
             >
               Edit
-            </Button>
+            </LinkButton>
             {user?.isAdmin && <SetUmpireButton campaign={details} />}
           </>
         )
