@@ -8,6 +8,8 @@ import { UnitSymbol } from "@/features/units/UnitSymbol";
 interface UnitMarkersProps {
   units: readonly PlacedUnit[];
   onSelect: (stack: UnitStack) => void;
+  /** An army to pick out: stacks without any of its units are faded. */
+  highlight?: string | null;
 }
 
 /**
@@ -15,7 +17,7 @@ interface UnitMarkersProps {
  * shows how many and opens the list to choose from (DESIGN.md §3.13). Restacked as the zoom
  * changes. Inside a CampaignMap.
  */
-export function UnitMarkers({ units, onSelect }: UnitMarkersProps) {
+export function UnitMarkers({ units, onSelect, highlight }: UnitMarkersProps) {
   const { current: map } = useMap();
   const [stacks, setStacks] = useState<UnitStack[]>([]);
 
@@ -53,6 +55,7 @@ export function UnitMarkers({ units, onSelect }: UnitMarkersProps) {
         <button
           type="button"
           className={classes.marker}
+          data-faded={highlight ? !stack.units.some((u) => u.army.id === highlight) : undefined}
           aria-label={label}
           title={label}
           onClick={() => {

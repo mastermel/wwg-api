@@ -2,7 +2,7 @@ import { Stack, Text, UnstyledButton } from "@mantine/core";
 import { useRef, type KeyboardEvent } from "react";
 import type { ArmyTurnStatus, CampaignTurnsResponse } from "@/api/generated/model";
 import { Section } from "@/components/Section";
-import classes from "@/features/maps/TurnList.module.css";
+import classes from "@/features/maps/PanelList.module.css";
 
 const statusLabels: Record<ArmyTurnStatus, string> = {
   Draft: "draft",
@@ -54,7 +54,7 @@ export function TurnList({ turns, viewing, onView, manager }: TurnListProps) {
                   if (element) buttons.current.set(turn.number, element);
                   else buttons.current.delete(turn.number);
                 }}
-                className={classes.turn}
+                className={classes.row}
                 aria-label={`Turn ${String(turn.number)}${open ? " (open)" : ""}: ${detail}`}
                 aria-pressed={turn.number === viewing}
                 onClick={() => {
@@ -68,7 +68,7 @@ export function TurnList({ turns, viewing, onView, manager }: TurnListProps) {
                   Turn {turn.number}
                   {open && " (open)"}
                 </Text>
-                <Text size="xs" c="dimmed" component="span">
+                <Text size="xs" c={turn.number === viewing ? undefined : "dimmed"} component="span">
                   {detail}
                 </Text>
               </UnstyledButton>

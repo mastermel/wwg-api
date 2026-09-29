@@ -1,5 +1,8 @@
-/* A turn in the list: a full-width row, marked while it's the one on the map. */
-.turn {
+/*
+ * A row in a list beside the map (a turn, an army): full width, marked while chosen. The chosen
+ * row's detail isn't dimmed (the components drop it): dimmed text fails contrast on the tint.
+ */
+.row {
   display: flex;
   width: 100%;
   justify-content: space-between;
@@ -9,16 +12,16 @@
   border-radius: var(--mantine-radius-sm);
 }
 
-.turn:hover {
+.row:hover {
   background: var(--mantine-color-default-hover);
 }
 
-.turn[aria-pressed="true"] {
+.row[aria-pressed="true"] {
   background: var(--mantine-primary-color-light);
   box-shadow: inset 3px 0 0 var(--mantine-primary-color-filled);
 }
 
-.turn:focus-visible {
+.row:focus-visible {
   outline: 2px solid var(--mantine-primary-color-filled);
   outline-offset: 1px;
 }

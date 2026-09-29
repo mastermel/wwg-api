@@ -9,6 +9,11 @@
   border: 0;
 }
 
+/* Not in the army the Umpire picked out. */
+.marker[data-faded="true"] {
+  opacity: 0.3;
+}
+
 .marker:focus-visible {
   outline: 3px solid var(--mantine-primary-color-filled);
   outline-offset: 2px;

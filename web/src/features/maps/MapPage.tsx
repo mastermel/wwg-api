@@ -30,6 +30,7 @@ import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
+import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import { distanceMetres, inBounds, type Point } from "@/features/maps/geo";
 import { OrderActions } from "@/features/maps/OrderActions";
@@ -138,6 +139,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const setup = turns.data?.stage === "Setup";
   // A past turn chosen from the turn list; null for now (the open turn).
   const [viewing, setViewing] = useState<number | null>(null);
+  // The army the Umpire picked out on the map, if any.
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   const past = !setup && viewing !== null && viewing !== turns.data?.openTurn ? viewing : null;
   // While setting up, the Umpire works on turn 0's placements; for a past turn, where units were
   // after it; otherwise, where units are now.
@@ -194,7 +197,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const turnOf = (armyId: string) => commanded.find((c) => c.army.id === armyId)?.turn;
   const limitOf = (placed: PlacedUnit) =>
     settings.movementLimits.find((l) => l.unitType === placed.unit.type)?.metres ?? 0;
-  const moves: PendingMove[] =
+  const allMoves: PendingMove[] =
     past !== null
       ? []
       : [
@@ -210,6 +213,9 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           ),
           ...(moving && target ? [{ placed: moving, to: target }] : []),
         ];
+
+  // A picked-out army's moves only; the rest would clutter it.
+  const moves = highlighted ? allMoves.filter((m) => m.placed.army.id === highlighted) : allMoves;
 
   const stopMoving = () => {
     setMoving(null);
@@ -359,6 +365,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               />
               <UnitMarkers
                 units={onMap}
+                highlight={manager ? highlighted : null}
                 onSelect={(stack) => {
                   // While placing, choosing a unit (or stack) puts the new one there too.
                   if (placingUnit) {
@@ -434,6 +441,17 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 </Text>
               </Section>
             ))}
+          {manager && (armies.data?.length ?? 0) > 0 && (
+            <ArmiesPanel
+              armies={armies.data ?? []}
+              onMap={onMap.reduce(
+                (counts, p) => counts.set(p.army.id, (counts.get(p.army.id) ?? 0) + 1),
+                new Map<string, number>(),
+              )}
+              highlighted={highlighted}
+              onHighlight={setHighlighted}
+            />
+          )}
           {turns.data && !setup && (
             <TurnList
               turns={turns.data}

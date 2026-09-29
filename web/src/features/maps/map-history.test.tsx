@@ -215,4 +215,19 @@ describe("the turn list", () => {
     await user.keyboard("{ArrowUp}{ArrowRight}");
     expect(screen.queryByText(/Showing where/)).not.toBeInTheDocument();
   });
+
+  it("lets the Umpire pick out an army, and put it back", async () => {
+    serveHistory();
+    const user = userEvent.setup();
+    await openMap();
+
+    const army = await screen.findByRole("button", {
+      name: "Armée du Nord: Bob Tester, 0 on the map",
+    });
+    expect(army).toHaveAttribute("aria-pressed", "false");
+    await user.click(army);
+    expect(army).toHaveAttribute("aria-pressed", "true");
+    await user.click(army);
+    expect(army).toHaveAttribute("aria-pressed", "false");
+  });
 });
