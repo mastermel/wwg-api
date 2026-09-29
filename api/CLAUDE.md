@@ -81,9 +81,14 @@ true, because the build launches the app to write the document.
   trigger violations and concurrency failures into 409s; Identity results go through
   `ThrowIfFailed` / `ThrowIfConcurrencyFailure`.
 - `ExecuteUpdate` / `ExecuteDelete` skip `AuditInterceptor`: set `UpdatedAt` yourself.
-- The commander rules are also SQLite triggers (migration `AddCommanderRules`). A migration that
-  rebuilds `Armies` or `CampaignMembers` drops them; recreate them (a `DatabaseTests` test fails
-  otherwise).
+- The commander rules are also SQLite triggers (`Data/Migrations/CommanderRules.cs`). EF rebuilds
+  a SQLite table for some changes (adding a foreign key, dropping a column), at the *end* of the
+  migration; a rebuild of `Armies` or `CampaignMembers` drops the triggers, and fails while the
+  other table's trigger refers to it. Avoid the rebuild: add a column with its foreign key in
+  place (`ALTER TABLE … ADD … REFERENCES …` through `migrationBuilder.Sql`, as `AddFactions`
+  does). If a rebuild can't be avoided, drop the triggers in that migration and recreate them in
+  the next. `DatabaseTests` fails if they're missing. Check with
+  `dotnet ef migrations script <From> <To>`.
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.

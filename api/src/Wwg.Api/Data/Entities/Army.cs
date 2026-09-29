@@ -13,4 +13,9 @@ internal sealed class Army : Entity
     public Guid? CommanderId { get; set; }
 
     public CampaignMember? Commander { get; set; }
+
+    /// <summary>The army's side, or null until the Umpire assigns one ("Unassigned").</summary>
+    public Guid? FactionId { get; set; }
+
+    public Faction? Faction { get; set; }
 }

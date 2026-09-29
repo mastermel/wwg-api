@@ -1328,6 +1328,186 @@
         ]
       }
     },
+    "/api/campaigns/{id}/factions": {
+      "get": {
+        "tags": [
+          "Factions"
+        ],
+        "summary": "The campaign's factions, sorted by name, with how many armies each has.",
+        "operationId": "ListFactions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FactionResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Factions"
+        ],
+        "summary": "Adds a faction (Umpire or Admin). 409 if the campaign already has one by that name.",
+        "operationId": "CreateFaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/factions/{id}": {
+      "put": {
+        "tags": [
+          "Factions"
+        ],
+        "summary": "Renames a faction (Umpire or Admin). 409 if another has that name.",
+        "operationId": "RenameFaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameFactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Factions"
+        ],
+        "summary": "Deletes a faction (Umpire or Admin). Its armies are kept, unassigned; the Umpire assigns\nthem to another before the campaign starts.",
+        "operationId": "DeleteFaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/armies": {
       "get": {
         "tags": [
@@ -2177,6 +2357,21 @@
         },
         "description": "Starts a campaign; the caller becomes its Umpire."
       },
+      "CreateFactionRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The faction's name, unique in the campaign."
+          }
+        },
+        "description": "Adds a faction (a side) to the campaign."
+      },
       "CreateUnitRequest": {
         "required": [
           "name",
@@ -2212,6 +2407,31 @@
           }
         },
         "description": "Adds a unit to an army."
+      },
+      "FactionResponse": {
+        "required": [
+          "id",
+          "name",
+          "armyCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The faction's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "armyCount": {
+            "type": "integer",
+            "description": "How many armies are in it.",
+            "format": "int32"
+          }
+        },
+        "description": "A side in the campaign. Every member sees them all."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -2606,6 +2826,21 @@
         },
         "description": "Renames an army."
       },
+      "RenameFactionRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The faction's new name, unique in the campaign."
+          }
+        },
+        "description": "Renames a faction."
+      },
       "ResetPasswordRequest": {
         "required": [
           "email",
@@ -2950,6 +3185,9 @@
     },
     {
       "name": "Join"
+    },
+    {
+      "name": "Factions"
     },
     {
       "name": "Armies"

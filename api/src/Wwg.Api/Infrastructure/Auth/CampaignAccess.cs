@@ -33,6 +33,9 @@ internal enum CampaignRouteId
 
     /// <summary>A unit in one of the campaign's armies (<c>/api/units/{id}</c>).</summary>
     Unit,
+
+    /// <summary>One of the campaign's factions (<c>/api/factions/{id}</c>).</summary>
+    Faction,
 }
 
 /// <summary>
@@ -54,7 +57,8 @@ internal static class CampaignAccessExtensions
 {
     /// <summary>
     /// Declares a campaign endpoint's access rule (DESIGN.md §3.5). The campaign comes from the
-    /// route's <c>{id}</c>: the campaign's, an army's or a unit's (<paramref name="routeId"/>). The handler
+    /// route's <c>{id}</c>: the campaign's, an army's, a unit's or a faction's
+    /// (<paramref name="routeId"/>). The handler
     /// should still take <c>Guid id</c>, which documents it in the OpenAPI document (a path
     /// parameter nothing binds is left out, and the document is invalid).
     /// Not a member (or no such campaign, army or unit): 404, so outsiders can't tell it exists. A member
@@ -170,6 +174,16 @@ internal static class CampaignAccessExtensions
             if (routeId == CampaignRouteId.Campaign)
             {
                 return (id, null);
+            }
+
+            if (routeId == CampaignRouteId.Faction)
+            {
+                var campaignId = await db
+                    .Factions.AsNoTracking()
+                    .Where(f => f.Id == id)
+                    .Select(f => (Guid?)f.CampaignId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                return campaignId is { } found ? (found, null) : null;
             }
 
             var army =
