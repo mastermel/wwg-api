@@ -14,7 +14,7 @@ import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
 import { armyColorVar } from "@/features/armies/identity/army-colors";
 import { describeOrder } from "@/features/maps/orders";
 import type { PlacedUnit } from "@/features/maps/stacks";
-import { reviewOf, type CommandedTurn, type useOrders } from "@/features/maps/use-orders";
+import { reviewOf, type OpenArmyTurn, type useOrders } from "@/features/maps/use-orders";
 import { UnitSymbol } from "@/features/units/UnitSymbol";
 import { useOnline } from "@/lib/use-online";
 
@@ -34,7 +34,7 @@ const statusLabels: Record<ArmyTurnStatus, string> = {
 interface TurnPanelProps {
   /** The open campaign turn, for its number and how far it's got. */
   open: CampaignTurnSummary;
-  commanded: readonly CommandedTurn[];
+  commanded: readonly OpenArmyTurn[];
   units: readonly CommandedUnit[];
   distanceUnit: DistanceUnit;
   orders: ReturnType<typeof useOrders>;
@@ -54,7 +54,7 @@ export function TurnPanel({
   orders,
   onChoose,
 }: TurnPanelProps) {
-  const [submitting, setSubmitting] = useState<CommandedTurn | null>(null);
+  const [submitting, setSubmitting] = useState<OpenArmyTurn | null>(null);
   const [confirming, { open: ask, close }] = useDisclosure(false);
 
   return (
@@ -103,7 +103,7 @@ export function TurnPanel({
 }
 
 interface ArmyTurnOrdersProps {
-  entry: CommandedTurn;
+  entry: OpenArmyTurn;
   turn: ArmyTurnDetails;
   units: readonly CommandedUnit[];
   distanceUnit: DistanceUnit;

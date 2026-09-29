@@ -34,12 +34,14 @@ import { distanceMetres, inBounds, type Point } from "@/features/maps/geo";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
 import { formatDistance } from "@/features/maps/orders";
+import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
 import { UnitDrawer } from "@/features/maps/UnitDrawer";
 import { UnitMarkers } from "@/features/maps/UnitMarkers";
-import { useCommandedTurns, useOrders } from "@/features/maps/use-orders";
+import { useOpenTurns, useOrders } from "@/features/maps/use-orders";
+import { useReview } from "@/features/maps/use-review";
 import { UnitLegend } from "@/features/units/UnitLegend";
 import { errorMessage } from "@/lib/errors";
 import { useOnline } from "@/lib/use-online";
@@ -168,19 +170,24 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   );
   const placingUnit = everyUnit.find((u) => u.unit.id === placing);
 
-  // A commander's armies, and their turns once the campaign is running.
+  // Once running, the open turn of every army the viewer can see: the Umpire's, all of them; a
+  // commander's, their own.
   const myArmies = useMemo(
     () => (armies.data ?? []).filter((a) => user && a.commander?.userId === user.id),
     [armies.data, user],
   );
-  const commanded = useCommandedTurns(turns.data?.stage === "Running" ? myArmies : []);
+  const openTurns = useOpenTurns(
+    turns.data?.stage === "Running" ? (manager ? (armies.data ?? []) : myArmies) : [],
+  );
+  const commanded = manager ? [] : openTurns;
   const orders = useOrders(campaignId);
+  const review = useReview(campaignId);
   const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
   const turnOf = (armyId: string) => commanded.find((c) => c.army.id === armyId)?.turn;
   const limitOf = (placed: PlacedUnit) =>
     settings.movementLimits.find((l) => l.unitType === placed.unit.type)?.metres ?? 0;
   const moves: PendingMove[] = [
-    ...commanded.flatMap(({ turn }) =>
+    ...openTurns.flatMap(({ turn }) =>
       turn && turn.status !== "Completed"
         ? turn.orders.flatMap((order) => {
             const placed = onMap.find((p) => p.unit.id === order.unitId);
@@ -347,6 +354,13 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 }))}
                 placing={placing}
                 onPlace={setPlacing}
+              />
+            ) : !setup && manager && openTurn ? (
+              <ReviewPanel
+                open={openTurn}
+                problems={turns.data.startProblems}
+                armyTurns={openTurns}
+                review={review}
               />
             ) : !setup && commanded.length > 0 && openTurn ? (
               <TurnPanel

@@ -11,14 +11,14 @@ import type { ArmySummary, ArmyTurnDetails, GiveOrderRequest } from "@/api/gener
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
 
-/** An army the viewer commands, and its turn in the open campaign turn (once loaded). */
-export interface CommandedTurn {
+/** An army, and its turn in the open campaign turn (once loaded). */
+export interface OpenArmyTurn {
   army: ArmySummary;
   turn: ArmyTurnDetails | undefined;
 }
 
-/** The open turn of each army the viewer commands. Online only, like the rest of the map. */
-export function useCommandedTurns(armies: readonly ArmySummary[]): CommandedTurn[] {
+/** The open turn of each army (those a commander commands; every one, for the Umpire). Online only. */
+export function useOpenTurns(armies: readonly ArmySummary[]): OpenArmyTurn[] {
   const results = useQueries({
     queries: armies.map((army) =>
       getListArmyTurnsQueryOptions(army.id, { query: { meta: { persist: false } } }),
