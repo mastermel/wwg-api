@@ -1660,7 +1660,7 @@ each step)
 | GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts; for the Umpire, what stops the start or the next turn |
 | POST | `/api/campaigns/{id}/start` | Start the campaign (close turn 0, open turn 1) |
 | POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander) |
-| GET | `/api/campaigns/{id}/positions?turn=` | Units' positions in a turn (default: current), as the caller may see them |
+| GET | `/api/campaigns/{id}/positions?turn=` | Units' positions, as the caller may see them: now (the default), after a closed turn, or ordered in the open one |
 | GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
 | PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, latitude?, longitude? }` / undo it |
 | POST | `/api/army-turns/{id}/submit` | Submit (every unit on the map has an order; emails the Umpire) |

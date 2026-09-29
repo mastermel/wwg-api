@@ -2232,7 +2232,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Where the campaign's units are, as the caller may see them (the visibility rule): the Umpire\nevery army's, a commander their own. Without turn, where they are now\n(each unit's latest Completed turn); with it, their orders in that turn, whatever its status.",
+        "summary": "Where the campaign's units are, as the caller may see them (the visibility rule): the Umpire\nevery army's, a commander their own. Without turn, where they are now\n(each unit's latest Completed turn); with a closed turn, where they were after it; with the\nopen one, their orders in it, whatever its status.",
         "operationId": "ListPositions",
         "parameters": [
           {

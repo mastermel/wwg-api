@@ -100,7 +100,8 @@ internal static class TurnEndpoints
     /// <summary>
     /// Where the campaign's units are, as the caller may see them (the visibility rule): the Umpire
     /// every army's, a commander their own. Without <paramref name="turn"/>, where they are now
-    /// (each unit's latest Completed turn); with it, their orders in that turn, whatever its status.
+    /// (each unit's latest Completed turn); with a closed turn, where they were after it; with the
+    /// open one, their orders in it, whatever its status.
     /// </summary>
     internal static async Task<Ok<List<UnitPosition>>> ListPositionsAsync(
         Guid id,
@@ -112,16 +113,36 @@ internal static class TurnEndpoints
     {
         var visible = Visibility.VisibleArmyIds(db, httpContext.CampaignContext());
         var orders = db.UnitOrders.AsNoTracking().Where(o => visible.Contains(o.ArmyTurn.ArmyId));
-        orders = turn is { } number
-            ? orders.Where(o => o.ArmyTurn.CampaignTurn.Number == number)
-            : orders.Where(o =>
+        var closed =
+            turn is { } asked
+            && await db.CampaignTurns.AnyAsync(
+                t => t.CampaignId == id && t.Number == asked && t.ClosedAt != null,
+                cancellationToken
+            );
+        orders = turn switch
+        {
+            // The open turn: its orders, whatever its army turns' status.
+            { } number when !closed => orders.Where(o => o.ArmyTurn.CampaignTurn.Number == number),
+            // A closed turn: where each unit was after it (every army turn in it is Completed),
+            // which for a unit placed since it was ordered is its placement.
+            { } number => orders.Where(o =>
+                o.ArmyTurn.CampaignTurn.Number <= number
+                && !db.UnitOrders.Any(later =>
+                    later.UnitId == o.UnitId
+                    && later.ArmyTurn.CampaignTurn.Number <= number
+                    && later.ArmyTurn.CampaignTurn.Number > o.ArmyTurn.CampaignTurn.Number
+                )
+            ),
+            // Now: each unit's latest Completed order.
+            null => orders.Where(o =>
                 o.ArmyTurn.Status == ArmyTurnStatus.Completed
                 && !db.UnitOrders.Any(later =>
                     later.UnitId == o.UnitId
                     && later.ArmyTurn.Status == ArmyTurnStatus.Completed
                     && later.ArmyTurn.CampaignTurn.Number > o.ArmyTurn.CampaignTurn.Number
                 )
-            );
+            ),
+        };
 
         var positions = await orders
             .OrderBy(o => o.Unit.Name)

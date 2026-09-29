@@ -538,4 +538,73 @@ public sealed class TurnActionTests : ApiTest
 
         response.EnsureSuccessStatusCode();
     }
+
+    private static async Task<List<UnitPosition>> PositionsAsync(
+        CampaignScenario scenario,
+        int? turn
+    ) =>
+        await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<List<UnitPosition>>(
+                $"/api/campaigns/{scenario.CampaignId}/positions{(turn is { } t ? $"?turn={t}" : "")}"
+            )
+        ?? [];
+
+    [Fact]
+    public async Task ListPositions_AClosedTurn_IsWhereUnitsWereAfterIt()
+    {
+        using var scenario = await StartedAsync();
+        var first = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var moved = await TurnSteps.OrderAsync(
+            scenario,
+            first.Id,
+            new GiveOrderRequest(OrderKind.Move, 50.73, 4.4)
+        );
+        using var submitted = await TurnSteps.ActAsync(
+            scenario,
+            first.Id,
+            "submit",
+            Role.Commander
+        );
+        using var approved = await TurnSteps.ActAsync(scenario, first.Id, "approve", Role.Umpire);
+        using var next = await TurnSteps.StartNextTurnAsync(scenario);
+        next.EnsureSuccessStatusCode();
+
+        Assert.Equal(50.7, Assert.Single(await PositionsAsync(scenario, 0)).Latitude);
+        Assert.Equal(50.73, Assert.Single(await PositionsAsync(scenario, 1)).Latitude);
+        Assert.Equal(50.73, Assert.Single(await PositionsAsync(scenario, null)).Latitude);
+    }
+
+    [Fact]
+    public async Task ListPositions_AClosedTurn_IncludesAUnitPlacedSinceItsArmySubmitted()
+    {
+        using var scenario = await StartedAsync();
+        await TurnSteps.CompletedAsync(scenario);
+        var added = await AddUnitAsync(scenario, place: true);
+        using var next = await TurnSteps.StartNextTurnAsync(scenario);
+        next.EnsureSuccessStatusCode();
+
+        var positions = await PositionsAsync(scenario, 1);
+
+        Assert.Equal(
+            [(scenario.UnitId, 1), (added, 0)],
+            positions.Select(p => (p.UnitId, p.Turn)).OrderByDescending(p => p.Turn)
+        );
+    }
+
+    [Fact]
+    public async Task ListPositions_TheOpenTurn_IsItsOrdersWhateverTheirStatus()
+    {
+        using var scenario = await StartedAsync();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var moved = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            new GiveOrderRequest(OrderKind.Move, 50.73, 4.4)
+        );
+
+        var position = Assert.Single(await PositionsAsync(scenario, 1));
+
+        Assert.Equal((ArmyTurnStatus.Draft, 50.73), (position.Status, position.Latitude));
+    }
 }
