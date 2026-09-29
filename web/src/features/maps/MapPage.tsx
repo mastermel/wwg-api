@@ -13,7 +13,7 @@ import {
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
 import { useListCampaignUnits } from "@/api/generated/endpoints/units/units";
-import type { CampaignMapResponse, MapBounds } from "@/api/generated/model";
+import type { CampaignMapResponse, MapBounds, MeResponse } from "@/api/generated/model";
 import { BackLink } from "@/components/BackLink";
 import { EmptyState } from "@/components/EmptyState";
 import { LinkButton } from "@/components/LinkButton";
@@ -25,9 +25,11 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import { SetupPanel } from "@/features/maps/SetupPanel";
+import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
 import { UnitDrawer } from "@/features/maps/UnitDrawer";
 import { UnitMarkers } from "@/features/maps/UnitMarkers";
+import { useCommandedTurns, useOrders } from "@/features/maps/use-orders";
 import { UnitLegend } from "@/features/units/UnitLegend";
 import { errorMessage } from "@/lib/errors";
 import { useOnline } from "@/lib/use-online";
@@ -88,6 +90,7 @@ export function MapPage({ campaignId }: { campaignId: string }) {
                 settings={settings}
                 bounds={settings.bounds}
                 manager={manager}
+                user={user}
               />
             ) : (
               <EmptyState icon={IconMap} title="No map yet" action={manager && settingsButton}>
@@ -108,10 +111,11 @@ interface MapWorkspaceProps {
   settings: CampaignMapResponse;
   bounds: MapBounds;
   manager: boolean;
+  user: MeResponse | null;
 }
 
 /** The map with its units, and beside it what the viewer can do now. */
-function MapWorkspace({ campaignId, settings, bounds, manager }: MapWorkspaceProps) {
+function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorkspaceProps) {
   const queryClient = useQueryClient();
   const turns = useListTurns(campaignId, live);
   const units = useListCampaignUnits(campaignId, live);
@@ -151,6 +155,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager }: MapWorkspacePro
     [positions.data, everyUnit],
   );
   const placingUnit = everyUnit.find((u) => u.unit.id === placing);
+
+  // A commander's armies, and their turns once the campaign is running.
+  const myArmies = useMemo(
+    () => (armies.data ?? []).filter((a) => user && a.commander?.userId === user.id),
+    [armies.data, user],
+  );
+  const commanded = useCommandedTurns(turns.data?.stage === "Running" ? myArmies : []);
+  const orders = useOrders(campaignId);
+  const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
 
   const placeAt = async (point: { longitude: number; latitude: number }) => {
     if (!placingUnit) return;
@@ -235,6 +248,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager }: MapWorkspacePro
                 }))}
                 placing={placing}
                 onPlace={setPlacing}
+              />
+            ) : !setup && commanded.length > 0 && openTurn ? (
+              <TurnPanel
+                open={openTurn}
+                commanded={commanded}
+                units={everyUnit
+                  .filter((u) => myArmies.some((a) => a.id === u.army.id))
+                  .map((u) => ({ ...u, placed: onMap.find((p) => p.unit.id === u.unit.id) }))}
+                distanceUnit={settings.distanceUnit}
+                orders={orders}
+                onChoose={(placed) => {
+                  setChosen([placed]);
+                  setSelected(null);
+                }}
               />
             ) : (
               <Section title={setup ? "Setting up" : `Turn ${String(turns.data.openTurn)}`}>
