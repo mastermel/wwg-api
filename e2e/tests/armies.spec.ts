@@ -102,3 +102,26 @@ test("armies and units are seen only by those who should", async ({ signUp }) =>
     umpire.page.getByRole("region", { name: "Armies" }).getByRole("link", { name: "Guards" }),
   ).toHaveCount(0);
 });
+
+test("the Umpire deletes a unit after confirming", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "The Hundred Days");
+  await addArmy(umpire, "Prussian Army");
+  await umpire.page.getByRole("link", { name: "Prussian Army" }).click();
+  const units = umpire.page.getByRole("region", { name: "Units" });
+  await units.getByRole("button", { name: "Add unit" }).click();
+  const dialog = umpire.page.getByRole("dialog");
+  await dialog.getByRole("textbox", { name: "Name" }).fill("IV Corps");
+  await dialog.getByRole("combobox", { name: "Type" }).click();
+  await dialog.getByRole("option", { name: "Heavy Infantry" }).click();
+  await dialog.getByRole("textbox", { name: "Fighting Factor (FF)" }).fill("5");
+  await dialog.getByRole("textbox", { name: "Points" }).fill("20");
+  await dialog.getByRole("button", { name: "Add unit" }).click();
+  await expect(units.getByRole("row", { name: /IV Corps/ })).toBeVisible();
+
+  await units.getByRole("button", { name: "Delete IV Corps" }).click();
+  await umpire.page.getByRole("dialog").getByRole("button", { name: "Delete unit" }).click();
+
+  await expect(umpire.page.getByText("Deleted IV Corps.")).toBeVisible();
+  await expect(units.getByText("No units yet")).toBeVisible();
+});

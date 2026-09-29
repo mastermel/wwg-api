@@ -1,7 +1,7 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phases 1–6 (steps 1–23) are done. Phase 7, hardening (steps 24–29), is in
-> progress.
+> **Status:** Phases 1–7 (steps 1–29) are done; Phase 7 was hardening, from a review.
+> Product features come next.
 > **Last updated:** 2026-09-28
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -643,11 +643,13 @@ Identity has two layers:
 - Each test signs up its own users (unique emails), so tests run in parallel
   against one database. Setup goes through the API only where the UI isn't
   what's being tested (registering a user who then uses the app).
-- Covered: sign-up, staying signed in, sign-out, the sign-in redirect,
-  password reset by email; campaigns (create, edit, delete, offline); join
+- Covered: sign-up (and a taken email), staying signed in, sign-out, the
+  sign-in redirect, password reset by email; the account page (name, email
+  with the notice to the old address, password, signing out everywhere, and
+  other devices signed out); campaigns (create, edit, delete, offline); join
   links (the signed-out round trip, a new link, leave, remove); admin (an
   Umpire's account deleted, a new Umpire set; admin screens hidden from
-  others); armies and units and who sees them; the image's hosting (security
+  others); armies and units (added, edited, deleted) and who sees them; the image's hosting (security
   headers, deep links, API 404s, health).
 - Not covered here: rate limits (raised in the e2e stack; the API tests cover
   them) and anything the API or component tests already pin down in detail.
@@ -1673,6 +1675,6 @@ found in one area; product features come after it.
       and foreign-key failures.
     - A member can't end up as both the Umpire and a commander.
 28. ✅ **Docs and cruft:** bring DESIGN up to date with the code, and remove what's unused.
-29. **Test gaps:** 401s and the missing permission and validation cases in the API tests; the
+29. ✅ **Test gaps:** 401s and the missing permission and validation cases in the API tests; the
     web's data refreshes and session failure paths; the account flows and 409 messages end to
     end.

@@ -49,6 +49,20 @@ test("says so when the password is wrong", async ({ page, signUp }) => {
   await expect(page.getByRole("alert")).toContainText("incorrect");
 });
 
+test("says so when signing up with an email that's taken", async ({ page, signUp }) => {
+  const user = await signUp("Dee");
+
+  await page.goto("/register");
+  await page.getByRole("textbox", { name: "First name" }).fill("Dee");
+  await page.getByRole("textbox", { name: "Last name" }).fill("Again");
+  await page.getByRole("textbox", { name: "Email" }).fill(user.email);
+  await page.getByRole("textbox", { name: "Password" }).fill(password);
+  await page.getByRole("button", { name: "Create account" }).click();
+
+  await expect(page.getByText("An account with this email already exists.")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Create an account" })).toBeVisible();
+});
+
 test("resets a forgotten password with the emailed link", async ({ page, signUp }) => {
   const user = await signUp("Bea");
   await user.page.context().close();
