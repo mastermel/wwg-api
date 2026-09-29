@@ -53,7 +53,7 @@ public sealed class FactionTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var created = await PostCreateAsync(scenario, " Coalition ");
+        using var created = await PostCreateAsync(scenario, " Sixth Coalition ");
         await CreateAsync(scenario, "Allies");
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -61,7 +61,7 @@ public sealed class FactionTests : ApiTest
             .As(Role.Player)
             .GetAsAsync<List<FactionResponse>>($"/api/campaigns/{scenario.CampaignId}/factions");
         Assert.Equal(
-            "Allies, Coalition",
+            "Allies, Coalition, Sixth Coalition",
             string.Join(", ", factions!.Select(f => f.Name)),
             StringComparer.Ordinal
         );
@@ -83,9 +83,9 @@ public sealed class FactionTests : ApiTest
     public async Task CreateFaction_NameTakenInAnyCase_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        await CreateAsync(scenario, "Coalition");
+        await CreateAsync(scenario, "Sixth Coalition");
 
-        using var response = await PostCreateAsync(scenario, "COALITION");
+        using var response = await PostCreateAsync(scenario, "SIXTH COALITION");
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -94,10 +94,10 @@ public sealed class FactionTests : ApiTest
     public async Task RenameFaction_ToAnotherFactionsName_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        await CreateAsync(scenario, "Coalition");
+        await CreateAsync(scenario, "Sixth Coalition");
         var france = await CreateAsync(scenario, "France");
 
-        using var response = await RenameAsync(scenario, france.Id, "coalition");
+        using var response = await RenameAsync(scenario, france.Id, "sixth coalition");
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -117,19 +117,11 @@ public sealed class FactionTests : ApiTest
     public async Task DeleteFaction_WithArmies_LeavesThemUnassigned()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        var coalition = await CreateAsync(scenario, "Coalition");
-        await WithDbAsync(db =>
-            db.Armies.Where(a => a.Id == scenario.ArmyId)
-                .ExecuteUpdateAsync(
-                    s => s.SetProperty(a => a.FactionId, coalition.Id),
-                    CancellationToken
-                )
-        );
-
+        // The scenario's army is in its faction.
         using var response = await scenario
             .As(Role.Umpire)
             .DeleteAsync(
-                new Uri($"/api/factions/{coalition.Id}", UriKind.Relative),
+                new Uri($"/api/factions/{scenario.FactionId}", UriKind.Relative),
                 CancellationToken
             );
 
@@ -172,7 +164,7 @@ public sealed class FactionTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var response = await PostCreateAsync(scenario, "Coalition", role);
+        using var response = await PostCreateAsync(scenario, "Sixth Coalition", role);
 
         Assert.Equal(expected, response.StatusCode);
     }
@@ -186,7 +178,7 @@ public sealed class FactionTests : ApiTest
     public async Task RenameFaction_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        var coalition = await CreateAsync(scenario, "Coalition");
+        var coalition = await CreateAsync(scenario, "Sixth Coalition");
 
         using var response = await RenameAsync(scenario, coalition.Id, "The Allies", role);
 
@@ -202,7 +194,7 @@ public sealed class FactionTests : ApiTest
     public async Task DeleteFaction_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        var coalition = await CreateAsync(scenario, "Coalition");
+        var coalition = await CreateAsync(scenario, "Sixth Coalition");
 
         using var response = await scenario
             .As(role)
@@ -219,7 +211,7 @@ public sealed class FactionTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var response = await RenameAsync(scenario, Guid.CreateVersion7(), "Coalition");
+        using var response = await RenameAsync(scenario, Guid.CreateVersion7(), "Sixth Coalition");
 
         await response.AssertProblemAsync(HttpStatusCode.NotFound);
     }

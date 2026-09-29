@@ -18,4 +18,11 @@ internal sealed class Army : Entity
     public Guid? FactionId { get; set; }
 
     public Faction? Faction { get; set; }
+
+    /// <summary>At most this many armies in a campaign: one per palette colour.</summary>
+    public const int MaxPerCampaign = 8;
+
+    public ArmyColor Color { get; set; }
+
+    public Nation Nation { get; set; }
 }

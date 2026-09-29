@@ -9,7 +9,7 @@ import {
   useAssignCommander,
   useDeleteArmy,
   useGetArmy,
-  useRenameArmy,
+  useUpdateArmy,
   useUnassignCommander,
 } from "@/api/generated/endpoints/armies/armies";
 import {
@@ -173,7 +173,7 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
 function RenameArmyButton({ army }: { army: ArmyResponse }) {
   const online = useOnline();
   const queryClient = useQueryClient();
-  const rename = useRenameArmy();
+  const rename = useUpdateArmy();
   const [renaming, renameModal] = useDisclosure(false);
 
   return (
@@ -193,7 +193,16 @@ function RenameArmyButton({ army }: { army: ArmyResponse }) {
           defaultName={army.name}
           onClose={renameModal.close}
           onSubmit={async ({ name }) => {
-            const updated = await rename.mutateAsync({ id: army.id, data: { name } });
+            // The rest of the army stays as it is.
+            const updated = await rename.mutateAsync({
+              id: army.id,
+              data: {
+                name,
+                factionId: army.faction?.id ?? null,
+                color: army.color,
+                nation: army.nation,
+              },
+            });
             queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
             notifications.show({ color: "green", message: `Renamed to ${updated.name}.` });
             await refreshCampaign(queryClient, army.campaignId);

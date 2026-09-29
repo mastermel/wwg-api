@@ -15,8 +15,8 @@ public enum Role
 }
 
 /// <summary>
-/// A campaign with an Umpire, two Players (one commanding the army "First Corps", which has the
-/// unit "1st Division"), an Admin and a
+/// A campaign with an Umpire, two Players (one commanding the army "First Corps", in the faction
+/// "Coalition", which has the unit "1st Division"), an Admin and a
 /// signed-in outsider, each with their own client. Permission tests pick a client by <see cref="Role"/>.
 /// </summary>
 internal sealed class CampaignScenario(
@@ -24,6 +24,7 @@ internal sealed class CampaignScenario(
     Guid umpireMemberId,
     Guid commanderMemberId,
     Guid playerMemberId,
+    Guid factionId,
     Guid armyId,
     Guid unitId,
     IReadOnlyDictionary<Role, HttpClient> clients
@@ -39,6 +40,9 @@ internal sealed class CampaignScenario(
 
     /// <summary>The other Player's membership ID (they command nothing).</summary>
     public Guid PlayerMemberId { get; } = playerMemberId;
+
+    /// <summary>The faction "Coalition", which <see cref="ArmyId"/> is in.</summary>
+    public Guid FactionId { get; } = factionId;
 
     /// <summary>The army "First Corps", commanded by the <see cref="Role.Commander"/>.</summary>
     public Guid ArmyId { get; } = armyId;

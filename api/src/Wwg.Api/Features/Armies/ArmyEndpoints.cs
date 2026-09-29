@@ -27,9 +27,9 @@ internal static class ArmyEndpoints
         var army = app.MapGroup("/api/armies/{id:guid}").WithTags("Armies");
         army.MapGet("", GetArmyAsync)
             .WithName("GetArmy")
-            .RequireCampaignAccess(CampaignAccess.Commander, CampaignRouteId.Army);
-        army.MapPut("", RenameArmyAsync)
-            .WithName("RenameArmy")
+            .RequireCampaignAccess(CampaignAccess.Member, CampaignRouteId.Army);
+        army.MapPut("", UpdateArmyAsync)
+            .WithName("UpdateArmy")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army);
         army.MapDelete("", DeleteArmyAsync)
             .WithName("DeleteArmy")
@@ -70,13 +70,19 @@ internal static class ArmyEndpoints
                         a.Commander.UserId,
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
-                    )
+                    ),
+                a.Faction == null ? null : new ArmyFaction(a.Faction.Id, a.Faction.Name),
+                a.Color,
+                a.Nation
             ))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(armies);
     }
 
-    /// <summary>Adds an army, optionally with a commander (Umpire or Admin).</summary>
+    /// <summary>
+    /// Adds an army, optionally with a commander and faction (Umpire or Admin). A campaign has at
+    /// most 8 armies (409). Without a colour it gets the first one no other army has.
+    /// </summary>
     internal static async Task<
         Results<Created<ArmyResponse>, ValidationProblem, ProblemHttpResult>
     > CreateArmyAsync(
@@ -86,6 +92,23 @@ internal static class ArmyEndpoints
         CancellationToken cancellationToken
     )
     {
+        var colors = await db
+            .Armies.Where(a => a.CampaignId == id)
+            .Select(a => a.Color)
+            .ToListAsync(cancellationToken);
+        if (colors.Count >= Army.MaxPerCampaign)
+        {
+            return TooManyArmies();
+        }
+
+        if (
+            await InvalidFactionAsync(db, id, request.FactionId, cancellationToken) is
+            { } badFaction
+        )
+        {
+            return badFaction;
+        }
+
         if (request.CommanderMemberId is { } memberId)
         {
             var invalid = await Commanders.ValidateAsync(
@@ -114,6 +137,9 @@ internal static class ArmyEndpoints
             CampaignId = id,
             Name = request.Name,
             CommanderId = request.CommanderMemberId,
+            FactionId = request.FactionId,
+            Color = request.Color ?? FreeColor(colors),
+            Nation = request.Nation ?? Nation.None,
         };
         db.Armies.Add(army);
         await db.SaveChangesAsync(cancellationToken);
@@ -125,8 +151,8 @@ internal static class ArmyEndpoints
     }
 
     /// <summary>
-    /// An army's details and units (its commander, the campaign's Umpire, or an Admin; other
-    /// Players get 403).
+    /// An army's details and units. Every member sees every army's (read-only); where the units
+    /// are is a separate question (DESIGN.md §5.2, the visibility rule).
     /// </summary>
     internal static async Task<Ok<ArmyResponse>> GetArmyAsync(
         Guid id,
@@ -134,19 +160,61 @@ internal static class ArmyEndpoints
         CancellationToken cancellationToken
     ) => TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
 
-    /// <summary>Renames an army (Umpire or Admin).</summary>
-    internal static async Task<Ok<ArmyResponse>> RenameArmyAsync(
+    /// <summary>Changes an army's name, faction, colour and nation (Umpire or Admin).</summary>
+    internal static async Task<Results<Ok<ArmyResponse>, ValidationProblem>> UpdateArmyAsync(
         Guid id,
-        RenameArmyRequest request,
+        UpdateArmyRequest request,
         WwgDbContext db,
         CancellationToken cancellationToken
     )
     {
         var army = await db.Armies.Where(a => a.Id == id).SingleOrGoneAsync(cancellationToken);
+        if (
+            await InvalidFactionAsync(db, army.CampaignId, request.FactionId, cancellationToken) is
+            { } badFaction
+        )
+        {
+            return badFaction;
+        }
+
         army.Name = request.Name;
+        army.FactionId = request.FactionId;
+        army.Color = request.Color;
+        army.Nation = request.Nation;
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
     }
+
+    /// <summary>A validation problem on <c>factionId</c> unless it's null or one of the campaign's.</summary>
+    private static async Task<ValidationProblem?> InvalidFactionAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        Guid? factionId,
+        CancellationToken cancellationToken
+    ) =>
+        factionId is not { } faction
+        || await db.Factions.AnyAsync(
+            f => f.Id == faction && f.CampaignId == campaignId,
+            cancellationToken
+        )
+            ? null
+            : TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["factionId"] = ["There's no such faction in this campaign."],
+                }
+            );
+
+    private static ProblemHttpResult TooManyArmies() =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "Too many armies",
+            detail: $"A campaign has at most {Army.MaxPerCampaign} armies."
+        );
+
+    /// <summary>The first colour no army has, or else the least used.</summary>
+    private static ArmyColor FreeColor(List<ArmyColor> taken) =>
+        Enum.GetValues<ArmyColor>().OrderBy(c => taken.Count(t => t == c)).First();
 
     /// <summary>Deletes an army (Umpire or Admin). The database deletes its units too.</summary>
     internal static async Task<NoContent> DeleteArmyAsync(
@@ -239,6 +307,9 @@ internal static class ArmyEndpoints
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
                     ),
+                a.Faction == null ? null : new ArmyFaction(a.Faction.Id, a.Faction.Name),
+                a.Color,
+                a.Nation,
                 db.Units.Where(u => u.ArmyId == a.Id)
                     .OrderBy(u => u.Name)
                     .ThenBy(u => u.Id)

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.IntegrationTests.Support;
 
@@ -52,12 +53,12 @@ public sealed class ArmyPermissionTests : ApiTest
         Assert.Equal(expected, response.StatusCode);
     }
 
-    // The army's details carry its units: only its commander sees them, not other Players.
+    // The army's details carry its units: every member sees every army's (Phase 8, §5.2).
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
     [InlineData(Role.Umpire, HttpStatusCode.OK)]
     [InlineData(Role.Commander, HttpStatusCode.OK)]
-    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Player, HttpStatusCode.OK)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
     public async Task ViewArmy_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
@@ -74,13 +75,17 @@ public sealed class ArmyPermissionTests : ApiTest
     [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task RenameArmy_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task UpdateArmy_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
         using var response = await scenario
             .As(role)
-            .PutAsJsonAsync(ArmyUri(scenario), new RenameArmyRequest("Renamed"), CancellationToken);
+            .PutAsJsonAsync(
+                ArmyUri(scenario),
+                new UpdateArmyRequest("Renamed", null, ArmyColor.Red, Nation.None),
+                CancellationToken
+            );
 
         Assert.Equal(expected, response.StatusCode);
     }
@@ -159,7 +164,11 @@ public sealed class ArmyPermissionTests : ApiTest
         using var response = method switch
         {
             "get" => await admin.GetAsync(uri, CancellationToken),
-            "put" => await admin.PutAsJsonAsync(uri, new RenameArmyRequest("x"), CancellationToken),
+            "put" => await admin.PutAsJsonAsync(
+                uri,
+                new UpdateArmyRequest("x", null, ArmyColor.Red, Nation.None),
+                CancellationToken
+            ),
             _ => await admin.DeleteAsync(uri, CancellationToken),
         };
 

@@ -14,6 +14,9 @@ internal sealed class ArmyConfiguration : IEntityTypeConfiguration<Army>
         // A Player commands at most one army. (SQLite allows many NULLs: unassigned armies.)
         builder.HasIndex(a => a.CommanderId).IsUnique();
 
+        builder.Property(a => a.Color).HasMaxLength(16);
+        builder.Property(a => a.Nation).HasMaxLength(32);
+
         // Deleting a campaign deletes its armies.
         builder
             .HasOne(a => a.Campaign)

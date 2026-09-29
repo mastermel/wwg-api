@@ -1551,7 +1551,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Adds an army, optionally with a commander (Umpire or Admin).",
+        "summary": "Adds an army, optionally with a commander and faction (Umpire or Admin). A campaign has at\nmost 8 armies (409). Without a colour it gets the first one no other army has.",
         "operationId": "CreateArmy",
         "parameters": [
           {
@@ -1618,7 +1618,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "An army's details and units (its commander, the campaign's Umpire, or an Admin; other\nPlayers get 403).",
+        "summary": "An army's details and units. Every member sees every army's (read-only); where the units\nare is a separate question (DESIGN.md §5.2, the visibility rule).",
         "operationId": "GetArmy",
         "parameters": [
           {
@@ -1653,8 +1653,8 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Renames an army (Umpire or Admin).",
-        "operationId": "RenameArmy",
+        "summary": "Changes an army's name, faction, colour and nation (Umpire or Admin).",
+        "operationId": "UpdateArmy",
         "parameters": [
           {
             "name": "id",
@@ -1670,7 +1670,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameArmyRequest"
+                "$ref": "#/components/schemas/UpdateArmyRequest"
               }
             }
           },
@@ -1683,6 +1683,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ArmyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -1935,6 +1945,19 @@
         },
         "description": "A campaign in the admin list of every campaign."
       },
+      "ArmyColor": {
+        "enum": [
+          "Red",
+          "Blue",
+          "Green",
+          "Orange",
+          "Purple",
+          "Teal",
+          "Gold",
+          "Magenta"
+        ],
+        "description": "An army's colour on the map and beside its name: one of the front-end's 8 palette colours,\nwhich it tunes for contrast in light and dark. Stored by name, so the palette can change."
+      },
       "ArmyCommander": {
         "required": [
           "memberId",
@@ -1965,6 +1988,25 @@
         },
         "description": "The Player commanding an army."
       },
+      "ArmyFaction": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The faction's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          }
+        },
+        "description": "The faction an army is in."
+      },
       "ArmyResponse": {
         "required": [
           "id",
@@ -1972,6 +2014,9 @@
           "campaignName",
           "name",
           "commander",
+          "faction",
+          "color",
+          "nation",
           "units",
           "createdAt",
           "updatedAt"
@@ -2007,6 +2052,25 @@
               }
             ]
           },
+          "faction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Its faction, or null if it has none yet.",
+                "$ref": "#/components/schemas/ArmyFaction"
+              }
+            ]
+          },
+          "color": {
+            "description": "Its colour.",
+            "$ref": "#/components/schemas/ArmyColor"
+          },
+          "nation": {
+            "description": "The nation it fights for, drawn as its flag.",
+            "$ref": "#/components/schemas/Nation"
+          },
           "units": {
             "type": "array",
             "items": {
@@ -2031,7 +2095,10 @@
         "required": [
           "id",
           "name",
-          "commander"
+          "commander",
+          "faction",
+          "color",
+          "nation"
         ],
         "type": "object",
         "properties": {
@@ -2054,6 +2121,25 @@
                 "$ref": "#/components/schemas/ArmyCommander"
               }
             ]
+          },
+          "faction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Its faction, or null if it has none yet.",
+                "$ref": "#/components/schemas/ArmyFaction"
+              }
+            ]
+          },
+          "color": {
+            "description": "Its colour.",
+            "$ref": "#/components/schemas/ArmyColor"
+          },
+          "nation": {
+            "description": "The nation it fights for, drawn as its flag.",
+            "$ref": "#/components/schemas/Nation"
           }
         },
         "description": "An army in the campaign's army list. Every member sees every army."
@@ -2330,9 +2416,39 @@
             ],
             "description": "A Player to command it (their membership ID), or null.",
             "format": "uuid"
+          },
+          "factionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its faction, or null for none yet (\"Unassigned\").",
+            "format": "uuid"
+          },
+          "color": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Its colour, or null for the first one no other army has.",
+                "$ref": "#/components/schemas/ArmyColor"
+              }
+            ]
+          },
+          "nation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The nation it fights for (its flag), or null for none (a plain flag).",
+                "$ref": "#/components/schemas/Nation"
+              }
+            ]
           }
         },
-        "description": "Adds an army to the campaign."
+        "description": "Adds an army to the campaign (at most 8)."
       },
       "CreateCampaignRequest": {
         "required": [
@@ -2640,6 +2756,33 @@
         },
         "description": "The signed-in user."
       },
+      "Nation": {
+        "enum": [
+          "None",
+          "France",
+          "Britain",
+          "Prussia",
+          "Austria",
+          "Russia",
+          "Spain",
+          "Portugal",
+          "Sweden",
+          "Denmark",
+          "Holland",
+          "Bavaria",
+          "Saxony",
+          "Wurttemberg",
+          "Westphalia",
+          "Baden",
+          "Warsaw",
+          "Italy",
+          "Naples",
+          "Brunswick",
+          "Hanover",
+          "Ottoman"
+        ],
+        "description": "The nation or state of the Napoleonic wars an army fights for. The front-end draws its flag (a\nsimplified one) as the army's icon; None is a plain flag in the army's colour. Stored by name."
+      },
       "PagedResponseOfAdminCampaignSummary": {
         "required": [
           "items",
@@ -2811,21 +2954,6 @@
         },
         "description": "Sign up. The account is signed in straight away."
       },
-      "RenameArmyRequest": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string",
-            "description": "The army's new name."
-          }
-        },
-        "description": "Renames an army."
-      },
       "RenameFactionRequest": {
         "required": [
           "name"
@@ -2954,6 +3082,40 @@
           "HorseArtillery"
         ],
         "description": "What kind of troops a unit is (stored as its name)."
+      },
+      "UpdateArmyRequest": {
+        "required": [
+          "name",
+          "factionId",
+          "color",
+          "nation"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "The army's name."
+          },
+          "factionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its faction, or null for none (\"Unassigned\").",
+            "format": "uuid"
+          },
+          "color": {
+            "description": "Its colour. Two armies can share one.",
+            "$ref": "#/components/schemas/ArmyColor"
+          },
+          "nation": {
+            "description": "The nation it fights for, drawn as its flag.",
+            "$ref": "#/components/schemas/Nation"
+          }
+        },
+        "description": "Changes an army's name, faction, colour and nation."
       },
       "UpdateCampaignRequest": {
         "required": [

@@ -8,6 +8,7 @@ using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
+using Wwg.Api.Features.Factions;
 using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -105,7 +106,8 @@ public abstract class ApiTest : IAsyncDisposable
 
     /// <summary>
     /// A campaign created by its Umpire through the API, with two Players who joined with the join
-    /// link: one commands the army "First Corps" (with one unit, "1st Division"), the other
+    /// link: one commands the army "First Corps" (in the faction "Coalition", with one unit,
+    /// "1st Division"), the other
     /// commands nothing. Plus an Admin and a
     /// signed-in outsider.
     /// </summary>
@@ -130,18 +132,18 @@ public abstract class ApiTest : IAsyncDisposable
 
         await JoinAsync(umpire, campaignId, commander, player);
 
-        var memberIds = await WithDbAsync(db =>
-            Task.FromResult(
-                db.CampaignMembers.Where(m => m.CampaignId == campaignId)
-                    .Select(m => new { m.Id, Email = m.User.NormalizedEmail })
-                    .ToDictionary(m => m.Email ?? "", m => m.Id, StringComparer.Ordinal)
-            )
-        );
+        var memberIds = await MemberIdsAsync(campaignId);
 
+        var factionId = await PostForIdAsync<FactionResponse>(
+            umpire,
+            $"/api/campaigns/{campaignId}/factions",
+            new CreateFactionRequest("Coalition"),
+            f => f.Id
+        );
         var armyId = await PostForIdAsync<ArmyResponse>(
             umpire,
             $"/api/campaigns/{campaignId}/armies",
-            new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"]),
+            new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"], factionId),
             a => a.Id
         );
         var unitId = await PostForIdAsync<UnitResponse>(
@@ -156,6 +158,7 @@ public abstract class ApiTest : IAsyncDisposable
             memberIds["UMPIRE@EXAMPLE.COM"],
             memberIds["COMMANDER@EXAMPLE.COM"],
             memberIds["PLAYER@EXAMPLE.COM"],
+            factionId,
             armyId,
             unitId,
             new Dictionary<Role, HttpClient>
@@ -168,6 +171,16 @@ public abstract class ApiTest : IAsyncDisposable
             }
         );
     }
+
+    /// <summary>The campaign's membership IDs, by the member's normalized (upper-case) email.</summary>
+    private Task<Dictionary<string, Guid>> MemberIdsAsync(Guid campaignId) =>
+        WithDbAsync(db =>
+            Task.FromResult(
+                db.CampaignMembers.Where(m => m.CampaignId == campaignId)
+                    .Select(m => new { m.Id, Email = m.User.NormalizedEmail })
+                    .ToDictionary(m => m.Email ?? "", m => m.Id, StringComparer.Ordinal)
+            )
+        );
 
     /// <summary>POSTs <paramref name="body"/>, expects success, and returns the new thing's ID.</summary>
     private static async Task<Guid> PostForIdAsync<TResponse>(

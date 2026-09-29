@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Admin;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Campaigns;
@@ -152,7 +153,7 @@ public sealed class ArmyTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
-                new RenameArmyRequest(name),
+                new UpdateArmyRequest(name, null, ArmyColor.Red, Nation.None),
                 CancellationToken
             );
 
@@ -178,7 +179,7 @@ public sealed class ArmyTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
-                new RenameArmyRequest(" Imperial Guard "),
+                new UpdateArmyRequest(" Imperial Guard ", null, ArmyColor.Red, Nation.None),
                 CancellationToken
             );
 
@@ -219,14 +220,6 @@ public sealed class ArmyTests : ApiTest
             scenario.PlayerMemberId,
             (await FirstCorpsAsync(scenario)).Commander?.MemberId
         );
-        // The old commander no longer sees the army's details.
-        using var details = await scenario
-            .As(Role.Commander)
-            .GetAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
-                CancellationToken
-            );
-        Assert.Equal(HttpStatusCode.Forbidden, details.StatusCode);
     }
 
     [Fact]

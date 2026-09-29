@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import type {
+  ArmyColor,
   ArmyResponse,
   ArmySummary,
   CampaignMemberResponse,
@@ -43,12 +44,16 @@ const commander = (member: CampaignMemberResponse) => ({
   lastName: member.lastName,
 });
 
+/** An army's faction, colour and nation: none, the given colour, a plain flag. */
+const identity = (color: ArmyColor) => ({ faction: null, color, nation: "None" as const });
+
 const armies: ArmySummary[] = [
-  { id: armyId, name: "First Corps", commander: commander(me) },
-  { id: otherArmyId, name: "Reserve", commander: null },
+  { ...identity("Red"), id: armyId, name: "First Corps", commander: commander(me) },
+  { ...identity("Blue"), id: otherArmyId, name: "Reserve", commander: null },
 ];
 
 const firstCorps: ArmyResponse = {
+  ...identity("Red"),
   id: armyId,
   campaignId,
   campaignName: "The Peninsular War",

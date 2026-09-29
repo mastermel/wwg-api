@@ -140,7 +140,7 @@ public sealed class ConcurrencyTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
-                new RenameArmyRequest("Second Corps"),
+                new UpdateArmyRequest("Second Corps", null, ArmyColor.Red, Nation.None),
                 CancellationToken
             );
 }

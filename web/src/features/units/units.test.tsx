@@ -30,6 +30,9 @@ function serveArmy(myRole: CampaignResponse["myRole"], initial: UnitResponse[]) 
   let units = initial;
   const requests: { method: string; path: string; body: unknown }[] = [];
   const army = (): ArmyResponse => ({
+    faction: null,
+    color: "Red",
+    nation: "None",
     id: armyId,
     campaignId,
     campaignName: "The Peninsular War",
