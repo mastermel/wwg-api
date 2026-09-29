@@ -34,7 +34,7 @@ namespace Wwg.Api.Data.Migrations
                 UPDATE "Armies" SET "Color" = (
                     SELECT CASE (o."Row" - 1) % 8
                         WHEN 0 THEN 'Red' WHEN 1 THEN 'Blue' WHEN 2 THEN 'Green'
-                        WHEN 3 THEN 'Orange' WHEN 4 THEN 'Purple' WHEN 5 THEN 'Teal'
+                        WHEN 3 THEN 'Orange' WHEN 4 THEN 'Purple' WHEN 5 THEN 'Sky'
                         WHEN 6 THEN 'Gold' ELSE 'Magenta' END
                     FROM (
                         SELECT "Id", ROW_NUMBER() OVER (

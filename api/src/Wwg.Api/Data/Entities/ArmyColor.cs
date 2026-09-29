@@ -11,7 +11,7 @@ public enum ArmyColor
     Green,
     Orange,
     Purple,
-    Teal,
+    Sky,
     Gold,
     Magenta,
 }

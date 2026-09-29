@@ -1,0 +1,9 @@
+/* The flag, framed in the army's colour: its nation and its colour at a glance. */
+.flag {
+  display: inline-flex;
+  padding: 1px;
+  border: 2px solid var(--army-color);
+  border-radius: 3px;
+  line-height: 0;
+  flex-shrink: 0;
+}
