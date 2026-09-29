@@ -38,7 +38,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra
 WORKDIR /app
 COPY --from=api /out/app ./
 COPY --from=web /src/web/dist ./wwwroot
-# The SQLite database (and, from Phase 2, the Data Protection keys) live here; mount a volume.
+# The SQLite database, its backups and the Data Protection keys live here; mount a volume.
 COPY --from=api --chown=1654:1654 /out/data /data
 VOLUME /data
 EXPOSE 8080

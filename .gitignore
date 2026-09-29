@@ -26,6 +26,8 @@ web/src/routeTree.gen.ts
 
 # Development Data Protection keys (Auth:DataProtectionKeysPath)
 api/src/Wwg.Api/keys/
+# Development database backups (Backup:Path)
+api/src/Wwg.Api/backups/
 *.tsbuildinfo
 .vite/
 

@@ -50,6 +50,8 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
             .UseSetting("ConnectionStrings:Default", ConnectionString)
             // Already migrated: it's a copy of the template.
             .UseSetting("Database:MigrateOnStartup", "false")
+            // No backups; BackupTests switches them on with its own folder.
+            .UseSetting("Backup:Path", "")
             // Tests make many auth requests from one "IP"; RateLimitingTests covers the limits.
             .UseSetting("RateLimits:Auth:PermitLimit", "100000")
             .UseSetting("RateLimits:Refresh:PermitLimit", "100000")

@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
+using Wwg.Api.Infrastructure.Backups;
 
 namespace Wwg.Api.Infrastructure;
 
@@ -18,6 +19,10 @@ internal static class DatabaseExtensions
                         environment.ContentRootPath
                     )
             );
+
+        services.AddValidatedOptions<BackupOptions>(BackupOptions.SectionName);
+        services.AddSingleton<DatabaseBackup>();
+        services.AddHostedService<BackupService>();
 
         services.AddSingleton<AuditInterceptor>();
         services.AddExceptionHandler<UniqueConstraintExceptionHandler>();
@@ -51,20 +56,33 @@ internal static class DatabaseExtensions
     /// <summary>
     /// Switches the database to WAL journal mode (better concurrent reads; the setting persists
     /// in the file), then applies pending migrations if <see cref="DatabaseOptions.MigrateOnStartup"/>
-    /// is set.
+    /// is set. An existing database is backed up first (if backups are configured), so a migration
+    /// that goes wrong can be undone; if that backup fails, startup stops before migrating.
     /// </summary>
-    public static void InitializeDatabase(this WebApplication app)
+    public static async Task InitializeDatabaseAsync(this WebApplication app)
     {
         var options = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
 
-        using var scope = app.Services.CreateScope();
+        await using var scope = app.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<WwgDbContext>();
-        db.Database.ExecuteSql($"PRAGMA journal_mode = WAL;");
+        await db.Database.ExecuteSqlAsync($"PRAGMA journal_mode = WAL;");
 
-        if (options.MigrateOnStartup)
+        if (!options.MigrateOnStartup)
         {
-            db.Database.Migrate();
+            return;
         }
+
+        var backup = app.Services.GetRequiredService<DatabaseBackup>();
+        if (
+            backup.IsConfigured
+            && (await db.Database.GetAppliedMigrationsAsync()).Any()
+            && (await db.Database.GetPendingMigrationsAsync()).Any()
+        )
+        {
+            await backup.CreateAsync(BackupKind.BeforeMigration, CancellationToken.None);
+        }
+
+        await db.Database.MigrateAsync();
     }
 
     private static string? ResolveDataSource(string? connectionString, string contentRoot)

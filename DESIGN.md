@@ -50,7 +50,6 @@ everything, and manage user accounts.
   is an accepted trade-off for a club-sized app.
 - Email verification (at sign-up or on email change).
 - Two-factor authentication.
-- Database backups.
 - Extra campaign fields (dates, game system, status…). Unit details beyond name, type, FF and
   points.
 - GraphQL.
@@ -85,6 +84,7 @@ everything, and manage user accounts.
 | CD | On push to `main` only: build and push the image to **Docker Hub** |
 | Image tags | `latest` and `vYYYYMMdd.HHmmss` (UTC) |
 | Hosting | **One Docker image**: the API serves the built SPA (same origin, no CORS). Runs on a VPS/home server with the SQLite file on a mounted volume |
+| Backups | The app snapshots its SQLite file (`VACUUM INTO`) before startup migrations and on a schedule, onto the volume (decision [0008](docs/decisions/0008-backups-in-the-app.md)) |
 | Formatting | **CSharpier** (automatic, near-zero config) |
 | Analyzers | Built-in .NET analyzers at **Recommended**, + **Meziantou.Analyzer**, + **BannedApiAnalyzers** |
 | Enforcement | Warnings fail the build; **Husky.Net** pre-commit hook formats staged files; CI checks formatting |
@@ -723,8 +723,22 @@ for amd64 and arm64. The shared `traefik` network is pinned to
     run cross-compiled; CI checks the committed contract).
 - `.dockerignore` keeps `node_modules`, `bin/`, `obj/`, test output and local
   databases out of the build context.
-- One volume mounted at `/data` holding the SQLite DB and the Data Protection
+- One volume mounted at `/data` holding the SQLite DB, its backups and the Data Protection
   keys.
+- **Backups** (decision [0008](docs/decisions/0008-backups-in-the-app.md)) go to
+  `/data/backups` (`Backup:Path`), made with SQLite's `VACUUM INTO`, a consistent snapshot of
+  the live database:
+  - **Before migrations:** at startup, if the database has a schema and migrations are
+    pending, `wwg-{yyyyMMdd-HHmmss}-before-migration.db` is written first. If that fails,
+    startup stops before migrating.
+  - **Scheduled:** `wwg-{yyyyMMdd-HHmmss}.db` every `Backup:Interval` (default a day), timed
+    from the newest backup on disk, so restarts don't reset the schedule.
+  - The newest `Backup:Keep` (default 14) of each kind are kept. A backup is written under a
+    temporary name and renamed, so a half-written file never counts as one.
+  - No `Backup:Path` means no backups, with a warning at startup (tests switch them off).
+  - Restoring, and rolling back a deploy (migrations only go forward), are in
+    [`docs/operations.md`](docs/operations.md). Copying backups off the server is the
+    server's job.
 - **Reverse proxy: Traefik**, also running in Docker on the server.
   - Traefik terminates TLS (and sets HSTS). The container serves plain HTTP on
     port 8080 (the .NET image default). The app doesn't use
@@ -758,7 +772,8 @@ for amd64 and arm64. The shared `traefik` network is pinned to
   `Database__MigrateOnStartup` (default `true`), `Auth__DataProtectionKeysPath`
   (defaults to `/data/keys`), `Smtp__*`, `Admin__Emails__0…`,
   `App__PublicUrl`, `ForwardedHeaders__*`, `RateLimits__Auth__*` (defaults
-  to 10 per minute), `RateLimits__Refresh__*` (120 per minute).
+  to 10 per minute), `RateLimits__Refresh__*` (120 per minute), `Backup__*` (`Path` defaults
+  to `/data/backups`).
 
 ### 3.11 Front-end hosting & local development
 
@@ -1345,7 +1360,6 @@ None blocking. Items to revisit later:
 - Offline edits that sync later; push notifications.
 - More unit details, extra campaign fields.
 - Letting users delete their own account.
-- Database backups.
 
 ## 7. Implementation plan
 
@@ -1576,7 +1590,7 @@ generated SDK, and the app installs as a PWA and opens offline.
 From a review of the app, the design and the plan on 2026-09-28. Each step fixes what the review
 found in one area; product features come after it.
 
-24. **Backups:** a SQLite snapshot before every startup migration, and scheduled snapshots with
+24. ✅ **Backups:** a SQLite snapshot before every startup migration, and scheduled snapshots with
     a retention limit, on the data volume. How to restore, and how to roll back a deploy, written
     down.
 25. **Logs and health:** JSON console logs in production, one log line per request, retries

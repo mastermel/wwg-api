@@ -15,7 +15,7 @@ var app = builder.Build();
 
 if (!BuildTime.IsGeneratingOpenApiDocument)
 {
-    app.InitializeDatabase();
+    await app.InitializeDatabaseAsync();
     await app.SyncAdminsAsync();
 }
 

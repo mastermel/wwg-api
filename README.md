@@ -27,6 +27,7 @@ the API's OpenAPI document.
   and the implementation plan.
 - [docs/decisions/](docs/decisions/README.md): decision log.
 - [docs/development.md](docs/development.md): local development guide.
+- [docs/operations.md](docs/operations.md): backups, restoring, and rolling back a deploy.
 
 ## Prerequisites
 
