@@ -1902,6 +1902,98 @@
           }
         ]
       }
+    },
+    "/api/campaigns/{id}/map": {
+      "get": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The campaign's map settings (every member): its bounds (null until set), label language,\ndistance unit, layers and movement limits. Before the Umpire saves any, the defaults.",
+        "operationId": "GetCampaignMap",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignMapResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to\nnorth; every unit type has a movement limit, once.",
+        "operationId": "UpdateCampaignMap",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignMapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignMapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2157,6 +2249,49 @@
           }
         },
         "description": "Gives an army a commander."
+      },
+      "CampaignMapResponse": {
+        "required": [
+          "bounds",
+          "labelLanguage",
+          "distanceUnit",
+          "layers",
+          "movementLimits"
+        ],
+        "type": "object",
+        "properties": {
+          "bounds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The area everyone's map is held inside, or null until the Umpire sets it.",
+                "$ref": "#/components/schemas/MapBounds"
+              }
+            ]
+          },
+          "labelLanguage": {
+            "type": "string",
+            "description": "Place names' language: an ISO 639-1 code, or \"local\"."
+          },
+          "distanceUnit": {
+            "description": "How distances are shown.",
+            "$ref": "#/components/schemas/DistanceUnit"
+          },
+          "layers": {
+            "description": "What the map shows.",
+            "$ref": "#/components/schemas/MapLayers"
+          },
+          "movementLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovementLimitDto"
+            },
+            "description": "How far each type of unit moves in a turn, one per type."
+          }
+        },
+        "description": "A campaign's map settings."
       },
       "CampaignMemberResponse": {
         "required": [
@@ -2524,6 +2659,13 @@
         },
         "description": "Adds a unit to an army."
       },
+      "DistanceUnit": {
+        "enum": [
+          "Kilometres",
+          "Miles"
+        ],
+        "description": "How distances are shown (they're stored in metres)."
+      },
       "FactionResponse": {
         "required": [
           "id",
@@ -2703,6 +2845,84 @@
         },
         "description": "Sign in with email and password."
       },
+      "MapBounds": {
+        "required": [
+          "west",
+          "south",
+          "east",
+          "north"
+        ],
+        "type": "object",
+        "properties": {
+          "west": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number",
+            "description": "The western edge's longitude.",
+            "format": "double"
+          },
+          "south": {
+            "maximum": 85,
+            "minimum": -85,
+            "type": "number",
+            "description": "The southern edge's latitude.",
+            "format": "double"
+          },
+          "east": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number",
+            "description": "The eastern edge's longitude (east of West: bounds can't cross 180°).",
+            "format": "double"
+          },
+          "north": {
+            "maximum": 85,
+            "minimum": -85,
+            "type": "number",
+            "description": "The northern edge's latitude (north of South).",
+            "format": "double"
+          }
+        },
+        "description": "The area a campaign's map is held inside, in degrees (west to east, south to north)."
+      },
+      "MapLayers": {
+        "required": [
+          "roads",
+          "places",
+          "water",
+          "forests",
+          "hills",
+          "contours"
+        ],
+        "type": "object",
+        "properties": {
+          "roads": {
+            "type": "boolean",
+            "description": "Main roads."
+          },
+          "places": {
+            "type": "boolean",
+            "description": "Cities, towns and villages."
+          },
+          "water": {
+            "type": "boolean",
+            "description": "Rivers, canals, lakes and the sea."
+          },
+          "forests": {
+            "type": "boolean",
+            "description": "Woods and forests."
+          },
+          "hills": {
+            "type": "boolean",
+            "description": "Hillshading."
+          },
+          "contours": {
+            "type": "boolean",
+            "description": "Contour lines."
+          }
+        },
+        "description": "Which of the map's layers are shown."
+      },
       "MemberArmy": {
         "required": [
           "id",
@@ -2765,6 +2985,27 @@
           }
         },
         "description": "The signed-in user."
+      },
+      "MovementLimitDto": {
+        "required": [
+          "unitType",
+          "metres"
+        ],
+        "type": "object",
+        "properties": {
+          "unitType": {
+            "description": "The type of unit.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "metres": {
+            "maximum": 1000000,
+            "minimum": 0,
+            "type": "integer",
+            "description": "The straight-line distance, in metres (up to 1,000 km).",
+            "format": "int32"
+          }
+        },
+        "description": "How far a unit of one type can move in one turn."
       },
       "Nation": {
         "enum": [
@@ -3127,6 +3368,50 @@
         },
         "description": "Changes an army's name, faction, colour and nation."
       },
+      "UpdateCampaignMapRequest": {
+        "required": [
+          "bounds",
+          "labelLanguage",
+          "distanceUnit",
+          "layers",
+          "movementLimits"
+        ],
+        "type": "object",
+        "properties": {
+          "bounds": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The area everyone's map is held inside, or null for none yet.",
+                "$ref": "#/components/schemas/MapBounds"
+              }
+            ]
+          },
+          "labelLanguage": {
+            "minLength": 1,
+            "type": "string",
+            "description": "Place names' language: an ISO 639-1 code from the list, or \"local\"."
+          },
+          "distanceUnit": {
+            "description": "How distances are shown.",
+            "$ref": "#/components/schemas/DistanceUnit"
+          },
+          "layers": {
+            "description": "What the map shows.",
+            "$ref": "#/components/schemas/MapLayers"
+          },
+          "movementLimits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovementLimitDto"
+            },
+            "description": "How far each type of unit moves in a turn: every type, once."
+          }
+        },
+        "description": "Changes a campaign's map settings (all of them)."
+      },
       "UpdateCampaignRequest": {
         "required": [
           "name",
@@ -3363,6 +3648,9 @@
     },
     {
       "name": "Armies"
+    },
+    {
+      "name": "Maps"
     }
   ]
 }

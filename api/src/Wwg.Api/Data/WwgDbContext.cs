@@ -18,6 +18,10 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Faction> Factions => Set<Faction>();
 
+    public DbSet<CampaignMap> CampaignMaps => Set<CampaignMap>();
+
+    public DbSet<MovementLimit> MovementLimits => Set<MovementLimit>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
