@@ -1,10 +1,11 @@
 import { Alert, Box } from "@mantine/core";
-import { IconCloudOff, IconMap } from "@tabler/icons-react";
+import { IconCloudOff, IconMap, IconSettings } from "@tabler/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import { useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
 import { BackLink } from "@/components/BackLink";
 import { EmptyState } from "@/components/EmptyState";
+import { LinkButton } from "@/components/LinkButton";
 import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
 import { useSession } from "@/features/auth/session-context";
@@ -21,9 +22,23 @@ export function MapPage({ campaignId }: { campaignId: string }) {
   const online = useOnline();
   const manager = campaign.data !== undefined && canManage(campaign.data, user);
 
+  const settingsButton = (
+    <LinkButton
+      variant="default"
+      leftSection={<IconSettings size={16} aria-hidden />}
+      disabled={!online}
+      renderLink={(props) => (
+        <Link to="/campaigns/$id/map/settings" params={{ id: campaignId }} {...props} />
+      )}
+    >
+      Map settings
+    </LinkButton>
+  );
+
   return (
     <Page
       title="Map"
+      actions={manager && settingsButton}
       back={
         <BackLink
           renderLink={(props) => (
@@ -52,7 +67,7 @@ export function MapPage({ campaignId }: { campaignId: string }) {
                 <CampaignMap settings={settings} bounds={settings.bounds} />
               </Box>
             ) : (
-              <EmptyState icon={IconMap} title="No map yet">
+              <EmptyState icon={IconMap} title="No map yet" action={manager && settingsButton}>
                 {manager
                   ? "Choose the campaign's area in the map settings."
                   : "The Umpire hasn't chosen the campaign's area yet."}
