@@ -1,3 +1,4 @@
+import { notifications } from "@mantine/notifications";
 import { Alert } from "@mantine/core";
 import { IconLock } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,6 +58,7 @@ export function EditCampaignPage({ id }: { id: string }) {
                 onSubmit={async (values) => {
                   const updated = await update.mutateAsync({ id, data: values });
                   queryClient.setQueryData(getGetCampaignQueryKey(id), updated);
+                  notifications.show({ color: "green", message: `Saved ${updated.name}.` });
                   await refreshCampaign(queryClient, id);
                   await back();
                 }}

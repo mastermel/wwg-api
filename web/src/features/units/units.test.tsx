@@ -198,6 +198,7 @@ describe("units", () => {
     await waitFor(() => {
       expect(rows()[1]).toEqual(["1st DivisionHeavy Infantry", "Heavy Infantry", "7", "20", ""]);
     });
+    expect(await screen.findByText("Saved 1st Division.")).toBeInTheDocument();
   });
   it("lets the Umpire delete a unit after confirming", async () => {
     const requests = serveArmy("Umpire", [unit("1", "1st Division")]);

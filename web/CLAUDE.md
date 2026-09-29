@@ -48,6 +48,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   colour pair gets its contrast checked and noted in `theme.ts`. Component styles that need more
   than props go in a `*.module.css` next to the component.
 - Anything that deletes, removes or can't be undone asks first with `ConfirmModal`.
+- A button that goes to another page is a `LinkButton` (`renderLink`), not a `Button` with
+  `renderRoot`: disabled, it becomes a real disabled button (a link could still be followed).
+- Every successful change confirms itself with a green notification ("Saved …", "Deleted …").
 - Mantine's `Select` is a `combobox` to Testing Library, and its options need `hidden: true`
   (the dropdown's transition leaves it `display: none` in jsdom).
 - Show dates with `formatDate` / `formatDateTime` (`lib/format`): the API sends UTC.

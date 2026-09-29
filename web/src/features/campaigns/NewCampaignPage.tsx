@@ -1,13 +1,12 @@
+import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  getListMyCampaignsQueryKey,
-  useCreateCampaign,
-} from "@/api/generated/endpoints/campaigns/campaigns";
+import { useCreateCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import { BackLink } from "@/components/BackLink";
 import { Page } from "@/components/Page";
 import { Section } from "@/components/Section";
 import { CampaignForm } from "@/features/campaigns/CampaignForm";
+import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 
 export function NewCampaignPage() {
   const navigate = useNavigate();
@@ -27,7 +26,8 @@ export function NewCampaignPage() {
           submitLabel="Create campaign"
           onSubmit={async (values) => {
             const campaign = await create.mutateAsync({ data: values });
-            await queryClient.invalidateQueries({ queryKey: getListMyCampaignsQueryKey() });
+            notifications.show({ color: "green", message: `Created ${campaign.name}.` });
+            await refreshCampaign(queryClient, campaign.id);
             await navigate({ to: "/campaigns/$id", params: { id: campaign.id } });
           }}
           onCancel={() => void navigate({ to: "/campaigns" })}

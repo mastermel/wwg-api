@@ -16,8 +16,10 @@ test("creates, edits and deletes a campaign", async ({ signUp }) => {
   await expect(page.getByRole("heading", { level: 1, name: "The Hundred Days" })).toBeVisible();
   await expect(page.getByText("Napoleon's return, 1815.")).toBeVisible();
 
-  // The sidebar on the desktop, the tab bar on a phone: whichever is showing.
+  // The sidebar on the desktop, the tab bar on a phone: whichever is showing (the page's back
+  // link has the same name).
   await page
+    .getByRole("navigation")
     .getByRole("link", { name: "Campaigns", exact: true })
     .filter({ visible: true })
     .click();
@@ -39,6 +41,7 @@ test("shows saved campaigns offline, read-only", async ({ signUp, browserName })
   await waitForServiceWorker(page);
   await waitUntilSaved(page, new URL(details).pathname.replace(/^/, "/api"), "The Peninsular War");
   await page
+    .getByRole("navigation")
     .getByRole("link", { name: "Campaigns", exact: true })
     .filter({ visible: true })
     .click();

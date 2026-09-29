@@ -126,6 +126,7 @@ describe("campaigns", () => {
       await screen.findByRole("heading", { level: 1, name: "The Peninsular War" }),
     ).toBeInTheDocument();
     expect(sent).toEqual({ name: "The Peninsular War", description: "Wellington in Spain." });
+    expect(await screen.findByText("Created The Peninsular War.")).toBeInTheDocument();
   });
 
   it.each([
@@ -175,6 +176,7 @@ describe("campaigns", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "The Hundred Days" }),
     ).toBeInTheDocument();
+    expect(await screen.findByText("Saved The Hundred Days.")).toBeInTheDocument();
   });
 
   it("tells a Player who opens the edit page that only the Umpire can edit", async () => {

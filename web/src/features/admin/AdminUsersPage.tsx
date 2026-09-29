@@ -64,42 +64,44 @@ export function AdminUsersPage({ search, page }: { search: string; page: number 
               />
             ) : (
               <>
-                <Table.ScrollContainer minWidth={560} type="native">
-                  <Table highlightOnHover horizontalSpacing="lg">
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Name</Table.Th>
-                        <Table.Th>Email</Table.Th>
-                        <Table.Th>Registered</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {result.items.map((user) => (
-                        <Table.Tr key={user.id}>
-                          <Table.Td>
-                            <Group gap="xs" wrap="nowrap">
-                              <Anchor
-                                fw={500}
-                                renderRoot={(props) => (
-                                  <Link to="/admin/users/$id" params={{ id: user.id }} {...props} />
-                                )}
-                              >
-                                {user.lastName}, {user.firstName}
-                              </Anchor>
-                              {user.isAdmin && (
-                                <Badge size="sm" variant="light">
-                                  Admin
-                                </Badge>
+                <Table highlightOnHover horizontalSpacing="lg">
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Name</Table.Th>
+                      {/* On phones the email sits under the name, rather than scroll sideways. */}
+                      <Table.Th visibleFrom="sm">Email</Table.Th>
+                      <Table.Th visibleFrom="sm">Registered</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {result.items.map((user) => (
+                      <Table.Tr key={user.id}>
+                        <Table.Td>
+                          <Group gap="xs" wrap="nowrap">
+                            <Anchor
+                              fw={500}
+                              renderRoot={(props) => (
+                                <Link to="/admin/users/$id" params={{ id: user.id }} {...props} />
                               )}
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>{user.email}</Table.Td>
-                          <Table.Td>{formatDate(user.createdAt)}</Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Table.ScrollContainer>
+                            >
+                              {user.lastName}, {user.firstName}
+                            </Anchor>
+                            {user.isAdmin && (
+                              <Badge size="sm" variant="light">
+                                Admin
+                              </Badge>
+                            )}
+                          </Group>
+                          <Text size="xs" c="dimmed" hiddenFrom="sm">
+                            {user.email}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td visibleFrom="sm">{user.email}</Table.Td>
+                        <Table.Td visibleFrom="sm">{formatDate(user.createdAt)}</Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
                 <Divider />
                 <Group justify="space-between" px="lg" py="sm">
                   <Text size="sm" c="dimmed">

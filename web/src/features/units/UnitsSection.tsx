@@ -165,7 +165,8 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
             setEditing(null);
           }}
           onSubmit={async (values) => {
-            await update.mutateAsync({ id: editing.id, data: values });
+            const unit = await update.mutateAsync({ id: editing.id, data: values });
+            notifications.show({ color: "green", message: `Saved ${unit.name}.` });
             await refresh();
           }}
         />

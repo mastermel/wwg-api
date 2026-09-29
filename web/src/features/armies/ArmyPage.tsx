@@ -195,6 +195,7 @@ function RenameArmyButton({ army }: { army: ArmyResponse }) {
           onSubmit={async ({ name }) => {
             const updated = await rename.mutateAsync({ id: army.id, data: { name } });
             queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
+            notifications.show({ color: "green", message: `Renamed to ${updated.name}.` });
             await refreshCampaign(queryClient, army.campaignId);
           }}
         />
