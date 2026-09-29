@@ -2064,6 +2064,243 @@
           }
         ]
       }
+    },
+    "/api/campaigns/{id}/turns": {
+      "get": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "The campaign's turns and where each stands (every member). The Umpire sees every army's\nturn, and while setting up what stops the campaign starting; a commander sees their own\narmy's, and everyone the counts.",
+        "operationId": "ListTurns",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignTurnsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/positions": {
+      "get": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Where the campaign's units are, as the caller may see them (the visibility rule): the Umpire\nevery army's, a commander their own. Without turn, where they are now\n(each unit's latest Completed turn); with it, their orders in that turn, whatever its status.",
+        "operationId": "ListPositions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "turn",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitPosition"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/start": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where\nits units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or\nwith what's stopping it (no area, no armies, an army without a faction, units not placed).",
+        "operationId": "StartCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignTurnsResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/units/{id}/placement": {
+      "put": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a\nunit added since that has no position yet (it's placed where its army last was, in the\narmy's latest Completed turn). Inside the campaign's area, which must be set.",
+        "operationId": "PlaceUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitPosition"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Takes a unit off the map again (Umpire or Admin), while setting up only.",
+        "operationId": "UnplaceUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2306,6 +2543,51 @@
         },
         "description": "An army in the campaign's army list. Every member sees every army."
       },
+      "ArmyTurnStatus": {
+        "enum": [
+          "Draft",
+          "Submitted",
+          "Completed"
+        ],
+        "description": "Where an army's turn is."
+      },
+      "ArmyTurnSummary": {
+        "required": [
+          "armyId",
+          "status",
+          "submittedAt",
+          "completedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "armyId": {
+            "type": "string",
+            "description": "The army.",
+            "format": "uuid"
+          },
+          "status": {
+            "description": "Draft, Submitted or Completed.",
+            "$ref": "#/components/schemas/ArmyTurnStatus"
+          },
+          "submittedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When it was last submitted (UTC).",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When it was approved (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "An army's part in a campaign turn."
+      },
       "AssignCommanderRequest": {
         "required": [
           "memberId"
@@ -2492,6 +2774,13 @@
         ],
         "description": "A campaign role (stored as its name)."
       },
+      "CampaignStage": {
+        "enum": [
+          "Setup",
+          "Running"
+        ],
+        "description": "Where a campaign is: setting up (turn 0), or running (turn 1 or later is open)."
+      },
       "CampaignSummary": {
         "required": [
           "id",
@@ -2529,6 +2818,90 @@
           }
         },
         "description": "A campaign in the \"my campaigns\" list."
+      },
+      "CampaignTurnsResponse": {
+        "required": [
+          "stage",
+          "openTurn",
+          "turns",
+          "startProblems"
+        ],
+        "type": "object",
+        "properties": {
+          "stage": {
+            "description": "Setting up (turn 0) or running.",
+            "$ref": "#/components/schemas/CampaignStage"
+          },
+          "openTurn": {
+            "type": "integer",
+            "description": "The open turn's number (0 while setting up).",
+            "format": "int32"
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CampaignTurnSummary"
+            },
+            "description": "Every turn so far, oldest first."
+          },
+          "startProblems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "While setting up, for the Umpire: what stops the campaign starting."
+          }
+        },
+        "description": "Where the campaign's turns are."
+      },
+      "CampaignTurnSummary": {
+        "required": [
+          "number",
+          "openedAt",
+          "closedAt",
+          "submitted",
+          "armies",
+          "armyTurns"
+        ],
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "description": "0 for setup, then 1, 2…",
+            "format": "int32"
+          },
+          "openedAt": {
+            "type": "string",
+            "description": "When it opened (UTC).",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the next opened (UTC), or null while it's the open turn.",
+            "format": "date-time"
+          },
+          "submitted": {
+            "type": "integer",
+            "description": "How many armies have submitted (or completed) it.",
+            "format": "int32"
+          },
+          "armies": {
+            "type": "integer",
+            "description": "How many armies take part in it.",
+            "format": "int32"
+          },
+          "armyTurns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArmyTurnSummary"
+            },
+            "description": "Each army's part: all of them for the Umpire, a commander's own for them."
+          }
+        },
+        "description": "One of the campaign's turns."
       },
       "CampaignUmpire": {
         "required": [
@@ -3104,6 +3477,13 @@
         ],
         "description": "The nation or state of the Napoleonic wars an army fights for. The front-end draws its flag (a\nsimplified one) as the army's icon; None is a plain flag in the army's colour. Stored by name."
       },
+      "OrderKind": {
+        "enum": [
+          "Move",
+          "Hold"
+        ],
+        "description": "What a unit does in a turn."
+      },
       "PagedResponseOfAdminCampaignSummary": {
         "required": [
           "items",
@@ -3248,6 +3628,30 @@
         },
         "description": "A place found by a search, to frame the map on."
       },
+      "PlaceUnitRequest": {
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "maximum": 85,
+            "minimum": -85,
+            "type": "number",
+            "description": "Latitude, in degrees, inside the campaign's area.",
+            "format": "double"
+          },
+          "longitude": {
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number",
+            "description": "Longitude, in degrees, inside the campaign's area.",
+            "format": "double"
+          }
+        },
+        "description": "Where the Umpire places a unit."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -3391,6 +3795,54 @@
           }
         },
         "description": "A signed-in session. The access token goes in `Authorization: Bearer …`; the refresh\ntoken is never in a body: it's set as an HttpOnly cookie that only /api/auth receives."
+      },
+      "UnitPosition": {
+        "required": [
+          "unitId",
+          "armyId",
+          "turn",
+          "status",
+          "kind",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "armyId": {
+            "type": "string",
+            "description": "Its army.",
+            "format": "uuid"
+          },
+          "turn": {
+            "type": "integer",
+            "description": "The turn this is its position after.",
+            "format": "int32"
+          },
+          "status": {
+            "description": "That army turn's status (a Draft's positions are orders not yet approved).",
+            "$ref": "#/components/schemas/ArmyTurnStatus"
+          },
+          "kind": {
+            "description": "Its order: Move (or placed, in turn 0) or Hold.",
+            "$ref": "#/components/schemas/OrderKind"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "Latitude, in degrees.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "Longitude, in degrees.",
+            "format": "double"
+          }
+        },
+        "description": "Where a unit is (or is ordered to be) after a turn."
       },
       "UnitResponse": {
         "required": [
@@ -3763,6 +4215,9 @@
     },
     {
       "name": "Armies"
+    },
+    {
+      "name": "Turns"
     }
   ]
 }

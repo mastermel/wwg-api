@@ -1,0 +1,403 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
+using Wwg.Api.Data;
+using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure;
+using Wwg.Api.Infrastructure.Auth;
+
+namespace Wwg.Api.Features.Turns;
+
+internal static class TurnEndpoints
+{
+    public static IEndpointRouteBuilder MapTurnEndpoints(this IEndpointRouteBuilder app)
+    {
+        var campaign = app.MapGroup("/api/campaigns/{id:guid}").WithTags("Turns");
+        campaign
+            .MapGet("/turns", ListTurnsAsync)
+            .WithName("ListTurns")
+            .RequireCampaignAccess(CampaignAccess.Member);
+        campaign
+            .MapGet("/positions", ListPositionsAsync)
+            .WithName("ListPositions")
+            .RequireCampaignAccess(CampaignAccess.Member);
+        campaign
+            .MapPost("/start", StartCampaignAsync)
+            .WithName("StartCampaign")
+            .RequireCampaignAccess(CampaignAccess.Umpire)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        var placement = app.MapGroup("/api/units/{id:guid}/placement").WithTags("Turns");
+        placement
+            .MapPut("", PlaceUnitAsync)
+            .WithName("PlaceUnit")
+            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Unit)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        placement
+            .MapDelete("", UnplaceUnitAsync)
+            .WithName("UnplaceUnit")
+            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Unit)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        return app;
+    }
+
+    /// <summary>
+    /// The campaign's turns and where each stands (every member). The Umpire sees every army's
+    /// turn, and while setting up what stops the campaign starting; a commander sees their own
+    /// army's, and everyone the counts.
+    /// </summary>
+    internal static async Task<Ok<CampaignTurnsResponse>> ListTurnsAsync(
+        Guid id,
+        WwgDbContext db,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var access = httpContext.CampaignContext();
+        var visible = Visibility.VisibleArmyIds(db, access);
+        var turns = await db
+            .CampaignTurns.AsNoTracking()
+            .Where(t => t.CampaignId == id)
+            .OrderBy(t => t.Number)
+            .Select(t => new CampaignTurnSummary(
+                t.Number,
+                t.OpenedAt,
+                t.ClosedAt,
+                db.ArmyTurns.Count(a =>
+                    a.CampaignTurnId == t.Id && a.Status != ArmyTurnStatus.Draft
+                ),
+                db.ArmyTurns.Count(a => a.CampaignTurnId == t.Id),
+                db.ArmyTurns.Where(a => a.CampaignTurnId == t.Id && visible.Contains(a.ArmyId))
+                    .OrderBy(a => a.Army.Name)
+                    .ThenBy(a => a.ArmyId)
+                    .Select(a => new ArmyTurnSummary(
+                        a.ArmyId,
+                        a.Status,
+                        a.SubmittedAt,
+                        a.CompletedAt
+                    ))
+                    .ToList()
+            ))
+            .ToListAsync(cancellationToken);
+
+        var open = turns.SingleOrDefault(t => t.ClosedAt is null)?.Number ?? 0;
+        var stage = open == 0 ? CampaignStage.Setup : CampaignStage.Running;
+        var problems =
+            stage == CampaignStage.Setup && access.CanManage
+                ? await StartProblemsAsync(db, id, cancellationToken)
+                : [];
+        return TypedResults.Ok(new CampaignTurnsResponse(stage, open, turns, problems));
+    }
+
+    /// <summary>
+    /// Where the campaign's units are, as the caller may see them (the visibility rule): the Umpire
+    /// every army's, a commander their own. Without <paramref name="turn"/>, where they are now
+    /// (each unit's latest Completed turn); with it, their orders in that turn, whatever its status.
+    /// </summary>
+    internal static async Task<Ok<List<UnitPosition>>> ListPositionsAsync(
+        Guid id,
+        int? turn,
+        WwgDbContext db,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var visible = Visibility.VisibleArmyIds(db, httpContext.CampaignContext());
+        var orders = db.UnitOrders.AsNoTracking().Where(o => visible.Contains(o.ArmyTurn.ArmyId));
+        orders = turn is { } number
+            ? orders.Where(o => o.ArmyTurn.CampaignTurn.Number == number)
+            : orders.Where(o =>
+                o.ArmyTurn.Status == ArmyTurnStatus.Completed
+                && !db.UnitOrders.Any(later =>
+                    later.UnitId == o.UnitId
+                    && later.ArmyTurn.Status == ArmyTurnStatus.Completed
+                    && later.ArmyTurn.CampaignTurn.Number > o.ArmyTurn.CampaignTurn.Number
+                )
+            );
+
+        var positions = await orders
+            .OrderBy(o => o.Unit.Name)
+            .ThenBy(o => o.UnitId)
+            .Select(o => new UnitPosition(
+                o.UnitId,
+                o.ArmyTurn.ArmyId,
+                o.ArmyTurn.CampaignTurn.Number,
+                o.ArmyTurn.Status,
+                o.Kind,
+                o.Latitude,
+                o.Longitude
+            ))
+            .ToListAsync(cancellationToken);
+        return TypedResults.Ok(positions);
+    }
+
+    /// <summary>
+    /// Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a
+    /// unit added since that has no position yet (it's placed where its army last was, in the
+    /// army's latest Completed turn). Inside the campaign's area, which must be set.
+    /// </summary>
+    internal static async Task<
+        Results<Ok<UnitPosition>, ValidationProblem, ProblemHttpResult>
+    > PlaceUnitAsync(
+        Guid id,
+        PlaceUnitRequest request,
+        WwgDbContext db,
+        TimeProvider time,
+        CancellationToken cancellationToken
+    )
+    {
+        var unit = await db
+            .Units.Where(u => u.Id == id)
+            .Select(u => new
+            {
+                u.Id,
+                u.ArmyId,
+                u.Army.CampaignId,
+            })
+            .SingleOrGoneAsync(cancellationToken);
+        var map = await db
+            .CampaignMaps.AsNoTracking()
+            .SingleOrDefaultAsync(m => m.CampaignId == unit.CampaignId, cancellationToken);
+        if (map is not { West: { } west, South: { } south, East: { } east, North: { } north })
+        {
+            return Conflict("No map area", "Choose the map's area first, in the map settings.");
+        }
+
+        if (
+            request.Latitude < south
+            || request.Latitude > north
+            || request.Longitude < west
+            || request.Longitude > east
+        )
+        {
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["latitude"] = ["That's outside the campaign's area."],
+                }
+            );
+        }
+
+        var armyTurn = await PlacementTurnAsync(
+            db,
+            time,
+            unit.CampaignId,
+            unit.ArmyId,
+            id,
+            cancellationToken
+        );
+        if (armyTurn is null)
+        {
+            return Conflict(
+                "Already placed",
+                "The campaign has started: units already on the map move by their orders."
+            );
+        }
+
+        return TypedResults.Ok(
+            await SavePlacementAsync(db, armyTurn, unit.ArmyId, id, request, cancellationToken)
+        );
+    }
+
+    /// <summary>Takes a unit off the map again (Umpire or Admin), while setting up only.</summary>
+    internal static async Task<Results<NoContent, ProblemHttpResult>> UnplaceUnitAsync(
+        Guid id,
+        WwgDbContext db,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var campaignId = httpContext.CampaignContext().CampaignId;
+        if (await TurnRules.HasStartedAsync(db, campaignId, cancellationToken))
+        {
+            return Conflict(
+                "Campaign started",
+                "Units can only be taken off the map while setting up."
+            );
+        }
+
+        await db
+            .UnitOrders.Where(o => o.UnitId == id && o.ArmyTurn.CampaignTurn.Number == 0)
+            .ExecuteDeleteAsync(cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>
+    /// Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where
+    /// its units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or
+    /// with what's stopping it (no area, no armies, an army without a faction, units not placed).
+    /// </summary>
+    internal static async Task<
+        Results<Ok<CampaignTurnsResponse>, ProblemHttpResult>
+    > StartCampaignAsync(
+        Guid id,
+        WwgDbContext db,
+        TimeProvider time,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var setup = await TurnRules.SetupTurnAsync(db, time, id, cancellationToken);
+        if (setup is null)
+        {
+            return Conflict("Already started", "The campaign has already started.");
+        }
+
+        var problems = await StartProblemsAsync(db, id, cancellationToken);
+        if (problems.Count > 0)
+        {
+            return Conflict("Not ready to start", string.Join(" ", problems));
+        }
+
+        var now = time.GetUtcNow().UtcDateTime;
+        var first = new CampaignTurn
+        {
+            CampaignId = id,
+            Number = 1,
+            OpenedAt = now,
+        };
+        db.CampaignTurns.Add(first);
+        foreach (
+            var armyId in await db
+                .Armies.Where(a => a.CampaignId == id)
+                .Select(a => a.Id)
+                .ToListAsync(cancellationToken)
+        )
+        {
+            var placements = await TurnRules.ArmyTurnAsync(db, setup, armyId, cancellationToken);
+            (placements.Status, placements.CompletedAt) = (ArmyTurnStatus.Completed, now);
+            db.ArmyTurns.Add(
+                new ArmyTurn
+                {
+                    CampaignTurnId = first.Id,
+                    ArmyId = armyId,
+                    Status = ArmyTurnStatus.Draft,
+                }
+            );
+        }
+
+        setup.ClosedAt = now;
+        await db.SaveChangesAsync(cancellationToken);
+        return await ListTurnsAsync(id, db, httpContext, cancellationToken);
+    }
+
+    /// <summary>What stops the campaign starting, in sentences; empty when it's ready.</summary>
+    internal static async Task<List<string>> StartProblemsAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        CancellationToken cancellationToken
+    )
+    {
+        var problems = new List<string>();
+        if (
+            !await db.CampaignMaps.AnyAsync(
+                m => m.CampaignId == campaignId && m.West != null,
+                cancellationToken
+            )
+        )
+        {
+            problems.Add("Choose the map's area.");
+        }
+
+        var armies = await db
+            .Armies.AsNoTracking()
+            .Where(a => a.CampaignId == campaignId)
+            .OrderBy(a => a.Name)
+            .Select(a => new { a.Name, a.FactionId })
+            .ToListAsync(cancellationToken);
+        if (armies.Count == 0)
+        {
+            problems.Add("Add at least one army.");
+        }
+
+        problems.AddRange(
+            armies.Where(a => a.FactionId is null).Select(a => $"Put {a.Name} in a faction.")
+        );
+
+        var unplaced = await db.Units.CountAsync(
+            u =>
+                u.Army.CampaignId == campaignId
+                && !db.UnitOrders.Any(o => o.UnitId == u.Id && o.ArmyTurn.CampaignTurn.Number == 0),
+            cancellationToken
+        );
+        if (unplaced > 0)
+        {
+            problems.Add(
+                unplaced == 1 ? "Place 1 unit on the map." : $"Place {unplaced} units on the map."
+            );
+        }
+
+        return problems;
+    }
+
+    /// <summary>
+    /// The army turn a placement goes in: turn 0's while setting up; once started, the army's
+    /// latest Completed turn, but only for a unit with no position yet. Null if it can't be placed.
+    /// </summary>
+    private static async Task<ArmyTurn?> PlacementTurnAsync(
+        WwgDbContext db,
+        TimeProvider time,
+        Guid campaignId,
+        Guid armyId,
+        Guid unitId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (await TurnRules.SetupTurnAsync(db, time, campaignId, cancellationToken) is { } setup)
+        {
+            return await TurnRules.ArmyTurnAsync(db, setup, armyId, cancellationToken);
+        }
+
+        var placed = await db.UnitOrders.AnyAsync(
+            o => o.UnitId == unitId && o.ArmyTurn.Status == ArmyTurnStatus.Completed,
+            cancellationToken
+        );
+        return placed
+            ? null
+            : await db
+                .ArmyTurns.Where(t => t.ArmyId == armyId && t.Status == ArmyTurnStatus.Completed)
+                .OrderByDescending(t => t.CampaignTurn.Number)
+                .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>Saves the unit's placement as a Move order in <paramref name="armyTurn"/>.</summary>
+    private static async Task<UnitPosition> SavePlacementAsync(
+        WwgDbContext db,
+        ArmyTurn armyTurn,
+        Guid armyId,
+        Guid id,
+        PlaceUnitRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var order =
+            await db.UnitOrders.SingleOrDefaultAsync(
+                o => o.ArmyTurnId == armyTurn.Id && o.UnitId == id,
+                cancellationToken
+            ) ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = armyTurn.Id, UnitId = id }).Entity;
+        order.Kind = OrderKind.Move;
+        (order.Latitude, order.Longitude) = (request.Latitude, request.Longitude);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var number = await db
+            .CampaignTurns.Where(t => t.Id == armyTurn.CampaignTurnId)
+            .Select(t => t.Number)
+            .SingleAsync(cancellationToken);
+        return new UnitPosition(
+            id,
+            armyId,
+            number,
+            armyTurn.Status,
+            OrderKind.Move,
+            order.Latitude,
+            order.Longitude
+        );
+    }
+
+    private static ProblemHttpResult Conflict(string title, string detail) =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: title,
+            detail: detail
+        );
+}

@@ -22,6 +22,12 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<MovementLimit> MovementLimits => Set<MovementLimit>();
 
+    public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();
+
+    public DbSet<ArmyTurn> ArmyTurns => Set<ArmyTurn>();
+
+    public DbSet<UnitOrder> UnitOrders => Set<UnitOrder>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

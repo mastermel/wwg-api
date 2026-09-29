@@ -1,0 +1,71 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using Wwg.Api.Data.Entities;
+
+namespace Wwg.Api.Features.Turns;
+
+/// <summary>An army's part in a campaign turn.</summary>
+/// <param name="ArmyId">The army.</param>
+/// <param name="Status">Draft, Submitted or Completed.</param>
+/// <param name="SubmittedAt">When it was last submitted (UTC).</param>
+/// <param name="CompletedAt">When it was approved (UTC).</param>
+public sealed record ArmyTurnSummary(
+    Guid ArmyId,
+    ArmyTurnStatus Status,
+    DateTime? SubmittedAt,
+    DateTime? CompletedAt
+);
+
+/// <summary>One of the campaign's turns.</summary>
+/// <param name="Number">0 for setup, then 1, 2…</param>
+/// <param name="OpenedAt">When it opened (UTC).</param>
+/// <param name="ClosedAt">When the next opened (UTC), or null while it's the open turn.</param>
+/// <param name="Submitted">How many armies have submitted (or completed) it.</param>
+/// <param name="Armies">How many armies take part in it.</param>
+/// <param name="ArmyTurns">Each army's part: all of them for the Umpire, a commander's own for them.</param>
+public sealed record CampaignTurnSummary(
+    int Number,
+    DateTime OpenedAt,
+    DateTime? ClosedAt,
+    int Submitted,
+    int Armies,
+    IReadOnlyList<ArmyTurnSummary> ArmyTurns
+);
+
+/// <summary>Where the campaign's turns are.</summary>
+/// <param name="Stage">Setting up (turn 0) or running.</param>
+/// <param name="OpenTurn">The open turn's number (0 while setting up).</param>
+/// <param name="Turns">Every turn so far, oldest first.</param>
+/// <param name="StartProblems">While setting up, for the Umpire: what stops the campaign starting.</param>
+public sealed record CampaignTurnsResponse(
+    CampaignStage Stage,
+    int OpenTurn,
+    IReadOnlyList<CampaignTurnSummary> Turns,
+    IReadOnlyList<string> StartProblems
+);
+
+/// <summary>Where a unit is (or is ordered to be) after a turn.</summary>
+/// <param name="UnitId">The unit.</param>
+/// <param name="ArmyId">Its army.</param>
+/// <param name="Turn">The turn this is its position after.</param>
+/// <param name="Status">That army turn's status (a Draft's positions are orders not yet approved).</param>
+/// <param name="Kind">Its order: Move (or placed, in turn 0) or Hold.</param>
+/// <param name="Latitude">Latitude, in degrees.</param>
+/// <param name="Longitude">Longitude, in degrees.</param>
+public sealed record UnitPosition(
+    Guid UnitId,
+    Guid ArmyId,
+    int Turn,
+    ArmyTurnStatus Status,
+    OrderKind Kind,
+    double Latitude,
+    double Longitude
+);
+
+/// <summary>Where the Umpire places a unit.</summary>
+/// <param name="Latitude">Latitude, in degrees, inside the campaign's area.</param>
+/// <param name="Longitude">Longitude, in degrees, inside the campaign's area.</param>
+public sealed record PlaceUnitRequest(
+    [property: JsonRequired, Range(-85.0, 85.0)] double Latitude,
+    [property: JsonRequired, Range(-180.0, 180.0)] double Longitude
+);

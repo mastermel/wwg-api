@@ -12,7 +12,7 @@ public enum UnitType
     HorseArtillery,
 }
 
-/// <summary>A unit in an army. Only the army's commander, the Umpire and Admins see it.</summary>
+/// <summary>A unit in an army. Every member sees it; where it is follows the visibility rule.</summary>
 internal sealed class Unit : Entity
 {
     /// <summary>The lowest and highest Fighting Factor.</summary>
