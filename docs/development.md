@@ -17,6 +17,7 @@ git clone git@github.com:mastermel/wwg.git && cd wwg
 dotnet tool restore           # CSharpier, Husky.Net, dotnet-ef (versions in .config/dotnet-tools.json)
 dotnet build api/Wwg.slnx     # also installs the git pre-commit hook
 npm ci --prefix web           # front-end dependencies
+npm ci --prefix e2e           # end-to-end test tooling (the commit hook lints e2e/ with it)
 ```
 
 The first build installs the pre-commit hook (Husky.Net). Set `HUSKY=0` before building to skip
@@ -165,8 +166,10 @@ app in Chrome), and `.vscode/tasks.json` wraps the commands above. Nothing depen
 
 ## Troubleshooting
 
-- **The commit hook says `web/node_modules` is missing:** run `npm ci --prefix web`.
+- **The commit hook says `web/node_modules` (or `e2e/node_modules`) is missing:** run
+  `npm ci --prefix web` (or `npm ci --prefix e2e`).
 - **Port 5102 or 5173 is in use:** an earlier run may still be going; stop it, or find it with
   `lsof -i :5102`.
-- **Safari and cookies on localhost:** once sign-in exists (step 10), use Chrome for local
-  development. Safari may refuse `Secure` cookies over plain `http://localhost`.
+- **Safari and cookies on localhost:** use Chrome for local development. Safari may refuse
+  `Secure` cookies over plain `http://localhost` (the end-to-end stack serves HTTPS, so test
+  Safari's engine there).

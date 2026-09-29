@@ -9,6 +9,11 @@ web/src/routeTree.gen.ts
 **/*.db-shm
 **/*.db-wal
 api/tests/
+# Local development data: the Data Protection keys (a real key) and database backups.
+api/src/Wwg.Api/keys/
+api/src/Wwg.Api/backups/
+# The end-to-end tests aren't part of the image (and their reports can be large).
+e2e/
 .git/
 .github/
 .husky/

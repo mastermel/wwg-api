@@ -59,7 +59,14 @@ production runs it.
 
 ```sh
 docker build -t wwg .   # build the image locally
+docker run --rm -p 8080:8080 -v wwg-data:/data \
+  -e App__PublicUrl=http://localhost:8080 wwg   # and run it on http://localhost:8080
 ```
+
+`App__PublicUrl` is required (reset and join links are built from it). Without `Smtp__Host`,
+emails are written to the log instead of sent. Plain http works in Chrome; Safari needs HTTPS
+for the sign-in cookie. Backups, restoring and rolling back are in
+[docs/operations.md](docs/operations.md).
 
 ## Repository layout
 
@@ -69,7 +76,7 @@ docker build -t wwg .   # build the image locally
 - `web/`: WWG Campaigner, the React front-end
 - `e2e/`: Playwright end-to-end tests and the stack they run against
 - `scripts/`: developer scripts (`dev.sh`)
-- `docs/`: decision log
+- `docs/`: the decision log, the development guide and operations
 - Root: repo-wide config (`global.json`, `.editorconfig`, `.gitignore`,
   `.config/dotnet-tools.json`, `.husky/`)
 

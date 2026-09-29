@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the API (dotnet watch, http://localhost:5102) and the Vite dev server
-# (http://localhost:5173) together, plus Mailpit if Docker is available. Ctrl+C stops both; so do closing the terminal and either one
-# exiting.
+# (http://localhost:5173) together, plus Mailpit if Docker is available. Ctrl+C stops both; so
+# do closing the terminal and either one exiting.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
