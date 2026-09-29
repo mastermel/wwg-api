@@ -62,6 +62,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Failed calls: `errorMessage(error, "What didn't happen. Try again.")` (`lib/errors`) for the
   message; forms use `applyServerErrors`, which does the same for non-field errors.
 - A Mantine `Alert` that informs rather than warns of an error gets `role="status"`.
+- Name an army with `ArmyBadge` (`features/armies/identity`): its flag, framed in its colour,
+  beside the name. Army colours are the theme's `--army-*` variables (`armyColorVar`), checked
+  in `army-colors.ts`; flags come from `NationFlag`, names from `nationLabel`.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

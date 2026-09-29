@@ -1196,7 +1196,8 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   layer switches, the label language, the distance unit (km or miles) and each
   unit type's movement limit per turn.
 - The campaign page gains a **Factions** section (the Umpire creates, renames
-  and deletes them); the army page gains faction, colour and flag.
+  and deletes them); the army page's **Edit army** covers name, faction, colour (with
+  swatches; a new army is offered the first free one) and nation (with its flag).
 - **`ArmyBadge`**, the army's flag in its colour beside its name, everywhere an
   army is named: the armies list, the army page, the members list, the admin
   views and the map. The name is always there, so colour is never the only
@@ -1394,7 +1395,7 @@ Unit
 Faction                       Army (new fields)
   Id           Guid             FactionId    → Faction? (null = "Unassigned")
   CampaignId   → Campaign       Color        ArmyColor (one of 8 palette keys)
-  Name         string (≤100)    Flag         ArmyFlag (a key into the flag library)
+  Name         string (≤100)    Nation       Nation (whose flag it flies; None = plain)
   CreatedAt / UpdatedAt
 
 CampaignMap (one per campaign)         MovementLimit
@@ -1427,10 +1428,14 @@ UnitOrder                      ArmyTurnEvent (the turn's history)
   Completed turn. Turn 0's orders are the Umpire's placements.
 - Distances are stored in metres and checked as straight lines (great-circle);
   km or miles is only how they're shown.
-- Colours and flags are keys, not values: the palette (8 colours, distinct for
-  colour-blind users, 3:1 against the map and the app in both schemes) and the
-  flag SVGs live in the front-end, and the API validates the keys (enums in the
-  contract). A new army gets the first colour no other army has.
+- Colours and nations are keys, not values (`ArmyColor`: Red, Blue, Green,
+  Orange, Purple, Sky, Gold, Magenta; `Nation`: None and 21 states of the
+  period), enums in the contract that the API validates. The palette (from
+  Okabe–Ito, distinct for colour-blind users, tuned per scheme to 3.2:1 against
+  the app's panels and canvas; `army-colors.ts`) and the flags (simplified SVGs,
+  `NationFlag.tsx`) live in the front-end. A new army gets the first colour no
+  other army has (else the least used). Existing armies were spread over the
+  palette by the migration.
 
 **Rules enforced in the database:**
 
@@ -1528,8 +1533,8 @@ New rows:
 
 | Action | Admin | Umpire | Player (commander) | Player (other) | Non-member |
 |---|:-:|:-:|:-:|:-:|:-:|
-| List factions; see each army's faction, colour, flag | ✅ | ✅ | ✅ | ✅ | 404 |
-| Create / rename / delete faction; set an army's faction, colour, flag | ✅ | ✅ | 403 | 403 | 404 |
+| List factions; see each army's faction, colour, nation | ✅ | ✅ | ✅ | ✅ | 404 |
+| Create / rename / delete faction; set an army's faction, colour, nation | ✅ | ✅ | 403 | 403 | 404 |
 | View the map settings (bounds, layers, language, limits) | ✅ | ✅ | ✅ | ✅ | 404 |
 | Edit the map settings; search for places | ✅ | ✅ | 403 | 403 | 404 |
 | View turn progress (numbers, statuses, counts) | ✅ | ✅ | ✅ | ✅ | 404 |
@@ -1638,7 +1643,7 @@ each step)
 |---|---|---|
 | GET / POST | `/api/campaigns/{id}/factions` | List / create factions |
 | PUT / DELETE | `/api/factions/{id}` | Rename / delete a faction |
-| PUT | `/api/armies/{id}` | Edit an army: name, and now faction, colour and flag |
+| PUT | `/api/armies/{id}` | `UpdateArmy` (was `RenameArmy`): name, faction, colour and nation |
 | GET / PUT | `/api/campaigns/{id}/map` | The map settings, with the movement limits |
 | GET | `/api/campaigns/{id}/places?search=` | Place search for the bounds (Umpire; server-side geocoder, rate-limited) |
 | GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts |
@@ -1932,11 +1937,22 @@ Decisions [0009](docs/decisions/0009-campaign-map-stack.md) and
 §5.2 and §5.3. Each step ships its API, screens, tests (the permission rows for every role,
 including the e2e flows) and DESIGN updates, in commits under 500 lines.
 
-30. **Factions, army colours and flags:** factions (CRUD, an army's faction, "Unassigned"),
-    each army's colour (the 8-colour palette, contrast-checked in both schemes) and flag (the
+30. ✅ **Factions, army colours and flags:** factions (CRUD, an army's faction, "Unassigned"),
+    each army's colour (the 8-colour palette, contrast-checked in both schemes) and nation (the
     SVG flag library), the 8-army limit, and `ArmyBadge` everywhere an army is named. Every
     member now sees every army's units, read-only (the §5.2 change). The test scenario gains
     factions.
+    - The migrations add `Armies.FactionId`, `Color` and `Nation` in place (`ALTER TABLE`):
+      EF's usual rebuild of `Armies` would drop the commander triggers, and fails outright
+      while one refers to it. The trigger SQL is now `CommanderRules`, for any migration that
+      can't avoid a rebuild (§3.2).
+    - Faction names are unique in a campaign, ignoring case (409). Deleting a faction leaves
+      its armies Unassigned.
+    - The army's `PUT` became `UpdateArmy` (all four fields, colour and nation
+      `[JsonRequired]`). The member list's army carries colour and nation, for the badge.
+    - The flags' designs are simplified and some are approximate (Portugal, Westphalia,
+      Baden, Naples, Brunswick, Hanover and Württemberg in particular): worth a look by
+      someone who knows the period.
 31. **The map:** map settings (bounds, layers, label language, distance unit, movement limits)
     and their page; place search through our API (a `Geocoding` settings section: MapTiler
     with a key, or Photon); the map page on MapLibre and OpenFreeMap with our light and dark
