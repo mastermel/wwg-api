@@ -1,0 +1,5 @@
+/* Where a unit is ordered to go: its symbol, faded (it isn't there yet). */
+.ghost {
+  display: block;
+  opacity: 0.55;
+}
