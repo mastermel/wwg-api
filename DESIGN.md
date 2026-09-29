@@ -2001,12 +2001,16 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
       position, showing how many; choosing it lists them in the drawer.
     - Notifications show three at a time (placing a dozen units piled them up); component tests
       clear them after each test, as the store is shared.
-33. **Orders:** Move (with the range circle, bounds and limit checks), Hold and undo; ghost
+33. ✅ **Orders:** Move (with the range circle, bounds and limit checks), Hold and undo; ghost
     moves; the turn panel and Submit; the Umpire's Approve, Send back and Revert with notes;
     **Start turn N+1**; progress counts; the turn emails.
-    - Done: the API (orders, submit, approve, send back, revert, the next turn, the emails)
-      and the commander's side (the turn panel, Move and Hold, ghosts, the range, undo, Submit).
-      The Umpire's review and Start turn N+1 are next.
+    - The commander's side: the turn panel, Move and Hold, ghosts, the range, undo, Submit.
+      The Umpire's: a panel of every army's open turn (status, moves and holds, times) with
+      Approve, Send back and Reopen (notes on the turn and on each unit, all optional), every
+      army's orders as ghosts, and Start turn N+1 with what's holding it up.
+    - The UI says "Reopen" for revert: it's what the Umpire does to an approved turn.
+    - Someone who manages the campaign and also commands an army (an Admin who's a Player) gets
+      the Umpire's panel, not the commander's; the API lets them give orders all the same.
     - Move: the drawer closes and the map comes into view; a tap outside the range or the area
       says why, and picks nothing; a tap inside shows the ghost and asks to confirm. Tapping a
       unit or stack moves there too.

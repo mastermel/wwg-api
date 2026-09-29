@@ -360,6 +360,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 open={openTurn}
                 problems={turns.data.startProblems}
                 armyTurns={openTurns}
+                units={units.data ?? []}
                 review={review}
               />
             ) : !setup && commanded.length > 0 && openTurn ? (

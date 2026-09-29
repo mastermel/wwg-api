@@ -75,7 +75,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   API's `Geo.cs`); orders in words from `orders.ts`. Ghost moves and the range are
   `OrderOverlay`, inside the map: sight only, as the turn panel lists the same orders.
   A commander's turn changes go through `useOrders` (`use-orders.ts`), which also refetches the
-  army's turns: they're keyed by the army, so `refreshCampaign` doesn't reach them.
+  army's turns: they're keyed by the army, so `refreshCampaign` doesn't reach them. The Umpire's
+  (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

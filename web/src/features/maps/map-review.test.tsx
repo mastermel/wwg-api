@@ -197,6 +197,48 @@ describe("the Umpire's turn", () => {
     expect(requests).toEqual([{ url: `/api/army-turns/${submitted.id}/approve`, body: null }]);
   });
 
+  it("sends a turn back with notes on it and on a unit", async () => {
+    const requests = serveUmpire(submitted, waiting, []);
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Send back Armée du Nord's turn" }));
+    const dialog = await screen.findByRole("dialog", { name: "Send back Armée du Nord's turn 1" });
+    await user.type(within(dialog).getByRole("textbox", { name: "Note" }), " Too cautious. ");
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Imperial Guard" }),
+      "Advance on the ridge.",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Send back" }));
+
+    expect(await screen.findByText("Sent back Armée du Nord's turn 1.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        url: `/api/army-turns/${submitted.id}/send-back`,
+        body: {
+          note: "Too cautious.",
+          unitNotes: [{ unitId: guardId, text: "Advance on the ridge." }],
+        },
+      },
+    ]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("reopens an approved turn, notes left out", async () => {
+    const requests = serveUmpire(approved, waiting, []);
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Reopen Armée du Nord's turn" }));
+    const dialog = await screen.findByRole("dialog", { name: "Reopen Armée du Nord's turn 1" });
+    await user.click(within(dialog).getByRole("button", { name: "Reopen" }));
+
+    expect(await screen.findByText("Reopened Armée du Nord's turn 1.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      { url: `/api/army-turns/${approved.id}/revert`, body: { note: null, unitNotes: null } },
+    ]);
+  });
+
   it("starts the next turn after confirming", async () => {
     const requests = serveUmpire(approved, armyTurn(prussians, { status: "Completed" }), []);
     const user = userEvent.setup();

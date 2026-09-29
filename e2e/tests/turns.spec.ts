@@ -2,7 +2,7 @@ import { scan } from "./support/axe.ts";
 import { expect, test } from "./support/fixtures.ts";
 import { latestEmailText } from "./support/mailpit.ts";
 import { clickMap } from "./support/map.ts";
-import { startedCampaign } from "./support/turns.ts";
+import { holdAndSubmit, startedCampaign } from "./support/turns.ts";
 
 test("a commander moves one unit, holds another and submits the turn", async ({ signUp }) => {
   test.slow();
@@ -51,5 +51,66 @@ test("a commander moves one unit, holds another and submits the turn", async ({ 
   // The Umpire hears of it.
   expect(await latestEmailText(umpire.email)).toContain(
     "Bob Tester submitted Armée du Nord's orders for turn 1",
+  );
+});
+
+test("the Umpire sends a turn back, approves it resubmitted, and starts the next", async ({
+  signUp,
+}) => {
+  test.slow();
+  const umpire = await signUp("Ada");
+  const commander = await signUp("Bob");
+  const { campaignUrl, campaignId, armyId } = await startedCampaign(
+    umpire,
+    commander,
+    "Wavre 1815",
+  );
+  await holdAndSubmit(commander, campaignId, armyId);
+
+  // The Umpire sends it back, with a note on the turn and one on a unit.
+  const page = umpire.page;
+  await page.goto(`${campaignUrl}/map`);
+  const panel = page.getByRole("region", { name: "Turn 1" });
+  await expect(panel.getByText(/^0 moves, 2 holds\. Submitted/)).toBeVisible();
+  expect(await scan(page, "map, the Umpire's review")).toEqual([]);
+  await panel.getByRole("button", { name: "Send back Armée du Nord's turn" }).click();
+  const dialog = page.getByRole("dialog", { name: "Send back Armée du Nord's turn 1" });
+  await dialog.getByRole("textbox", { name: "Note" }).fill("Push on to Ligny.");
+  await dialog.getByRole("textbox", { name: "Imperial Guard" }).fill("Take the ridge.");
+  await dialog.getByRole("button", { name: "Send back" }).click();
+  await expect(page.getByText("Sent back Armée du Nord's turn 1.")).toBeVisible();
+  await expect(panel.getByText("Bob Tester is giving orders.")).toBeVisible();
+
+  // Bob hears why, sees the notes, and submits again.
+  await expect
+    .poll(() => latestEmailText(commander.email), { timeout: 15_000 })
+    .toContain("Push on to Ligny.");
+  const bob = commander.page;
+  await bob.goto(`${campaignUrl}/map`);
+  const bobsPanel = bob.getByRole("region", { name: "Turn 1" });
+  await expect(bobsPanel.getByRole("status", { name: "Sent back" })).toContainText(
+    "Push on to Ligny.",
+  );
+  await expect(bobsPanel.getByText("Umpire: Take the ridge.")).toBeVisible();
+  await bobsPanel.getByRole("button", { name: "Submit turn 1" }).click();
+  await bob.getByRole("dialog").getByRole("button", { name: "Submit" }).click();
+  await expect(bob.getByText("Submitted Armée du Nord's turn 1.")).toBeVisible();
+
+  // The Umpire approves it, and starts turn 2.
+  await page.reload();
+  await panel.getByRole("button", { name: "Approve Armée du Nord's turn" }).click();
+  await expect(page.getByText("Approved Armée du Nord's turn 1.")).toBeVisible();
+  await panel.getByRole("button", { name: "Start turn 2" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Start turn 2" }).click();
+  await expect(page.getByText("Turn 2 has started.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Turn 2" })).toBeVisible();
+
+  // Bob is told, and gives orders for turn 2.
+  await expect
+    .poll(() => latestEmailText(commander.email), { timeout: 15_000 })
+    .toContain("Turn 2 of Wavre 1815 has started.");
+  await bob.reload();
+  await expect(bob.getByRole("region", { name: "Turn 2" }).getByText("No order yet")).toHaveCount(
+    2,
   );
 });

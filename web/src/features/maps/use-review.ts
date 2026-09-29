@@ -1,18 +1,26 @@
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
-import { useApproveTurn, useStartNextTurn } from "@/api/generated/endpoints/turns/turns";
-import type { ArmyTurnDetails } from "@/api/generated/model";
+import {
+  useApproveTurn,
+  useRevertTurn,
+  useSendBackTurn,
+  useStartNextTurn,
+} from "@/api/generated/endpoints/turns/turns";
+import type { ArmyTurnDetails, ReviewTurnRequest } from "@/api/generated/model";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
 
 /**
- * The Umpire's changes to the open turn: approving an army's turn, and starting the next. Each
- * confirms itself or says what went wrong, then refreshes the campaign and every army's turns,
- * and resolves to whether it worked.
+ * The Umpire's changes to the open turn: approving, sending back and reverting an army's turn,
+ * and starting the next. Each confirms itself or says what went wrong, then refreshes the
+ * campaign and every army's turns. Approve and start resolve to whether they worked; send back and
+ * revert throw, so their form can show why.
  */
 export function useReview(campaignId: string) {
   const queryClient = useQueryClient();
   const approve = useApproveTurn();
+  const sendBack = useSendBackTurn();
+  const revert = useRevertTurn();
   const startNext = useStartNextTurn();
 
   const refresh = () =>
@@ -39,6 +47,23 @@ export function useReview(campaignId: string) {
     }
   };
 
+  const review = async (
+    kind: "send-back" | "revert",
+    turn: ArmyTurnDetails,
+    armyName: string,
+    data: ReviewTurnRequest,
+  ) => {
+    try {
+      await (kind === "send-back" ? sendBack : revert).mutateAsync({ id: turn.id, data });
+      notifications.show({
+        color: "green",
+        message: `${kind === "send-back" ? "Sent back" : "Reopened"} ${armyName}'s turn ${String(turn.turn)}.`,
+      });
+    } finally {
+      await refresh();
+    }
+  };
+
   return {
     busy: approve.isPending || startNext.isPending,
     approve: (turn: ArmyTurnDetails, armyName: string) =>
@@ -47,6 +72,7 @@ export function useReview(campaignId: string) {
         `Approved ${armyName}'s turn ${String(turn.turn)}.`,
         `${armyName}'s turn couldn't be approved. Try again.`,
       ),
+    review,
     startNext: (number: number) =>
       run(
         () => startNext.mutateAsync({ id: campaignId }),

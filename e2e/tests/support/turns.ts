@@ -57,3 +57,18 @@ export async function startedCampaign(
   await api.post(`/api/campaigns/${campaignId}/start`, null);
   return { campaignUrl, campaignId, armyId: army.id };
 }
+
+/** The commander holds every unit and submits turn 1, through the API. */
+export async function holdAndSubmit(commander: User, campaignId: string, armyId: string) {
+  const api = await apiAs(commander.page);
+  const turns = await api.get<{ id: string; open: boolean }[]>(`/api/armies/${armyId}/turns`);
+  const turn = turns.find((t) => t.open);
+  if (!turn) throw new Error("The army has no open turn.");
+  const units = await api.get<{ id: string; armyId: string }[]>(
+    `/api/campaigns/${campaignId}/units`,
+  );
+  for (const unit of units.filter((u) => u.armyId === armyId)) {
+    await api.put(`/api/army-turns/${turn.id}/orders/${unit.id}`, { kind: "Hold" });
+  }
+  await api.post(`/api/army-turns/${turn.id}/submit`, null);
+}

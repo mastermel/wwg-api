@@ -1,10 +1,17 @@
 import { Alert, Badge, Button, Group, List, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconCheck, IconPlayerTrackNext } from "@tabler/icons-react";
-import type { ArmyTurnDetails, ArmyTurnStatus, CampaignTurnSummary } from "@/api/generated/model";
+import { useState } from "react";
+import type {
+  ArmyTurnDetails,
+  ArmyTurnStatus,
+  CampaignTurnSummary,
+  UnitResponse,
+} from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
+import { ReviewModal } from "@/features/maps/ReviewModal";
 import type { OpenArmyTurn } from "@/features/maps/use-orders";
 import type { useReview } from "@/features/maps/use-review";
 import { formatDateTime } from "@/lib/format";
@@ -21,15 +28,22 @@ interface ReviewPanelProps {
   /** What stops the next turn starting. */
   problems: readonly string[];
   armyTurns: readonly OpenArmyTurn[];
+  units: readonly UnitResponse[];
   review: ReturnType<typeof useReview>;
 }
 
 /**
  * The Umpire's open turn (DESIGN.md §3.13): each army's turn with its status and times, Approve
- * once it's submitted, and Start turn N+1 once every army's turn is approved.
+ * or Send back once it's submitted, Reopen once it's approved, and Start turn N+1 once every
+ * army's turn is approved.
  */
-export function ReviewPanel({ open, problems, armyTurns, review }: ReviewPanelProps) {
+export function ReviewPanel({ open, problems, armyTurns, units, review }: ReviewPanelProps) {
   const online = useOnline();
+  const [reviewing, setReviewing] = useState<{
+    kind: "send-back" | "revert";
+    entry: OpenArmyTurn;
+    turn: ArmyTurnDetails;
+  } | null>(null);
   const [starting, { open: askToStart, close: closeStart }] = useDisclosure(false);
   const next = open.number + 1;
 
@@ -41,7 +55,15 @@ export function ReviewPanel({ open, problems, armyTurns, review }: ReviewPanelPr
       <Stack gap="lg">
         {armyTurns.map((entry) =>
           entry.turn ? (
-            <ArmyTurnReview key={entry.army.id} entry={entry} turn={entry.turn} review={review} />
+            <ArmyTurnReview
+              key={entry.army.id}
+              entry={entry}
+              turn={entry.turn}
+              review={review}
+              onReview={(kind, turn) => {
+                setReviewing({ kind, entry, turn });
+              }}
+            />
           ) : null,
         )}
         {problems.length > 0 && (
@@ -61,6 +83,20 @@ export function ReviewPanel({ open, problems, armyTurns, review }: ReviewPanelPr
           Start turn {next}
         </Button>
       </Stack>
+      {reviewing && (
+        <ReviewModal
+          kind={reviewing.kind}
+          army={reviewing.entry.army}
+          turn={reviewing.turn.turn}
+          units={units.filter((u) => u.armyId === reviewing.entry.army.id)}
+          onSubmit={(data) =>
+            review.review(reviewing.kind, reviewing.turn, reviewing.entry.army.name, data)
+          }
+          onClose={() => {
+            setReviewing(null);
+          }}
+        />
+      )}
       <ConfirmModal
         opened={starting}
         onClose={closeStart}
@@ -81,9 +117,10 @@ interface ArmyTurnReviewProps {
   entry: OpenArmyTurn;
   turn: ArmyTurnDetails;
   review: ReturnType<typeof useReview>;
+  onReview: (kind: "send-back" | "revert", turn: ArmyTurnDetails) => void;
 }
 
-function ArmyTurnReview({ entry: { army }, turn, review }: ArmyTurnReviewProps) {
+function ArmyTurnReview({ entry: { army }, turn, review, onReview }: ArmyTurnReviewProps) {
   const online = useOnline();
   const moves = turn.orders.filter((o) => o.kind === "Move").length;
   const holds = turn.orders.length - moves;
@@ -123,6 +160,32 @@ function ArmyTurnReview({ entry: { army }, turn, review }: ArmyTurnReviewProps) 
             onClick={() => void review.approve(turn, army.name)}
           >
             Approve
+          </Button>
+          <Button
+            size="compact-sm"
+            variant="default"
+            aria-label={`Send back ${army.name}'s turn`}
+            disabled={!online}
+            onClick={() => {
+              onReview("send-back", turn);
+            }}
+          >
+            Send back
+          </Button>
+        </Group>
+      )}
+      {turn.status === "Completed" && (
+        <Group gap="xs">
+          <Button
+            size="compact-sm"
+            variant="subtle"
+            aria-label={`Reopen ${army.name}'s turn`}
+            disabled={!online}
+            onClick={() => {
+              onReview("revert", turn);
+            }}
+          >
+            Reopen
           </Button>
         </Group>
       )}
