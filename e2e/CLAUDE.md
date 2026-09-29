@@ -37,8 +37,8 @@ npm run lint && npm run typecheck && npm run format:check
   the label), but a `SegmentedControl` option by its label (its input is off-screen). Don't
   `force`; it can click without toggling.
 - The campaign map is a MapLibre canvas: `getByRole("region", { name: "Map", exact: true })`.
-  Click a point on it with `page.mouse.click` at its bounding box (read it after anything that
-  scrolls). Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
+  `clickMapCentre(page)` (tests/support/map.ts) clicks it where it is now (call it after anything
+  that scrolls). Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
   place search here (it calls a service over the internet).
 - Setup the test isn't about (a map's area, armies, units) goes through the API: `apiAs(page)`
   (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.

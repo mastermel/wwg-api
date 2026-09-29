@@ -1,6 +1,7 @@
 import { apiAs, waterlooMap } from "./support/api.ts";
 import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
+import { clickMapCentre } from "./support/map.ts";
 import { expect, test } from "./support/fixtures.ts";
 
 // Place search isn't driven here: it calls a geocoding service over the internet (the component
@@ -91,9 +92,7 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
   await page.getByRole("button", { name: "Place Imperial Guard" }).click();
   // On a phone the list is under the map, which scrolls back into view: find it after that.
   await expect(page.getByText(/Click the map where/)).toBeInViewport();
-  const box = await map.boundingBox();
-  if (!box) throw new Error("The map has no size.");
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await clickMapCentre(page);
   await expect(page.getByText("Placed Imperial Guard.")).toBeVisible();
   await page.getByRole("button", { name: "Place Reserve Artillery" }).click();
   await page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" }).click();
