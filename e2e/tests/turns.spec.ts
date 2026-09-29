@@ -1,8 +1,9 @@
 import { scan } from "./support/axe.ts";
 import { expect, test } from "./support/fixtures.ts";
 import { latestEmailText } from "./support/mailpit.ts";
+import { apiAs } from "./support/api.ts";
 import { clickMap } from "./support/map.ts";
-import { holdAndSubmit, startedCampaign } from "./support/turns.ts";
+import { approveAndStartNext, holdAndSubmit, startedCampaign } from "./support/turns.ts";
 
 test("a commander moves one unit, holds another and submits the turn", async ({ signUp }) => {
   test.slow();
@@ -113,4 +114,71 @@ test("the Umpire sends a turn back, approves it resubmitted, and starts the next
   await expect(bob.getByRole("region", { name: "Turn 2" }).getByText("No order yet")).toHaveCount(
     2,
   );
+});
+
+test("a commander steps back through the turns; the Umpire picks out an army", async ({
+  signUp,
+}) => {
+  test.slow();
+  const umpire = await signUp("Ada");
+  const commander = await signUp("Bob");
+  const { campaignUrl, campaignId, armyId } = await startedCampaign(
+    umpire,
+    commander,
+    "Quatre Bras",
+  );
+  // Turn 1: the Imperial Guard marches north (about 5.5 km), and the turn is approved.
+  await holdAndSubmit(commander, campaignId, armyId, {
+    "Imperial Guard": { latitude: 50.75, longitude: 4.4 },
+  });
+  await approveAndStartNext(umpire, campaignId, armyId);
+  // A second army joins, with a unit of its own on the map.
+  const api = await apiAs(umpire.page);
+  const prussians = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
+    name: "Prussian I Corps",
+    commanderMemberId: null,
+    nation: "Prussia",
+  });
+  const brigade = await api.post<{ id: string }>(`/api/armies/${prussians.id}/units`, {
+    name: "1st Brigade",
+    type: "LightInfantry",
+    fightingFactor: 4,
+    points: 20,
+  });
+  await api.put(`/api/units/${brigade.id}/placement`, { latitude: 50.66, longitude: 4.52 });
+
+  // Bob steps back to the setup, and forward to turn 1: the Guard is further north after it.
+  const page = commander.page;
+  await page.goto(`${campaignUrl}/map`);
+  const guard = page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" });
+  const turns = page.getByRole("list", { name: "Turns" });
+  await turns.getByRole("button", { name: "Turn 0: Setup" }).click();
+  await expect(page.getByText("Showing where the Umpire placed the units.")).toBeVisible();
+  await expect(guard).toBeVisible();
+  const atSetup = await guard.boundingBox();
+  expect(await scan(page, "map, a past turn")).toEqual([]);
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByText("Showing where the units were after turn 1.")).toBeVisible();
+  await expect(turns.getByRole("button", { name: /^Turn 1:/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect
+    .poll(async () => (await guard.boundingBox())?.y ?? 0)
+    .toBeLessThan((atSetup?.y ?? 0) - 20);
+  await page.getByRole("button", { name: "Back to now" }).click();
+  await expect(page.getByRole("region", { name: "Turn 2" })).toBeVisible();
+
+  // The Umpire picks out Bob's army: the Prussians' unit fades.
+  await umpire.page.goto(`${campaignUrl}/map`);
+  const brigadeMarker = umpire.page.getByRole("button", {
+    name: "1st Brigade, Light Infantry, Prussian I Corps",
+  });
+  await expect(brigadeMarker).toHaveCSS("opacity", "1");
+  await umpire.page.getByRole("button", { name: /^Armée du Nord:/ }).click();
+  await expect(brigadeMarker).toHaveCSS("opacity", "0.3");
+  await expect(
+    umpire.page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" }),
+  ).toHaveCSS("opacity", "1");
+  expect(await scan(umpire.page, "map, an army picked out")).toEqual([]);
 });

@@ -2026,6 +2026,16 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
       turn, not the latest Completed one, which could be the open turn's and then reverted.
     - `GET /turns` gives the Umpire what stops the next turn starting while running, as it does
       the start while setting up.
-34. **History and the Umpire's overview:** stepping through an army's past turns; the Umpire's
+34. ✅ **History and the Umpire's overview:** stepping through an army's past turns; the Umpire's
     view of every army in its colours, highlighting one; the turn list with its counts and each
     army's status, times and actions.
+    - The Turns list (newest first) is for everyone once running: the Umpire sees each turn's
+      progress, a commander their army's status. Up and Right step to newer, Down and Left to
+      older, moving focus with the choice.
+    - A past turn shows where units were after it (`GET /positions?turn=`: each unit's latest
+      order at or before it), a banner with Back to now, and each army's part: status and its
+      history (who submitted, approved, sent back or reopened, when, and the notes). No ghosts
+      or actions. The open turn is "now": positions and ghosts as before.
+    - The Umpire's Armies list picks out one army: other stacks fade (opacity 0.3) and only its
+      moves show as ghosts; choosing it again shows all alike.
+    - The chosen row's detail text isn't dimmed: dimmed text fails contrast on its tint.

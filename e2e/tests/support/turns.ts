@@ -58,17 +58,39 @@ export async function startedCampaign(
   return { campaignUrl, campaignId, armyId: army.id };
 }
 
-/** The commander holds every unit and submits turn 1, through the API. */
-export async function holdAndSubmit(commander: User, campaignId: string, armyId: string) {
+/**
+ * The commander gives every unit an order and submits the open turn, through the API: Hold, or
+ * for units named in `moves`, a Move there.
+ */
+export async function holdAndSubmit(
+  commander: User,
+  campaignId: string,
+  armyId: string,
+  moves: Partial<Record<string, { latitude: number; longitude: number }>> = {},
+) {
   const api = await apiAs(commander.page);
   const turns = await api.get<{ id: string; open: boolean }[]>(`/api/armies/${armyId}/turns`);
   const turn = turns.find((t) => t.open);
   if (!turn) throw new Error("The army has no open turn.");
-  const units = await api.get<{ id: string; armyId: string }[]>(
+  const units = await api.get<{ id: string; armyId: string; name: string }[]>(
     `/api/campaigns/${campaignId}/units`,
   );
   for (const unit of units.filter((u) => u.armyId === armyId)) {
-    await api.put(`/api/army-turns/${turn.id}/orders/${unit.id}`, { kind: "Hold" });
+    const to = moves[unit.name];
+    await api.put(
+      `/api/army-turns/${turn.id}/orders/${unit.id}`,
+      to ? { kind: "Move", ...to } : { kind: "Hold" },
+    );
   }
   await api.post(`/api/army-turns/${turn.id}/submit`, null);
+}
+
+/** The Umpire approves the army's open turn and starts the next, through the API. */
+export async function approveAndStartNext(umpire: User, campaignId: string, armyId: string) {
+  const api = await apiAs(umpire.page);
+  const turns = await api.get<{ id: string; open: boolean }[]>(`/api/armies/${armyId}/turns`);
+  const turn = turns.find((t) => t.open);
+  if (!turn) throw new Error("The army has no open turn.");
+  await api.post(`/api/army-turns/${turn.id}/approve`, null);
+  await api.post(`/api/campaigns/${campaignId}/turns`, null);
 }
