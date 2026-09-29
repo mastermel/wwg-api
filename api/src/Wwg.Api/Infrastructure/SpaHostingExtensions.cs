@@ -26,11 +26,15 @@ internal static class SpaHostingExtensions
 
     /// <summary>
     /// Script is strict (only our own files). Style needs 'unsafe-inline': Mantine injects its CSS
-    /// variables in a style element and uses style attributes.
+    /// variables in a style element and uses style attributes. The campaign map (DESIGN.md §3.13)
+    /// fetches tiles and fonts from OpenFreeMap and elevation from Mapterhorn, and MapLibre (and
+    /// maplibre-contour) run web workers and decode images from blob: URLs.
     /// </summary>
     private const string ContentSecurityPolicy =
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-        + "img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; "
+        + "img-src 'self' data: blob:; font-src 'self'; "
+        + "connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com; "
+        + "worker-src 'self' blob:; "
         + "manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; "
         + "frame-ancestors 'none'";
 

@@ -1,7 +1,7 @@
 import { Badge, Button, Grid, Group, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconCrown, IconEdit, IconTrash, IconUsers } from "@tabler/icons-react";
+import { IconCrown, IconEdit, IconMap, IconTrash, IconUsers } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useDeleteCampaign, useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
@@ -39,20 +39,30 @@ export function CampaignPage({ id }: { id: string }) {
       }
       summary={details && <CampaignSummary campaign={details} />}
       actions={
-        details &&
-        manager && (
+        details && (
           <>
             <LinkButton
-              variant="default"
-              leftSection={<IconEdit size={16} aria-hidden />}
+              leftSection={<IconMap size={16} aria-hidden />}
               disabled={!online}
               renderLink={(props) => (
-                <Link to="/campaigns/$id/edit" params={{ id: details.id }} {...props} />
+                <Link to="/campaigns/$id/map" params={{ id: details.id }} {...props} />
               )}
             >
-              Edit
+              Map
             </LinkButton>
-            {user?.isAdmin && <SetUmpireButton campaign={details} />}
+            {manager && (
+              <LinkButton
+                variant="default"
+                leftSection={<IconEdit size={16} aria-hidden />}
+                disabled={!online}
+                renderLink={(props) => (
+                  <Link to="/campaigns/$id/edit" params={{ id: details.id }} {...props} />
+                )}
+              >
+                Edit
+              </LinkButton>
+            )}
+            {manager && user?.isAdmin && <SetUmpireButton campaign={details} />}
           </>
         )
       }

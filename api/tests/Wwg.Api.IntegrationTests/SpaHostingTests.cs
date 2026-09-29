@@ -90,6 +90,13 @@ public sealed class SpaHostingTests : ApiTest
 
         var csp = Assert.Single(response.Headers.GetValues("Content-Security-Policy"));
         Assert.Contains("script-src 'self'", csp, StringComparison.Ordinal);
+        // The campaign map's tile hosts, and MapLibre's workers.
+        Assert.Contains(
+            "connect-src 'self' https://tiles.openfreemap.org https://tiles.mapterhorn.com;",
+            csp,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("worker-src 'self' blob:;", csp, StringComparison.Ordinal);
         Assert.Contains("frame-ancestors 'none'", csp, StringComparison.Ordinal);
         Assert.Equal(
             "nosniff",
