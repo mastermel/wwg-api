@@ -254,8 +254,9 @@ internal static class AuthEndpoints
             }
         );
 
-    // The same answer for an unknown email and a wrong password, so sign-in can't be used to
-    // find out which emails have accounts.
+    // The same answer for an unknown email and a wrong password. (Not the same timing: an unknown
+    // email skips the password hash. Sign-up reveals which emails have accounts anyway; the rate
+    // limit is what stops probing, DESIGN §3.4.)
     private static ProblemHttpResult IncorrectCredentials() =>
         TypedResults.Problem(
             statusCode: StatusCodes.Status401Unauthorized,

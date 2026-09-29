@@ -42,7 +42,7 @@ internal static class CampaignEndpoints
         ClaimsPrincipal principal,
         WwgDbContext db,
         CancellationToken cancellationToken,
-        [Range(1, int.MaxValue)] int page = 1,
+        [Range(1, Paging.MaxPage)] int page = 1,
         [Range(1, Paging.MaxPageSize)] int pageSize = Paging.DefaultPageSize
     )
     {
@@ -122,7 +122,7 @@ internal static class CampaignEndpoints
     }
 
     /// <summary>
-    /// Deletes the campaign and everything in it: members now, armies and units later (Umpire or
+    /// Deletes the campaign and everything in it: its members, armies and units (Umpire or
     /// Admin). The database's cascades do the rest.
     /// </summary>
     internal static async Task<NoContent> DeleteCampaignAsync(

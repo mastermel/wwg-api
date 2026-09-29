@@ -202,13 +202,17 @@ internal static class ArmyEndpoints
     internal static async Task<NoContent> UnassignCommanderAsync(
         Guid id,
         WwgDbContext db,
+        TimeProvider time,
         CancellationToken cancellationToken
     )
     {
+        // ExecuteUpdate skips the audit interceptor, so UpdatedAt is set here.
         await db
             .Armies.Where(a => a.Id == id)
             .ExecuteUpdateAsync(
-                s => s.SetProperty(a => a.CommanderId, (Guid?)null),
+                s =>
+                    s.SetProperty(a => a.CommanderId, (Guid?)null)
+                        .SetProperty(a => a.UpdatedAt, time.GetUtcNow().UtcDateTime),
                 cancellationToken
             );
         return TypedResults.NoContent();

@@ -93,6 +93,7 @@ public sealed class AdminUserTests : ApiTest
     [Theory]
     [InlineData("?pageSize=101", "pageSize")]
     [InlineData("?page=0", "page")]
+    [InlineData("?page=100001", "page")]
     public async Task ListUsers_PagingOutOfRange_IsAValidationError(string query, string field)
     {
         using var admin = await CreateAdminClientAsync();

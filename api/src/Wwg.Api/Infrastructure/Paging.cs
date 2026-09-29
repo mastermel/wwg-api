@@ -19,6 +19,9 @@ internal static class Paging
     public const int DefaultPageSize = 25;
     public const int MaxPageSize = 100;
 
+    /// <summary>Far past any real list, and low enough that the offset can't overflow.</summary>
+    public const int MaxPage = 100_000;
+
     /// <summary>
     /// Counts and fetches one page. The query must already have a stable order (a sort key, then
     /// Id), so pages don't shuffle between requests.

@@ -17,10 +17,14 @@ internal static class AdminUserEndpoints
         var users = admin.MapGroup("/users");
 
         users.MapGet("", ListUsersAsync).WithName("ListUsers").ProducesValidationProblem();
-        users.MapGet("/{id:guid}", GetUserAsync).WithName("GetUser");
+        users
+            .MapGet("/{id:guid}", GetUserAsync)
+            .WithName("GetUser")
+            .ProducesProblem(StatusCodes.Status404NotFound);
         users
             .MapDelete("/{id:guid}", DeleteUserAsync)
             .WithName("DeleteUser")
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return admin;
@@ -34,7 +38,7 @@ internal static class AdminUserEndpoints
         WwgDbContext db,
         CancellationToken cancellationToken,
         [StringLength(100)] string? search = null,
-        [Range(1, int.MaxValue)] int page = 1,
+        [Range(1, Paging.MaxPage)] int page = 1,
         [Range(1, Paging.MaxPageSize)] int pageSize = Paging.DefaultPageSize
     )
     {
@@ -68,7 +72,7 @@ internal static class AdminUserEndpoints
     }
 
     /// <summary>One user's details.</summary>
-    internal static async Task<Results<Ok<UserDetails>, NotFound>> GetUserAsync(
+    internal static async Task<Results<Ok<UserDetails>, ProblemHttpResult>> GetUserAsync(
         Guid id,
         WwgDbContext db,
         TimeProvider timeProvider,
@@ -99,7 +103,7 @@ internal static class AdminUserEndpoints
             .SingleOrDefaultAsync(cancellationToken);
 
         return user is null
-            ? TypedResults.NotFound()
+            ? TypedResults.Problem(statusCode: StatusCodes.Status404NotFound)
             : TypedResults.Ok(
                 new UserDetails(
                     user.Id,
@@ -118,7 +122,7 @@ internal static class AdminUserEndpoints
     /// Deletes a user and their sign-in data; their sessions end immediately. Admins can't delete
     /// their own account.
     /// </summary>
-    internal static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteUserAsync(
+    internal static async Task<Results<NoContent, ProblemHttpResult>> DeleteUserAsync(
         Guid id,
         ClaimsPrincipal principal,
         UserManager<AppUser> userManager,
@@ -144,7 +148,7 @@ internal static class AdminUserEndpoints
         var user = await userManager.FindByIdAsync(id.ToString());
         if (user is null)
         {
-            return TypedResults.NotFound();
+            return TypedResults.Problem(statusCode: StatusCodes.Status404NotFound);
         }
 
         (await userManager.DeleteAsync(user)).ThrowIfFailed();

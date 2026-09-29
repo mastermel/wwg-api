@@ -34,7 +34,7 @@ internal static class AdminCampaignEndpoints
         CancellationToken cancellationToken,
         [StringLength(100)] string? search = null,
         bool withoutUmpire = false,
-        [Range(1, int.MaxValue)] int page = 1,
+        [Range(1, Paging.MaxPage)] int page = 1,
         [Range(1, Paging.MaxPageSize)] int pageSize = Paging.DefaultPageSize
     )
     {
@@ -79,6 +79,7 @@ internal static class AdminCampaignEndpoints
         SetUmpireRequest request,
         ClaimsPrincipal principal,
         WwgDbContext db,
+        TimeProvider time,
         CancellationToken cancellationToken
     )
     {
@@ -97,7 +98,7 @@ internal static class AdminCampaignEndpoints
             );
         }
 
-        await ReplaceUmpireAsync(db, id, request.UserId, cancellationToken);
+        await ReplaceUmpireAsync(db, time, id, request.UserId, cancellationToken);
 
         var callerId = principal.GetUserId();
         var myRole = await db
@@ -111,6 +112,7 @@ internal static class AdminCampaignEndpoints
 
     private static async Task ReplaceUmpireAsync(
         WwgDbContext db,
+        TimeProvider time,
         Guid id,
         Guid userId,
         CancellationToken cancellationToken
@@ -151,11 +153,15 @@ internal static class AdminCampaignEndpoints
             else
             {
                 // The Umpire can't command an army: a promoted Player's army is left unassigned.
+                // Before the promotion is saved, or the database's commander rule refuses it.
+                // (ExecuteUpdate skips the audit interceptor, so UpdatedAt is set here.)
                 chosen.Role = CampaignRole.Umpire;
                 await db
                     .Armies.Where(a => a.CommanderId == chosen.Id)
                     .ExecuteUpdateAsync(
-                        s => s.SetProperty(a => a.CommanderId, (Guid?)null),
+                        s =>
+                            s.SetProperty(a => a.CommanderId, (Guid?)null)
+                                .SetProperty(a => a.UpdatedAt, time.GetUtcNow().UtcDateTime),
                         cancellationToken
                     );
             }

@@ -571,7 +571,7 @@
             "name": "page",
             "in": "query",
             "schema": {
-              "maximum": 2147483647,
+              "maximum": 100000,
               "minimum": 1,
               "type": "integer",
               "format": "int32",
@@ -649,7 +649,14 @@
             }
           },
           "404": {
-            "description": "Not Found"
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -680,7 +687,14 @@
             "description": "No Content"
           },
           "404": {
-            "description": "Not Found"
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           },
           "409": {
             "description": "Conflict",
@@ -729,7 +743,7 @@
             "name": "page",
             "in": "query",
             "schema": {
-              "maximum": 2147483647,
+              "maximum": 100000,
               "minimum": 1,
               "type": "integer",
               "format": "int32",
@@ -846,7 +860,7 @@
             "name": "page",
             "in": "query",
             "schema": {
-              "maximum": 2147483647,
+              "maximum": 100000,
               "minimum": 1,
               "type": "integer",
               "format": "int32",
@@ -1013,7 +1027,7 @@
         "tags": [
           "Campaigns"
         ],
-        "summary": "Deletes the campaign and everything in it: members now, armies and units later (Umpire or\nAdmin). The database's cascades do the rest.",
+        "summary": "Deletes the campaign and everything in it: its members, armies and units (Umpire or\nAdmin). The database's cascades do the rest.",
         "operationId": "DeleteCampaign",
         "parameters": [
           {

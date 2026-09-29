@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Features.Admin;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Campaigns;
@@ -250,6 +251,29 @@ public sealed class ArmyTests : ApiTest
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Null((await FirstCorpsAsync(scenario)).Commander);
+    }
+
+    [Fact]
+    public async Task UnassignCommander_Always_UpdatesTheArmysUpdatedAt()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        // Less than the access token's 30 minutes.
+        Clock.Advance(TimeSpan.FromMinutes(1));
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .DeleteAsync(
+                new Uri($"/api/armies/{scenario.ArmyId}/commander", UriKind.Relative),
+                CancellationToken
+            );
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var updatedAt = await WithDbAsync(db =>
+            db.Armies.Where(a => a.Id == scenario.ArmyId)
+                .Select(a => a.UpdatedAt)
+                .SingleAsync(CancellationToken)
+        );
+        Assert.Equal(Clock.GetUtcNow().UtcDateTime, updatedAt);
     }
 
     [Fact]
