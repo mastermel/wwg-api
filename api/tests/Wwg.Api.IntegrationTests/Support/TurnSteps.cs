@@ -28,6 +28,7 @@ internal static class TurnSteps
                     "en",
                     DistanceUnit.Kilometres,
                     CampaignMaps.DefaultLayers,
+                    CampaignMap.DefaultHexSize,
                     [
                         .. Enum.GetValues<UnitType>()
                             .Select(type => new MovementLimitDto(type, limitMetres)),

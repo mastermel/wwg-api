@@ -76,7 +76,11 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   API's `Geo.cs`); orders in words from `orders.ts`. Ghost moves and the range are
   `OrderOverlay`, inside the map: sight only, as the turn panel lists the same orders.
   A commander's turn changes go through `useOrders` (`use-orders.ts`), which also refetches the
-  army's turns: they're keyed by the army, so `refreshCampaign` doesn't reach them. The Umpire's
+  army's turns: they're keyed by the army, so `refreshCampaign` doesn't reach them.
+  The hex grid (decision 0014) is `hex-grid.ts`: its arithmetic matches the API's `HexGrid.cs`,
+  and both are tested against `testdata/hex-grid.json` (from an independent Python reference;
+  the Dockerfile copies it into the web build). `HexGridLayer` draws it, and nothing past
+  `maxDrawnHexes`. The Umpire's
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.

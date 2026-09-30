@@ -101,6 +101,7 @@ function serveHistory() {
           hills: true,
           contours: false,
         },
+        hexSize: 4828,
         movementLimits: [],
       } satisfies CampaignMapResponse),
     ),

@@ -1,0 +1,169 @@
+{
+  "about": "Expected figures for the hex grid (decision 0014), from an independent Python implementation (hex_grid.py). HexGrid.cs and hex-grid.ts are both tested against them.",
+  "cases": [
+    {
+      "name": "Waterloo, 3 miles",
+      "bounds": {
+        "west": 4.2,
+        "south": 50.6,
+        "east": 4.6,
+        "north": 50.8
+      },
+      "hexSize": 4828,
+      "points": [
+        {
+          "latitude": 50.7,
+          "longitude": 4.4,
+          "q": 0,
+          "r": 0,
+          "centre": {
+            "latitude": 50.7,
+            "longitude": 4.4
+          }
+        },
+        {
+          "latitude": 50.72,
+          "longitude": 4.4,
+          "q": 0,
+          "r": 0,
+          "centre": {
+            "latitude": 50.7,
+            "longitude": 4.4
+          }
+        },
+        {
+          "latitude": 50.73,
+          "longitude": 4.45,
+          "q": 1,
+          "r": -1,
+          "centre": {
+            "latitude": 50.7217096,
+            "longitude": 4.4593673
+          }
+        },
+        {
+          "latitude": 50.66,
+          "longitude": 4.34,
+          "q": -1,
+          "r": 1,
+          "centre": {
+            "latitude": 50.6782904,
+            "longitude": 4.3406327
+          }
+        },
+        {
+          "latitude": 50.61,
+          "longitude": 4.21,
+          "q": -3,
+          "r": 4,
+          "centre": {
+            "latitude": 50.591452,
+            "longitude": 4.2218981
+          }
+        },
+        {
+          "latitude": 50.79,
+          "longitude": 4.59,
+          "q": 3,
+          "r": -4,
+          "centre": {
+            "latitude": 50.808548,
+            "longitude": 4.5781019
+          }
+        },
+        {
+          "latitude": 50.75,
+          "longitude": 4.52,
+          "q": 2,
+          "r": -2,
+          "centre": {
+            "latitude": 50.7434192,
+            "longitude": 4.5187346
+          }
+        }
+      ],
+      "hexCount": 31,
+      "outside": [
+        {
+          "q": 1000,
+          "r": 0
+        },
+        {
+          "q": 0,
+          "r": -1000
+        },
+        {
+          "q": -1000,
+          "r": 1000
+        }
+      ]
+    },
+    {
+      "name": "Peninsula, 5 km",
+      "bounds": {
+        "west": -9.5,
+        "south": 36.0,
+        "east": 3.3,
+        "north": 43.8
+      },
+      "hexSize": 5000,
+      "points": [
+        {
+          "latitude": 40.4,
+          "longitude": -3.7,
+          "q": -12,
+          "r": -5,
+          "centre": {
+            "latitude": 40.3946262,
+            "longitude": -3.7091264
+          }
+        },
+        {
+          "latitude": 38.7,
+          "longitude": -9.1,
+          "q": -118,
+          "r": 86,
+          "centre": {
+            "latitude": 38.6859175,
+            "longitude": -9.0897432
+          }
+        },
+        {
+          "latitude": 41.4,
+          "longitude": 2.2,
+          "q": 104,
+          "r": -85,
+          "centre": {
+            "latitude": 41.3838786,
+            "longitude": 2.1790957
+          }
+        },
+        {
+          "latitude": 37.4,
+          "longitude": -5.98,
+          "q": -57,
+          "r": 84,
+          "centre": {
+            "latitude": 37.404386,
+            "longitude": -5.9933505
+          }
+        }
+      ],
+      "hexCount": 43895,
+      "outside": [
+        {
+          "q": 1000,
+          "r": 0
+        },
+        {
+          "q": 0,
+          "r": -1000
+        },
+        {
+          "q": -1000,
+          "r": 1000
+        }
+      ]
+    }
+  ]
+}

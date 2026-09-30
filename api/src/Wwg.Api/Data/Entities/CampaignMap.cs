@@ -31,6 +31,17 @@ internal sealed class CampaignMap : Entity
 
     public DistanceUnit DistanceUnit { get; set; }
 
+    /// <summary>The smallest, default and largest hex size: 500 m, 3 miles, 50 km across.</summary>
+    public const int MinHexSize = 500,
+        DefaultHexSize = 4828,
+        MaxHexSize = 50_000;
+
+    /// <summary>
+    /// The hex grid's hexes, in metres across the flats (decision 0014). With the bounds, it lays
+    /// out the grid, so neither changes once the campaign has started.
+    /// </summary>
+    public int HexSize { get; set; } = DefaultHexSize;
+
     public bool ShowRoads { get; set; }
 
     public bool ShowPlaces { get; set; }

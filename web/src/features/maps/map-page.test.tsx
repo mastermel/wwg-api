@@ -36,6 +36,7 @@ const settings = (bounds: CampaignMapResponse["bounds"]): CampaignMapResponse =>
   labelLanguage: "fr",
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
+  hexSize: 4828,
   movementLimits: [],
 });
 

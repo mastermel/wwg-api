@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Turns;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 using Wwg.Api.Infrastructure.Geocoding;
@@ -20,7 +21,8 @@ internal static partial class MapEndpoints
             .RequireCampaignAccess(CampaignAccess.Member);
         map.MapPut("", UpdateCampaignMapAsync)
             .WithName("UpdateCampaignMap")
-            .RequireCampaignAccess(CampaignAccess.Umpire);
+            .RequireCampaignAccess(CampaignAccess.Umpire)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         app.MapGet("/api/campaigns/{id:guid}/places", SearchPlacesAsync)
             .WithName("SearchPlaces")
@@ -96,7 +98,7 @@ internal static partial class MapEndpoints
     /// north; every unit type has a movement limit, once.
     /// </summary>
     internal static async Task<
-        Results<Ok<CampaignMapResponse>, ValidationProblem>
+        Results<Ok<CampaignMapResponse>, ValidationProblem, ProblemHttpResult>
     > UpdateCampaignMapAsync(
         Guid id,
         UpdateCampaignMapRequest request,
@@ -118,12 +120,23 @@ internal static partial class MapEndpoints
             map = new CampaignMap { CampaignId = id, LabelLanguage = request.LabelLanguage };
             db.CampaignMaps.Add(map);
         }
+        else if (
+            GridChanges(map, request) && await TurnRules.HasStartedAsync(db, id, cancellationToken)
+        )
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The grid is fixed",
+                detail: "The campaign has started: its area and hex size can't change now."
+            );
+        }
 
         (map.West, map.South, map.East, map.North) = request.Bounds is { } b
             ? (b.West, b.South, b.East, b.North)
             : ((double?)null, (double?)null, (double?)null, (double?)null);
         map.LabelLanguage = request.LabelLanguage;
         map.DistanceUnit = request.DistanceUnit;
+        map.HexSize = request.HexSize;
         (
             map.ShowRoads,
             map.ShowPlaces,
@@ -145,6 +158,17 @@ internal static partial class MapEndpoints
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
     }
+
+    /// <summary>Whether the request moves the grid: other bounds, or another hex size.</summary>
+    private static bool GridChanges(CampaignMap map, UpdateCampaignMapRequest request) =>
+        map.HexSize != request.HexSize
+        || (map.West, map.South, map.East, map.North)
+            != (
+                request.Bounds?.West,
+                request.Bounds?.South,
+                request.Bounds?.East,
+                request.Bounds?.North
+            );
 
     /// <summary>Adds or changes the campaign's limits (saved with the rest).</summary>
     private static async Task StageLimitsAsync(
@@ -234,6 +258,7 @@ internal static partial class MapEndpoints
                 CampaignMaps.DefaultLanguage,
                 CampaignMaps.DefaultDistanceUnit,
                 CampaignMaps.DefaultLayers,
+                CampaignMap.DefaultHexSize,
                 limits
             );
         }
@@ -252,6 +277,7 @@ internal static partial class MapEndpoints
                 map.ShowHills,
                 map.ShowContours
             ),
+            map.HexSize,
             limits
         );
     }

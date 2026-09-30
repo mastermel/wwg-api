@@ -14,6 +14,8 @@ COPY web/package.json web/package-lock.json ./
 # Scripts are skipped here: `prepare` generates the API client, which needs the sources below.
 RUN npm ci --ignore-scripts
 COPY api/openapi.json /src/api/openapi.json
+# The build typechecks the tests too, and the grid's reads the figures it shares with the API's.
+COPY testdata/ /src/testdata/
 COPY web/ ./
 RUN APP_VERSION=$APP_VERSION npm run build
 

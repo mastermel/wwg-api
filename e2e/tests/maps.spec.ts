@@ -22,7 +22,7 @@ test("the Umpire sets the map's area, and a Player sees the map inside it", asyn
   await expect(page.getByRole("region", { name: "Map", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Use this view" }).click();
-  await expect(page.getByText("The outline is the campaign's area.")).toBeVisible();
+  await expect(page.getByText(/^The outline is the campaign's area/)).toBeVisible();
   // Mantine's switch input lies over its label; its segmented control's input is off-screen, so
   // that one takes its label.
   await page.getByRole("switch", { name: "Forests" }).click();

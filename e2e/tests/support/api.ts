@@ -49,5 +49,6 @@ export const waterlooMap = {
   labelLanguage: "en",
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
+  hexSize: 4828,
   movementLimits: unitTypes.map((unitType) => ({ unitType, metres: 20_000 })),
 };

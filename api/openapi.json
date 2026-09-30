@@ -2321,6 +2321,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3276,6 +3286,7 @@
           "labelLanguage",
           "distanceUnit",
           "layers",
+          "hexSize",
           "movementLimits"
         ],
         "type": "object",
@@ -3302,6 +3313,11 @@
           "layers": {
             "description": "What the map shows.",
             "$ref": "#/components/schemas/MapLayers"
+          },
+          "hexSize": {
+            "type": "integer",
+            "description": "The hex grid's hexes, in metres across the flats (4828: 3 miles).",
+            "format": "int32"
           },
           "movementLimits": {
             "type": "array",
@@ -4733,6 +4749,7 @@
           "labelLanguage",
           "distanceUnit",
           "layers",
+          "hexSize",
           "movementLimits"
         ],
         "type": "object",
@@ -4760,6 +4777,13 @@
           "layers": {
             "description": "What the map shows.",
             "$ref": "#/components/schemas/MapLayers"
+          },
+          "hexSize": {
+            "maximum": 50000,
+            "minimum": 500,
+            "type": "integer",
+            "description": "The hex grid's hexes, in metres across the flats. With the bounds, fixed once the campaign has\nstarted.",
+            "format": "int32"
           },
           "movementLimits": {
             "type": "array",

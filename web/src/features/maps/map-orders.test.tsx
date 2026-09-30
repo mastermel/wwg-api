@@ -135,6 +135,7 @@ function serveCommander(turn: ArmyTurnDetails) {
           hills: true,
           contours: false,
         },
+        hexSize: 4828,
         movementLimits: [{ unitType: "LineInfantry", metres: 5000 }],
       } satisfies CampaignMapResponse),
     ),

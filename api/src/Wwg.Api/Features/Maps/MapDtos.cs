@@ -45,12 +45,14 @@ public sealed record MovementLimitDto(
 /// <param name="LabelLanguage">Place names' language: an ISO 639-1 code, or "local".</param>
 /// <param name="DistanceUnit">How distances are shown.</param>
 /// <param name="Layers">What the map shows.</param>
+/// <param name="HexSize">The hex grid's hexes, in metres across the flats (4828: 3 miles).</param>
 /// <param name="MovementLimits">How far each type of unit moves in a turn, one per type.</param>
 public sealed record CampaignMapResponse(
     MapBounds? Bounds,
     string LabelLanguage,
     DistanceUnit DistanceUnit,
     MapLayers Layers,
+    int HexSize,
     IReadOnlyList<MovementLimitDto> MovementLimits
 );
 
@@ -59,6 +61,10 @@ public sealed record CampaignMapResponse(
 /// <param name="LabelLanguage">Place names' language: an ISO 639-1 code from the list, or "local".</param>
 /// <param name="DistanceUnit">How distances are shown.</param>
 /// <param name="Layers">What the map shows.</param>
+/// <param name="HexSize">
+/// The hex grid's hexes, in metres across the flats. With the bounds, fixed once the campaign has
+/// started.
+/// </param>
 /// <param name="MovementLimits">How far each type of unit moves in a turn: every type, once.</param>
 public sealed record UpdateCampaignMapRequest(
     MapBounds? Bounds,
@@ -82,6 +88,7 @@ public sealed record UpdateCampaignMapRequest(
         string LabelLanguage,
     [property: JsonRequired, EnumDataType(typeof(DistanceUnit))] DistanceUnit DistanceUnit,
     [property: Required] MapLayers Layers,
+    [property: JsonRequired, Range(CampaignMap.MinHexSize, CampaignMap.MaxHexSize)] int HexSize,
     [property: Required] IReadOnlyList<MovementLimitDto> MovementLimits
 );
 

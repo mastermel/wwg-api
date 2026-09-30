@@ -22,6 +22,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { Layer, Source, type MapRef } from "react-map-gl/maplibre";
 import { z } from "zod";
 import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
+import { useListTurns } from "@/api/generated/endpoints/turns/turns";
 import {
   getGetCampaignMapQueryKey,
   useGetCampaignMap,
@@ -37,9 +38,13 @@ import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { CampaignMap } from "@/features/maps/CampaignMap";
+import { HexGridLayer } from "@/features/maps/HexGridLayer";
+import { hexCount, maxDrawnHexes } from "@/features/maps/hex-grid";
 import { PlaceSearch } from "@/features/maps/PlaceSearch";
 import {
   distanceUnitLabels,
+  maxHexDistance,
+  minHexDistance,
   labelLanguages,
   maxDistance,
   toMetres,
@@ -52,8 +57,9 @@ import { useOnline } from "@/lib/use-online";
 /** Where the Umpire starts choosing, before there's an area: Europe. */
 const europe: MapBounds = { west: -10, south: 36, east: 30, north: 60 };
 
-// Movement limits are entered in the campaign's unit, and saved in metres.
-const SettingsForm = UpdateCampaignMapBody.omit({ movementLimits: true }).extend({
+// Movement limits and the hex size are entered in the campaign's unit, and saved in metres.
+const SettingsForm = UpdateCampaignMapBody.omit({ movementLimits: true, hexSize: true }).extend({
+  hexDistance: z.number({ error: "Enter a size." }),
   limits: z.array(
     z.object({
       unitType: UpdateCampaignMapBody.shape.movementLimits.element.shape.unitType,
@@ -81,6 +87,7 @@ const layerSwitches: { key: keyof MapLayers; label: string }[] = [
 export function MapSettingsPage({ campaignId }: { campaignId: string }) {
   const campaign = useGetCampaign(campaignId);
   const map = useGetCampaignMap(campaignId, { query: { meta: { persist: false } } });
+  const turns = useListTurns(campaignId, { query: { meta: { persist: false } } });
   const { user } = useSession();
   const manager = campaign.data !== undefined && canManage(campaign.data, user);
 
@@ -109,7 +116,11 @@ export function MapSettingsPage({ campaignId }: { campaignId: string }) {
               The map is on the campaign&apos;s Map page.
             </Alert>
           ) : (
-            <SettingsFormView campaignId={campaignId} settings={settings} />
+            <SettingsFormView
+              campaignId={campaignId}
+              settings={settings}
+              started={turns.data?.stage === "Running"}
+            />
           )
         }
       </QueryState>
@@ -120,9 +131,12 @@ export function MapSettingsPage({ campaignId }: { campaignId: string }) {
 function SettingsFormView({
   campaignId,
   settings,
+  started,
 }: {
   campaignId: string;
   settings: CampaignMapResponse;
+  /** Once the campaign has started, its area and hex size are fixed (the API refuses them). */
+  started: boolean;
 }) {
   const online = useOnline();
   const navigate = useNavigate();
@@ -137,6 +151,7 @@ function SettingsFormView({
       labelLanguage: settings.labelLanguage,
       distanceUnit: settings.distanceUnit,
       layers: settings.layers,
+      hexDistance: toUnit(settings.hexSize, settings.distanceUnit),
       limits: settings.movementLimits.map((limit) => ({
         unitType: limit.unitType,
         distance: toUnit(limit.metres, settings.distanceUnit),
@@ -144,11 +159,16 @@ function SettingsFormView({
     },
   });
   const { errors, isSubmitting } = form.formState;
-  const [bounds, layers, labelLanguage, distanceUnit, limits] = useWatch({
+  const [bounds, layers, labelLanguage, distanceUnit, limits, hexDistance] = useWatch({
     control: form.control,
-    name: ["bounds", "layers", "labelLanguage", "distanceUnit", "limits"],
+    name: ["bounds", "layers", "labelLanguage", "distanceUnit", "limits", "hexDistance"],
   });
   const unit = distanceUnitLabels[distanceUnit].short;
+  const hexes =
+    bounds && hexDistance >= minHexDistance(distanceUnit)
+      ? hexCount(bounds, toMetres(hexDistance, distanceUnit))
+      : 0;
+  const tooManyHexes = hexes > maxDrawnHexes ? hexes : 0;
 
   const useThisView = () => {
     const view = mapRef.current?.getBounds();
@@ -178,6 +198,7 @@ function SettingsFormView({
 
   // Changing the unit keeps the distances: 20 km becomes 12.4 mi.
   const changeUnit = (next: SettingsValues["distanceUnit"]) => {
+    form.setValue("hexDistance", toUnit(toMetres(hexDistance, distanceUnit), next));
     form.setValue(
       "limits",
       limits.map((limit) => ({
@@ -198,6 +219,12 @@ function SettingsFormView({
           labelLanguage: values.labelLanguage,
           distanceUnit: values.distanceUnit,
           layers: values.layers,
+          // The saved size exactly, unless it was changed (km and miles round it to a tenth).
+          hexSize:
+            values.hexDistance === toUnit(settings.hexSize, settings.distanceUnit) &&
+            values.distanceUnit === settings.distanceUnit
+              ? settings.hexSize
+              : toMetres(values.hexDistance, values.distanceUnit),
           movementLimits: values.limits.map((limit) => ({
             unitType: limit.unitType,
             metres: toMetres(limit.distance, values.distanceUnit),
@@ -239,16 +266,26 @@ function SettingsFormView({
                     mapRef={mapRef}
                   >
                     {bounds && <AreaOutline bounds={bounds} />}
+                    {bounds && hexDistance >= minHexDistance(distanceUnit) && (
+                      <HexGridLayer bounds={bounds} size={toMetres(hexDistance, distanceUnit)} />
+                    )}
                   </CampaignMap>
                 </Box>
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">
-                    {bounds ? "The outline is the campaign's area." : "No area chosen yet."}
+                    {started
+                      ? "The campaign has started: its area and grid are fixed."
+                      : bounds
+                        ? tooManyHexes
+                          ? `The outline is the campaign's area: about ${tooManyHexes.toLocaleString()} hexes, too many to draw. Choose a smaller area or larger hexes.`
+                          : "The outline is the campaign's area."
+                        : "No area chosen yet."}
                   </Text>
                   <Button
                     variant="default"
                     leftSection={<IconCrop size={16} aria-hidden />}
                     onClick={useThisView}
+                    disabled={started}
                   >
                     Use this view
                   </Button>
@@ -295,6 +332,30 @@ function SettingsFormView({
                     )}
                   />
                 </Stack>
+              </Section>
+              <Section
+                title="Hex grid"
+                description="Units stand and move in hexes. The rule book's are 3 miles across."
+              >
+                <Controller
+                  control={form.control}
+                  name="hexDistance"
+                  render={({ field }) => (
+                    <NumberInput
+                      label="Hex size, across the flats"
+                      suffix={` ${unit}`}
+                      min={minHexDistance(distanceUnit)}
+                      max={maxHexDistance(distanceUnit)}
+                      decimalScale={1}
+                      disabled={started}
+                      value={field.value}
+                      onChange={(value) => {
+                        field.onChange(typeof value === "number" ? value : undefined);
+                      }}
+                      error={errors.hexDistance?.message}
+                    />
+                  )}
+                />
               </Section>
               <Section
                 title="Movement per turn"

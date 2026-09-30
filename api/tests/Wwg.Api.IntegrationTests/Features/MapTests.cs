@@ -18,7 +18,8 @@ public sealed class MapTests : ApiTest
     private static UpdateCampaignMapRequest Request(
         MapBounds? bounds = null,
         string language = "fr",
-        IReadOnlyList<MovementLimitDto>? limits = null
+        IReadOnlyList<MovementLimitDto>? limits = null,
+        int hexSize = 3000
     ) =>
         new(
             bounds ?? Waterloo,
@@ -32,6 +33,7 @@ public sealed class MapTests : ApiTest
                 Hills: true,
                 Contours: true
             ),
+            hexSize,
             limits ?? Limits()
         );
 
@@ -63,6 +65,7 @@ public sealed class MapTests : ApiTest
         Assert.Null(map?.Bounds);
         Assert.Equal(("en", DistanceUnit.Miles), (map?.LabelLanguage, map?.DistanceUnit));
         Assert.Equal(CampaignMaps.DefaultLayers, map?.Layers);
+        Assert.Equal(4828, map?.HexSize);
         Assert.Equal(
             Enum.GetValues<UnitType>().Length,
             map!.MovementLimits.Select(l => l.UnitType).Distinct().Count()
@@ -217,5 +220,71 @@ public sealed class MapTests : ApiTest
         using var response = await PutAsync(scenario, Request(), role);
 
         Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateCampaignMap_HexSize_IsSaved()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await PutAsync(scenario, Request(hexSize: 8000));
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(8000, (await GetAsync(scenario, Role.Player))?.HexSize);
+    }
+
+    [Theory]
+    [InlineData(499)]
+    [InlineData(50_001)]
+    public async Task UpdateCampaignMap_HexSizeOutOfRange_IsAValidationError(int hexSize)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await PutAsync(scenario, Request(hexSize: hexSize));
+
+        await response.AssertValidationProblemAsync("hexSize");
+    }
+
+    [Fact]
+    public async Task UpdateCampaignMap_AnotherHexSizeOnceStarted_Returns409()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.StartedAsync(scenario);
+
+        using var response = await PutAsync(
+            scenario,
+            Request(TurnSteps.Area, hexSize: CampaignMap.DefaultHexSize + 1)
+        );
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task UpdateCampaignMap_OtherBoundsOnceStarted_Returns409()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.StartedAsync(scenario);
+
+        using var response = await PutAsync(
+            scenario,
+            Request(new MapBounds(4.1, 50.6, 4.6, 50.8), hexSize: CampaignMap.DefaultHexSize)
+        );
+
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task UpdateCampaignMap_OnlyLayersAndLanguageOnceStarted_Saves()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.StartedAsync(scenario);
+
+        using var response = await PutAsync(
+            scenario,
+            Request(TurnSteps.Area, language: "de", hexSize: CampaignMap.DefaultHexSize)
+        );
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("de", (await GetAsync(scenario, Role.Player))?.LabelLanguage);
     }
 }

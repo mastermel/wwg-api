@@ -33,6 +33,7 @@ const saved: CampaignMapResponse = {
   labelLanguage: "en",
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
+  hexSize: 4828,
   movementLimits: [
     { unitType: "LineInfantry", metres: 20_000 },
     { unitType: "LightCavalry", metres: 40_000 },
@@ -100,6 +101,7 @@ describe("map settings", () => {
         labelLanguage: "en",
         distanceUnit: "Kilometres",
         layers: { ...saved.layers, forests: false },
+        hexSize: 4828,
         movementLimits: [
           { unitType: "LineInfantry", metres: 20_000 },
           { unitType: "LightCavalry", metres: 45_000 },
@@ -121,6 +123,51 @@ describe("map settings", () => {
     // 20 km and 40 km.
     expect(screen.getByRole("textbox", { name: "Line Infantry" })).toHaveValue("12.4 mi");
     expect(screen.getByRole("textbox", { name: "Light Cavalry" })).toHaveValue("24.9 mi");
+  });
+
+  it("saves the hex size in metres", async () => {
+    const puts = serve("Umpire");
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+
+    const size = await screen.findByRole("textbox", { name: "Hex size, across the flats" });
+    expect(size).toHaveValue("4.8 km");
+    await user.clear(size);
+    await user.type(size, "5");
+    await user.click(screen.getByRole("button", { name: "Save map settings" }));
+
+    expect(await screen.findByText("Saved the map settings.")).toBeInTheDocument();
+    expect(puts).toEqual([expect.objectContaining({ hexSize: 5000 })]);
+  });
+
+  it("keeps the area and hex size fixed once the campaign has started", async () => {
+    serve("Umpire");
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/turns`, () =>
+        HttpResponse.json({ stage: "Running", openTurn: 1, turns: [], startProblems: [] }),
+      ),
+    );
+
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+
+    expect(
+      await screen.findByText("The campaign has started: its area and grid are fixed."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use this view" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Hex size, across the flats" })).toBeDisabled();
+  });
+
+  it("says when the area has too many hexes to draw", async () => {
+    serve("Umpire");
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/map`, () =>
+        HttpResponse.json({ ...saved, bounds: { west: -10, south: 36, east: 30, north: 60 } }),
+      ),
+    );
+
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+
+    expect(await screen.findByText(/too many to draw/)).toBeInTheDocument();
   });
 
   it("tells a Player only the Umpire can change the map", async () => {

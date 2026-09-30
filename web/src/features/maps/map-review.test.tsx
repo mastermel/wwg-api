@@ -113,6 +113,7 @@ function serveUmpire(nordTurn: ArmyTurnDetails, prussianTurn: ArmyTurnDetails, p
           hills: true,
           contours: false,
         },
+        hexSize: 4828,
         movementLimits: [],
       } satisfies CampaignMapResponse),
     ),
