@@ -21,6 +21,39 @@ public sealed class UmpireOrderTests : ApiTest
         return scenario;
     }
 
+    /// <summary>A second unit in the scenario's army, placed at the start (before turn 1 opens).</summary>
+    private async Task<Guid> AddPlacedUnitAsync(CampaignScenario scenario)
+    {
+        return await WithDbAsync(async db =>
+        {
+            var setup = await db
+                .ArmyTurns.Where(t => t.ArmyId == scenario.ArmyId && t.CampaignTurn.Number == 0)
+                .Select(t => t.Id)
+                .SingleAsync(TestContext.Current.CancellationToken);
+            var unit = new Unit
+            {
+                ArmyId = scenario.ArmyId,
+                Name = "2nd Division",
+                Type = UnitType.LightInfantry,
+                FightingFactor = Unit.MinFightingFactor,
+                Points = Unit.MinPoints,
+            };
+            db.Units.Add(unit);
+            db.UnitOrders.Add(
+                new UnitOrder
+                {
+                    ArmyTurnId = setup,
+                    UnitId = unit.Id,
+                    Kind = OrderKind.Move,
+                    Latitude = 50.7,
+                    Longitude = 4.4,
+                }
+            );
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            return unit.Id;
+        });
+    }
+
     [Fact]
     public async Task GiveOrder_ByTheUmpire_IsMarkedAndRecordedInTheHistory()
     {
@@ -54,6 +87,32 @@ public sealed class UmpireOrderTests : ApiTest
         moved.EnsureSuccessStatusCode();
         var edited = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).History);
         Assert.Equal([new UnitNoteDto(scenario.UnitId, "Set to move.")], edited.UnitNotes);
+    }
+
+    [Fact]
+    public async Task GiveOrder_ByTheUmpireToTwoUnits_NotesEachInTheSameEdit()
+    {
+        using var scenario = await StartedAsync();
+        var second = await AddPlacedUnitAsync(scenario);
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var moved = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            MoveTo(50.72),
+            role: Role.Umpire
+        );
+
+        using var held = await TurnSteps.OrderAsync(scenario, turn.Id, Hold, second, Role.Umpire);
+
+        held.EnsureSuccessStatusCode();
+        var edited = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).History);
+        Assert.Equal(
+            [
+                new UnitNoteDto(scenario.UnitId, "Set to move."),
+                new UnitNoteDto(second, "Set to hold."),
+            ],
+            edited.UnitNotes
+        );
     }
 
     [Fact]

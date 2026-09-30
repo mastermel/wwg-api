@@ -328,7 +328,16 @@ internal static class OrderEndpoints
         var note = edit.UnitNotes.FirstOrDefault(n => n.UnitId == unitId);
         if (note is null)
         {
-            edit.UnitNotes.Add(new UnitNote { UnitId = unitId, Text = text });
+            // Added to the set, not the event's list: our entities make their own IDs, so EF takes
+            // one found only through a tracked event's list for a row that's already there.
+            db.UnitNotes.Add(
+                new UnitNote
+                {
+                    ArmyTurnEventId = edit.Id,
+                    UnitId = unitId,
+                    Text = text,
+                }
+            );
         }
         else
         {
