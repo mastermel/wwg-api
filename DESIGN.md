@@ -1,7 +1,7 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phases 1–9 (steps 1–36) are done; Phase 9 was the Umpire editing orders.
-> Next: Phase 10, Admins masquerading as other users (steps 37–38).
+> **Status:** Phases 1–10 (steps 1–38) are done; Phase 10 was Admins masquerading.
+> Next: Phase 11, the hex grid and the rules' movement (steps 39–50).
 > **Last updated:** 2026-09-30
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -62,8 +62,10 @@ Umpire can also edit any army's orders in the open turn, and submit for it
 - Two-factor authentication.
 - Extra campaign fields (dates, game system…); a campaign's stage (setup, running) follows
   from its turns. Unit details beyond name, type, FF and points.
-- The campaign map offline (it needs a connection), and movement along roads (distances are
-  straight lines).
+- The campaign map offline (it needs a connection).
+- Battles: fighting them, their losses and their aftermath are played out in person, at the
+  table (decision 0014). The app may point out contact; the Umpire records what came of it by
+  editing units.
 - GraphQL.
 
 ## 2. Decisions
@@ -1207,14 +1209,21 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   the rest is a pan away. Zooming in is unlimited. Place search (our API, §5.3)
   helps the Umpire find the area; the settings page previews layers and the
   label language as they change.
+- **The hex grid** (decision 0014, Phase 11): flat-topped hexes (3 miles
+  across by default) over the whole area, drawn as a light line layer that can
+  be switched off like the others. Units are in hexes, and a hex's units are one
+  stack at its centre. Each hex has a terrain, a forest flag and a settlement,
+  and each edge a road, river or bridge (§5.1); the map can shade the terrain.
 - **Unit icons:** NATO-style symbols (APP-6), drawn by the app (`UnitSymbol`):
   a frame in the army's colour with the arm's glyph: a cross for infantry, a
-  slash for cavalry, a dot for artillery; L and S mark light infantry and
-  skirmishers, an oval (armour) heavy cavalry, a slash (mounted) horse
-  artillery. A black frame and white halo keep them clear on any map. Not
-  `milsymbol` (decision 0009's choice): none of its codes gave seven distinct
-  types, with nothing for skirmishers or horse artillery. A legend on the map
-  says what each means. Each unit on the map is a button named for screen
+  slash for cavalry, a dot for artillery; L marks light infantry, an oval
+  (armour) heavy cavalry, a slash (mounted) horse artillery. From Phase 11 the
+  types follow the rules' movement classes (§5.1), with symbols for the new
+  ones (medium cavalry, scouts, partisans, engineers, supply trains, siege
+  artillery). A black frame and white halo keep them clear on any map. Not
+  `milsymbol` (decision 0009's choice): none of its codes gave the distinct
+  types needed, with nothing for skirmishers or horse artillery. A legend on the
+  map says what each means. Each unit on the map is a button named for screen
   readers ("Imperial Guard, Heavy Infantry, Armée du Nord").
 - **Stacks:** units close together at the current zoom are drawn as one
   **stack** marker with the count and the armies' colours. Tapping it lists the
@@ -1230,8 +1239,10 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
 **Pages**
 - `/campaigns/:id/map`: the map, for every member (what's on it follows §5.2).
 - `/campaigns/:id/map/settings` (Umpire, Admin): bounds and place search, the
-  layer switches, the label language, the distance unit (km or miles) and each
-  unit type's movement limit per turn.
+  layer switches, the label language, the distance unit (km or miles), and the
+  hex size (while setting up; from Phase 11). Phase 11 adds the terrain editor
+  (the inferred terrain of each hex, which the Umpire can change) and the
+  movement table.
 - The campaign page gains a **Factions** section (the Umpire creates, renames
   and deletes them); the army page's **Edit army** covers name, faction, colour (with
   swatches; a new army is offered the first free one) and nation (with its flag).
@@ -1254,10 +1265,12 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   order. While Submitted, nothing can be changed.
 - **Unit drawer** (tap a unit): name, type, FF, points, the army, this turn's
   order and any note on it, with **Move** and **Hold**.
-- **Move:** the rest of the interface steps aside; a circle shows the unit's
-  range this turn, measured from its current position; tapping inside it (and
-  inside the bounds) picks the destination; **Confirm** or **Cancel**. Each
-  order saves straight away, so a draft survives closing the tab.
+- **Move:** the rest of the interface steps aside; the hexes the unit can reach
+  this turn are shaded (by the movement table, from its current hex); tapping one
+  picks it as the destination, and the cheapest path there is drawn hex by hex,
+  with what it costs; **Confirm** or **Cancel**. Each order saves straight away,
+  so a draft survives closing the tab. (Phase 8 measured a straight-line range
+  instead; decision 0014 replaced it.)
 - **History:** their army's turns, newest first; choosing one shows the units
   where they were in that turn. The arrow keys step through them, so moving
   forward and back through the campaign is quick.
@@ -1423,8 +1436,12 @@ Unit
   Id              Guid
   ArmyId          → Army
   Name            string (required, ≤100)
-  Type            HeavyInfantry | LightInfantry | Skirmishers | HeavyCavalry |
-                  LightCavalry | FootArtillery | HorseArtillery
+  Type            (Phase 11, by the rules' movement classes) LineInfantry |
+                  FootArtillery | Engineers | LightInfantry | Partisans |
+                  LightCavalry | Scouts | MediumCavalry | HeavyCavalry |
+                  HorseArtillery | SupplyTrain | SiegeArtillery
+                  (before: HeavyInfantry, now LineInfantry; Skirmishers,
+                  now LightInfantry)
   FightingFactor  int 1–9 ("FF" in the app)
   Points          int 0–100
   CreatedAt / UpdatedAt
@@ -1467,8 +1484,8 @@ UnitOrder                      ArmyTurnEvent (the turn's history)
 
 - **Current position** of a unit: its order's position in its army's latest
   Completed turn. Turn 0's orders are the Umpire's placements.
-- Distances are stored in metres and checked as straight lines (great-circle);
-  km or miles is only how they're shown.
+- Distances are stored in metres; km or miles is only how they're shown. (Phase
+  8 checked moves as straight lines; from Phase 11 moves are counted in hexes.)
 - Colours and nations are keys, not values (`ArmyColor`: Red, Blue, Green,
   Orange, Purple, Sky, Gold, Magenta; `Nation`: None and 21 states of the
   period), enums in the contract that the API validates. The palette (from
@@ -1477,6 +1494,55 @@ UnitOrder                      ArmyTurnEvent (the turn's history)
   `NationFlag.tsx`) live in the front-end. A new army gets the first colour no
   other army has (else the least used). Existing armies were spread over the
   palette by the migration.
+
+**Phase 11** (§7, decision 0014) adds the hex grid:
+
+```
+CampaignMap (new fields)          Campaign (new fields)
+  HexSize     int (metres across    StartDate      date (the first turn's day)
+              the flats; 4828 =     FirstTurnPart  Morning | Afternoon | Night
+              3 miles)
+                                    UnitOrder (changed)
+HexCell (only hexes with data)        Q / R          int (the hex; replaces
+  CampaignId  → Campaign                             Latitude / Longitude)
+  Q / R       int (axial)             Path           the hexes passed through,
+  Terrain     Flat | LowHill |                       in order (Move)
+              HighHill | Mountain |   Progress       0–1: part of the way into
+              Water                                  the path's last hex, for a
+  Forest      bool                                   hex that takes more than a
+  Settlement  None | SmallCity |                     turn (step 43)
+              LargeCity | WalledCity
+              | Fortress              MovementRate (step 43; the rules' table
+  SetByUmpire bool (inference           by default)
+              leaves it alone)          CampaignId, MovementClass, Ground
+                                        (GoodRoad | PoorRoad | Flat | LowHill
+HexEdge (the edge on a hex's N, NE      | HighHill | Mountain), Hexes (per
+or SE side; the others belong to        turn; 0 = can't)
+its neighbours)
+  CampaignId, Q, R, Side  (N | NE | SE)
+  Road        None | Poor | Good
+  River       bool
+  Bridge      bool
+  SetByUmpire bool
+```
+
+- **The grid:** flat-topped hexes laid over the area in a local flat projection
+  (east = R·cos φ₀·Δλ, north = R·Δφ, φ₀ the area's middle latitude), hex (0, 0)
+  centred on the area's middle, axial coordinates (q east, r south-east). The
+  grid is every hex whose centre is inside the bounds. The hex size and bounds
+  can change only while setting up; `HexGrid` (C#) and `hex-grid.ts` share the
+  arithmetic and are tested against the same figures.
+- A hex with no `HexCell` is Flat with nothing on it; an edge with no `HexEdge`
+  has no road or river.
+- **Movement classes** (the rules' table, §E.1; hexes per turn):
+
+  | Class | Types | Good road | Poor road | Flat | Low hill | High hill | Mountain |
+  |---|---|:-:|:-:|:-:|:-:|:-:|:-:|
+  | Infantry | Line infantry, Foot artillery, Engineers | 3 | 2 | 2 | 1 | ½ | – |
+  | Light | Light infantry, Partisans | 5 | 4 | 3 | 2 | 1 | ½ |
+  | Light cavalry | Light cavalry, Scouts | 6 | 5 | 4 | 3 | 2 | 1 |
+  | Cavalry | Medium cavalry, Heavy cavalry, Horse artillery | 5 | 4 | 3 | 2 | 1 | – |
+  | Slow | Supply train, Siege artillery | 3 | 2 | 1 | ½ | – | – |
 
 **Rules enforced in the database:**
 
@@ -1531,8 +1597,9 @@ UnitOrder                      ArmyTurnEvent (the turn's history)
     has an order) → Completed (the Umpire approves). The Umpire can send a
     Submitted turn back to Draft, and revert a Completed one to Draft, only in
     the open campaign turn. Nothing changes while Submitted.
-  - A Move must end inside the bounds and within the unit type's limit of its
-    current position.
+  - A Move follows a path of adjacent hexes from the unit's current hex, inside
+    the grid, that its movement class can afford this turn (Phase 11, below).
+    Phase 8's rule, inside the bounds and within a straight-line limit, is gone.
   - After the campaign starts, armies and units can be added but not deleted.
     The Umpire places a new unit before the next turn starts; the placement is
     an order added to its army's turn in the last closed campaign turn (which
@@ -1540,6 +1607,28 @@ UnitOrder                      ArmyTurnEvent (the turn's history)
     change ever made to a Completed turn. A new
     army gets a Completed turn for the last closed campaign turn to hold its
     placements, and a Draft for the open one.
+- **Phase 11** (decision 0014):
+  - A turn gives each unit a budget of one turn's movement. Entering a hex costs
+    1 ÷ the class's rate: the road's, when the step crosses an edge with a road
+    (a good road into a high-hill or mountain hex counts as poor), else the
+    entered hex's terrain (a forest hex moves as low hills). A step across a
+    river edge without a bridge, into water, or into terrain the class can't
+    cross is closed. A path may end part-way into a hex that costs more than
+    what's left, and goes on into it next turn (`Progress`). Until terrain
+    exists (step 41) every hex is Flat, and until step 43 roads and rivers
+    don't count.
+  - Time of day: turn *n* (from 1) falls in `FirstTurnPart` + *n* − 1, cycling
+    Morning (06–14), Afternoon (14–22), Night (22–06), from `StartDate`. Every
+    turn is played. Morning: the Infantry class of French armies and their
+    allies (nations France, Italy, Warsaw, Bavaria, Württemberg, Baden and
+    Holland; not Westphalia, Saxony, Spain, Portugal, Naples or Denmark) moves
+    one hex further (each rate + 1). Afternoon: Russian and Austrian line
+    infantry and foot artillery one hex less (each rate − 1, not below ½). Night
+    moves are recorded for forced marches (step 46).
+  - The Umpire's moves (decision 0011) may exceed the budget, after a warning,
+    but not leave the grid or cross a closed step.
+  - Placing a unit puts it in a hex. Positions from before the grid were
+    converted to the hex containing them, once.
 - **Umpire-less campaigns:** if an Admin deletes a user who was an Umpire,
   their campaigns remain with no Umpire. Only an Admin can manage them until an
   Admin **sets a new Umpire** (`PUT /api/admin/campaigns/{id}/umpire`, §5.3):
@@ -1689,20 +1778,23 @@ each step)
 | GET / POST | `/api/campaigns/{id}/factions` | List / create factions |
 | PUT / DELETE | `/api/factions/{id}` | Rename / delete a faction |
 | PUT | `/api/armies/{id}` | `UpdateArmy` (was `RenameArmy`): name, faction, colour and nation |
-| GET / PUT | `/api/campaigns/{id}/map` | The map settings, with the movement limits |
+| GET / PUT | `/api/campaigns/{id}/map` | The map settings, with the hex size (the movement limits until Phase 11) |
 | GET | `/api/campaigns/{id}/places?search=` | Place search for the bounds (Umpire; server-side geocoder, rate-limited) |
 | GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts; for the Umpire, what stops the start or the next turn |
 | POST | `/api/campaigns/{id}/start` | Start the campaign (close turn 0, open turn 1) |
 | POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander) |
 | GET | `/api/campaigns/{id}/positions?turn=` | Units' positions, as the caller may see them: now (the default), after a closed turn, or ordered in the open one |
 | GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
-| PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, latitude?, longitude? }` / undo it |
+| PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, path? }` (Move: the hexes it passes through, in order) / undo it |
 | POST | `/api/army-turns/{id}/submit` | Submit (every unit on the map has an order; emails the Umpire) |
 | POST | `/api/army-turns/{id}/approve` | Approve: Completed (this and the next two email the commander) |
 | POST | `/api/army-turns/{id}/send-back` | Back to Draft `{ note?, unitNotes? }` |
 | POST | `/api/army-turns/{id}/revert` | Completed back to Draft, open turn only `{ note?, unitNotes? }` |
 | GET | `/api/campaigns/{id}/units` | Every unit in the campaign (every member), for the map |
-| PUT / DELETE | `/api/units/{id}/placement` | The Umpire places a unit (turn 0, or added later) / takes it off again (setup only) |
+| PUT / DELETE | `/api/units/{id}/placement` | The Umpire places a unit `{ q, r }` (turn 0, or added later) / takes it off again (setup only) |
+| GET | `/api/campaigns/{id}/grid` | The grid's cells and edges with data (every member): terrain, forest, settlements, roads, rivers, bridges (Phase 11) |
+| PUT | `/api/campaigns/{id}/grid` | Save inferred terrain for the whole grid (Umpire); hexes and edges the Umpire set are kept |
+| PUT | `/api/campaigns/{id}/grid/cells/{q}/{r}` · `/edges/{q}/{r}/{side}` | The Umpire sets one hex or edge |
 
 Status changes that aren't allowed now (submitting a Submitted turn, reverting
 in a closed turn) are **409**s, as is losing a race for the same change; a Move
@@ -2117,3 +2209,52 @@ Decision [0012](docs/decisions/0012-admin-masquerade.md).
       masquerade**. Starting lands on the user's campaigns; ending on the Admin's user list.
     - A saved last user from before masquerades is read as not one (`masquerade: null`), so an
       offline start still works after the upgrade.
+
+### Phase 11 — The hex grid and the rules' campaign movement
+
+Decision [0014](docs/decisions/0014-hex-grid-movement.md); the rules are the club's rule book
+(`docs/wwc-rules.pdf`), section XII (Campaign). Battles stay off the app. The order follows the
+dependencies: the grid, then what's on it, then how units move across it, then the rules that
+build on positions.
+
+39. **The hex grid (API):** the hex size on the map settings (3 miles by default; with the
+    bounds, changeable only while setting up); `HexGrid` (axial, flat-topped, local projection);
+    unit types by the rules' movement classes (migration: HeavyInfantry → LineInfantry,
+    Skirmishers → LightInfantry); orders and placements in hexes (`Q`, `R`, `Path`), existing
+    positions converted once at start-up; a Move's path checked against the rules' flat rates
+    (every hex Flat until step 41); the movement limits go. `GET /positions` gives each unit's
+    hex and its centre.
+40. **The hex grid (UI):** the grid layer (on by default, switchable) and the hex size in the
+    settings, previewed; placing and moving by hex; the hexes a unit can reach shaded, the
+    cheapest path to the chosen one drawn, and its cost; stacks by hex; symbols and legend for
+    the new types. End-to-end: set up with the grid, move a unit two hexes.
+41. **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
+    single-edge edits, keeping what the Umpire set when inference runs again.
+42. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
+    Mapterhorn elevation (roughly: under 50 m flat, under 150 m low hills, under 400 m high hills,
+    else mountains), forest from land cover (half the hex or more), water, cities and towns, and
+    roads (trunk and primary good, secondary poor) and rivers crossing each edge (a road and a
+    river on one edge make a bridge); the terrain layer on the map; the Umpire's editor (choose a
+    hex or edge and set it). End-to-end: infer, correct a hex.
+43. **Costed movement:** terrain, roads, rivers and bridges in the costs, closed steps, and
+    `Progress` for hexes that take more than a turn; the movement table per campaign (the rules'
+    by default), editable in the settings.
+44. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
+    ("Turn 7 · 17 June 1815, Afternoon"); the Morning and Afternoon modifiers by nation; night
+    moves recorded.
+45. **Contact and concentration:** the Umpire is shown where opposing armies share a hex after a
+    turn (battles themselves happen at the table), and warned of hexes over the concentration
+    limits (200 points of infantry or 160 of cavalry; double in large and walled cities and
+    fortresses; allowed for the three turns either side of a battle).
+46. **Forced marches and attrition:** a force-march order (+1 hex a day turn, or moving by
+    night), consecutive turns and rest tracked, and attrition by the rules' FF scale applied to
+    units' points (points then change over time, with a history per turn).
+47. **Supply:** depots per side, supply lines along roads and rivers, cut by 5 or more enemy
+    points in a hex on them, six turns' grace, then attrition; the exempt units.
+48. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants
+    planned in §5.2), general reports rather than detail, screening by light troops, scouting
+    parties' rolls, spies.
+49. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
+    last army to occupy it, and a campaign scoreboard.
+50. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
+    pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.
