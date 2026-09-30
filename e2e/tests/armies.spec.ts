@@ -39,7 +39,7 @@ test("every member sees every army and its units; only the Umpire changes them",
   await umpire.page.getByRole("link", { name: "First Corps" }).click();
   const units = umpire.page.getByRole("region", { name: "Units" });
   for (const unit of [
-    { name: "1st Division", type: "Heavy Infantry", ff: "5", points: "30" },
+    { name: "1st Division", type: "Line Infantry", ff: "5", points: "30" },
     { name: "Light Division", type: "Light Infantry", ff: "6", points: "25" },
   ]) {
     await units.getByRole("button", { name: "Add unit" }).click();
@@ -109,7 +109,7 @@ test("the Umpire deletes a unit after confirming", async ({ signUp }) => {
   const dialog = umpire.page.getByRole("dialog");
   await dialog.getByRole("textbox", { name: "Name" }).fill("IV Corps");
   await dialog.getByRole("combobox", { name: "Type" }).click();
-  await dialog.getByRole("option", { name: "Heavy Infantry" }).click();
+  await dialog.getByRole("option", { name: "Line Infantry" }).click();
   await dialog.getByRole("textbox", { name: "Fighting Factor (FF)" }).fill("5");
   await dialog.getByRole("textbox", { name: "Points" }).fill("20");
   await dialog.getByRole("button", { name: "Add unit" }).click();

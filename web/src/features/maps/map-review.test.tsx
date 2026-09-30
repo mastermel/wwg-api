@@ -123,7 +123,7 @@ function serveUmpire(nordTurn: ArmyTurnDetails, prussianTurn: ArmyTurnDetails, p
           id: guardId,
           armyId: nord.id,
           name: "Imperial Guard",
-          type: "HeavyInfantry",
+          type: "LineInfantry",
           fightingFactor: 6,
           points: 30,
         },

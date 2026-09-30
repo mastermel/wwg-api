@@ -17,7 +17,7 @@ test("a commander moves one unit, holds another and submits the turn", async ({ 
   await expect(panel.getByRole("button", { name: "Submit turn 1" })).toBeDisabled();
 
   // Move: choose the unit on the map, then Move, then a point inside its range, then Confirm.
-  await page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" }).click();
+  await page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" }).click();
   await page
     .getByRole("dialog", { name: "Imperial Guard" })
     .getByRole("button", { name: "Move" })
@@ -150,7 +150,7 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
   // Bob steps back to the setup, and forward to turn 1: the Guard is further north after it.
   const page = commander.page;
   await page.goto(`${campaignUrl}/map`);
-  const guard = page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" });
+  const guard = page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" });
   const turns = page.getByRole("list", { name: "Turns" });
   await turns.getByRole("button", { name: "Turn 0: Setup" }).click();
   await expect(page.getByText("Showing where the Umpire placed the units.")).toBeVisible();
@@ -178,7 +178,7 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
   await umpire.page.getByRole("button", { name: /^Armée du Nord:/ }).click();
   await expect(brigadeMarker).toHaveCSS("opacity", "0.3");
   await expect(
-    umpire.page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" }),
+    umpire.page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" }),
   ).toHaveCSS("opacity", "1");
   expect(await scan(umpire.page, "map, an army picked out")).toEqual([]);
 });
@@ -193,7 +193,7 @@ test("the Umpire moves a unit past its limit, holds another, and submits for the
 
   const page = umpire.page;
   await page.goto(`${campaignUrl}/map`);
-  await page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" }).click();
+  await page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" }).click();
   await page
     .getByRole("dialog", { name: "Imperial Guard" })
     .getByRole("button", { name: "Move" })

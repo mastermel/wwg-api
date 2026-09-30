@@ -1,15 +1,24 @@
 namespace Wwg.Api.Data.Entities;
 
-/// <summary>What kind of troops a unit is (stored as its name).</summary>
+/// <summary>
+/// What kind of troops a unit is (stored as its name), grouped by the rule book's movement
+/// classes (decision 0014): infantry and foot artillery; light infantry and partisans; light
+/// cavalry and scouts; medium and heavy cavalry and horse artillery; supply and siege artillery.
+/// </summary>
 public enum UnitType
 {
-    HeavyInfantry,
-    LightInfantry,
-    Skirmishers,
-    HeavyCavalry,
-    LightCavalry,
+    LineInfantry,
     FootArtillery,
+    Engineers,
+    LightInfantry,
+    Partisans,
+    LightCavalry,
+    Scouts,
+    MediumCavalry,
+    HeavyCavalry,
     HorseArtillery,
+    SupplyTrain,
+    SiegeArtillery,
 }
 
 /// <summary>A unit in an army. Every member sees it; where it is follows the visibility rule.</summary>

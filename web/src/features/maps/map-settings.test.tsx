@@ -34,7 +34,7 @@ const saved: CampaignMapResponse = {
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
   movementLimits: [
-    { unitType: "HeavyInfantry", metres: 20_000 },
+    { unitType: "LineInfantry", metres: 20_000 },
     { unitType: "LightCavalry", metres: 40_000 },
   ],
 };
@@ -101,7 +101,7 @@ describe("map settings", () => {
         distanceUnit: "Kilometres",
         layers: { ...saved.layers, forests: false },
         movementLimits: [
-          { unitType: "HeavyInfantry", metres: 20_000 },
+          { unitType: "LineInfantry", metres: 20_000 },
           { unitType: "LightCavalry", metres: 45_000 },
         ],
       },
@@ -119,7 +119,7 @@ describe("map settings", () => {
     await user.click(await screen.findByRole("radio", { name: "Miles" }));
 
     // 20 km and 40 km.
-    expect(screen.getByRole("textbox", { name: "Heavy Infantry" })).toHaveValue("12.4 mi");
+    expect(screen.getByRole("textbox", { name: "Line Infantry" })).toHaveValue("12.4 mi");
     expect(screen.getByRole("textbox", { name: "Light Cavalry" })).toHaveValue("24.9 mi");
   });
 

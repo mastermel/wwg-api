@@ -13,7 +13,7 @@ public sealed class UnitTests : ApiTest
     private static Task<HttpResponseMessage> CreateAsync(
         CampaignScenario scenario,
         string name,
-        UnitType type = UnitType.HeavyInfantry,
+        UnitType type = UnitType.LineInfantry,
         int fightingFactor = 5,
         int points = 10
     ) => PostAsync(scenario, new CreateUnitRequest(name, type, fightingFactor, points));
@@ -135,7 +135,7 @@ public sealed class UnitTests : ApiTest
         var body = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["name"] = "Guard",
-            ["type"] = "Skirmishers",
+            ["type"] = "Partisans",
             ["fightingFactor"] = 5,
             ["points"] = 10,
         };
@@ -208,7 +208,7 @@ public sealed class UnitTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/units/{scenario.UnitId}", UriKind.Relative),
-                new UpdateUnitRequest("Guard", UnitType.HeavyInfantry, 0, 101),
+                new UpdateUnitRequest("Guard", UnitType.LineInfantry, 0, 101),
                 CancellationToken
             );
 

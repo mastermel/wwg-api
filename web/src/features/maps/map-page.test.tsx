@@ -132,7 +132,7 @@ describe("the map page", () => {
               id: unitId,
               armyId,
               name: "Imperial Guard",
-              type: "HeavyInfantry",
+              type: "LineInfantry",
               fightingFactor: 6,
               points: 30,
             },

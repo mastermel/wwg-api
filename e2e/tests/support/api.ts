@@ -29,13 +29,18 @@ export async function apiAs(page: Page) {
 }
 
 const unitTypes = [
-  "HeavyInfantry",
-  "LightInfantry",
-  "Skirmishers",
-  "HeavyCavalry",
-  "LightCavalry",
+  "LineInfantry",
   "FootArtillery",
+  "Engineers",
+  "LightInfantry",
+  "Partisans",
+  "LightCavalry",
+  "Scouts",
+  "MediumCavalry",
+  "HeavyCavalry",
   "HorseArtillery",
+  "SupplyTrain",
+  "SiegeArtillery",
 ];
 
 /** The map settings the tests use: the country around Waterloo. */

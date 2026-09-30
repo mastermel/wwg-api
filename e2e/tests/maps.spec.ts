@@ -77,7 +77,7 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
     nation: "France",
   });
   for (const [name, type] of [
-    ["Imperial Guard", "HeavyInfantry"],
+    ["Imperial Guard", "LineInfantry"],
     ["Reserve Artillery", "FootArtillery"],
   ]) {
     await api.post(`/api/armies/${army.id}/units`, { name, type, fightingFactor: 6, points: 30 });
@@ -95,7 +95,7 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
   await clickMapCentre(page);
   await expect(page.getByText("Placed Imperial Guard.")).toBeVisible();
   await page.getByRole("button", { name: "Place Reserve Artillery" }).click();
-  await page.getByRole("button", { name: "Imperial Guard, Heavy Infantry, Armée du Nord" }).click();
+  await page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" }).click();
   await expect(page.getByText("Placed Reserve Artillery.")).toBeVisible();
 
   const stack = page.getByRole("button", { name: "2 units: Imperial Guard, Reserve Artillery" });

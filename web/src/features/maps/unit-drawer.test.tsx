@@ -25,7 +25,7 @@ const unit = (id: string, name: string, type: PlacedUnit["unit"]["type"]): Place
 });
 
 const stack = [
-  unit("g", "Imperial Guard", "HeavyInfantry"),
+  unit("g", "Imperial Guard", "LineInfantry"),
   unit("r", "Reserve Artillery", "FootArtillery"),
 ];
 

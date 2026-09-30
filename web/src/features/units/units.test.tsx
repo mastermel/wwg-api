@@ -13,7 +13,7 @@ const armyId = "0192f5c1-0000-7000-8000-00000000a001";
 const unit = (
   id: string,
   name: string,
-  type: UnitResponse["type"] = "HeavyInfantry",
+  type: UnitResponse["type"] = "LineInfantry",
   fightingFactor = 5,
   points = 20,
 ): UnitResponse => ({
@@ -98,7 +98,7 @@ const rows = () =>
 describe("units", () => {
   it("shows the commander their units with type, FF and points, read-only", async () => {
     serveArmy("Player", [
-      unit("1", "1st Division", "HeavyInfantry", 5, 20),
+      unit("1", "1st Division", "LineInfantry", 5, 20),
       unit("2", "Hussars", "LightCavalry", 4, 15),
     ]);
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
@@ -107,7 +107,7 @@ describe("units", () => {
     expect(await section.findByText("Hussars")).toBeInTheDocument();
     // Cells: name (with the type under it on phones), type, FF, points.
     expect(rows().filter((cells) => cells.length > 0)).toEqual([
-      ["1st DivisionHeavy Infantry", "Heavy Infantry", "5", "20"],
+      ["1st DivisionLine Infantry", "Line Infantry", "5", "20"],
       ["HussarsLight Cavalry", "Light Cavalry", "4", "15"],
       // The footer: "2 units" is its row header; the points total is under Points.
       ["", "", "35"],
@@ -175,7 +175,7 @@ describe("units", () => {
   });
 
   it("lets the Umpire edit a unit", async () => {
-    const requests = serveArmy("Umpire", [unit("1", "1st Division", "HeavyInfantry", 5, 20)]);
+    const requests = serveArmy("Umpire", [unit("1", "1st Division", "LineInfantry", 5, 20)]);
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
     const section = await unitsSection();
@@ -183,7 +183,7 @@ describe("units", () => {
     await user.click(section.getByRole("button", { name: "Edit 1st Division" }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(dialog.getByRole("textbox", { name: "Name" })).toHaveValue("1st Division");
-    expect(dialog.getByRole("combobox", { name: "Type" })).toHaveValue("Heavy Infantry");
+    expect(dialog.getByRole("combobox", { name: "Type" })).toHaveValue("Line Infantry");
     const ff = dialog.getByRole("textbox", { name: "Fighting Factor (FF)" });
     await user.clear(ff);
     await user.type(ff, "7");
@@ -194,12 +194,12 @@ describe("units", () => {
         {
           method: "PUT",
           path: unit("1", "").id,
-          body: { name: "1st Division", type: "HeavyInfantry", fightingFactor: 7, points: 20 },
+          body: { name: "1st Division", type: "LineInfantry", fightingFactor: 7, points: 20 },
         },
       ]);
     });
     await waitFor(() => {
-      expect(rows()[1]).toEqual(["1st DivisionHeavy Infantry", "Heavy Infantry", "7", "20", ""]);
+      expect(rows()[1]).toEqual(["1st DivisionLine Infantry", "Line Infantry", "7", "20", ""]);
     });
     expect(await screen.findByText("Saved 1st Division.")).toBeInTheDocument();
   });

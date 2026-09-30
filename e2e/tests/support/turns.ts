@@ -46,7 +46,7 @@ export async function startedCampaign(
     nation: "France",
   });
   for (const [unitName, type] of [
-    ["Imperial Guard", "HeavyInfantry"],
+    ["Imperial Guard", "LineInfantry"],
     ["Reserve Artillery", "FootArtillery"],
   ] as const) {
     const unit = await api.post<{ id: string }>(`/api/armies/${army.id}/units`, {

@@ -188,7 +188,7 @@ public sealed class TurnTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
-                new CreateUnitRequest("Guard", UnitType.HeavyInfantry, 6, 30),
+                new CreateUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
                 CancellationToken
             );
 
@@ -414,7 +414,7 @@ public sealed class TurnTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
-                new CreateUnitRequest("Guard", UnitType.HeavyInfantry, 6, 30),
+                new CreateUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
                 CancellationToken
             );
         var guard = (await unit.Content.ReadAsAsync<UnitResponse>())!.Id;

@@ -3,10 +3,12 @@ import type { UnitType } from "@/api/generated/model";
 
 /**
  * A unit's symbol, in the style of NATO's (APP-6): a frame in its army's colour, with a glyph for
- * the arm. Drawn by the app, since the standard has nothing for skirmishers or horse artillery:
- * infantry is a cross, cavalry a slash, artillery a dot; L and S mark light infantry and
- * skirmishers, an oval (armour) heavy cavalry, and a slash (mounted) horse artillery. A black
- * frame and a white halo keep it clear on any map, light or dark.
+ * the arm. Drawn by the app, since the standard has nothing for several of the rule book's types
+ * (decision 0014): infantry is a cross, cavalry a slash, artillery a dot, engineers the
+ * standard's bridge, a supply train a bar across the foot, siege artillery two dots. Letters
+ * mark the rest: L light infantry, G partisans (guerrillas), S scouts and M medium cavalry (on
+ * the slash); an oval (armour) is heavy cavalry, and a slash (mounted) with the dot horse
+ * artillery. A black frame and a white halo keep it clear on any map, light or dark.
  */
 
 const W = 36;
@@ -33,32 +35,42 @@ const letter = (text: string) => (
   </text>
 );
 
+const marked = (glyph: ReactNode, text: string) => (
+  <>
+    {glyph}
+    {letter(text)}
+  </>
+);
+
 const glyphs: Record<UnitType, ReactNode> = {
-  HeavyInfantry: cross,
-  LightInfantry: (
-    <>
-      {cross}
-      {letter("L")}
-    </>
-  ),
-  Skirmishers: (
-    <>
-      {cross}
-      {letter("S")}
-    </>
-  ),
+  LineInfantry: cross,
+  FootArtillery: dot,
+  // The standard's engineer: a bar with uprights, like a bridge on its piers.
+  Engineers: <path d="M8,9 L28,9 M8,9 L8,15 M18,9 L18,15 M28,9 L28,15" />,
+  LightInfantry: marked(cross, "L"),
+  Partisans: marked(cross, "G"),
   LightCavalry: slash,
+  Scouts: marked(slash, "S"),
+  MediumCavalry: marked(slash, "M"),
   HeavyCavalry: (
     <>
       {slash}
       <rect x={9} y={7.5} width={18} height={9} rx={4.5} fill="none" />
     </>
   ),
-  FootArtillery: dot,
   HorseArtillery: (
     <>
       {slash}
       {dot}
+    </>
+  ),
+  // The standard's supply: a bar across the frame's foot.
+  SupplyTrain: <path d={`M0,${String(H - 6)} L${String(W)},${String(H - 6)}`} />,
+  // Two guns' dots: the heavy pieces.
+  SiegeArtillery: (
+    <>
+      <circle cx={W / 2 - 6} cy={H / 2} r={4} fill={ink} stroke="none" />
+      <circle cx={W / 2 + 6} cy={H / 2} r={4} fill={ink} stroke="none" />
     </>
   ),
 };

@@ -210,7 +210,7 @@ public sealed class OrderTests : ApiTest
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
                 new CreateUnitRequest(
                     "2nd Division",
-                    UnitType.HeavyInfantry,
+                    UnitType.LineInfantry,
                     Unit.MinFightingFactor,
                     Unit.MinPoints
                 ),

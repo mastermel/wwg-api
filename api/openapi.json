@@ -4678,15 +4678,20 @@
       },
       "UnitType": {
         "enum": [
-          "HeavyInfantry",
-          "LightInfantry",
-          "Skirmishers",
-          "HeavyCavalry",
-          "LightCavalry",
+          "LineInfantry",
           "FootArtillery",
-          "HorseArtillery"
+          "Engineers",
+          "LightInfantry",
+          "Partisans",
+          "LightCavalry",
+          "Scouts",
+          "MediumCavalry",
+          "HeavyCavalry",
+          "HorseArtillery",
+          "SupplyTrain",
+          "SiegeArtillery"
         ],
-        "description": "What kind of troops a unit is (stored as its name)."
+        "description": "What kind of troops a unit is (stored as its name), grouped by the rule book's movement\nclasses (decision 0014): infantry and foot artillery; light infantry and partisans; light\ncavalry and scouts; medium and heavy cavalry and horse artillery; supply and siege artillery."
       },
       "UpdateArmyRequest": {
         "required": [

@@ -16,7 +16,7 @@ const placed = (id: string, longitude: number, latitude = 0): PlacedUnit => ({
     id,
     armyId: "a",
     name: id,
-    type: "HeavyInfantry",
+    type: "LineInfantry",
     fightingFactor: 5,
     points: 20,
   } satisfies UnitResponse,
@@ -42,7 +42,7 @@ describe("stacking units", () => {
 
   it("describes a unit for a screen reader", () => {
     expect(describeUnit(placed("Imperial Guard", 0))).toBe(
-      "Imperial Guard, Heavy Infantry, Armée du Nord",
+      "Imperial Guard, Line Infantry, Armée du Nord",
     );
   });
 });

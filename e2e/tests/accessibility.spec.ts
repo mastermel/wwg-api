@@ -47,7 +47,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const unit = umpire.page.getByRole("dialog");
       await unit.getByRole("textbox", { name: "Name" }).fill("1st Division");
       await unit.getByRole("combobox", { name: "Type" }).click();
-      await unit.getByRole("option", { name: "Heavy Infantry" }).click();
+      await unit.getByRole("option", { name: "Line Infantry" }).click();
       await unit.getByRole("textbox", { name: "Fighting Factor (FF)" }).fill("5");
       await unit.getByRole("textbox", { name: "Points" }).fill("30");
       violations.push(...(await scan(umpire.page, "unit form")));

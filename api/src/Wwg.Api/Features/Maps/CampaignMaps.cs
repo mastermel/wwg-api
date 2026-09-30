@@ -34,12 +34,17 @@ internal static class CampaignMaps
         int
     >
     {
-        [UnitType.HeavyInfantry] = 20_000,
-        [UnitType.LightInfantry] = 25_000,
-        [UnitType.Skirmishers] = 25_000,
-        [UnitType.HeavyCavalry] = 30_000,
-        [UnitType.LightCavalry] = 40_000,
+        [UnitType.LineInfantry] = 20_000,
         [UnitType.FootArtillery] = 15_000,
+        [UnitType.Engineers] = 20_000,
+        [UnitType.LightInfantry] = 25_000,
+        [UnitType.Partisans] = 25_000,
+        [UnitType.LightCavalry] = 40_000,
+        [UnitType.Scouts] = 40_000,
+        [UnitType.MediumCavalry] = 30_000,
+        [UnitType.HeavyCavalry] = 30_000,
         [UnitType.HorseArtillery] = 30_000,
+        [UnitType.SupplyTrain] = 10_000,
+        [UnitType.SiegeArtillery] = 10_000,
     };
 }

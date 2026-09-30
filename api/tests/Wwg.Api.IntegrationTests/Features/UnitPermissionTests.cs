@@ -108,7 +108,7 @@ public sealed class UnitPermissionTests : ApiTest
         {
             "put" => await admin.PutAsJsonAsync(
                 uri,
-                new UpdateUnitRequest("x", UnitType.Skirmishers, 1, 0),
+                new UpdateUnitRequest("x", UnitType.Partisans, 1, 0),
                 CancellationToken
             ),
             _ => await admin.DeleteAsync(uri, CancellationToken),
