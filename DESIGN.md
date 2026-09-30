@@ -1,8 +1,8 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phases 1–7 (steps 1–29) are done; Phase 7 was hardening, from a review.
-> Next: Phase 8, the campaign map and turns (steps 30–34).
-> **Last updated:** 2026-09-28
+> **Status:** Phases 1–8 (steps 1–34) are done; Phase 8 was the campaign map and turns.
+> Next: Phase 9, the Umpire editing orders (steps 35–36).
+> **Last updated:** 2026-09-29
 >
 > This document describes the design **as it currently stands**. The reasons
 > for significant changes are recorded in the decision log,
@@ -27,13 +27,15 @@ Players can see who is in the campaign and which Armies exist, but only see the
 Units of the Army they command. A site-wide **Admin** can see and edit
 everything, and manage user accounts.
 
-Next (Phase 8, §7): each campaign gets a **map** of its area, and progresses in
+Since Phase 8 (§7), each campaign has a **map** of its area, and progresses in
 **turns**. Armies belong to **factions**. In each turn, every army's commander
 gives each unit an order (Move or Hold) on the map and submits the turn; the
 Umpire approves it, and opens the next turn once every army has moved
 (decisions [0009](docs/decisions/0009-campaign-map-stack.md) and
 [0010](docs/decisions/0010-turns-factions-and-visibility.md)). Everyone sees
-every army and its units; only where they are is private.
+every army and its units; only where they are is private. From Phase 9 the
+Umpire can also edit any army's orders in the open turn, and submit for it
+(decision [0011](docs/decisions/0011-umpire-edits-orders.md)).
 
 > Note: the repo was first created (2023) as `wwg-api`, a planned *GraphQL*
 > API. That direction was replaced by a **.NET 10 REST API**, and the repo later
@@ -505,9 +507,10 @@ Identity has two layers:
 - Emails sent: **password reset link**, **email-changed notice** (to the old
   address). From Phase 8, the **turn emails**, each to the other side of the
   action:
-  - an army's turn submitted → the Umpire;
+  - an army's turn submitted → the Umpire (submitted by the Umpire, from
+    Phase 9 → the army's commander);
   - approved, sent back or reverted (with the Umpire's notes) → the army's
-    commander;
+    commander; from Phase 9 these list the orders the Umpire set;
   - a new turn opened (or the campaign started) → every commander.
 - Settings are bound from config section `Smtp` and validated at startup:
 
@@ -1550,7 +1553,7 @@ New rows:
 | Edit the map settings; search for places | ✅ | ✅ | 403 | 403 | 404 |
 | View turn progress (numbers, statuses, counts) | ✅ | ✅ | ✅ | ✅ | 404 |
 | View **positions and orders** (the visibility rule) | ✅ all | ✅ all | own army | 403 | 404 |
-| Give orders, undo, submit (the open turn, a Draft) | 403 | 403 | own army | 403 | 404 |
+| Give orders, undo, submit (the open turn; a Draft, or for the Umpire a Draft or Submitted) | ✅ | ✅ | own army | 403 | 404 |
 | Place units (turn 0, and units added later) | ✅ | ✅ | 403 | 403 | 404 |
 | Approve / send back / revert an army's turn | ✅ | ✅ | 403 | 403 | 404 |
 | Start the campaign; start the next turn | ✅ | ✅ | 403 | 403 | 404 |
@@ -1560,9 +1563,10 @@ New rows:
   through (queries apply it too). Today: the Umpire and Admins, and the army's
   commander. Later, intelligence sharing (allies' positions for a past turn)
   and scouting (chosen enemy units for a chosen turn) add grants to it.
-- Orders are the commander's alone, the one exception to Admins passing every
-  campaign check (§3.5). The Umpire only places units (turn 0, and units added
-  later); editing anything in any turn comes later.
+- The Umpire (and Admins) can also give, change and take back any army's orders,
+  and submit a Draft for it, in the open turn only (decision 0011): a Draft or a
+  Submitted turn (an approved one is reopened first), inside the area but not
+  held to the movement limit. The commander edits only a Draft.
 
 - Any signed-in user can create a campaign, and becomes its Umpire.
 - The join link preview is public; anyone with the code can see the campaign
@@ -1682,9 +1686,9 @@ None blocking. Items to revisit later:
 - Offline edits that sync later; push notifications.
 - More unit details, extra campaign fields.
 - Letting users delete their own account.
-- After Phase 8 (decision 0010): the Umpire editing anything about a unit or
-  turn for any army; destroyed units; other ways past an army with no
-  commander; intelligence sharing and scouting (grants in the visibility
+- After Phase 8 (decision 0010): the Umpire editing closed turns, or anything
+  about a unit beyond its order (decision 0011 covers orders in the open turn);
+  destroyed units; intelligence sharing and scouting (grants in the visibility
   rule); per-faction visibility of armies and units; turn deadlines and
   reminders; turning emails off; the map offline (a self-hosted Protomaps
   extract); movement along roads.
@@ -2039,3 +2043,18 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
     - The Umpire's Armies list picks out one army: other stacks fade (opacity 0.3) and only its
       moves show as ghosts; choosing it again shows all alike.
     - The chosen row's detail text isn't dimmed: dimmed text fails contrast on its tint.
+
+### Phase 9 — The Umpire edits orders
+
+Decision [0011](docs/decisions/0011-umpire-edits-orders.md).
+
+35. **Umpire orders (API):** `GiveOrder`, `UndoOrder` and `SubmitTurn` for the Umpire and
+    Admins (`Commander` access; `OwnCommander` goes): a Draft or Submitted turn in the open
+    turn, Moves inside the area but not held to the limit. `UnitOrder.ByUmpire` (and on
+    `UnitPosition`); an **Edited** history event per run of changes, with a note per unit;
+    Approve checks every unit on the map has an order; the approve, send-back and submit
+    emails list the orders the Umpire set.
+36. **Umpire orders (UI):** Move, Hold and undo in the drawer for any army's unit (a Draft or
+    Submitted turn), warning before a move past the limit; **Submit for the army** in the
+    review panel; "Set by the Umpire" beside such orders in the commander's panel; Edited in
+    the history. End-to-end: the Umpire moves a commanderless army's unit, submits, approves.
