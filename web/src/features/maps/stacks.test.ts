@@ -6,7 +6,7 @@ const army: ArmySummary = {
   id: "a",
   name: "Armée du Nord",
   commander: null,
-  faction: null,
+  side: null,
   color: "Blue",
   nation: "France",
 };

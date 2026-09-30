@@ -15,9 +15,9 @@ internal sealed class Army : Entity
     public CampaignMember? Commander { get; set; }
 
     /// <summary>The army's side, or null until the Umpire assigns one ("Unassigned").</summary>
-    public Guid? FactionId { get; set; }
+    public Guid? SideId { get; set; }
 
-    public Faction? Faction { get; set; }
+    public Side? Side { get; set; }
 
     /// <summary>At most this many armies in a campaign: one per palette colour.</summary>
     public const int MaxPerCampaign = 8;

@@ -2298,7 +2298,7 @@ build on positions.
       under the units on the map page; the settings preview draws the size being chosen.
 41. **Factions and units for every campaign** (decision
     [0015](docs/decisions/0015-global-factions-and-units.md)); three commits:
-    - **41a. Sides:** Phase 8's campaign factions become sides: `Faction` → `Side`,
+    - ✅ **41a. Sides:** Phase 8's campaign factions become sides: `Faction` → `Side`,
       `Army.FactionId` → `SideId` (renamed in place: `ALTER TABLE … RENAME`, no rebuild of
       `Armies`, whose triggers stay), `/api/campaigns/{id}/sides` and `/api/sides/{id}`, the
       campaign page's **Sides** section, "Put X on a side". No change in behaviour.

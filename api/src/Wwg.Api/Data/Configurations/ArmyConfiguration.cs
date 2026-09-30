@@ -24,11 +24,11 @@ internal sealed class ArmyConfiguration : IEntityTypeConfiguration<Army>
             .HasForeignKey(a => a.CampaignId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Deleting a faction leaves its armies unassigned.
+        // Deleting a side leaves its armies unassigned.
         builder
-            .HasOne(a => a.Faction)
+            .HasOne(a => a.Side)
             .WithMany()
-            .HasForeignKey(a => a.FactionId)
+            .HasForeignKey(a => a.SideId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // The commander leaving (or being removed, or deleted) leaves the army unassigned; it and

@@ -4,12 +4,12 @@ import { notifications } from "@mantine/notifications";
 import { IconEdit, IconPlus, IconTrash, IconUsersGroup } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useCreateFaction,
-  useDeleteFaction,
-  useListFactions,
-  useRenameFaction,
-} from "@/api/generated/endpoints/factions/factions";
-import type { CampaignResponse, FactionResponse } from "@/api/generated/model";
+  useCreateSide,
+  useDeleteSide,
+  useListSides,
+  useRenameSide,
+} from "@/api/generated/endpoints/sides/sides";
+import type { CampaignResponse, SideResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryState } from "@/components/QueryState";
@@ -17,7 +17,7 @@ import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
-import { FactionFormModal } from "@/features/factions/FactionFormModal";
+import { SideFormModal } from "@/features/sides/SideFormModal";
 import { errorMessage } from "@/lib/errors";
 import { useConfirmTarget } from "@/lib/use-confirm-target";
 import { useOnline } from "@/lib/use-online";
@@ -26,31 +26,31 @@ const armies = (count: number) => (count === 1 ? "1 army" : `${String(count)} ar
 
 /**
  * The campaign's sides. Every member sees them; the Umpire (or an Admin) adds, renames and
- * deletes them, and puts each army in one (on the army's page).
+ * deletes them, and puts each army on one (on the army's page).
  */
-export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
-  const factions = useListFactions(campaign.id);
+export function SidesSection({ campaign }: { campaign: CampaignResponse }) {
+  const sides = useListSides(campaign.id);
   const { user } = useSession();
   const online = useOnline();
   const queryClient = useQueryClient();
-  const create = useCreateFaction();
-  const rename = useRenameFaction();
-  const remove = useDeleteFaction();
+  const create = useCreateSide();
+  const rename = useRenameSide();
+  const remove = useDeleteSide();
   const [creating, createModal] = useDisclosure(false);
-  const renaming = useConfirmTarget<FactionResponse>();
-  const deleting = useConfirmTarget<FactionResponse>();
+  const renaming = useConfirmTarget<SideResponse>();
+  const deleting = useConfirmTarget<SideResponse>();
   const manager = canManage(campaign, user);
   const refresh = () => refreshCampaign(queryClient, campaign.id);
 
-  const confirmDelete = async (faction: FactionResponse) => {
+  const confirmDelete = async (side: SideResponse) => {
     try {
-      await remove.mutateAsync({ id: faction.id });
-      notifications.show({ color: "green", message: `Deleted ${faction.name}.` });
+      await remove.mutateAsync({ id: side.id });
+      notifications.show({ color: "green", message: `Deleted ${side.name}.` });
       await refresh();
     } catch (error) {
       notifications.show({
         color: "red",
-        message: errorMessage(error, "The faction couldn't be deleted. Try again."),
+        message: errorMessage(error, "The side couldn't be deleted. Try again."),
       });
     }
     deleting.close();
@@ -58,7 +58,7 @@ export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
 
   return (
     <Section
-      title="Factions"
+      title="Sides"
       description="The sides. Every army needs one before the campaign starts."
       flush
       actions={
@@ -69,30 +69,30 @@ export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
             onClick={createModal.open}
             disabled={!online}
           >
-            New faction
+            New side
           </Button>
         )
       }
     >
-      <QueryState query={factions}>
+      <QueryState query={sides}>
         {(list) =>
           list.length === 0 ? (
-            <EmptyState icon={IconUsersGroup} title="No factions yet">
+            <EmptyState icon={IconUsersGroup} title="No sides yet">
               {manager
-                ? "Add the sides with New faction, then put each army in one."
+                ? "Add the sides with New side, then put each army on one."
                 : "The Umpire hasn't added any yet."}
             </EmptyState>
           ) : (
             <Table horizontalSpacing="lg">
               <Table.Tbody>
-                {list.map((faction) => (
-                  <Table.Tr key={faction.id}>
+                {list.map((side) => (
+                  <Table.Tr key={side.id}>
                     <Table.Td>
                       <Text fw={500} inherit>
-                        {faction.name}
+                        {side.name}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        {armies(faction.armyCount)}
+                        {armies(side.armyCount)}
                       </Text>
                     </Table.Td>
                     {manager && (
@@ -100,10 +100,10 @@ export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
                         <Group gap={4} justify="flex-end" wrap="nowrap">
                           <ActionIcon
                             variant="subtle"
-                            aria-label={`Rename ${faction.name}`}
+                            aria-label={`Rename ${side.name}`}
                             disabled={!online}
                             onClick={() => {
-                              renaming.open(faction);
+                              renaming.open(side);
                             }}
                           >
                             <IconEdit size={16} aria-hidden />
@@ -111,10 +111,10 @@ export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
                           <ActionIcon
                             variant="subtle"
                             color="red"
-                            aria-label={`Delete ${faction.name}`}
+                            aria-label={`Delete ${side.name}`}
                             disabled={!online}
                             onClick={() => {
-                              deleting.open(faction);
+                              deleting.open(side);
                             }}
                           >
                             <IconTrash size={16} aria-hidden />
@@ -130,28 +130,28 @@ export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
         }
       </QueryState>
       {creating && (
-        <FactionFormModal
-          title="New faction"
-          submitLabel="Add faction"
+        <SideFormModal
+          title="New side"
+          submitLabel="Add side"
           onClose={createModal.close}
           onSubmit={async (values) => {
-            const faction = await create.mutateAsync({ id: campaign.id, data: values });
-            notifications.show({ color: "green", message: `Added ${faction.name}.` });
+            const side = await create.mutateAsync({ id: campaign.id, data: values });
+            notifications.show({ color: "green", message: `Added ${side.name}.` });
             await refresh();
           }}
         />
       )}
       {renaming.opened && renaming.target && (
-        <FactionFormModal
-          title="Rename faction"
+        <SideFormModal
+          title="Rename side"
           submitLabel="Save"
           defaultName={renaming.target.name}
           onClose={renaming.close}
           onSubmit={async (values) => {
             const target = renaming.target;
             if (!target) return;
-            const faction = await rename.mutateAsync({ id: target.id, data: values });
-            notifications.show({ color: "green", message: `Renamed to ${faction.name}.` });
+            const side = await rename.mutateAsync({ id: target.id, data: values });
+            notifications.show({ color: "green", message: `Renamed to ${side.name}.` });
             await refresh();
           }}
         />
@@ -159,8 +159,8 @@ export function FactionsSection({ campaign }: { campaign: CampaignResponse }) {
       <ConfirmModal
         opened={deleting.opened}
         onClose={deleting.close}
-        title="Delete this faction?"
-        confirmLabel="Delete faction"
+        title="Delete this side?"
+        confirmLabel="Delete side"
         onConfirm={() => {
           if (deleting.target) void confirmDelete(deleting.target);
         }}

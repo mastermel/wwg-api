@@ -14,7 +14,7 @@ import { server } from "@/test/server";
 import { testUser } from "@/test/session";
 
 const campaignId = "0192f5c1-0000-7000-8000-00000000c001";
-const factionId = "0192f5c1-0000-7000-8000-00000000f001";
+const sideId = "0192f5c1-0000-7000-8000-00000000f001";
 const armyId = "0192f5c1-0000-7000-8000-00000000a001";
 const otherArmyId = "0192f5c1-0000-7000-8000-00000000a002";
 
@@ -45,8 +45,8 @@ const commander = (member: CampaignMemberResponse) => ({
   lastName: member.lastName,
 });
 
-/** An army's faction, colour and nation: none, the given colour, a plain flag. */
-const identity = (color: ArmyColor) => ({ faction: null, color, nation: "None" as const });
+/** An army's side, colour and nation: none, the given colour, a plain flag. */
+const identity = (color: ArmyColor) => ({ side: null, color, nation: "None" as const });
 
 const armies: ArmySummary[] = [
   { ...identity("Red"), id: armyId, name: "First Corps", commander: commander(me) },
@@ -102,7 +102,7 @@ describe("armies on the campaign page", () => {
       "href",
       `/campaigns/${campaignId}/armies/${otherArmyId}`,
     );
-    // Reserve has no commander; neither army has a faction.
+    // Reserve has no commander; neither army has a side.
     expect(within(table).getAllByText("Unassigned").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "New army" })).not.toBeInTheDocument();
   });
@@ -149,7 +149,7 @@ describe("armies on the campaign page", () => {
       {
         name: "Second Corps",
         commanderMemberId: arthur.id,
-        factionId: null,
+        sideId: null,
         color: "Green",
         nation: "None",
       },
@@ -192,14 +192,14 @@ describe("army page", () => {
     expect(screen.queryByRole("button", { name: "Delete army" })).not.toBeInTheDocument();
   });
 
-  it("shows another Player the army and its faction, read-only", async () => {
+  it("shows another Player the army and its side, read-only", async () => {
     serveCampaign("Player");
     server.use(
       http.get(`*/api/armies/${armyId}`, () =>
         HttpResponse.json({
           ...firstCorps,
           commander: commander(arthur),
-          faction: { id: factionId, name: "Coalition" },
+          side: { id: sideId, name: "Coalition" },
           nation: "Britain",
         }),
       ),
@@ -214,12 +214,12 @@ describe("army page", () => {
     expect(screen.queryByRole("button", { name: "Edit army" })).not.toBeInTheDocument();
   });
 
-  it("lets the Umpire change the army's faction, colour and nation", async () => {
+  it("lets the Umpire change the army's side, colour and nation", async () => {
     serveCampaign("Umpire");
     const bodies: unknown[] = [];
     server.use(
-      http.get(`*/api/campaigns/${campaignId}/factions`, () =>
-        HttpResponse.json([{ id: factionId, name: "Coalition", armyCount: 0 }]),
+      http.get(`*/api/campaigns/${campaignId}/sides`, () =>
+        HttpResponse.json([{ id: sideId, name: "Coalition", armyCount: 0 }]),
       ),
       http.put(`*/api/armies/${armyId}`, async ({ request }) => {
         const body = (await request.json()) as object;
@@ -232,7 +232,7 @@ describe("army page", () => {
 
     await user.click(await screen.findByRole("button", { name: "Edit army" }));
     const dialog = within(await screen.findByRole("dialog"));
-    await user.click(dialog.getByRole("combobox", { name: "Faction" }));
+    await user.click(dialog.getByRole("combobox", { name: "Side" }));
     await user.click(await dialog.findByRole("option", { name: "Coalition", hidden: true }));
     await user.click(dialog.getByRole("combobox", { name: "Colour" }));
     await user.click(await dialog.findByRole("option", { name: "Gold", hidden: true }));
@@ -241,7 +241,7 @@ describe("army page", () => {
     await user.click(dialog.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Saved First Corps.")).toBeInTheDocument();
-    expect(bodies).toEqual([{ name: "First Corps", factionId, color: "Gold", nation: "Prussia" }]);
+    expect(bodies).toEqual([{ name: "First Corps", sideId, color: "Gold", nation: "Prussia" }]);
   });
 
   it("lets the Umpire change the commander", async () => {

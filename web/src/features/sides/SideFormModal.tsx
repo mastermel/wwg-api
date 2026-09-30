@@ -3,32 +3,32 @@ import { Alert, Button, Group, Modal, Stack, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
-import { CreateFactionBody } from "@/api/generated/zod/factions/factions.zod";
+import { CreateSideBody } from "@/api/generated/zod/sides/sides.zod";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
-type FactionValues = z.infer<typeof CreateFactionBody>;
+type SideValues = z.infer<typeof CreateSideBody>;
 
-interface FactionFormModalProps {
+interface SideFormModalProps {
   title: string;
   submitLabel: string;
   defaultName?: string;
-  onSubmit: (values: FactionValues) => Promise<void>;
+  onSubmit: (values: SideValues) => Promise<void>;
   onClose: () => void;
 }
 
-/** A faction's name, in a modal. Mount it only while open. */
-export function FactionFormModal({
+/** A side's name, in a modal. Mount it only while open. */
+export function SideFormModal({
   title,
   submitLabel,
   defaultName = "",
   onSubmit,
   onClose,
-}: FactionFormModalProps) {
+}: SideFormModalProps) {
   const online = useOnline();
   const [formError, setFormError] = useState<string | null>(null);
-  const form = useForm<FactionValues>({
-    resolver: zodResolver(CreateFactionBody),
+  const form = useForm<SideValues>({
+    resolver: zodResolver(CreateSideBody),
     defaultValues: { name: defaultName },
   });
   const { errors, isSubmitting } = form.formState;

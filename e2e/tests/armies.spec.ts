@@ -122,24 +122,24 @@ test("the Umpire deletes a unit after confirming", async ({ signUp }) => {
   await expect(units.getByText("No units yet")).toBeVisible();
 });
 
-test("the Umpire adds factions and puts an army in one, with its nation", async ({ signUp }) => {
+test("the Umpire adds sides and puts an army in one, with its nation", async ({ signUp }) => {
   const umpire = await signUp("Ada");
   const page = umpire.page;
   await createCampaign(page, "The War of the Sixth Coalition");
   await addArmy(umpire, "Armée du Nord");
 
-  const factions = page.getByRole("region", { name: "Factions" });
-  await expect(factions.getByText("No factions yet")).toBeVisible();
-  await factions.getByRole("button", { name: "New faction" }).click();
+  const sides = page.getByRole("region", { name: "Sides" });
+  await expect(sides.getByText("No sides yet")).toBeVisible();
+  await sides.getByRole("button", { name: "New side" }).click();
   await page.getByRole("dialog").getByRole("textbox", { name: "Name" }).fill("French Empire");
-  await page.getByRole("dialog").getByRole("button", { name: "Add faction" }).click();
-  await expect(factions.getByText("French Empire")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Add side" }).click();
+  await expect(sides.getByText("French Empire")).toBeVisible();
   await expect(page.getByRole("region", { name: "Armies" })).toContainText("Unassigned");
 
   await page.getByRole("link", { name: "Armée du Nord" }).click();
   await page.getByRole("button", { name: "Edit army" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox", { name: "Faction" }).click();
+  await dialog.getByRole("combobox", { name: "Side" }).click();
   await dialog.getByRole("option", { name: "French Empire" }).click();
   await dialog.getByRole("combobox", { name: "Nation" }).click();
   await dialog.getByRole("option", { name: "France" }).click();
@@ -150,5 +150,5 @@ test("the Umpire adds factions and puts an army in one, with its nation", async 
   const row = page.getByRole("region", { name: "Armies" }).getByRole("row", { name: /Armée/ });
   await expect(row).toContainText("French Empire");
   await expect(row.getByTitle("France")).toBeVisible();
-  await expect(factions).toContainText("1 army");
+  await expect(sides).toContainText("1 army");
 });

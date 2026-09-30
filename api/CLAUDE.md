@@ -93,6 +93,7 @@ true, because the build launches the app to write the document.
   migration; a rebuild of `Armies` or `CampaignMembers` drops the triggers, and fails while the
   other table's trigger refers to it. Avoid the rebuild: add a column with its foreign key in
   place (`ALTER TABLE … ADD … REFERENCES …` through `migrationBuilder.Sql`, as `AddFactions`
+  does; rename tables and columns with `ALTER TABLE … RENAME`, as `RenameFactionsToSides`
   does). If a rebuild can't be avoided, drop the triggers in that migration and recreate them in
   the next. `DatabaseTests` fails if they're missing. Check with
   `dotnet ef migrations script <From> <To>`.

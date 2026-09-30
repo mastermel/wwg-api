@@ -256,7 +256,7 @@ internal static class TurnEndpoints
     /// <summary>
     /// Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where
     /// its units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or
-    /// with what's stopping it (no area, no armies, an army without a faction, units not placed).
+    /// with what's stopping it (no area, no armies, an army without a side, units not placed).
     /// </summary>
     internal static async Task<
         Results<Ok<CampaignTurnsResponse>, ProblemHttpResult>
@@ -334,7 +334,7 @@ internal static class TurnEndpoints
             .Armies.AsNoTracking()
             .Where(a => a.CampaignId == campaignId)
             .OrderBy(a => a.Name)
-            .Select(a => new { a.Name, a.FactionId })
+            .Select(a => new { a.Name, a.SideId })
             .ToListAsync(cancellationToken);
         if (armies.Count == 0)
         {
@@ -342,7 +342,7 @@ internal static class TurnEndpoints
         }
 
         problems.AddRange(
-            armies.Where(a => a.FactionId is null).Select(a => $"Put {a.Name} in a faction.")
+            armies.Where(a => a.SideId is null).Select(a => $"Put {a.Name} on a side.")
         );
 
         var unplaced = await db.Units.CountAsync(

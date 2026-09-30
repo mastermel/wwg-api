@@ -47,7 +47,7 @@ const army: ArmySummary = {
     firstName: testUser.firstName,
     lastName: testUser.lastName,
   },
-  faction: null,
+  side: null,
   color: "Blue",
   nation: "France",
 };

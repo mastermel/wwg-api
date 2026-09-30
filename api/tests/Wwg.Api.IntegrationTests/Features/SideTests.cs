@@ -1,15 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
-using Wwg.Api.Features.Factions;
+using Wwg.Api.Features.Sides;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
 
-/// <summary>Factions (DESIGN.md §5.1), and their §5.2 rows: every member sees them, the Umpire manages them.</summary>
-public sealed class FactionTests : ApiTest
+/// <summary>Sides (DESIGN.md §5.1), and their §5.2 rows: every member sees them, the Umpire manages them.</summary>
+public sealed class SideTests : ApiTest
 {
-    private static async Task<FactionResponse> CreateAsync(
+    private static async Task<SideResponse> CreateAsync(
         CampaignScenario scenario,
         string name,
         Role role = Role.Umpire
@@ -17,8 +17,8 @@ public sealed class FactionTests : ApiTest
     {
         using var response = await PostCreateAsync(scenario, name, role);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsAsync<FactionResponse>()
-            ?? throw new InvalidOperationException("No faction.");
+        return await response.Content.ReadAsAsync<SideResponse>()
+            ?? throw new InvalidOperationException("No side.");
     }
 
     private static Task<HttpResponseMessage> PostCreateAsync(
@@ -29,27 +29,27 @@ public sealed class FactionTests : ApiTest
         scenario
             .As(role)
             .PostAsJsonAsync(
-                new Uri($"/api/campaigns/{scenario.CampaignId}/factions", UriKind.Relative),
-                new CreateFactionRequest(name),
+                new Uri($"/api/campaigns/{scenario.CampaignId}/sides", UriKind.Relative),
+                new CreateSideRequest(name),
                 TestContext.Current.CancellationToken
             );
 
     private static Task<HttpResponseMessage> RenameAsync(
         CampaignScenario scenario,
-        Guid factionId,
+        Guid sideId,
         string name,
         Role role = Role.Umpire
     ) =>
         scenario
             .As(role)
             .PutAsJsonAsync(
-                new Uri($"/api/factions/{factionId}", UriKind.Relative),
-                new RenameFactionRequest(name),
+                new Uri($"/api/sides/{sideId}", UriKind.Relative),
+                new RenameSideRequest(name),
                 TestContext.Current.CancellationToken
             );
 
     [Fact]
-    public async Task CreateFaction_ByTheUmpire_ListsItForEveryMember()
+    public async Task CreateSide_ByTheUmpire_ListsItForEveryMember()
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
@@ -57,12 +57,12 @@ public sealed class FactionTests : ApiTest
         await CreateAsync(scenario, "Allies");
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var factions = await scenario
+        var sides = await scenario
             .As(Role.Player)
-            .GetAsAsync<List<FactionResponse>>($"/api/campaigns/{scenario.CampaignId}/factions");
+            .GetAsAsync<List<SideResponse>>($"/api/campaigns/{scenario.CampaignId}/sides");
         Assert.Equal(
             "Allies, Coalition, Sixth Coalition",
-            string.Join(", ", factions!.Select(f => f.Name)),
+            string.Join(", ", sides!.Select(f => f.Name)),
             StringComparer.Ordinal
         );
     }
@@ -70,7 +70,7 @@ public sealed class FactionTests : ApiTest
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task CreateFaction_BlankName_IsAValidationError(string name)
+    public async Task CreateSide_BlankName_IsAValidationError(string name)
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
@@ -80,7 +80,7 @@ public sealed class FactionTests : ApiTest
     }
 
     [Fact]
-    public async Task CreateFaction_NameTakenInAnyCase_Returns409()
+    public async Task CreateSide_NameTakenInAnyCase_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
         await CreateAsync(scenario, "Sixth Coalition");
@@ -91,7 +91,7 @@ public sealed class FactionTests : ApiTest
     }
 
     [Fact]
-    public async Task RenameFaction_ToAnotherFactionsName_Returns409()
+    public async Task RenameSide_ToAnotherSidesName_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
         await CreateAsync(scenario, "Sixth Coalition");
@@ -103,35 +103,35 @@ public sealed class FactionTests : ApiTest
     }
 
     [Fact]
-    public async Task RenameFaction_ItsOwnNameInAnotherCase_IsAllowed()
+    public async Task RenameSide_ItsOwnNameInAnotherCase_IsAllowed()
     {
         using var scenario = await CreateCampaignScenarioAsync();
         var france = await CreateAsync(scenario, "france");
 
         using var response = await RenameAsync(scenario, france.Id, "France");
 
-        Assert.Equal("France", (await response.Content.ReadAsAsync<FactionResponse>())?.Name);
+        Assert.Equal("France", (await response.Content.ReadAsAsync<SideResponse>())?.Name);
     }
 
     [Fact]
-    public async Task DeleteFaction_WithArmies_LeavesThemUnassigned()
+    public async Task DeleteSide_WithArmies_LeavesThemUnassigned()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        // The scenario's army is in its faction.
+        // The scenario's army is in its side.
         using var response = await scenario
             .As(Role.Umpire)
             .DeleteAsync(
-                new Uri($"/api/factions/{scenario.FactionId}", UriKind.Relative),
+                new Uri($"/api/sides/{scenario.SideId}", UriKind.Relative),
                 CancellationToken
             );
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var factionId = await WithDbAsync(db =>
+        var sideId = await WithDbAsync(db =>
             db.Armies.Where(a => a.Id == scenario.ArmyId)
-                .Select(a => a.FactionId)
+                .Select(a => a.SideId)
                 .SingleAsync(CancellationToken)
         );
-        Assert.Null(factionId);
+        Assert.Null(sideId);
     }
 
     [Theory]
@@ -140,14 +140,14 @@ public sealed class FactionTests : ApiTest
     [InlineData(Role.Commander, HttpStatusCode.OK)]
     [InlineData(Role.Player, HttpStatusCode.OK)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task ListFactions_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task ListSides_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
         using var response = await scenario
             .As(role)
             .GetAsync(
-                new Uri($"/api/campaigns/{scenario.CampaignId}/factions", UriKind.Relative),
+                new Uri($"/api/campaigns/{scenario.CampaignId}/sides", UriKind.Relative),
                 CancellationToken
             );
 
@@ -160,7 +160,7 @@ public sealed class FactionTests : ApiTest
     [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task CreateFaction_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task CreateSide_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
@@ -175,7 +175,7 @@ public sealed class FactionTests : ApiTest
     [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task RenameFaction_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task RenameSide_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
         var coalition = await CreateAsync(scenario, "Sixth Coalition");
@@ -191,7 +191,7 @@ public sealed class FactionTests : ApiTest
     [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task DeleteFaction_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task DeleteSide_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
         var coalition = await CreateAsync(scenario, "Sixth Coalition");
@@ -199,7 +199,7 @@ public sealed class FactionTests : ApiTest
         using var response = await scenario
             .As(role)
             .DeleteAsync(
-                new Uri($"/api/factions/{coalition.Id}", UriKind.Relative),
+                new Uri($"/api/sides/{coalition.Id}", UriKind.Relative),
                 CancellationToken
             );
 
@@ -207,7 +207,7 @@ public sealed class FactionTests : ApiTest
     }
 
     [Fact]
-    public async Task RenameFaction_Unknown_Returns404()
+    public async Task RenameSide_Unknown_Returns404()
     {
         using var scenario = await CreateCampaignScenarioAsync();
 

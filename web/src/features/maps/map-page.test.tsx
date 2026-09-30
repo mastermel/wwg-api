@@ -128,7 +128,7 @@ describe("the map page", () => {
               id: armyId,
               name: "Armée du Nord",
               commander: null,
-              faction: null,
+              side: null,
               color: "Blue",
               nation: "France",
             },

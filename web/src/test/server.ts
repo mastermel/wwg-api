@@ -13,7 +13,7 @@ const defaults = [
   // Every campaign page shows its armies and members, and its join link to the Umpire.
   http.get("*/api/campaigns/:id/members", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/armies", () => HttpResponse.json([])),
-  http.get("*/api/campaigns/:id/factions", () => HttpResponse.json([])),
+  http.get("*/api/campaigns/:id/sides", () => HttpResponse.json([])),
   // The map page: a campaign setting up, with nothing on the map.
   http.get("*/api/campaigns/:id/units", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/positions", () => HttpResponse.json([])),

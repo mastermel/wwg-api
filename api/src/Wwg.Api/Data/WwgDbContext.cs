@@ -16,7 +16,7 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Unit> Units => Set<Unit>();
 
-    public DbSet<Faction> Factions => Set<Faction>();
+    public DbSet<Side> Sides => Set<Side>();
 
     public DbSet<CampaignMap> CampaignMaps => Set<CampaignMap>();
 

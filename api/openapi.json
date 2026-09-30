@@ -1663,13 +1663,13 @@
         ]
       }
     },
-    "/api/campaigns/{id}/factions": {
+    "/api/campaigns/{id}/sides": {
       "get": {
         "tags": [
-          "Factions"
+          "Sides"
         ],
-        "summary": "The campaign's factions, sorted by name, with how many armies each has.",
-        "operationId": "ListFactions",
+        "summary": "The campaign's sides, sorted by name, with how many armies each has.",
+        "operationId": "ListSides",
         "parameters": [
           {
             "name": "id",
@@ -1689,7 +1689,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/FactionResponse"
+                    "$ref": "#/components/schemas/SideResponse"
                   }
                 }
               }
@@ -1704,10 +1704,10 @@
       },
       "post": {
         "tags": [
-          "Factions"
+          "Sides"
         ],
-        "summary": "Adds a faction (Umpire or Admin). 409 if the campaign already has one by that name.",
-        "operationId": "CreateFaction",
+        "summary": "Adds a side (Umpire or Admin). 409 if the campaign already has one by that name.",
+        "operationId": "CreateSide",
         "parameters": [
           {
             "name": "id",
@@ -1723,7 +1723,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateFactionRequest"
+                "$ref": "#/components/schemas/CreateSideRequest"
               }
             }
           },
@@ -1735,7 +1735,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FactionResponse"
+                  "$ref": "#/components/schemas/SideResponse"
                 }
               }
             }
@@ -1758,13 +1758,13 @@
         ]
       }
     },
-    "/api/factions/{id}": {
+    "/api/sides/{id}": {
       "put": {
         "tags": [
-          "Factions"
+          "Sides"
         ],
-        "summary": "Renames a faction (Umpire or Admin). 409 if another has that name.",
-        "operationId": "RenameFaction",
+        "summary": "Renames a side (Umpire or Admin). 409 if another has that name.",
+        "operationId": "RenameSide",
         "parameters": [
           {
             "name": "id",
@@ -1780,7 +1780,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RenameFactionRequest"
+                "$ref": "#/components/schemas/RenameSideRequest"
               }
             }
           },
@@ -1792,7 +1792,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FactionResponse"
+                  "$ref": "#/components/schemas/SideResponse"
                 }
               }
             }
@@ -1816,10 +1816,10 @@
       },
       "delete": {
         "tags": [
-          "Factions"
+          "Sides"
         ],
-        "summary": "Deletes a faction (Umpire or Admin). Its armies are kept, unassigned; the Umpire assigns\nthem to another before the campaign starts.",
-        "operationId": "DeleteFaction",
+        "summary": "Deletes a side (Umpire or Admin). Its armies are kept, unassigned; the Umpire assigns\nthem to another before the campaign starts.",
+        "operationId": "DeleteSide",
         "parameters": [
           {
             "name": "id",
@@ -1886,7 +1886,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Adds an army, optionally with a commander and faction (Umpire or Admin). A campaign has at\nmost 8 armies (409). Without a colour it gets the first one no other army has.",
+        "summary": "Adds an army, optionally with a commander and side (Umpire or Admin). A campaign has at\nmost 8 armies (409). Without a colour it gets the first one no other army has.",
         "operationId": "CreateArmy",
         "parameters": [
           {
@@ -1988,7 +1988,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Changes an army's name, faction, colour and nation (Umpire or Admin).",
+        "summary": "Changes an army's name, side, colour and nation (Umpire or Admin).",
         "operationId": "UpdateArmy",
         "parameters": [
           {
@@ -2393,7 +2393,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where\nits units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or\nwith what's stopping it (no area, no armies, an army without a faction, units not placed).",
+        "summary": "Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where\nits units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or\nwith what's stopping it (no area, no armies, an army without a side, units not placed).",
         "operationId": "StartCampaign",
         "parameters": [
           {
@@ -2948,25 +2948,6 @@
         },
         "description": "The Player commanding an army."
       },
-      "ArmyFaction": {
-        "required": [
-          "id",
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "The faction's ID.",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "description": "Its name."
-          }
-        },
-        "description": "The faction an army is in."
-      },
       "ArmyResponse": {
         "required": [
           "id",
@@ -2974,7 +2955,7 @@
           "campaignName",
           "name",
           "commander",
-          "faction",
+          "side",
           "color",
           "nation",
           "units",
@@ -3012,14 +2993,14 @@
               }
             ]
           },
-          "faction": {
+          "side": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "description": "Its faction, or null if it has none yet.",
-                "$ref": "#/components/schemas/ArmyFaction"
+                "description": "Its side, or null if it has none yet.",
+                "$ref": "#/components/schemas/ArmySide"
               }
             ]
           },
@@ -3051,12 +3032,31 @@
         },
         "description": "An army's details, with its units."
       },
+      "ArmySide": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The side's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          }
+        },
+        "description": "The side an army is in."
+      },
       "ArmySummary": {
         "required": [
           "id",
           "name",
           "commander",
-          "faction",
+          "side",
           "color",
           "nation"
         ],
@@ -3082,14 +3082,14 @@
               }
             ]
           },
-          "faction": {
+          "side": {
             "oneOf": [
               {
                 "type": "null"
               },
               {
-                "description": "Its faction, or null if it has none yet.",
-                "$ref": "#/components/schemas/ArmyFaction"
+                "description": "Its side, or null if it has none yet.",
+                "$ref": "#/components/schemas/ArmySide"
               }
             ]
           },
@@ -3671,12 +3671,12 @@
             "description": "A Player to command it (their membership ID), or null.",
             "format": "uuid"
           },
-          "factionId": {
+          "sideId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Its faction, or null for none yet (\"Unassigned\").",
+            "description": "Its side, or null for none yet (\"Unassigned\").",
             "format": "uuid"
           },
           "color": {
@@ -3727,7 +3727,7 @@
         },
         "description": "Starts a campaign; the caller becomes its Umpire."
       },
-      "CreateFactionRequest": {
+      "CreateSideRequest": {
         "required": [
           "name"
         ],
@@ -3737,10 +3737,10 @@
             "maxLength": 100,
             "minLength": 1,
             "type": "string",
-            "description": "The faction's name, unique in the campaign."
+            "description": "The side's name, unique in the campaign."
           }
         },
-        "description": "Adds a faction (a side) to the campaign."
+        "description": "Adds a side (a side) to the campaign."
       },
       "CreateUnitRequest": {
         "required": [
@@ -3784,31 +3784,6 @@
           "Miles"
         ],
         "description": "How distances are shown (they're stored in metres)."
-      },
-      "FactionResponse": {
-        "required": [
-          "id",
-          "name",
-          "armyCount"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "The faction's ID.",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "description": "Its name."
-          },
-          "armyCount": {
-            "type": "integer",
-            "description": "How many armies are in it.",
-            "format": "int32"
-          }
-        },
-        "description": "A side in the campaign. Every member sees them all."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -4451,7 +4426,7 @@
         },
         "description": "Sign up. The account is signed in straight away."
       },
-      "RenameFactionRequest": {
+      "RenameSideRequest": {
         "required": [
           "name"
         ],
@@ -4461,10 +4436,10 @@
             "maxLength": 100,
             "minLength": 1,
             "type": "string",
-            "description": "The faction's new name, unique in the campaign."
+            "description": "The side's new name, unique in the campaign."
           }
         },
-        "description": "Renames a faction."
+        "description": "Renames a side."
       },
       "ResetPasswordRequest": {
         "required": [
@@ -4536,6 +4511,31 @@
           }
         },
         "description": "Makes a user the campaign's Umpire."
+      },
+      "SideResponse": {
+        "required": [
+          "id",
+          "name",
+          "armyCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The side's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "armyCount": {
+            "type": "integer",
+            "description": "How many armies are in it.",
+            "format": "int32"
+          }
+        },
+        "description": "A side in the campaign. Every member sees them all."
       },
       "TokenResponse": {
         "required": [
@@ -4712,7 +4712,7 @@
       "UpdateArmyRequest": {
         "required": [
           "name",
-          "factionId",
+          "sideId",
           "color",
           "nation"
         ],
@@ -4724,12 +4724,12 @@
             "type": "string",
             "description": "The army's name."
           },
-          "factionId": {
+          "sideId": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Its faction, or null for none (\"Unassigned\").",
+            "description": "Its side, or null for none (\"Unassigned\").",
             "format": "uuid"
           },
           "color": {
@@ -4741,7 +4741,7 @@
             "$ref": "#/components/schemas/Nation"
           }
         },
-        "description": "Changes an army's name, faction, colour and nation."
+        "description": "Changes an army's name, side, colour and nation."
       },
       "UpdateCampaignMapRequest": {
         "required": [
@@ -5025,7 +5025,7 @@
       "name": "Join"
     },
     {
-      "name": "Factions"
+      "name": "Sides"
     },
     {
       "name": "Armies"

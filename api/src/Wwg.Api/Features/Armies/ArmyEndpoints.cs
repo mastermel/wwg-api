@@ -72,7 +72,7 @@ internal static class ArmyEndpoints
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
                     ),
-                a.Faction == null ? null : new ArmyFaction(a.Faction.Id, a.Faction.Name),
+                a.Side == null ? null : new ArmySide(a.Side.Id, a.Side.Name),
                 a.Color,
                 a.Nation
             ))
@@ -81,7 +81,7 @@ internal static class ArmyEndpoints
     }
 
     /// <summary>
-    /// Adds an army, optionally with a commander and faction (Umpire or Admin). A campaign has at
+    /// Adds an army, optionally with a commander and side (Umpire or Admin). A campaign has at
     /// most 8 armies (409). Without a colour it gets the first one no other army has.
     /// </summary>
     internal static async Task<
@@ -102,12 +102,9 @@ internal static class ArmyEndpoints
             return TooManyArmies();
         }
 
-        if (
-            await InvalidFactionAsync(db, id, request.FactionId, cancellationToken) is
-            { } badFaction
-        )
+        if (await InvalidSideAsync(db, id, request.SideId, cancellationToken) is { } badSide)
         {
-            return badFaction;
+            return badSide;
         }
 
         if (request.CommanderMemberId is { } memberId)
@@ -138,7 +135,7 @@ internal static class ArmyEndpoints
             CampaignId = id,
             Name = request.Name,
             CommanderId = request.CommanderMemberId,
-            FactionId = request.FactionId,
+            SideId = request.SideId,
             Color = request.Color ?? FreeColor(colors),
             Nation = request.Nation ?? Nation.None,
         };
@@ -162,7 +159,7 @@ internal static class ArmyEndpoints
         CancellationToken cancellationToken
     ) => TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
 
-    /// <summary>Changes an army's name, faction, colour and nation (Umpire or Admin).</summary>
+    /// <summary>Changes an army's name, side, colour and nation (Umpire or Admin).</summary>
     internal static async Task<Results<Ok<ArmyResponse>, ValidationProblem>> UpdateArmyAsync(
         Guid id,
         UpdateArmyRequest request,
@@ -172,38 +169,38 @@ internal static class ArmyEndpoints
     {
         var army = await db.Armies.Where(a => a.Id == id).SingleOrGoneAsync(cancellationToken);
         if (
-            await InvalidFactionAsync(db, army.CampaignId, request.FactionId, cancellationToken) is
-            { } badFaction
+            await InvalidSideAsync(db, army.CampaignId, request.SideId, cancellationToken) is
+            { } badSide
         )
         {
-            return badFaction;
+            return badSide;
         }
 
         army.Name = request.Name;
-        army.FactionId = request.FactionId;
+        army.SideId = request.SideId;
         army.Color = request.Color;
         army.Nation = request.Nation;
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
     }
 
-    /// <summary>A validation problem on <c>factionId</c> unless it's null or one of the campaign's.</summary>
-    private static async Task<ValidationProblem?> InvalidFactionAsync(
+    /// <summary>A validation problem on <c>sideId</c> unless it's null or one of the campaign's.</summary>
+    private static async Task<ValidationProblem?> InvalidSideAsync(
         WwgDbContext db,
         Guid campaignId,
-        Guid? factionId,
+        Guid? sideId,
         CancellationToken cancellationToken
     ) =>
-        factionId is not { } faction
-        || await db.Factions.AnyAsync(
-            f => f.Id == faction && f.CampaignId == campaignId,
+        sideId is not { } side
+        || await db.Sides.AnyAsync(
+            f => f.Id == side && f.CampaignId == campaignId,
             cancellationToken
         )
             ? null
             : TypedResults.ValidationProblem(
                 new Dictionary<string, string[]>(StringComparer.Ordinal)
                 {
-                    ["factionId"] = ["There's no such faction in this campaign."],
+                    ["sideId"] = ["There's no such side in this campaign."],
                 }
             );
 
@@ -326,7 +323,7 @@ internal static class ArmyEndpoints
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
                     ),
-                a.Faction == null ? null : new ArmyFaction(a.Faction.Id, a.Faction.Name),
+                a.Side == null ? null : new ArmySide(a.Side.Id, a.Side.Name),
                 a.Color,
                 a.Nation,
                 db.Units.Where(u => u.ArmyId == a.Id)

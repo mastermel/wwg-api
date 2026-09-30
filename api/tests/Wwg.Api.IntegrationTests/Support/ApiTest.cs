@@ -8,7 +8,7 @@ using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
-using Wwg.Api.Features.Factions;
+using Wwg.Api.Features.Sides;
 using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -106,7 +106,7 @@ public abstract class ApiTest : IAsyncDisposable
 
     /// <summary>
     /// A campaign created by its Umpire through the API, with two Players who joined with the join
-    /// link: one commands the army "First Corps" (in the faction "Coalition", with one unit,
+    /// link: one commands the army "First Corps" (in the side "Coalition", with one unit,
     /// "1st Division"), the other
     /// commands nothing. Plus an Admin and a
     /// signed-in outsider.
@@ -134,16 +134,16 @@ public abstract class ApiTest : IAsyncDisposable
 
         var memberIds = await MemberIdsAsync(campaignId);
 
-        var factionId = await PostForIdAsync<FactionResponse>(
+        var sideId = await PostForIdAsync<SideResponse>(
             umpire,
-            $"/api/campaigns/{campaignId}/factions",
-            new CreateFactionRequest("Coalition"),
+            $"/api/campaigns/{campaignId}/sides",
+            new CreateSideRequest("Coalition"),
             f => f.Id
         );
         var armyId = await PostForIdAsync<ArmyResponse>(
             umpire,
             $"/api/campaigns/{campaignId}/armies",
-            new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"], factionId),
+            new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"], sideId),
             a => a.Id
         );
         var unitId = await PostForIdAsync<UnitResponse>(
@@ -158,7 +158,7 @@ public abstract class ApiTest : IAsyncDisposable
             memberIds["UMPIRE@EXAMPLE.COM"],
             memberIds["COMMANDER@EXAMPLE.COM"],
             memberIds["PLAYER@EXAMPLE.COM"],
-            factionId,
+            sideId,
             armyId,
             unitId,
             new Dictionary<Role, HttpClient>

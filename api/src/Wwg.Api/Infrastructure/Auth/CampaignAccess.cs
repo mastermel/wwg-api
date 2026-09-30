@@ -34,8 +34,8 @@ internal enum CampaignRouteId
     /// <summary>A unit in one of the campaign's armies (<c>/api/units/{id}</c>).</summary>
     Unit,
 
-    /// <summary>One of the campaign's factions (<c>/api/factions/{id}</c>).</summary>
-    Faction,
+    /// <summary>One of the campaign's sides (<c>/api/sides/{id}</c>).</summary>
+    Side,
 
     /// <summary>An army's turn (<c>/api/army-turns/{id}/...</c>): its army's campaign and commander.</summary>
     ArmyTurn,
@@ -60,7 +60,7 @@ internal static class CampaignAccessExtensions
 {
     /// <summary>
     /// Declares a campaign endpoint's access rule (DESIGN.md §3.5). The campaign comes from the
-    /// route's <c>{id}</c>: the campaign's, an army's, a unit's or a faction's
+    /// route's <c>{id}</c>: the campaign's, an army's, a unit's or a side's
     /// (<paramref name="routeId"/>). The handler
     /// should still take <c>Guid id</c>, which documents it in the OpenAPI document (a path
     /// parameter nothing binds is left out, and the document is invalid).
@@ -178,10 +178,10 @@ internal static class CampaignAccessExtensions
                 return (id, null);
             }
 
-            if (routeId == CampaignRouteId.Faction)
+            if (routeId == CampaignRouteId.Side)
             {
                 var campaignId = await db
-                    .Factions.AsNoTracking()
+                    .Sides.AsNoTracking()
                     .Where(f => f.Id == id)
                     .Select(f => (Guid?)f.CampaignId)
                     .FirstOrDefaultAsync(cancellationToken);

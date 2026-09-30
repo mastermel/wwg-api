@@ -27,7 +27,7 @@ const nord: ArmySummary = {
     firstName: "Bob",
     lastName: "Tester",
   },
-  faction: null,
+  side: null,
   color: "Blue",
   nation: "France",
 };

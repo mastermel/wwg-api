@@ -29,14 +29,14 @@ interface ArmyFormModalProps {
   defaultValues: ArmyValues;
   /** Offer a commander to choose (creating an army); editing leaves this out. */
   commanders?: { value: string; label: string }[];
-  /** The campaign's factions, to put the army in one. */
-  factions: { value: string; label: string }[];
+  /** The campaign's sides, to put the army on one. */
+  sides: { value: string; label: string }[];
   onSubmit: (values: ArmyValues) => Promise<void>;
   onClose: () => void;
 }
 
 /**
- * An army's name, faction, colour and nation (and, when creating, its commander), in a modal.
+ * An army's name, side, colour and nation (and, when creating, its commander), in a modal.
  * Mount it only while open.
  */
 export function ArmyFormModal({
@@ -44,7 +44,7 @@ export function ArmyFormModal({
   submitLabel,
   defaultValues,
   commanders,
-  factions,
+  sides,
   onSubmit,
   onClose,
 }: ArmyFormModalProps) {
@@ -64,7 +64,7 @@ export function ArmyFormModal({
         applyServerErrors(error, form.setError, [
           "name",
           "commanderMemberId",
-          "factionId",
+          "sideId",
           "color",
           "nation",
         ]),
@@ -110,18 +110,18 @@ export function ArmyFormModal({
           )}
           <Controller
             control={form.control}
-            name="factionId"
+            name="sideId"
             render={({ field }) => (
               <Select
-                label="Faction"
+                label="Side"
                 description="Every army needs one before the campaign starts."
-                placeholder={factions.length ? "Unassigned" : "No factions yet"}
-                data={factions}
+                placeholder={sides.length ? "Unassigned" : "No sides yet"}
+                data={sides}
                 value={field.value}
                 onChange={field.onChange}
                 clearable
-                disabled={factions.length === 0}
-                error={errors.factionId?.message}
+                disabled={sides.length === 0}
+                error={errors.sideId?.message}
                 comboboxProps={{ withinPortal: false }}
               />
             )}

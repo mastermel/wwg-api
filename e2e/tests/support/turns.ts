@@ -13,7 +13,7 @@ export const startingPlaces = {
 
 /**
  * A campaign the Umpire has set up and started through the API (the tests aren't about that):
- * the map's area, a faction, and the commander's army "Armée du Nord" with the Imperial Guard
+ * the map's area, a side, and the commander's army "Armée du Nord" with the Imperial Guard
  * and the Reserve Artillery placed apart, in hexes `hexSize` metres across (3 miles unless given;
  * both units are line infantry and foot artillery, which move two hexes a turn). Turn 1 is open.
  * Leaves the Umpire on the campaign.
@@ -29,7 +29,7 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
     ...waterlooMap,
     hexSize,
   });
-  const faction = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/factions`, {
+  const side = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/sides`, {
     name: "French Empire",
   });
   const members = await api.get<{ id: string; firstName: string }[]>(
@@ -38,7 +38,7 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
   const army = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
     name: "Armée du Nord",
     commanderMemberId: members.find((m) => m.firstName === commander.firstName)?.id ?? null,
-    factionId: faction.id,
+    sideId: side.id,
     nation: "France",
   });
   for (const [unitName, type] of [

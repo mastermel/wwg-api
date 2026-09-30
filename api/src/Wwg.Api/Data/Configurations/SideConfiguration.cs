@@ -4,15 +4,15 @@ using Wwg.Api.Data.Entities;
 
 namespace Wwg.Api.Data.Configurations;
 
-internal sealed class FactionConfiguration : IEntityTypeConfiguration<Faction>
+internal sealed class SideConfiguration : IEntityTypeConfiguration<Side>
 {
-    public void Configure(EntityTypeBuilder<Faction> builder)
+    public void Configure(EntityTypeBuilder<Side> builder)
     {
         // Sorted on, and unique within the campaign regardless of case.
         builder.Property(f => f.Name).HasMaxLength(100).UseCollation("NOCASE");
         builder.HasIndex(f => new { f.CampaignId, f.Name }).IsUnique();
 
-        // Deleting a campaign deletes its factions.
+        // Deleting a campaign deletes its sides.
         builder
             .HasOne(f => f.Campaign)
             .WithMany()

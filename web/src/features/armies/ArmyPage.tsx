@@ -16,7 +16,7 @@ import {
   useGetCampaign,
   useListCampaignMembers,
 } from "@/api/generated/endpoints/campaigns/campaigns";
-import { useListFactions } from "@/api/generated/endpoints/factions/factions";
+import { useListSides } from "@/api/generated/endpoints/sides/sides";
 import type { ArmyResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { BackLink } from "@/components/BackLink";
@@ -26,7 +26,7 @@ import { Section } from "@/components/Section";
 import { commanderOptions } from "@/features/armies/army-access";
 import { ArmyFormModal } from "@/features/armies/ArmyFormModal";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
-import { factionOptions } from "@/features/factions/faction-options";
+import { sideOptions } from "@/features/sides/side-options";
 import { useSession } from "@/features/auth/session-context";
 import { UnitsSection } from "@/features/units/UnitsSection";
 import { canManage } from "@/features/campaigns/campaign-access";
@@ -63,12 +63,12 @@ export function ArmyPage({ campaignId, armyId }: { campaignId: string; armyId: s
   );
 }
 
-/** The army's flag and faction, and who commands it. */
+/** The army's flag and side, and who commands it. */
 function ArmySummaryLine({ army }: { army: ArmyResponse }) {
   const { user } = useSession();
   return (
     <Group gap="lg" wrap="wrap">
-      <ArmyBadge army={army}>{army.faction?.name ?? "Unassigned"}</ArmyBadge>
+      <ArmyBadge army={army}>{army.side?.name ?? "Unassigned"}</ArmyBadge>
       <Group gap={6} wrap="nowrap">
         <IconUser size={16} aria-hidden />
         <Text span inherit>
@@ -176,11 +176,11 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
   );
 }
 
-/** Edit the army's name, faction, colour and nation (Umpire or Admin): the page's action. */
+/** Edit the army's name, side, colour and nation (Umpire or Admin): the page's action. */
 function EditArmyButton({ army }: { army: ArmyResponse }) {
   const online = useOnline();
   const queryClient = useQueryClient();
-  const factions = useListFactions(army.campaignId);
+  const sides = useListSides(army.campaignId);
   const update = useUpdateArmy();
   const [editing, editModal] = useDisclosure(false);
 
@@ -201,16 +201,16 @@ function EditArmyButton({ army }: { army: ArmyResponse }) {
           defaultValues={{
             name: army.name,
             commanderMemberId: null,
-            factionId: army.faction?.id ?? null,
+            sideId: army.side?.id ?? null,
             color: army.color,
             nation: army.nation,
           }}
-          factions={factionOptions(factions.data)}
+          sides={sideOptions(sides.data)}
           onClose={editModal.close}
-          onSubmit={async ({ name, factionId, color, nation }) => {
+          onSubmit={async ({ name, sideId, color, nation }) => {
             const updated = await update.mutateAsync({
               id: army.id,
-              data: { name, factionId, color, nation },
+              data: { name, sideId, color, nation },
             });
             queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
             notifications.show({ color: "green", message: `Saved ${updated.name}.` });
