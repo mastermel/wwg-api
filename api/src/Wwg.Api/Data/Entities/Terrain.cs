@@ -124,3 +124,96 @@ internal sealed class HexEdge : Entity
     /// <summary>Set by the Umpire: inference leaves it alone.</summary>
     public bool SetByUmpire { get; set; }
 }
+
+/// <summary>The lie of the land inside a hex, as its actual terrain finds it (the rules, p. 57).</summary>
+public enum DetailRelief
+{
+    Flat,
+    Rolling,
+    Hilly,
+    HighHills,
+}
+
+/// <summary>A hex's dominant feature, from the white die (the rules, p. 57).</summary>
+public enum DominantFeature
+{
+    None,
+    SmallCastle,
+    WeakFarmhouse,
+    StrongFarmhouse,
+}
+
+/// <summary>
+/// How the ground favours the army that asked, from the green die: rolled only when both sides
+/// come onto a battlefield together (the rules, p. 57).
+/// </summary>
+public enum Favorability
+{
+    NotRolled,
+    Favorable,
+    Neutral,
+    Unfavorable,
+}
+
+/// <summary>
+/// A hex's actual terrain (decision 0016): what's there for a battle, found by the Umpire's three
+/// dice when a player asks, or set by the Umpire. Movement and visibility ignore it; the hex keeps
+/// its map terrain (<see cref="HexCell"/>). Members see it once it's shown to their army or to all.
+/// </summary>
+internal sealed class HexDetail : Entity
+{
+    public Guid CampaignId { get; set; }
+
+    public Campaign Campaign { get; set; } = null!; // Set by EF Core when loaded.
+
+    public int Q { get; set; }
+
+    public int R { get; set; }
+
+    public DetailRelief Relief { get; set; }
+
+    public bool Scrub { get; set; }
+
+    public bool Village { get; set; }
+
+    public bool Woods { get; set; }
+
+    public bool Forest { get; set; }
+
+    public bool Farms { get; set; }
+
+    public bool Fields { get; set; }
+
+    public bool Streams { get; set; }
+
+    public DominantFeature Dominant { get; set; }
+
+    public Favorability Favorability { get; set; }
+
+    /// <summary>The army that asked, if any.</summary>
+    public Guid? ForArmyId { get; set; }
+
+    public Army? ForArmy { get; set; }
+
+    /// <summary>The red die as it counts (after its modifier, 0–7); null if the Umpire set it.</summary>
+    public int? RedDie { get; set; }
+
+    public int? WhiteDie { get; set; }
+
+    /// <summary>Null unless favourability was rolled.</summary>
+    public int? GreenDie { get; set; }
+
+    public bool ShownToAll { get; set; }
+}
+
+/// <summary>An army a hex's actual terrain has been shown to.</summary>
+internal sealed class HexDetailReveal : Entity
+{
+    public Guid HexDetailId { get; set; }
+
+    public HexDetail HexDetail { get; set; } = null!; // Set by EF Core when loaded.
+
+    public Guid ArmyId { get; set; }
+
+    public Army Army { get; set; } = null!; // Set by EF Core when loaded.
+}

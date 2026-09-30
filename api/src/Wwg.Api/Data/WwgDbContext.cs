@@ -34,6 +34,11 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
     /// <summary>The grid's edges with roads or rivers (decision 0014).</summary>
     public DbSet<HexEdge> HexEdges => Set<HexEdge>();
 
+    /// <summary>Hexes' actual terrain, found on request (decision 0016).</summary>
+    public DbSet<HexDetail> HexDetails => Set<HexDetail>();
+
+    public DbSet<HexDetailReveal> HexDetailReveals => Set<HexDetailReveal>();
+
     public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();
 
     public DbSet<ArmyTurn> ArmyTurns => Set<ArmyTurn>();

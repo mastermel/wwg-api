@@ -274,6 +274,12 @@ internal static class GridEndpoints
         db.HexEdges.RemoveRange(
             await db.HexEdges.Where(e => e.CampaignId == campaignId).ToListAsync(cancellationToken)
         );
+        // The hexes' actual terrain too (their reveals go with them).
+        db.HexDetails.RemoveRange(
+            await db
+                .HexDetails.Where(d => d.CampaignId == campaignId)
+                .ToListAsync(cancellationToken)
+        );
     }
 
     // Only what has something on it is stored: anything else reads as Flat, or no road.
@@ -410,14 +416,14 @@ internal static class GridEndpoints
             _ => new Hex(hex.Q + 1, hex.R),
         };
 
-    private static ProblemHttpResult NoArea() =>
+    internal static ProblemHttpResult NoArea() =>
         TypedResults.Problem(
             statusCode: StatusCodes.Status409Conflict,
             title: "No map area",
             detail: "Set the map's area first: the grid is laid over it."
         );
 
-    private static ProblemHttpResult NoSuch(string what) =>
+    internal static ProblemHttpResult NoSuch(string what) =>
         TypedResults.Problem(
             statusCode: StatusCodes.Status404NotFound,
             title: $"No such {what}",

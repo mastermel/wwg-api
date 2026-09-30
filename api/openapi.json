@@ -2716,6 +2716,292 @@
         ]
       }
     },
+    "/api/campaigns/{id}/grid/details": {
+      "get": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The hexes' actual terrain the caller may see: the Umpire (or an Admin) all of it, with who\nasked and who it's shown to; a member what's shown to their army, or to all.",
+        "operationId": "ListHexDetails",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HexDetailResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/grid/details/{q}/{r}/roll": {
+      "post": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The Umpire shakes the rule book's three dice for a hex (Umpire or Admin; p. 57): the red\ndie with its modifier from the hex's map terrain, the white, and the green if favourability\nis wanted. A new roll replaces the hex's old one, keeping who it's shown to.",
+        "operationId": "RollHexDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "r",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollHexDetailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HexDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/grid/details/{q}/{r}": {
+      "put": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The Umpire sets a hex's actual terrain and who sees it (Umpire or Admin): changing a roll,\nor setting one without dice. The dice, if any, are kept as they fell.",
+        "operationId": "UpdateHexDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "r",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHexDetailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HexDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "Forgets a hex's actual terrain (Umpire or Admin), and who it was shown to.",
+        "operationId": "DeleteHexDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "r",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/positions": {
       "get": {
         "tags": [
@@ -4642,12 +4928,30 @@
         },
         "description": "Adds a side to the campaign."
       },
+      "DetailRelief": {
+        "enum": [
+          "Flat",
+          "Rolling",
+          "Hilly",
+          "HighHills"
+        ],
+        "description": "The lie of the land inside a hex, as its actual terrain finds it (the rules, p. 57)."
+      },
       "DistanceUnit": {
         "enum": [
           "Kilometres",
           "Miles"
         ],
         "description": "How distances are shown (they're stored in metres)."
+      },
+      "DominantFeature": {
+        "enum": [
+          "None",
+          "SmallCastle",
+          "WeakFarmhouse",
+          "StrongFarmhouse"
+        ],
+        "description": "A hex's dominant feature, from the white die (the rules, p. 57)."
       },
       "EdgeSide": {
         "enum": [
@@ -4718,6 +5022,15 @@
           }
         },
         "description": "A faction in the library, as the list shows it."
+      },
+      "Favorability": {
+        "enum": [
+          "NotRolled",
+          "Favorable",
+          "Neutral",
+          "Unfavorable"
+        ],
+        "description": "How the ground favours the army that asked, from the green die: rolled only when both sides\ncome onto a battlefield together (the rules, p. 57)."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -4837,6 +5150,110 @@
         },
         "description": "A hex with terrain on it."
       },
+      "HexDetailResponse": {
+        "required": [
+          "q",
+          "r",
+          "relief",
+          "features",
+          "dominant",
+          "favorability",
+          "dice",
+          "forArmyId",
+          "shownToArmyIds",
+          "shownToAll"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "description": "The hex's q (east).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex's r (south-east).",
+            "format": "int32"
+          },
+          "relief": {
+            "description": "The lie of the land.",
+            "$ref": "#/components/schemas/DetailRelief"
+          },
+          "features": {
+            "description": "What's there.",
+            "$ref": "#/components/schemas/HexFeatures"
+          },
+          "dominant": {
+            "description": "Its dominant feature.",
+            "$ref": "#/components/schemas/DominantFeature"
+          },
+          "favorability": {
+            "description": "How the ground favours the army that asked.",
+            "$ref": "#/components/schemas/Favorability"
+          },
+          "dice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The dice, or null if the Umpire set it.",
+                "$ref": "#/components/schemas/HexDice"
+              }
+            ]
+          },
+          "forArmyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The army that asked (the Umpire only sees it; null for others).",
+            "format": "uuid"
+          },
+          "shownToArmyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The armies it's shown to (the Umpire only; empty for others)."
+          },
+          "shownToAll": {
+            "type": "boolean",
+            "description": "Whether every member sees it."
+          }
+        },
+        "description": "A hex's actual terrain (decision 0016)."
+      },
+      "HexDice": {
+        "required": [
+          "red",
+          "white",
+          "green"
+        ],
+        "type": "object",
+        "properties": {
+          "red": {
+            "type": "integer",
+            "description": "The red die, after its modifier (0–7).",
+            "format": "int32"
+          },
+          "white": {
+            "type": "integer",
+            "description": "The white die.",
+            "format": "int32"
+          },
+          "green": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The green die, if favourability was rolled.",
+            "format": "int32"
+          }
+        },
+        "description": "The dice as they fell."
+      },
       "HexEdgeResponse": {
         "required": [
           "q",
@@ -4886,6 +5303,49 @@
           }
         },
         "description": "An edge with a road, river or waterway on it."
+      },
+      "HexFeatures": {
+        "required": [
+          "scrub",
+          "village",
+          "woods",
+          "forest",
+          "farms",
+          "fields",
+          "streams"
+        ],
+        "type": "object",
+        "properties": {
+          "scrub": {
+            "type": "boolean",
+            "description": "Scrub."
+          },
+          "village": {
+            "type": "boolean",
+            "description": "A small village."
+          },
+          "woods": {
+            "type": "boolean",
+            "description": "Small woods."
+          },
+          "forest": {
+            "type": "boolean",
+            "description": "Forest."
+          },
+          "farms": {
+            "type": "boolean",
+            "description": "Farms, or farmland."
+          },
+          "fields": {
+            "type": "boolean",
+            "description": "Fields."
+          },
+          "streams": {
+            "type": "boolean",
+            "description": "Streams."
+          }
+        },
+        "description": "What's in a hex, by the rule book's table (p. 57)."
       },
       "HexSettlement": {
         "required": [
@@ -5650,6 +6110,33 @@
         ],
         "description": "The best road across an edge."
       },
+      "RollHexDetailRequest": {
+        "required": [
+          "forArmyId",
+          "favorability",
+          "flatMinusOne"
+        ],
+        "type": "object",
+        "properties": {
+          "forArmyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The army that asked, if any.",
+            "format": "uuid"
+          },
+          "favorability": {
+            "type": "boolean",
+            "description": "Roll the green die too: both sides have come onto the field together."
+          },
+          "flatMinusOne": {
+            "type": "boolean",
+            "description": "Take one off the red die (a flat hex only, at the Umpire's choice)."
+          }
+        },
+        "description": "The Umpire shakes the dice for a hex (again: the new roll replaces the old)."
+      },
       "SaveCampaignGridRequest": {
         "required": [
           "cells",
@@ -6145,6 +6632,58 @@
           }
         },
         "description": "The Umpire sets a hex's terrain."
+      },
+      "UpdateHexDetailRequest": {
+        "required": [
+          "relief",
+          "features",
+          "dominant",
+          "favorability",
+          "forArmyId",
+          "shownToArmyIds",
+          "shownToAll"
+        ],
+        "type": "object",
+        "properties": {
+          "relief": {
+            "description": "The lie of the land.",
+            "$ref": "#/components/schemas/DetailRelief"
+          },
+          "features": {
+            "description": "What's there.",
+            "$ref": "#/components/schemas/HexFeatures"
+          },
+          "dominant": {
+            "description": "Its dominant feature.",
+            "$ref": "#/components/schemas/DominantFeature"
+          },
+          "favorability": {
+            "description": "How the ground favours the army that asked.",
+            "$ref": "#/components/schemas/Favorability"
+          },
+          "forArmyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The army that asked, if any.",
+            "format": "uuid"
+          },
+          "shownToArmyIds": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The armies it's shown to."
+          },
+          "shownToAll": {
+            "type": "boolean",
+            "description": "Show it to every member."
+          }
+        },
+        "description": "The Umpire sets a hex's actual terrain, and who sees it."
       },
       "UpdateHexEdgeRequest": {
         "required": [

@@ -11,6 +11,7 @@ internal static class ServiceCollectionExtensions
     {
         services.AddValidatedOptions<AppOptions>(AppOptions.SectionName);
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<Features.Maps.IDice, Features.Maps.Dice>();
         services.AddValidation();
 
         return services

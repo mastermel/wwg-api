@@ -1863,9 +1863,9 @@ each step)
 | GET | `/api/campaigns/{id}/grid` | The grid's cells and edges with data (every member): terrain, forest, settlements, roads, rivers, bridges (Phase 11) |
 | PUT | `/api/campaigns/{id}/grid` | Save inferred terrain for the whole grid `{ cells, edges }` (Umpire; 204; no area: 409); hexes and edges the Umpire set are kept |
 | PUT | `/api/campaigns/{id}/grid/cells/{q}/{r}` · `/edges/{q}/{r}/{side}` | The Umpire sets one hex or edge |
-| GET | `/api/campaigns/{id}/grid/details` | The hexes' actual terrain the caller may see (the Umpire: all; members: shown to their army or to all) (decision 0016) |
-| POST | `/api/campaigns/{id}/grid/details/{q}/{r}/roll` | The Umpire shakes the dice for a hex `{ forArmyId?, favorability, flatMinusOne }` (again: replaces it) |
-| PUT / DELETE | `/api/campaigns/{id}/grid/details/{q}/{r}` | The Umpire changes it `{ relief, features…, dominant, favorability, shownToArmyIds, shownToAll }` / forgets it |
+| GET | `/api/campaigns/{id}/grid/details` | The hexes' actual terrain the caller may see (the Umpire: all, with who asked and who it's shown to; members: shown to their army or to all, without those) (decision 0016) |
+| POST | `/api/campaigns/{id}/grid/details/{q}/{r}/roll` | The Umpire shakes the dice for a hex `{ forArmyId?, favorability, flatMinusOne }` (again: replaces the roll, keeping who sees it; one off only on a flat hex). The dice are the `IDice` service, fixed in tests |
+| PUT / DELETE | `/api/campaigns/{id}/grid/details/{q}/{r}` | The Umpire changes it, or sets one without dice `{ relief, features, dominant, favorability, forArmyId?, shownToArmyIds, shownToAll }` / forgets it. Changing the grid forgets them all; deleting the army that asked keeps them |
 
 **Step 41: the library and army units** (decision 0015; the campaign's factions become sides:
 `/api/campaigns/{id}/sides`, `/api/sides/{id}`)

@@ -54,3 +54,51 @@ internal sealed class HexEdgeConfiguration : IEntityTypeConfiguration<HexEdge>
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class HexDetailConfiguration : IEntityTypeConfiguration<HexDetail>
+{
+    public void Configure(EntityTypeBuilder<HexDetail> builder)
+    {
+        builder
+            .HasIndex(d => new
+            {
+                d.CampaignId,
+                d.Q,
+                d.R,
+            })
+            .IsUnique();
+        builder.Property(d => d.Relief).HasMaxLength(16);
+        builder.Property(d => d.Dominant).HasMaxLength(16);
+        builder.Property(d => d.Favorability).HasMaxLength(16);
+
+        builder
+            .HasOne(d => d.Campaign)
+            .WithMany()
+            .HasForeignKey(d => d.CampaignId)
+            .OnDelete(DeleteBehavior.Cascade);
+        // Deleting the army that asked keeps what was found.
+        builder
+            .HasOne(d => d.ForArmy)
+            .WithMany()
+            .HasForeignKey(d => d.ForArmyId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
+}
+
+internal sealed class HexDetailRevealConfiguration : IEntityTypeConfiguration<HexDetailReveal>
+{
+    public void Configure(EntityTypeBuilder<HexDetailReveal> builder)
+    {
+        builder.HasIndex(r => new { r.HexDetailId, r.ArmyId }).IsUnique();
+        builder
+            .HasOne(r => r.HexDetail)
+            .WithMany()
+            .HasForeignKey(r => r.HexDetailId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder
+            .HasOne(r => r.Army)
+            .WithMany()
+            .HasForeignKey(r => r.ArmyId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
