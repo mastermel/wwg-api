@@ -63,3 +63,31 @@ test("the Umpire sets a hex's terrain and an edge, and a Player can't", async ({
   await player.page.goto(`${campaignUrl}/map/terrain`);
   await expect(player.page.getByText("Only the Umpire can change the terrain")).toBeVisible();
 });
+
+test("the Umpire infers the terrain from the map's tiles", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Wavre 1815");
+  const campaignUrl = umpire.page.url();
+  const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
+  await (await apiAs(umpire.page)).put(`/api/campaigns/${campaignId}/map`, waterlooMap);
+  // Not the internet's tiles (e2e/CLAUDE.md): an empty build of them, so the flow is tested
+  // without depending on what they hold. The unit tests cover what's inferred from data.
+  const page = umpire.page;
+  await page.route("https://tiles.openfreemap.org/planet", (route) =>
+    route.fulfill({
+      json: { tiles: ["https://tiles.openfreemap.org/empty/{z}/{x}/{y}.pbf"], maxzoom: 14 },
+    }),
+  );
+  await page.route("https://tiles.openfreemap.org/empty/**", (route) =>
+    route.fulfill({ status: 404 }),
+  );
+  await page.route("https://tiles.mapterhorn.com/**", (route) => route.fulfill({ status: 404 }));
+
+  await page.goto(`${campaignUrl}/map/terrain`);
+  await page.getByRole("button", { name: "Infer terrain" }).click();
+
+  await expect(
+    page.getByText("Inferred the terrain: 0 hexes and 0 edges with something on them."),
+  ).toBeVisible();
+  expect(await scan(page, "terrain, inferred")).toEqual([]);
+});

@@ -29,6 +29,39 @@ vi.mock("@/features/maps/CampaignMap", () => ({
   ),
 }));
 
+// The map's tiles, without the network: one vector tile with a city at the area's middle.
+vi.mock("@/features/maps/inference/tiles", async () => {
+  const { tileAt } = await import("@/features/maps/inference/sources");
+  const middle = { longitude: 4.4, latitude: 50.7 };
+  const { x, y } = tileAt(middle, 10);
+  return {
+    loadTiles: (
+      _bounds: unknown,
+      _size: number,
+      onProgress: (done: number, total: number) => void,
+    ) => {
+      onProgress(1, 1);
+      return Promise.resolve({
+        vectorTiles: [
+          {
+            x,
+            y,
+            z: 10,
+            features: [
+              {
+                layer: "place",
+                properties: { class: "city", name: "Waterloo", capital: 0 },
+                geometry: { type: "Point", coordinates: [middle.longitude, middle.latitude] },
+              },
+            ],
+          },
+        ],
+        elevationTiles: [],
+      });
+    },
+  };
+});
+
 const campaignId = "0192f5c1-0000-7000-8000-00000000c001";
 const waterloo = { west: 4.2, south: 50.6, east: 4.6, north: 50.8 };
 
@@ -70,6 +103,10 @@ function serveCampaign(
     ),
     http.get(`*/api/campaigns/${campaignId}/map`, () => HttpResponse.json(settings(bounds))),
     http.get(`*/api/campaigns/${campaignId}/grid`, () => HttpResponse.json(terrain)),
+    http.put(`*/api/campaigns/${campaignId}/grid`, async ({ request }) => {
+      saved.push({ path: "", body: await request.json() });
+      return new HttpResponse(null, { status: 204 });
+    }),
     http.put(`*/api/campaigns/${campaignId}/grid/*`, async ({ request }) => {
       const body = await request.json();
       saved.push({ path: new URL(request.url).pathname.split("/grid/")[1] ?? "", body });
@@ -232,6 +269,64 @@ describe("the terrain page", () => {
     expect(
       await screen.findByText("Only a town or city can be walled or a capital."),
     ).toBeInTheDocument();
+  });
+
+  it("infers the terrain from the map's data and saves it", async () => {
+    const saved = serveCampaign("Umpire");
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Infer terrain" }));
+
+    expect(await screen.findByText(/^Inferred the terrain: 1 hex and 0 edges/)).toBeInTheDocument();
+    expect(saved).toEqual([
+      {
+        path: "",
+        body: {
+          cells: [
+            {
+              q: 0,
+              r: 0,
+              terrain: "Flat",
+              forest: false,
+              settlement: {
+                size: "City",
+                walled: false,
+                fortress: false,
+                capital: "None",
+                name: "Waterloo",
+              },
+            },
+          ],
+          edges: [],
+        },
+      },
+    ]);
+  });
+
+  it("asks before inferring again over what was inferred", async () => {
+    const saved = serveCampaign("Umpire", {
+      cells: [
+        {
+          q: 1,
+          r: 0,
+          terrain: "LowHill",
+          forest: false,
+          settlement: { size: "None", walled: false, fortress: false, capital: "None", name: null },
+          setByUmpire: false,
+        },
+      ],
+      edges: [],
+    });
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Infer again" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Infer the terrain again?" }));
+    await user.click(dialog.getByRole("button", { name: "Infer again" }));
+
+    expect(await screen.findByText(/^Inferred the terrain/)).toBeInTheDocument();
+    expect(saved).toHaveLength(1);
   });
 
   it("isn't for Players", async () => {

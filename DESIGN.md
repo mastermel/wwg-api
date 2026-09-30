@@ -2379,14 +2379,20 @@ build on positions.
       of its six sides (clicking near a side chooses it; S, SW and NW are saved as the
       neighbours' N, NE and SE, with a waterway's flow turned round). End-to-end: set a hex and
       an edge, and find them again.
-    - **43b. Inference** in the Umpire's browser from the tiles the map uses: relief from
+    - ✅ **43b. Inference** in the Umpire's browser from the tiles the map uses (fetched and
+      decoded by `inference/tiles.ts`, vector tiles about five hexes across and heights at about
+      25 pixels to a hex, at most 400 of each; `sources.ts` and `infer.ts` are plain arithmetic,
+      tested alone; each hex is judged on 19 sample points): relief from
       Mapterhorn elevation (the rise within a hex, roughly: under 50 m flat, under 150 m low
       hills, under 400 m high hills, else mountains), forest from land cover (half the hex or
       more), water, cities and towns (with their names; capitals from the place data), roads
       (trunk and primary good, secondary poor) crossing each edge, and rivers: a waterway where
       a navigable river's line crosses an edge (flowing the way the line runs), and a river
-      along the edges nearest its line (a road crossing one makes a bridge). On the Terrain
-      page, **Infer terrain** saves it for the whole grid, keeping what the Umpire set.
+      along the edges nearest its line (snapped to the nearest hex corners and joined along the
+      sides between them, so it's unbroken; a road crossing one makes a bridge). Villages and
+      streams are left to the hex's detail (43c). On the Terrain page, **Infer terrain** saves
+      it for the whole grid, keeping what the Umpire set (asking first when it replaces an earlier
+      inference). End-to-end runs it on empty tiles (the flow, not the data).
     - **43c. A hex's actual terrain** (decision 0016): `HexDetail` and its reveals; the Umpire
       rolls for a hex (the app shakes the rules' three dice, with the red die's modifier from the
       map terrain), adjusts it, and shows it to armies or to all; members see what's been shown

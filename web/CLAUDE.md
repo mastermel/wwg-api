@@ -83,7 +83,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   `maxDrawnHexes`. Movement is `movement.ts` (classes, the rules' rates, `reach` and `pathTo`),
   mirroring the API's `Movement.cs`. Terrain (decisions 0014, 0016) is `terrain.ts` (labels,
   and where each of a hex's six sides is stored: `storedEdge`, `flowFor`), drawn by
-  `TerrainLayer` and edited on `TerrainPage`. The Umpire's
+  `TerrainLayer` and edited on `TerrainPage`. Inference (`inference/`) reads the map's tiles in
+  the browser: `tiles.ts` fetches and decodes them (browser only), `sources.ts` and `infer.ts`
+  are plain arithmetic, tested with made-up data. The Umpire's
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - The library (decision 0015) is `features/library`: every signed-in user views it; edits are
   shown only to `canEditLibrary(user)` (Managers and Admins). `UnitFormModal` (`features/units`)

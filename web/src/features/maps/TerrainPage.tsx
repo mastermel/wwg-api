@@ -57,6 +57,7 @@ import {
   type Side,
   type TerrainIndex,
 } from "@/features/maps/terrain";
+import { InferTerrainSection } from "@/features/maps/InferTerrainSection";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
@@ -165,35 +166,44 @@ function TerrainEditor({ campaignId, settings, bounds, terrain }: TerrainEditorP
         </Box>
       </Grid.Col>
       <Grid.Col span={{ base: 12, md: 4 }}>
-        {chosen ? (
-          <Stack gap="xl">
-            <HexForm
-              key={hexKey(chosen.hex)}
-              campaignId={campaignId}
-              hex={chosen.hex}
-              index={index}
-            />
-            <EdgeForm
-              // A new form for each edge: its values are that edge's.
-              key={`${hexKey(chosen.hex)}:${chosen.side}`}
-              campaignId={campaignId}
-              hex={chosen.hex}
-              side={chosen.side}
-              index={index}
-              onSide={(side) => {
-                setChosen({ hex: chosen.hex, side });
-              }}
-            />
-          </Stack>
-        ) : (
-          <Section title="Choose a hex">
-            <Text size="sm">
-              {outside
-                ? "That's outside the campaign's grid. Choose a hex inside the area."
-                : "Click a hex on the map to set its terrain. Click near one of its sides to choose that edge."}
-            </Text>
-          </Section>
-        )}
+        <Stack gap="xl">
+          {chosen ? (
+            <Stack gap="xl">
+              <HexForm
+                key={hexKey(chosen.hex)}
+                campaignId={campaignId}
+                hex={chosen.hex}
+                index={index}
+              />
+              <EdgeForm
+                // A new form for each edge: its values are that edge's.
+                key={`${hexKey(chosen.hex)}:${chosen.side}`}
+                campaignId={campaignId}
+                hex={chosen.hex}
+                side={chosen.side}
+                index={index}
+                onSide={(side) => {
+                  setChosen({ hex: chosen.hex, side });
+                }}
+              />
+            </Stack>
+          ) : (
+            <Section title="Choose a hex">
+              <Text size="sm">
+                {outside
+                  ? "That's outside the campaign's grid. Choose a hex inside the area."
+                  : "Click a hex on the map to set its terrain. Click near one of its sides to choose that edge."}
+              </Text>
+            </Section>
+          )}
+          <InferTerrainSection
+            campaignId={campaignId}
+            settings={settings}
+            bounds={bounds}
+            grid={grid}
+            terrain={terrain}
+          />
+        </Stack>
       </Grid.Col>
     </Grid>
   );
