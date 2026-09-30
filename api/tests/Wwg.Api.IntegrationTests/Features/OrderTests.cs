@@ -106,6 +106,8 @@ public sealed class OrderTests : ApiTest
     public async Task GiveOrder_MoveTooFar_IsAValidationError()
     {
         using var scenario = await StartedAsync();
+        // Not a French Morning, when it'd go a hex further.
+        await TurnSteps.SetCalendarAsync(scenario);
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
         // Three hexes: infantry moves two on flat ground.

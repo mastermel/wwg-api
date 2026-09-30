@@ -24,6 +24,8 @@ public sealed class MovementTests : ApiTest
     private async Task<(CampaignScenario Scenario, Guid UnitId)> StartedWithAsync(UnitType type)
     {
         var scenario = await CreateCampaignScenarioAsync();
+        // The scenario's French infantry would march further in turn 1's Morning: not here.
+        await TurnSteps.SetCalendarAsync(scenario);
         await TurnSteps.ReadyAsync(scenario);
         var unitId =
             type == UnitType.LineInfantry

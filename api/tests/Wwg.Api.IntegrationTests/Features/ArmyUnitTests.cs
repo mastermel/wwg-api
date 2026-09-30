@@ -79,6 +79,8 @@ public sealed class ArmyUnitTests : ApiTest
                 scenario.ArmyId,
                 libraryUnit,
                 scenario.FactionId,
+                // The faction is French: it marches as France.
+                Nation.France,
                 "Light Division",
                 UnitType.LightInfantry,
                 6,
@@ -261,6 +263,7 @@ public sealed class ArmyUnitTests : ApiTest
             scenario.ArmyId,
             libraryUnit,
             scenario.FactionId,
+            Nation.France,
             "Horse Guards",
             UnitType.HeavyCavalry,
             8,

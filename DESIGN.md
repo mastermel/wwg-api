@@ -2422,9 +2422,19 @@ build on positions.
       downstream, 2 upstream by the waterway's flow across the edge, 3 across a lake (from one
       Water hex to the next); nowhere else. The table gains boats' three grounds (land classes
       stay on the six land ones: 33 cells), and the Map settings page edits them apart.
-45. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
-    ("Turn 7 · 17 June 1815, Afternoon"); the Morning and Afternoon modifiers by nation; night
-    moves recorded.
+45. **Time of day**, in two parts:
+    - ✅ **45a. The calendar (API):** `Campaign.StartDate` (optional), `FirstTurnPart` (Morning,
+      Afternoon or Night; each turn after is the next, three to a day, a Night belonging to the
+      day it starts), and the nations whose infantry (the Infantry class) move a flat hex's worth
+      further each Morning (the rules': France, Bavaria, Württemberg, Baden, the Duchy of
+      Warsaw, the Kingdom of Italy and Holland) or less each Afternoon (Russia and Austria), the
+      rules' until the Umpire changes them (`GET` / `PUT /api/campaigns/{id}/calendar`). Turns
+      carry their `part` and `date`; a unit marches as its library faction's nation, or its
+      army's when the faction has none (`ArmyUnitResponse.nation`). A move in a Night turn is a
+      night move (the turn says so), for forced marches later.
+    - **45b. The calendar in the app:** the Umpire sets it on the campaign's edit page; every
+      turn labelled ("Turn 7 · 17 June 1815, Afternoon"); the map's reach and the commander's
+      budget with the march; night moves marked, with a warning when ordering one.
 46. **Contact and concentration:** the Umpire is shown where opposing armies share a hex after a
     turn (battles themselves happen at the table), and warned of hexes over the concentration
     limits (200 points of infantry or 160 of cavalry; double in large and walled cities and

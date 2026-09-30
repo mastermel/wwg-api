@@ -13,6 +13,10 @@ internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
         builder.Property(c => c.Description).HasMaxLength(2000);
         builder.Property(c => c.JoinCode).HasMaxLength(32);
         builder.HasIndex(c => c.JoinCode).IsUnique();
+        builder.Property(c => c.FirstTurnPart).HasMaxLength(16);
+        // Lists of nations, as JSON arrays of their names (like every enum here, by name).
+        builder.PrimitiveCollection(c => c.MorningNations).ElementType().HasConversion<string>();
+        builder.PrimitiveCollection(c => c.AfternoonNations).ElementType().HasConversion<string>();
 
         // Deleting a campaign deletes its members (and its armies: see ArmyConfiguration).
         builder

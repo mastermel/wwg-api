@@ -56,6 +56,7 @@ const unit = (
   armyId,
   unitId: `0192f5c1-0000-7000-8000-00000000b00${id}`,
   factionId,
+  nation: "France",
   name,
   type,
   fightingFactor,
@@ -119,6 +120,7 @@ function serveArmy(
         .filter((u) => body.unitIds.includes(u.id))
         .map((u, i): ArmyUnitResponse => ({
           ...u,
+          nation: "France",
           id: unit(String(units.length + i + 1), "").id,
           armyId,
           unitId: u.id,

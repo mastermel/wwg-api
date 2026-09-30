@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
@@ -52,16 +53,7 @@ internal static class ArmyUnitEndpoints
             .OrderBy(u => u.Army.Name)
             .ThenBy(u => u.Name)
             .ThenBy(u => u.Id)
-            .Select(u => new ArmyUnitResponse(
-                u.Id,
-                u.ArmyId,
-                u.UnitId,
-                u.Unit.FactionId,
-                u.Name,
-                u.Type,
-                u.FightingFactor,
-                u.Points
-            ))
+            .Select(ArmyUnitProjection.ToResponse)
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(units);
     }
@@ -116,13 +108,15 @@ internal static class ArmyUnitEndpoints
         db.ArmyUnits.AddRange(added);
         await db.SaveChangesAsync(cancellationToken);
 
-        var factionOf = units.ToDictionary(u => u.Id, u => u.FactionId);
+        var addedIds = added.Select(u => u.Id).ToList();
         return TypedResults.Ok(
-            added
-                .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
+            await db
+                .ArmyUnits.AsNoTracking()
+                .Where(u => addedIds.Contains(u.Id))
+                .OrderBy(u => u.Name)
                 .ThenBy(u => u.Id)
-                .Select(u => ToResponse(u, factionOf[u.UnitId]))
-                .ToList()
+                .Select(ArmyUnitProjection.ToResponse)
+                .ToListAsync(cancellationToken)
         );
     }
 
@@ -179,16 +173,19 @@ internal static class ArmyUnitEndpoints
         CancellationToken cancellationToken
     )
     {
-        var unit = await db
-            .ArmyUnits.Include(u => u.Unit)
-            .Where(u => u.Id == id)
-            .SingleOrGoneAsync(cancellationToken);
+        var unit = await db.ArmyUnits.Where(u => u.Id == id).SingleOrGoneAsync(cancellationToken);
         unit.Name = request.Name;
         unit.Type = request.Type;
         unit.FightingFactor = request.FightingFactor;
         unit.Points = request.Points;
         await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Ok(ToResponse(unit, unit.Unit.FactionId));
+        return TypedResults.Ok(
+            await db
+                .ArmyUnits.AsNoTracking()
+                .Where(u => u.Id == id)
+                .Select(ArmyUnitProjection.ToResponse)
+                .SingleAsync(cancellationToken)
+        );
     }
 
     /// <summary>
@@ -218,16 +215,24 @@ internal static class ArmyUnitEndpoints
         await db.ArmyUnits.Where(u => u.Id == id).ExecuteDeleteAsync(cancellationToken);
         return TypedResults.NoContent();
     }
+}
 
-    private static ArmyUnitResponse ToResponse(ArmyUnit unit, Guid factionId) =>
-        new(
-            unit.Id,
-            unit.ArmyId,
-            unit.UnitId,
-            factionId,
-            unit.Name,
-            unit.Type,
-            unit.FightingFactor,
-            unit.Points
+/// <summary>An army unit as the API gives it, in queries (EF Core turns it into SQL).</summary>
+internal static class ArmyUnitProjection
+{
+    public static readonly Expression<Func<ArmyUnit, ArmyUnitResponse>> ToResponse =
+        u => new ArmyUnitResponse(
+            u.Id,
+            u.ArmyId,
+            u.UnitId,
+            u.Unit.FactionId,
+            // It marches as its faction's nation (step 45), or its army's if the faction has none.
+            u.Unit.Faction.Nation != Nation.None
+                ? u.Unit.Faction.Nation
+                : u.Army.Nation,
+            u.Name,
+            u.Type,
+            u.FightingFactor,
+            u.Points
         );
 }

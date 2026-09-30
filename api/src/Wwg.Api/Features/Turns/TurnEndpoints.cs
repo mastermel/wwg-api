@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
@@ -80,6 +81,20 @@ internal static class TurnEndpoints
                     .ToList()
             ))
             .ToListAsync(cancellationToken);
+        var calendar = await CalendarEndpoints.LoadAsync(db, id, cancellationToken);
+        turns =
+        [
+            .. turns.Select(t =>
+                TurnParts.Of(calendar.FirstTurnPart, calendar.StartDate, t.Number)
+                    is var (part, date)
+                    ? t with
+                    {
+                        Part = part,
+                        Date = date,
+                    }
+                    : t
+            ),
+        ];
 
         var open = turns.SingleOrDefault(t => t.ClosedAt is null)?.Number ?? 0;
         var stage = open == 0 ? CampaignStage.Setup : CampaignStage.Running;

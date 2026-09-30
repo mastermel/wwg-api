@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 
@@ -37,6 +38,33 @@ internal static class TurnSteps
                     DistanceUnit.Kilometres,
                     CampaignMaps.DefaultLayers,
                     hexSize
+                ),
+                CancellationToken
+            );
+        response.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>
+    /// The campaign's calendar (step 45): turn 1 in the time of day given, and whose infantry
+    /// march further each Morning or less each Afternoon (none, unless given).
+    /// </summary>
+    public static async Task SetCalendarAsync(
+        CampaignScenario scenario,
+        TurnPart firstTurn = TurnPart.Morning,
+        DateOnly? startDate = null,
+        IReadOnlyList<Nation>? morning = null,
+        IReadOnlyList<Nation>? afternoon = null
+    )
+    {
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/calendar", UriKind.Relative),
+                new UpdateCampaignCalendarRequest(
+                    startDate,
+                    firstTurn,
+                    morning ?? [],
+                    afternoon ?? []
                 ),
                 CancellationToken
             );

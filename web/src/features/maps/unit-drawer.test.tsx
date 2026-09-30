@@ -18,7 +18,17 @@ const army: ArmySummary = {
 };
 
 const unit = (id: string, name: string, type: PlacedUnit["unit"]["type"]): PlacedUnit => ({
-  unit: { id, armyId: "a", unitId: "l", factionId: "f", name, type, fightingFactor: 6, points: 30 },
+  unit: {
+    id,
+    armyId: "a",
+    unitId: "l",
+    factionId: "f",
+    nation: "France",
+    name,
+    type,
+    fightingFactor: 6,
+    points: 30,
+  },
   army,
   hex: { q: 0, r: 0 },
   latitude: 50.7,

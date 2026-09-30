@@ -32,6 +32,7 @@ public sealed record UpdateArmyUnitRequest(
 /// <param name="ArmyId">The army it's in.</param>
 /// <param name="UnitId">The library unit it was copied from.</param>
 /// <param name="FactionId">That library unit's faction.</param>
+/// <param name="Nation">The nation it marches as (step 45): its faction's, or its army's when the faction has none.</param>
 /// <param name="Name">Its name.</param>
 /// <param name="Type">What kind of troops it is.</param>
 /// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
@@ -41,6 +42,7 @@ public sealed record ArmyUnitResponse(
     Guid ArmyId,
     Guid UnitId,
     Guid FactionId,
+    Nation Nation,
     string Name,
     UnitType Type,
     int FightingFactor,

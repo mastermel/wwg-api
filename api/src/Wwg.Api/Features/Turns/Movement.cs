@@ -121,6 +121,35 @@ internal static class Movement
             : StepCost.Closed("boats keep to waterways and lakes");
     }
 
+    /// <summary>
+    /// A turn's movement for a unit (step 45; the rules, §E.1): the turn's 1, and for infantry
+    /// (the Infantry class) of a nation the campaign names, a flat hex's worth more each Morning
+    /// or less each Afternoon.
+    /// </summary>
+    public static double BudgetFor(
+        MovementTable table,
+        MovementClass movementClass,
+        Nation nation,
+        TurnPart? part,
+        Campaign calendar
+    )
+    {
+        var flat = table.Rate(MovementClass.Infantry, Ground.Flat);
+        if (movementClass != MovementClass.Infantry || flat <= 0)
+        {
+            return Budget;
+        }
+
+        var morning = calendar.MorningNations ?? TurnParts.MorningNations;
+        var afternoon = calendar.AfternoonNations ?? TurnParts.AfternoonNations;
+        return part switch
+        {
+            TurnPart.Morning when morning.Contains(nation) => Budget + (1 / flat),
+            TurnPart.Afternoon when afternoon.Contains(nation) => Math.Max(0, Budget - (1 / flat)),
+            _ => Budget,
+        };
+    }
+
     /// <summary>Whether a cost is within a turn's budget.</summary>
     public static bool Affordable(double cost) => cost <= Budget + Tolerance;
 
@@ -136,10 +165,10 @@ internal static class Movement
         MovementClass movementClass,
         Hex start,
         IReadOnlyList<Hex> path,
-        UnitState? carried
+        UnitState? carried,
+        double budget = Budget
     )
     {
-        var budget = Budget;
         var at = start;
         for (var i = 0; i < path.Count; i++)
         {

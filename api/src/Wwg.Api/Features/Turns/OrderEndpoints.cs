@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -195,11 +196,7 @@ internal static class OrderEndpoints
             return NotEditable(byUmpire);
         }
 
-        var unit = await db
-            .ArmyUnits.AsNoTracking()
-            .Where(u => u.Id == unitId && u.ArmyId == turn.ArmyId)
-            .Select(u => new { u.Type, u.Army.CampaignId })
-            .SingleOrDefaultAsync(cancellationToken);
+        var unit = await OrderedUnitAsync(db, unitId, turn.ArmyId, cancellationToken);
         if (unit is null)
         {
             return TypedResults.Problem(
@@ -218,7 +215,17 @@ internal static class OrderEndpoints
         var path = request.Kind == OrderKind.Hold ? [] : request.Path ?? [];
         var plan = await PlanAsync(
             db,
-            new MoveRequest(grid, unit.CampaignId, unit.Type, state, request.Kind, path, byUmpire),
+            new MoveRequest(
+                grid,
+                unit.CampaignId,
+                unit.Type,
+                unit.Nation,
+                turn.Number,
+                state,
+                request.Kind,
+                path,
+                byUmpire
+            ),
             cancellationToken
         );
         if (plan.Problem is { } problem)
@@ -417,6 +424,8 @@ internal static class OrderEndpoints
         HexGrid Grid,
         Guid CampaignId,
         UnitType Type,
+        Nation Nation,
+        int Turn,
         UnitState State,
         OrderKind Kind,
         IReadOnlyList<Hex> Path,
@@ -434,9 +443,10 @@ internal static class OrderEndpoints
         CancellationToken cancellationToken
     )
     {
+        var table = await MovementTable.LoadAsync(db, move.CampaignId, cancellationToken);
         var movement = new MoveCheck(
             move.Grid,
-            await MovementTable.LoadAsync(db, move.CampaignId, cancellationToken),
+            table,
             await PathTerrain.LoadAsync(
                 db,
                 move.CampaignId,
@@ -458,8 +468,45 @@ internal static class OrderEndpoints
                 movement.Class,
                 move.State.At,
                 move.Path,
-                move.State
+                move.State,
+                await BudgetAsync(db, move, table, cancellationToken)
             );
+    }
+
+    /// <summary>The unit being ordered: its type, campaign, and the nation it marches as.</summary>
+    private sealed record OrderedUnit(UnitType Type, Guid CampaignId, Nation Nation);
+
+    /// <summary>The army's unit, or null if it isn't one of the army's.</summary>
+    private static Task<OrderedUnit?> OrderedUnitAsync(
+        WwgDbContext db,
+        Guid unitId,
+        Guid armyId,
+        CancellationToken cancellationToken
+    ) =>
+        db
+            .ArmyUnits.AsNoTracking()
+            .Where(u => u.Id == unitId && u.ArmyId == armyId)
+            .Select(u => new OrderedUnit(
+                u.Type,
+                u.Army.CampaignId,
+                // Its faction's nation (step 45), or its army's if the faction has none.
+                u.Unit.Faction.Nation != Nation.None
+                    ? u.Unit.Faction.Nation
+                    : u.Army.Nation
+            ))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    /// <summary>The unit's movement this turn, by its time of day and the unit's nation (step 45).</summary>
+    private static async Task<double> BudgetAsync(
+        WwgDbContext db,
+        MoveRequest move,
+        MovementTable table,
+        CancellationToken cancellationToken
+    )
+    {
+        var calendar = await CalendarEndpoints.LoadAsync(db, move.CampaignId, cancellationToken);
+        var part = TurnParts.Of(calendar.FirstTurnPart, calendar.StartDate, move.Turn)?.Part;
+        return Movement.BudgetFor(table, Movement.ClassOf(move.Type), move.Nation, part, calendar);
     }
 
     /// <summary>What a move is checked against: the grid, the campaign's table and the terrain.</summary>

@@ -25,13 +25,17 @@ public sealed record ArmyTurnSummary(
 /// <param name="Submitted">How many armies have submitted (or completed) it.</param>
 /// <param name="Armies">How many armies take part in it.</param>
 /// <param name="ArmyTurns">Each army's part: all of them for the Umpire, a commander's own for them.</param>
+/// <param name="Part">Its time of day (step 45); null for turn 0, the setup.</param>
+/// <param name="Date">Its day, or null for the setup or a campaign without a start date.</param>
 public sealed record CampaignTurnSummary(
     int Number,
     DateTime OpenedAt,
     DateTime? ClosedAt,
     int Submitted,
     int Armies,
-    IReadOnlyList<ArmyTurnSummary> ArmyTurns
+    IReadOnlyList<ArmyTurnSummary> ArmyTurns,
+    TurnPart? Part = null,
+    DateOnly? Date = null
 );
 
 /// <summary>Where the campaign's turns are.</summary>

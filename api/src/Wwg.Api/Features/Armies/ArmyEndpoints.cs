@@ -414,16 +414,7 @@ internal static class ArmyEndpoints
                 db.ArmyUnits.Where(u => u.ArmyId == a.Id)
                     .OrderBy(u => u.Name)
                     .ThenBy(u => u.Id)
-                    .Select(u => new ArmyUnitResponse(
-                        u.Id,
-                        u.ArmyId,
-                        u.UnitId,
-                        u.Unit.FactionId,
-                        u.Name,
-                        u.Type,
-                        u.FightingFactor,
-                        u.Points
-                    ))
+                    .Select(ArmyUnitProjection.ToResponse)
                     .ToList(),
                 a.CreatedAt,
                 a.UpdatedAt
