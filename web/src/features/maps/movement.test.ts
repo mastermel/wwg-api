@@ -45,20 +45,19 @@ describe("the rule book's table", () => {
 
 describe.each(figures.cases)("stepCost: $name", (step) => {
   it("costs what the figures say, or is closed for their reason", () => {
+    const cellAt = (q: number, r: number, cell: { terrain: string; forest: boolean }) => ({
+      q,
+      r,
+      terrain: cell.terrain as CampaignGridResponse["cells"][number]["terrain"],
+      forest: cell.forest,
+      settlement: noSettlement,
+      setByUmpire: true,
+    });
     const terrain: CampaignGridResponse = {
-      cells:
-        "cell" in step && step.cell
-          ? [
-              {
-                q: 0,
-                r: -1,
-                terrain: step.cell.terrain as CampaignGridResponse["cells"][number]["terrain"],
-                forest: step.cell.forest,
-                settlement: noSettlement,
-                setByUmpire: true,
-              },
-            ]
-          : [],
+      cells: [
+        ...("fromCell" in step && step.fromCell ? [cellAt(0, 0, step.fromCell)] : []),
+        ...("cell" in step && step.cell ? [cellAt(0, -1, step.cell)] : []),
+      ],
       edges:
         "edge" in step && step.edge ? [edge(0, 0, "N", step.edge as Partial<HexEdgeResponse>)] : [],
     };

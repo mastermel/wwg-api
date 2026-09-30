@@ -3242,7 +3242,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Replaces the campaign's movement table (Umpire or Admin): every class on every ground,\nonce, 0 to 20 hexes a turn in halves. It applies to orders given from now on.",
+        "summary": "Replaces the campaign's movement table (Umpire or Admin): every class on each of its\ngrounds (land units on land, boats on water), once, 0 to 20 hexes a turn in halves. It\napplies to orders given from now on.",
         "operationId": "SaveMovementTable",
         "parameters": [
           {
@@ -5199,9 +5199,12 @@
           "Flat",
           "LowHill",
           "HighHill",
-          "Mountain"
+          "Mountain",
+          "Downstream",
+          "Upstream",
+          "Lake"
         ],
-        "description": "The movement table's columns: the ground a step is on (the rules, §E.1)."
+        "description": "The movement table's columns: the ground a step is on (the rules, §E.1). Boats have the last\nthree; everyone else the first six."
       },
       "HealthResponse": {
         "required": [
@@ -5900,7 +5903,8 @@
           "Light",
           "LightCavalry",
           "Cavalry",
-          "Slow"
+          "Slow",
+          "Boat"
         ],
         "description": "The rule book's movement classes (section XII.E; decision 0014)."
       },
@@ -5942,7 +5946,7 @@
             "items": {
               "$ref": "#/components/schemas/MovementRateDto"
             },
-            "description": "Every class on every ground."
+            "description": "Every class on each of its grounds."
           },
           "rules": {
             "type": "boolean",
@@ -6378,15 +6382,15 @@
         "type": "object",
         "properties": {
           "rates": {
-            "maxItems": 30,
+            "maxItems": 33,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MovementRateDto"
             },
-            "description": "Every class on every ground."
+            "description": "Every class on each of its grounds."
           }
         },
-        "description": "The Umpire's movement table: every class on every ground, once."
+        "description": "The Umpire's movement table: every class on each of its grounds, once (land units on the six\nland grounds, boats on the three water ones)."
       },
       "SaveUnitRequest": {
         "required": [
@@ -6671,9 +6675,10 @@
           "HeavyCavalry",
           "HorseArtillery",
           "SupplyTrain",
-          "SiegeArtillery"
+          "SiegeArtillery",
+          "Boat"
         ],
-        "description": "What kind of troops a unit is (stored as its name), grouped by the rule book's movement\nclasses (decision 0014): infantry and foot artillery; light infantry and partisans; light\ncavalry and scouts; medium and heavy cavalry and horse artillery; supply and siege artillery."
+        "description": "What kind of troops a unit is (stored as its name), grouped by the rule book's movement\nclasses (decision 0014): infantry and foot artillery; light infantry and partisans; light\ncavalry and scouts; medium and heavy cavalry and horse artillery; supply and siege artillery;\nand boats, which keep to waterways and lakes (decision 0016)."
       },
       "UpdateArmyRequest": {
         "required": [

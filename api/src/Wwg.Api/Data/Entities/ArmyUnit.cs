@@ -3,7 +3,8 @@ namespace Wwg.Api.Data.Entities;
 /// <summary>
 /// What kind of troops a unit is (stored as its name), grouped by the rule book's movement
 /// classes (decision 0014): infantry and foot artillery; light infantry and partisans; light
-/// cavalry and scouts; medium and heavy cavalry and horse artillery; supply and siege artillery.
+/// cavalry and scouts; medium and heavy cavalry and horse artillery; supply and siege artillery;
+/// and boats, which keep to waterways and lakes (decision 0016).
 /// </summary>
 public enum UnitType
 {
@@ -19,6 +20,7 @@ public enum UnitType
     HorseArtillery,
     SupplyTrain,
     SiegeArtillery,
+    Boat,
 }
 
 /// <summary>The bounds of a unit's numbers, in the library and in a campaign.</summary>

@@ -66,7 +66,8 @@ public sealed class MovementTests : ApiTest
         EdgeSide side,
         RoadQuality road,
         bool river = false,
-        bool bridge = false
+        bool bridge = false,
+        Waterway waterway = Waterway.None
     )
     {
         using var response = await scenario
@@ -76,7 +77,7 @@ public sealed class MovementTests : ApiTest
                     $"/api/campaigns/{scenario.CampaignId}/grid/edges/{hex.Q}/{hex.R}/{side}",
                     UriKind.Relative
                 ),
-                new UpdateHexEdgeRequest(road, river, bridge, Waterway.None),
+                new UpdateHexEdgeRequest(road, river, bridge, waterway),
                 Token
             );
         response.EnsureSuccessStatusCode();
@@ -102,6 +103,11 @@ public sealed class MovementTests : ApiTest
         );
         var (scenario, unitId) = await StartedWithAsync(step.Type);
         using var _ = scenario;
+        if (step.FromCell is { } fromCell)
+        {
+            await SetCellAsync(scenario, TurnSteps.Start, fromCell.Terrain, fromCell.Forest);
+        }
+
         if (step.Cell is { } cell)
         {
             await SetCellAsync(scenario, North, cell.Terrain, cell.Forest);
@@ -115,7 +121,8 @@ public sealed class MovementTests : ApiTest
                 EdgeSide.N,
                 edge.Road,
                 edge.River,
-                edge.Bridge
+                edge.Bridge,
+                edge.Waterway
             );
         }
 
@@ -288,7 +295,9 @@ public sealed class MovementTests : ApiTest
             .GetAsAsync<MovementTableResponse>($"/api/campaigns/{scenario.CampaignId}/movement");
 
         Assert.True(table!.Rules);
-        Assert.Equal(30, table.Rates.Count);
+        // Five land classes on six grounds, and boats on three.
+        Assert.Equal(33, table.Rates.Count);
+        Assert.Contains(new MovementRateDto(MovementClass.Boat, Ground.Upstream, 2), table.Rates);
         Assert.Contains(
             new MovementRateDto(MovementClass.Infantry, Ground.HighHill, 0.5),
             table.Rates

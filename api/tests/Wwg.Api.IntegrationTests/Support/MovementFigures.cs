@@ -12,11 +12,12 @@ internal static class MovementFigures
 {
     public sealed record Cell(Terrain Terrain, bool Forest);
 
-    public sealed record Edge(RoadQuality Road, bool River, bool Bridge);
+    public sealed record Edge(RoadQuality Road, bool River, bool Bridge, Waterway Waterway);
 
     public sealed record StepCase(
         string Name,
         UnitType Type,
+        Cell? FromCell,
         Cell? Cell,
         Edge? Edge,
         double? Cost,

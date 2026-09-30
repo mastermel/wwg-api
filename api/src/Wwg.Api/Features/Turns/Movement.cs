@@ -33,6 +33,7 @@ internal static class Movement
             UnitType.MediumCavalry or UnitType.HeavyCavalry or UnitType.HorseArtillery =>
                 MovementClass.Cavalry,
             UnitType.SupplyTrain or UnitType.SiegeArtillery => MovementClass.Slow,
+            UnitType.Boat => MovementClass.Boat,
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No movement class."),
         };
 
@@ -54,6 +55,11 @@ internal static class Movement
         if (!from.IsNextTo(to))
         {
             return StepCost.Closed("each step must be to the next hex");
+        }
+
+        if (movementClass == MovementClass.Boat)
+        {
+            return BoatStep(table, terrain, from, to);
         }
 
         var (ground, forest) = terrain.Cell(to);
@@ -90,6 +96,29 @@ internal static class Movement
         return rate > 0
             ? new StepCost(1 / rate, null)
             : StepCost.Closed($"{ClassLabel(movementClass)} can't cross {GroundLabel(land)}");
+    }
+
+    /// <summary>
+    /// A boat's step (decision 0016): along a waterway across the edge, downstream or upstream
+    /// by the way it flows; or onto a lake (a Water hex) from water or a waterway. Nowhere else.
+    /// </summary>
+    private static StepCost BoatStep(MovementTable table, PathTerrain terrain, Hex from, Hex to)
+    {
+        var edge = terrain.Edge(from, to);
+        // The edge's flow is from the hex it's stored on; stored on `to`, it's turned round.
+        var (stored, _) = PathTerrain.Stored(from, to);
+        var ground = edge?.Waterway switch
+        {
+            Waterway.Out => stored == from ? Ground.Downstream : Ground.Upstream,
+            Waterway.In => stored == from ? Ground.Upstream : Ground.Downstream,
+            _ when terrain.Cell(to).Terrain == Terrain.Water
+                    && terrain.Cell(from).Terrain == Terrain.Water => Ground.Lake,
+            _ => (Ground?)null,
+        };
+        var rate = ground is { } water ? table.Rate(MovementClass.Boat, water) : 0;
+        return rate > 0
+            ? new StepCost(1 / rate, null)
+            : StepCost.Closed("boats keep to waterways and lakes");
     }
 
     /// <summary>Whether a cost is within a turn's budget.</summary>
@@ -145,6 +174,7 @@ internal static class Movement
             MovementClass.Light => "light infantry",
             MovementClass.LightCavalry => "light cavalry",
             MovementClass.Cavalry => "cavalry",
+            MovementClass.Boat => "boats",
             _ => "supply trains and siege artillery",
         };
 
@@ -186,13 +216,30 @@ internal sealed class MovementTable
 
     private MovementTable(Dictionary<(MovementClass, Ground), double> rates) => _rates = rates;
 
-    /// <summary>The rule book's table, in hexes a turn: good road, poor road, flat, low hill, high hill, mountain.</summary>
+    // Before Rules, which is built from them (static fields start in order).
+    private static readonly Ground[] Land =
+    [
+        Ground.GoodRoad,
+        Ground.PoorRoad,
+        Ground.Flat,
+        Ground.LowHill,
+        Ground.HighHill,
+        Ground.Mountain,
+    ];
+
+    private static readonly Ground[] Water = [Ground.Downstream, Ground.Upstream, Ground.Lake];
+
+    /// <summary>
+    /// The rule book's table, in hexes a turn: for land units good road, poor road, flat, low
+    /// hill, high hill, mountain; for boats downstream, upstream, lake.
+    /// </summary>
     public static readonly IReadOnlyDictionary<(MovementClass, Ground), double> Rules = Table(
         (MovementClass.Infantry, [3, 2, 2, 1, 0.5, 0]),
         (MovementClass.Light, [5, 4, 3, 2, 1, 0.5]),
         (MovementClass.LightCavalry, [6, 5, 4, 3, 2, 1]),
         (MovementClass.Cavalry, [5, 4, 3, 2, 1, 0]),
-        (MovementClass.Slow, [3, 2, 1, 0.5, 0, 0])
+        (MovementClass.Slow, [3, 2, 1, 0.5, 0, 0]),
+        (MovementClass.Boat, [4, 2, 3])
     );
 
     public static readonly MovementTable TheRules = new(new(Rules));
@@ -221,11 +268,14 @@ internal sealed class MovementTable
         return new MovementTable(rates);
     }
 
+    /// <summary>Each class's rates on its grounds: boats on water, the rest on land.</summary>
     private static Dictionary<(MovementClass, Ground), double> Table(
         params (MovementClass Class, double[] Rates)[] rows
     ) =>
         rows.SelectMany(row =>
-                Enum.GetValues<Ground>().Select((ground, i) => ((row.Class, ground), row.Rates[i]))
+                (row.Class == MovementClass.Boat ? Water : Land).Select(
+                    (ground, i) => ((row.Class, ground), row.Rates[i])
+                )
             )
             .ToDictionary(pair => pair.Item1, pair => pair.Item2);
 }

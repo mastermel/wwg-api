@@ -8,7 +8,8 @@ import type { UnitType } from "@/api/generated/model";
  * standard's bridge, a supply train a bar across the foot, siege artillery two dots. Letters
  * mark the rest: L light infantry, G partisans (guerrillas), S scouts and M medium cavalry (on
  * the slash); an oval (armour) is heavy cavalry, and a slash (mounted) with the dot horse
- * artillery. A black frame and a white halo keep it clear on any map, light or dark.
+ * artillery; a boat is a hull under a mast. A black frame and a white halo keep it clear on any
+ * map, light or dark.
  */
 
 const W = 36;
@@ -73,6 +74,8 @@ const glyphs: Record<UnitType, ReactNode> = {
       <circle cx={W / 2 + 6} cy={H / 2} r={4} fill={ink} stroke="none" />
     </>
   ),
+  // A hull under a mast: the rules' boats (decision 0016).
+  Boat: <path d="M9,13 L27,13 L23,18 L13,18 Z M18,13 L18,5 M18,6 L23,11 L18,11" />,
 };
 
 interface UnitSymbolProps {

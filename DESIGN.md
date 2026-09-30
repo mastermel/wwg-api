@@ -2418,8 +2418,10 @@ build on positions.
       the next turn's order if that goes on into the same hex, and losing it otherwise (a Hold, or
       a move elsewhere). Positions carry `progress` too; the map offers such a hex as "half of the
       way into here", and the unit's panel says how far it got. The Umpire's moves always arrive.
-    - **44d. Boats:** a Boat unit type that follows waterways: 4 hexes downstream, 2 upstream, 3
-      on a lake (decision 0016).
+    - ✅ **44d. Boats:** a Boat unit type (and movement class) that follows waterways: 4 hexes
+      downstream, 2 upstream by the waterway's flow across the edge, 3 across a lake (from one
+      Water hex to the next); nowhere else. The table gains boats' three grounds (land classes
+      stay on the six land ones: 33 cells), and the Map settings page edits them apart.
 45. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
     ("Turn 7 · 17 June 1815, Afternoon"); the Morning and Afternoon modifiers by nation; night
     moves recorded.

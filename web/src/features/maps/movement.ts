@@ -1,6 +1,6 @@
 import type { Ground, MovementClass, MovementTableResponse, UnitType } from "@/api/generated/model";
 import { directions, hexKey, neighbours, type Hex, type HexGrid } from "@/features/maps/hex-grid";
-import { sides, storedEdge, type TerrainIndex } from "@/features/maps/terrain";
+import { flowFor, sides, storedEdge, type Side, type TerrainIndex } from "@/features/maps/terrain";
 
 /**
  * How far units move in a turn, as the API's Movement.cs (DESIGN.md §5.2; decision 0014, step
@@ -21,11 +21,13 @@ const classes: Record<UnitType, MovementClass> = {
   HorseArtillery: "Cavalry",
   SupplyTrain: "Slow",
   SiegeArtillery: "Slow",
+  Boat: "Boat",
 };
 
 export const classOf = (type: UnitType) => classes[type];
 
-export const movementClasses: readonly MovementClass[] = [
+/** The classes that move over land, on the table's six land grounds. */
+export const landClasses: readonly MovementClass[] = [
   "Infantry",
   "Light",
   "LightCavalry",
@@ -33,7 +35,7 @@ export const movementClasses: readonly MovementClass[] = [
   "Slow",
 ];
 
-export const grounds: readonly Ground[] = [
+export const landGrounds: readonly Ground[] = [
   "GoodRoad",
   "PoorRoad",
   "Flat",
@@ -42,12 +44,16 @@ export const grounds: readonly Ground[] = [
   "Mountain",
 ];
 
+/** Boats' grounds (decision 0016). */
+export const waterGrounds: readonly Ground[] = ["Downstream", "Upstream", "Lake"];
+
 export const classLabels: Record<MovementClass, string> = {
   Infantry: "Infantry and foot artillery",
   Light: "Light infantry and partisans",
   LightCavalry: "Light cavalry and scouts",
   Cavalry: "Cavalry and horse artillery",
   Slow: "Supply trains and siege artillery",
+  Boat: "Boats",
 };
 
 export const groundLabels: Record<Ground, string> = {
@@ -57,6 +63,9 @@ export const groundLabels: Record<Ground, string> = {
   LowHill: "Low hills",
   HighHill: "High hills",
   Mountain: "Mountains",
+  Downstream: "Downstream",
+  Upstream: "Upstream",
+  Lake: "Lake",
 };
 
 /** In the API's closed-step reasons: "infantry can't cross mountains". */
@@ -66,6 +75,7 @@ const classWords: Record<MovementClass, string> = {
   LightCavalry: "light cavalry",
   Cavalry: "cavalry",
   Slow: "supply trains and siege artillery",
+  Boat: "boats",
 };
 
 const groundWords: Partial<Record<Ground, string>> = {
@@ -74,13 +84,14 @@ const groundWords: Partial<Record<Ground, string>> = {
   LowHill: "low hills",
 };
 
-/** The rule book's table (§E.1), in hexes a turn; 0: can't. */
-export const rulesTable: Record<MovementClass, Record<Ground, number>> = {
+/** The rule book's table (§E.1), in hexes a turn; 0: can't. Boats on water, the rest on land. */
+export const rulesTable: Record<MovementClass, Partial<Record<Ground, number>>> = {
   Infantry: { GoodRoad: 3, PoorRoad: 2, Flat: 2, LowHill: 1, HighHill: 0.5, Mountain: 0 },
   Light: { GoodRoad: 5, PoorRoad: 4, Flat: 3, LowHill: 2, HighHill: 1, Mountain: 0.5 },
   LightCavalry: { GoodRoad: 6, PoorRoad: 5, Flat: 4, LowHill: 3, HighHill: 2, Mountain: 1 },
   Cavalry: { GoodRoad: 5, PoorRoad: 4, Flat: 3, LowHill: 2, HighHill: 1, Mountain: 0 },
   Slow: { GoodRoad: 3, PoorRoad: 2, Flat: 1, LowHill: 0.5, HighHill: 0, Mountain: 0 },
+  Boat: { Downstream: 4, Upstream: 2, Lake: 3 },
 };
 
 /** How many hexes a turn a class moves on a ground. */
@@ -90,7 +101,7 @@ export type Rates = (movementClass: MovementClass, ground: Ground) => number;
 export function ratesOf(table: MovementTableResponse | undefined): Rates {
   const own = new Map(table?.rates.map((r) => [`${r.class}/${r.ground}`, r.hexes]));
   return (movementClass, ground) =>
-    own.get(`${movementClass}/${ground}`) ?? rulesTable[movementClass][ground];
+    own.get(`${movementClass}/${ground}`) ?? rulesTable[movementClass][ground] ?? 0;
 }
 
 /** What a step costs, as a share of a turn; closed (with the API's reason), it's Infinity. */
@@ -116,6 +127,7 @@ export function stepCost(
 ): StepCost {
   const direction = directions.findIndex((d) => from.q + d.q === to.q && from.r + d.r === to.r);
   if (direction < 0) return closed("each step must be to the next hex");
+  if (movementClass === "Boat") return boatStep(rates, terrain, from, to, sides[direction] ?? "N");
   const cell = terrain.cell(to);
   if (cell?.terrain === "Water") return closed("it's water");
   const edge = terrain.edge(storedEdge(from, sides[direction] ?? "N"));
@@ -141,6 +153,28 @@ export function stepCost(
   return rate > 0
     ? { cost: 1 / rate, closedBecause: null }
     : closed(`${classWords[movementClass]} can't cross ${groundWords[land] ?? "that ground"}`);
+}
+
+/**
+ * A boat's step, as the API's (decision 0016): along a waterway across the edge, downstream or
+ * upstream by the way it flows; or across a lake, from one Water hex to the next. Nowhere else.
+ */
+function boatStep(rates: Rates, terrain: TerrainIndex, from: Hex, to: Hex, side: Side): StepCost {
+  const stored = storedEdge(from, side);
+  // Its flow, as `from` sees it: out of `from` is downstream.
+  const flow = flowFor(terrain.edge(stored)?.waterway ?? "None", stored.flipped);
+  const ground: Ground | null =
+    flow === "Out"
+      ? "Downstream"
+      : flow === "In"
+        ? "Upstream"
+        : terrain.cell(from)?.terrain === "Water" && terrain.cell(to)?.terrain === "Water"
+          ? "Lake"
+          : null;
+  const rate = ground ? rates("Boat", ground) : 0;
+  return rate > 0
+    ? { cost: 1 / rate, closedBecause: null }
+    : closed("boats keep to waterways and lakes");
 }
 
 // Sums of thirds don't come to exactly 1.

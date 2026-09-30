@@ -14,6 +14,7 @@ export const unitTypeLabels: Record<UnitType, string> = {
   HorseArtillery: "Horse Artillery",
   SupplyTrain: "Supply Train",
   SiegeArtillery: "Siege Artillery",
+  Boat: "Boat",
 };
 
 /** The types, in the API's order, for a Select. */

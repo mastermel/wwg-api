@@ -15,12 +15,15 @@ public sealed record MovementRateDto(
 );
 
 /// <summary>A campaign's movement table (step 44).</summary>
-/// <param name="Rates">Every class on every ground.</param>
+/// <param name="Rates">Every class on each of its grounds.</param>
 /// <param name="Rules">Whether it's the rule book's table, unchanged.</param>
 public sealed record MovementTableResponse(IReadOnlyList<MovementRateDto> Rates, bool Rules);
 
-/// <summary>The Umpire's movement table: every class on every ground, once.</summary>
-/// <param name="Rates">Every class on every ground.</param>
+/// <summary>
+/// The Umpire's movement table: every class on each of its grounds, once (land units on the six
+/// land grounds, boats on the three water ones).
+/// </summary>
+/// <param name="Rates">Every class on each of its grounds.</param>
 public sealed record SaveMovementTableRequest(
     [property: Required, MaxLength(MovementRates.Cells)] IReadOnlyList<MovementRateDto> Rates
 );
@@ -30,6 +33,6 @@ internal static class MovementRates
     /// <summary>The most hexes a turn a table can give.</summary>
     public const int MaxHexes = 20;
 
-    /// <summary>Every class on every ground.</summary>
-    public const int Cells = 5 * 6;
+    /// <summary>Five land classes on six grounds, and boats on three.</summary>
+    public const int Cells = (5 * 6) + 3;
 }

@@ -233,7 +233,9 @@ describe("the movement table", () => {
 
     expect(await screen.findByText("Saved the movement table.")).toBeInTheDocument();
     const rates = (sent[0] as { rates: { class: string; ground: string; hexes: number }[] }).rates;
-    expect(rates).toHaveLength(30);
+    // Five land classes on six grounds, and boats on three.
+    expect(rates).toHaveLength(33);
+    expect(rates).toContainEqual({ class: "Boat", ground: "Downstream", hexes: 4 });
     expect(rates).toContainEqual({ class: "Infantry", ground: "HighHill", hexes: 1 });
     expect(rates).toContainEqual({ class: "Slow", ground: "Flat", hexes: 1 });
     expect(await table.findByRole("button", { name: "Use the rule book's" })).toBeInTheDocument();

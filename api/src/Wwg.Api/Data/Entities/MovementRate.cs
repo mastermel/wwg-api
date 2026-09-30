@@ -17,9 +17,15 @@ public enum MovementClass
 
     /// <summary>Supply trains, siege artillery.</summary>
     Slow,
+
+    /// <summary>Boats: on waterways and lakes only (decision 0016).</summary>
+    Boat,
 }
 
-/// <summary>The movement table's columns: the ground a step is on (the rules, §E.1).</summary>
+/// <summary>
+/// The movement table's columns: the ground a step is on (the rules, §E.1). Boats have the last
+/// three; everyone else the first six.
+/// </summary>
 public enum Ground
 {
     GoodRoad,
@@ -28,6 +34,15 @@ public enum Ground
     LowHill,
     HighHill,
     Mountain,
+
+    /// <summary>Along a waterway, the way it flows.</summary>
+    Downstream,
+
+    /// <summary>Along a waterway, against its flow.</summary>
+    Upstream,
+
+    /// <summary>Across a lake (a Water hex).</summary>
+    Lake,
 }
 
 /// <summary>

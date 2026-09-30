@@ -50,7 +50,8 @@ they're played out in person.
   | Supply and siege artillery | Supply train, Siege artillery |
 
   Heavy infantry becomes Line infantry; Skirmishers become Light infantry (the rules have no
-  separate class). Boats, leaders and couriers come with the steps that need them.
+  separate class). Boats are a type of their own (step 44, decision 0016); leaders and
+  couriers come with the steps that need them.
 - **Battles stay off the app.** It may point out contact (opposing units in one hex) to the
   Umpire, but fighting, losses and their aftermath happen at the table; the Umpire edits units
   afterwards as needed.

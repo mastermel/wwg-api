@@ -38,8 +38,9 @@ internal static class MovementEndpoints
     ) => TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
 
     /// <summary>
-    /// Replaces the campaign's movement table (Umpire or Admin): every class on every ground,
-    /// once, 0 to 20 hexes a turn in halves. It applies to orders given from now on.
+    /// Replaces the campaign's movement table (Umpire or Admin): every class on each of its
+    /// grounds (land units on land, boats on water), once, 0 to 20 hexes a turn in halves. It
+    /// applies to orders given from now on.
     /// </summary>
     internal static async Task<
         Results<Ok<MovementTableResponse>, ValidationProblem>
@@ -52,10 +53,9 @@ internal static class MovementEndpoints
     {
         var cells = request.Rates.Select(r => (r.Class, r.Ground)).ToList();
         var problem =
-            cells.Distinct().Count() != MovementRates.Cells
-            || cells.Count != MovementRates.Cells
-            || cells.Any(c => !Enum.IsDefined(c.Class) || !Enum.IsDefined(c.Ground))
-                ? "Give every class on every ground, once."
+            cells.Count != MovementRates.Cells
+            || !cells.ToHashSet().SetEquals(MovementTable.Rules.Keys)
+                ? "Give every class on each of its grounds, once."
             : request.Rates.Any(r => r.Hexes * 2 != Math.Floor(r.Hexes * 2))
                 ? "Give hexes a turn in halves (0.5, 1, 1.5…)."
             : null;
