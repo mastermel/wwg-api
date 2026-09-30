@@ -25,23 +25,26 @@ in 1813.
   at that moment. What happens in the campaign (losses, attrition, the Umpire's edits) changes the
   army unit only; editing the library unit changes the campaigns it joins afterwards. A library
   unit is in at most one army per campaign, but can be in several campaigns at once.
-- **Armies can mix factions.** The Umpire picks a faction to browse when adding units, but an army
-  may take units from any (allied contingents).
-- **Who manages the library:** anyone who is the Umpire of a campaign, and Admins, can create and
-  edit factions and units; deleting one is refused (409) while any campaign uses it. Everyone
-  signed in can browse it.
-- **Adding units:** from an army, the Umpire chooses a faction and ticks the units to add (those
-  already in the campaign are shown as taken), or creates a new unit, which goes into the library
-  and the army at once. Removing an army unit, before the start, leaves the library unit; after
-  the start army units can't be removed, as units couldn't before.
+- **An army selects its factions**, one or more (so it can mix them: allied contingents), and
+  takes its units only from those. A faction can't be taken off an army while it has units from it.
+- **A new role, Manager.** Managers and Admins create, edit and delete the library's factions and
+  units, in the library's own pages; deleting one is refused (409) while a campaign uses it.
+  Admins make users Managers, and stop, on the user's admin page. Everyone signed in can view the
+  library.
+- **Campaigns only choose from the library.** From an army, the Umpire ticks the units to add,
+  from the army's factions only (those already in the campaign are shown as taken). Nothing in a
+  campaign creates or edits library items. Removing an army unit, before the start, leaves the
+  library unit; after the start army units can't be removed, as units couldn't before.
 - Orders, positions, turn notes and the visibility rule refer to **army units**: the history of a
   campaign is its own.
 
 ## Consequences
 
 - Phase 8's `Faction` becomes `Side` (table, routes, UI); a new global `Faction` and `Unit`
-  arrive; the old `Unit` becomes `ArmyUnit`, with the library unit it came from. The migration
-  puts every existing unit into the library, in a faction named after its army's nation (or
-  "Unsorted" for an army with none), so nothing is lost and nothing has to be re-entered.
+  arrive, and `ArmyFaction` links armies to the factions they select; the old `Unit` becomes
+  `ArmyUnit`, with the library unit it came from. A `Manager` Identity role joins `Admin`.
+- The migration puts every existing unit into the library, in a faction named after its army's
+  nation (or "Unsorted" for an army with none), and selects that faction for the army, so nothing
+  is lost and nothing has to be re-entered.
 - Unit ownership (whose figures a unit is), and saving a campaign's changes back to the library,
   are left for later.

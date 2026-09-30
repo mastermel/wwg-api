@@ -1245,7 +1245,8 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   (the inferred terrain of each hex, which the Umpire can change) and the
   movement table.
 - `/library` (step 41; everyone signed in, in the navigation): the club's factions and their
-  units; Umpires and Admins create, edit and delete them. An army's **Add units** picks from it.
+  units; Managers and Admins create, edit and delete them there, and only there. In a campaign,
+  **Edit army** selects the army's factions, and **Add units** lists only their units.
 - The campaign page gains a **Factions** section (the Umpire creates, renames
   and deletes them; from step 41, **Sides**); the army page's **Edit army** covers name, faction (side), colour (with
   swatches; a new army is offered the first free one) and nation (with its flag).
@@ -1561,13 +1562,18 @@ Side (was the campaign's                                          Points (copied
 Faction; unchanged)                                               the campaign's from then on)
   CampaignId, Name                                              CreatedAt / UpdatedAt
 Army.SideId (was FactionId)
+ArmyFaction (the library factions an army takes units from)
+  ArmyId → Army, FactionId → Faction    (unique together)
 ```
 
 - `ArmyUnit (CampaignId, UnitId)` is unique: a library unit is in one army per campaign, but can
   be in several campaigns. Orders, turn notes, positions and the visibility rule refer to army
   units (`UnitOrder.UnitId` and `UnitNote.UnitId` point at `ArmyUnits`).
-- A `Unit` with army units, or a `Faction` with units, can't be deleted (**NO ACTION**; 409
-  first). Deleting a campaign deletes its army units, never library units.
+- A `Unit` with army units, or a `Faction` with units or armies selecting it, can't be deleted
+  (**NO ACTION**; 409 first). Deleting a campaign deletes its army units and army factions, never
+  library items.
+- **Manager** is an Identity role beside Admin (§3.5): Managers and Admins edit the library.
+  Admins grant and remove it on a user's admin page; it's never granted by config.
 
 **Rules enforced in the database:**
 
@@ -1633,9 +1639,9 @@ Army.SideId (was FactionId)
     army gets a Completed turn for the last closed campaign turn to hold its
     placements, and a Draft for the open one.
 - **Step 41** (decision 0015): adding a library unit copies its name, type, FF and points into
-  the army unit; editing either afterwards changes only that one. An army unit can be removed
-  (and a library unit's use in the campaign ended) only while setting up. Anyone who is the
-  Umpire of a campaign, or an Admin, manages the library.
+  the army unit; editing either afterwards changes only that one. An army adds units only from
+  the factions it has selected (else 409), and a faction can't be deselected while the army has
+  units from it (409). An army unit can be removed only while setting up.
 - **Phase 11** (decision 0014):
   - A turn gives each unit a budget of one turn's movement. Entering a hex costs
     1 ÷ the class's rate: the road's, when the step crosses an edge with a road
@@ -1696,11 +1702,11 @@ New rows:
 | List factions; see each army's faction, colour, nation | ✅ | ✅ | ✅ | ✅ | 404 |
 | Create / rename / delete faction; set an army's faction, colour, nation | ✅ | ✅ | 403 | 403 | 404 |
 | Step 41: list / create / rename / delete sides (the campaign's; as factions above) | ✅ | ✅ | 403 | 403 | 404 |
-| Step 41: add library units to an army, create one for it, edit or remove an army unit | ✅ | ✅ | 403 | 403 | 404 |
+| Step 41: select an army's factions; add library units to an army, edit or remove an army unit | ✅ | ✅ | 403 | 403 | 404 |
 
-The library (step 41) isn't a campaign's: browsing it is for everyone signed in, and creating,
-editing and deleting factions and units is for Admins and anyone who is the Umpire of a campaign
-(403 for others).
+The library (step 41) isn't a campaign's: viewing it is for everyone signed in, and creating,
+editing and deleting factions and units is for **Managers** and Admins (403 for others). Admins
+make users Managers (`PUT /api/admin/users/{id}/manager`).
 | View the map settings (bounds, layers, language, limits) | ✅ | ✅ | ✅ | ✅ | 404 |
 | Edit the map settings; search for places | ✅ | ✅ | 403 | 403 | 404 |
 | View turn progress (numbers, statuses, counts) | ✅ | ✅ | ✅ | ✅ | 404 |
@@ -1840,8 +1846,9 @@ each step)
 | GET / PUT / DELETE | `/api/factions/{id}` | A faction with its units / rename / delete (in use: 409) |
 | POST | `/api/factions/{id}/units` | Create a library unit `{ name, type, fightingFactor, points }` |
 | PUT / DELETE | `/api/units/{id}` | Edit / delete a library unit (in a campaign: 409) |
-| POST | `/api/armies/{id}/units` | Add library units `{ unitIds }` (one already in the campaign: 409) |
-| POST | `/api/armies/{id}/units/new` | Create a library unit `{ factionId, name, type, fightingFactor, points }` and add it |
+| PUT | `/api/armies/{id}` | `UpdateArmy` gains `factionIds`: the library factions it takes units from |
+| POST | `/api/armies/{id}/units` | Add library units `{ unitIds }` (from the army's factions; one already in the campaign: 409) |
+| PUT | `/api/admin/users/{id}/manager` | Make a user a Manager, or not `{ manager }` (Admins) |
 | PUT / DELETE | `/api/army-units/{id}` | Edit the campaign's copy / remove it from the army (setup only) |
 | PUT / DELETE | `/api/army-units/{id}/placement` | Replaces `/api/units/{id}/placement` |
 
@@ -2295,22 +2302,26 @@ build on positions.
       `Army.FactionId` → `SideId` (renamed in place: `ALTER TABLE … RENAME`, no rebuild of
       `Armies`, whose triggers stay), `/api/campaigns/{id}/sides` and `/api/sides/{id}`, the
       campaign page's **Sides** section, "Put X on a side". No change in behaviour.
-    - **41b. The library:** global `Faction` (name, nation) and `Unit` (faction, name, type, FF,
-      points); `/api/factions`, `/api/factions/{id}`, `/api/factions/{id}/units`,
-      `/api/units/{id}`; managers are Umpires of any campaign and Admins, and a faction or unit
-      in use can't be deleted (409). A **Library** page (every signed-in user; in the navigation):
-      factions, each with its units, and for managers create, edit and delete.
-    - **41c. Army units:** the old `Unit` becomes `ArmyUnit` (`ArmyId`, `UnitId` → the library
-      unit, `CampaignId`, and its own name, type, FF and points), unique per campaign and library
-      unit. The migration renames `Units` to `ArmyUnits` in place (orders, notes and their
-      foreign keys follow the rename) and puts a copy of each into the library, in a faction per
-      army nation ("Unsorted" for none). `POST /api/armies/{id}/units { unitIds }` adds library
-      units (409 for one already in the campaign), `POST /api/armies/{id}/units/new` creates one
-      in a faction and adds it, `PUT` / `DELETE /api/army-units/{id}` edit the campaign's copy and
-      remove it (setup only). Orders, positions, notes and placement use army-unit IDs
-      (`/api/army-units/{id}/placement`). The army page's **Add units**: choose a faction, tick
-      units (those already in the campaign show which army has them), or **New unit**.
-      End-to-end: set up a campaign from the library, add a unit to a second campaign.
+    - **41b. The library and Managers:** global `Faction` (name, nation) and `Unit` (faction,
+      name, type, FF, points); `/api/factions`, `/api/factions/{id}`, `/api/factions/{id}/units`,
+      `/api/units/{id}`. The `Manager` role (`isManager` on `GET /api/me`; the Admin's user page
+      grants it, `PUT /api/admin/users/{id}/manager`); Managers and Admins edit, and a faction or
+      unit in use can't be deleted (409). The **Library** pages (every signed-in user; in the
+      navigation): factions, each with its units, and for Managers and Admins create, edit and
+      delete.
+    - **41c. Army factions and army units:** `ArmyFaction` (an army's selected factions, in
+      **Edit army**; `UpdateArmy`'s `factionIds`); the old `Unit` becomes `ArmyUnit` (`ArmyId`,
+      `UnitId` → the library unit, `CampaignId`, and its own name, type, FF and points), unique per
+      campaign and library unit. The migration renames `Units` to `ArmyUnits` in place (orders,
+      notes and their foreign keys follow the rename), puts a copy of each into the library in a
+      faction per army nation ("Unsorted" for none), and selects that faction for the army.
+      `POST /api/armies/{id}/units { unitIds }` adds library units from the army's factions (409
+      for one from another faction, or already in the campaign); `PUT` / `DELETE
+      /api/army-units/{id}` edit the campaign's copy and remove it (setup only). Orders,
+      positions, notes and placement use army-unit IDs (`/api/army-units/{id}/placement`). The
+      army page's **Add units** lists the units of the army's factions (those already in the
+      campaign say which army has them). End-to-end: a Manager builds the library, an Umpire
+      sets up two campaigns from it.
 42. **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
     single-edge edits, keeping what the Umpire set when inference runs again.
 43. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
