@@ -214,17 +214,18 @@ internal static class OrderEndpoints
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
         var path = request.Kind == OrderKind.Hold ? [] : request.Path ?? [];
-        if (
-            PathProblem(
-                grid,
-                Movement.ClassOf(unit.Type),
-                current.Value,
-                request.Kind,
-                path,
-                byUmpire
-            ) is
-            { } problem
-        )
+        var movement = new MoveCheck(
+            grid,
+            await MovementTable.LoadAsync(db, unit.CampaignId, cancellationToken),
+            await PathTerrain.LoadAsync(
+                db,
+                unit.CampaignId,
+                [current.Value, .. path],
+                cancellationToken
+            ),
+            Movement.ClassOf(unit.Type)
+        );
+        if (PathProblem(movement, current.Value, request.Kind, path, byUmpire) is { } problem)
         {
             return Invalid("path", problem);
         }
@@ -402,14 +403,22 @@ internal static class OrderEndpoints
             .Select(t => new EditableTurn(t.Id, t.ArmyId, t.CampaignTurn.Number, t.Status))
             .SingleOrDefaultAsync(cancellationToken);
 
+    /// <summary>What a move is checked against: the grid, the campaign's table and the terrain.</summary>
+    private sealed record MoveCheck(
+        HexGrid Grid,
+        MovementTable Table,
+        PathTerrain Terrain,
+        MovementClass Class
+    );
+
     /// <summary>
     /// Why a Move's path won't do, or null if it will: it needs a step; each step is next to the
-    /// last (the first to the unit's hex) and inside the grid; and unless the Umpire gives it, the
-    /// unit's class can afford it this turn. A Hold has no path.
+    /// last (the first to the unit's hex) and inside the grid; and unless the Umpire gives it
+    /// (decision 0011: the Umpire may go past the table), no step is closed and the unit's class
+    /// can afford it this turn. A Hold has no path.
     /// </summary>
     private static string? PathProblem(
-        HexGrid grid,
-        MovementClass movementClass,
+        MoveCheck movement,
         Hex from,
         OrderKind kind,
         IReadOnlyList<Hex> path,
@@ -434,7 +443,7 @@ internal static class OrderEndpoints
                 return "Each step of a move must be to the next hex.";
             }
 
-            if (!grid.Contains(step))
+            if (!movement.Grid.Contains(step))
             {
                 return "That's outside the campaign's area.";
             }
@@ -442,8 +451,14 @@ internal static class OrderEndpoints
             at = step;
         }
 
-        return byUmpire || Movement.Affordable(Movement.PathCost(movementClass, from, path))
-            ? null
+        if (byUmpire)
+        {
+            return null;
+        }
+
+        var cost = Movement.PathCost(movement.Table, movement.Terrain, movement.Class, from, path);
+        return cost.ClosedBecause is { } closed ? $"The unit can't go that way: {closed}."
+            : Movement.Affordable(cost.Cost) ? null
             : "That's further than the unit can move in a turn.";
     }
 

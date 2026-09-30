@@ -102,3 +102,25 @@ internal sealed class HexDetailRevealConfiguration : IEntityTypeConfiguration<He
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class MovementRateConfiguration : IEntityTypeConfiguration<MovementRate>
+{
+    public void Configure(EntityTypeBuilder<MovementRate> builder)
+    {
+        builder
+            .HasIndex(m => new
+            {
+                m.CampaignId,
+                m.Class,
+                m.Ground,
+            })
+            .IsUnique();
+        builder.Property(m => m.Class).HasMaxLength(16);
+        builder.Property(m => m.Ground).HasMaxLength(16);
+        builder
+            .HasOne(m => m.Campaign)
+            .WithMany()
+            .HasForeignKey(m => m.CampaignId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

@@ -3202,6 +3202,126 @@
         ]
       }
     },
+    "/api/campaigns/{id}/movement": {
+      "get": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "The campaign's movement table (every member): hexes a turn for each class on each ground.\nThe rule book's until the Umpire changes it.",
+        "operationId": "GetMovementTable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovementTableResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Replaces the campaign's movement table (Umpire or Admin): every class on every ground,\nonce, 0 to 20 hexes a turn in halves. It applies to orders given from now on.",
+        "operationId": "SaveMovementTable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMovementTableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovementTableResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Goes back to the rule book's movement table (Umpire or Admin).",
+        "operationId": "ResetMovementTable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/army-turns/{id}/orders/{unitId}": {
       "put": {
         "tags": [
@@ -5072,6 +5192,17 @@
         },
         "description": "A unit's order for the turn."
       },
+      "Ground": {
+        "enum": [
+          "GoodRoad",
+          "PoorRoad",
+          "Flat",
+          "LowHill",
+          "HighHill",
+          "Mountain"
+        ],
+        "description": "The movement table's columns: the ground a step is on (the rules, §E.1)."
+      },
       "HealthResponse": {
         "required": [
           "status"
@@ -5763,6 +5894,63 @@
         },
         "description": "The signed-in user."
       },
+      "MovementClass": {
+        "enum": [
+          "Infantry",
+          "Light",
+          "LightCavalry",
+          "Cavalry",
+          "Slow"
+        ],
+        "description": "The rule book's movement classes (section XII.E; decision 0014)."
+      },
+      "MovementRateDto": {
+        "required": [
+          "class",
+          "ground",
+          "hexes"
+        ],
+        "type": "object",
+        "properties": {
+          "class": {
+            "description": "The movement class.",
+            "$ref": "#/components/schemas/MovementClass"
+          },
+          "ground": {
+            "description": "The ground.",
+            "$ref": "#/components/schemas/Ground"
+          },
+          "hexes": {
+            "maximum": 20,
+            "minimum": 0,
+            "type": "number",
+            "description": "Hexes a turn, in halves; 0 if the class can't cross it.",
+            "format": "double"
+          }
+        },
+        "description": "One cell of the movement table."
+      },
+      "MovementTableResponse": {
+        "required": [
+          "rates",
+          "rules"
+        ],
+        "type": "object",
+        "properties": {
+          "rates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovementRateDto"
+            },
+            "description": "Every class on every ground."
+          },
+          "rules": {
+            "type": "boolean",
+            "description": "Whether it's the rule book's table, unchanged."
+          }
+        },
+        "description": "A campaign's movement table (step 44)."
+      },
       "Nation": {
         "enum": [
           "None",
@@ -6182,6 +6370,23 @@
           }
         },
         "description": "Adds a faction to the library, or changes one."
+      },
+      "SaveMovementTableRequest": {
+        "required": [
+          "rates"
+        ],
+        "type": "object",
+        "properties": {
+          "rates": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovementRateDto"
+            },
+            "description": "Every class on every ground."
+          }
+        },
+        "description": "The Umpire's movement table: every class on every ground, once."
       },
       "SaveUnitRequest": {
         "required": [

@@ -2398,10 +2398,25 @@ build on positions.
       die's modifier from the map terrain), adjusts it, and shows it to armies or to all; members
       see what's been shown to them in the Map page's **Hex details** list. End-to-end: roll,
       reveal to an army, a commander sees it.
-44. **Costed movement:** terrain, roads, rivers and bridges in the costs, closed steps, and
-    `Progress` for hexes that take more than a turn; the movement table per campaign (the rules'
-    by default), editable in the settings. Boats (a unit type or a transport) follow waterways:
-    4 hexes downstream, 2 upstream, 3 on a lake (decision 0016).
+44. **Costed movement**, in four parts:
+    - ✅ **44a. The movement table and costed steps (API):** `MovementRate` (a campaign's own
+      rates, where they differ from the rule book's; `GET` / `PUT` / `DELETE
+      /api/campaigns/{id}/movement`, every class on every ground, in halves, 0 for "can't").
+      A step costs 1 ÷ the rate for the hex entered (a forest hex moves as low hills, or as its
+      own hills if higher), or for the road across the edge when that's quicker (a road never
+      slows a unit; a good road into high hills or mountains counts as poor, and a road opens
+      mountains). Water, a river along the edge without a bridge, and a 0 in the table close the
+      step; the Umpire may take it anyway (decision 0011). `Movement.cs` and `movement.ts` are
+      tested against `testdata/movement.json`.
+    - **44b. Costed movement in the browser:** `movement.ts` costs steps the same way from the
+      grid's terrain and the table, so the reachable hexes and paths match the API; the Map
+      settings page edits the table (and puts it back to the rules').
+    - **44c. Hexes that take more than a turn:** `UnitOrder.Progress` (0–1), part of the way into
+      the path's last hex when it costs more than a whole turn (only such a hex is entered
+      part-way); the unit stays in the hex before it until it's through, carrying its progress to
+      the next turn's order if that goes on into the same hex, and losing it otherwise.
+    - **44d. Boats:** a Boat unit type that follows waterways: 4 hexes downstream, 2 upstream, 3
+      on a lake (decision 0016).
 45. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
     ("Turn 7 · 17 June 1815, Afternoon"); the Morning and Afternoon modifiers by nation; night
     moves recorded.

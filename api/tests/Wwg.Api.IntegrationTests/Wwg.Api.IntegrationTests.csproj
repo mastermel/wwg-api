@@ -24,5 +24,10 @@
       Link="testdata/hex-grid.json"
       CopyToOutputDirectory="PreserveNewest"
     />
+    <None
+      Include="../../../testdata/movement.json"
+      Link="testdata/movement.json"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
 </Project>

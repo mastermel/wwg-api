@@ -39,6 +39,9 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<HexDetailReveal> HexDetailReveals => Set<HexDetailReveal>();
 
+    /// <summary>Campaigns' own movement tables (step 44); none: the rules'.</summary>
+    public DbSet<MovementRate> MovementRates => Set<MovementRate>();
+
     public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();
 
     public DbSet<ArmyTurn> ArmyTurns => Set<ArmyTurn>();

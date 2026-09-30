@@ -32,6 +32,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapGridEndpoints()
             .MapHexDetailEndpoints()
             .MapTurnEndpoints()
+            .MapMovementEndpoints()
             .MapOrderEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
