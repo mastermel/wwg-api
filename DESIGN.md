@@ -1834,7 +1834,7 @@ each step)
 | GET | `/api/campaigns/{id}/units` | Every unit in the campaign (every member), for the map |
 | PUT / DELETE | `/api/units/{id}/placement` | The Umpire places a unit `{ q, r }` (turn 0, or added later) / takes it off again (setup only) |
 | GET | `/api/campaigns/{id}/grid` | The grid's cells and edges with data (every member): terrain, forest, settlements, roads, rivers, bridges (Phase 11) |
-| PUT | `/api/campaigns/{id}/grid` | Save inferred terrain for the whole grid (Umpire); hexes and edges the Umpire set are kept |
+| PUT | `/api/campaigns/{id}/grid` | Save inferred terrain for the whole grid `{ cells, edges }` (Umpire; 204; no area: 409); hexes and edges the Umpire set are kept |
 | PUT | `/api/campaigns/{id}/grid/cells/{q}/{r}` · `/edges/{q}/{r}/{side}` | The Umpire sets one hex or edge |
 
 **Step 41: the library and army units** (decision 0015; the campaign's factions become sides:
@@ -2329,8 +2329,12 @@ build on positions.
       army page's **Add units** lists the units of the army's factions (those already in the
       campaign say which army has them). End-to-end: a Manager builds the library, an Umpire
       sets up two campaigns from it.
-42. **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
-    single-edge edits, keeping what the Umpire set when inference runs again.
+42. ✅ **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
+    single-edge edits, keeping what the Umpire set when inference runs again. Only hexes and
+    edges with something on them are stored (at most 60,000 hexes and 180,000 edges a save);
+    an edge is stored on one hex's N, NE or SE side, and on the grid's border when either of its
+    hexes is in the grid. A bridge needs a river. Changing the area or hex size while setting
+    up clears the terrain, the Umpire's too (it belonged to the old hexes).
 43. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
     Mapterhorn elevation (roughly: under 50 m flat, under 150 m low hills, under 400 m high hills,
     else mountains), forest from land cover (half the hex or more), water, cities and towns, and

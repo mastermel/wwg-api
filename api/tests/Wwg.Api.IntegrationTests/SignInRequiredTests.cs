@@ -50,12 +50,21 @@ public sealed class SignInRequiredTests : ApiTest
         Assert.Empty(wrong);
     }
 
-    /// <summary>A concrete path for a route pattern: any GUID for an ID, any text otherwise.</summary>
+    /// <summary>
+    /// A concrete path for a route pattern: any GUID for an ID, a number for an int, any text
+    /// otherwise.
+    /// </summary>
     private static string PathFor(string pattern) =>
         System.Text.RegularExpressions.Regex.Replace(
             pattern,
-            "{[^}:]+(?<guid>:guid)?}",
-            match => match.Groups["guid"].Success ? Guid.CreateVersion7().ToString() : "anything",
+            "{[^}:]+(?<type>:guid|:int)?}",
+            match =>
+                match.Groups["type"].Value switch
+                {
+                    ":guid" => Guid.CreateVersion7().ToString(),
+                    ":int" => "1",
+                    _ => "anything",
+                },
             System.Text.RegularExpressions.RegexOptions.ExplicitCapture,
             TimeSpan.FromSeconds(1)
         );

@@ -97,7 +97,8 @@ internal static partial class MapEndpoints
     /// Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to
     /// north. The bounds and hex size lay out the grid: once the campaign has started they're
     /// fixed (409); while setting up, changing them moves each placement to the new hex holding
-    /// the old one's centre, and takes it off the map if that's outside the new grid.
+    /// the old one's centre (or takes it off the map if that's outside the new grid), and clears
+    /// the terrain, which belonged to the old hexes.
     /// </summary>
     internal static async Task<
         Results<Ok<CampaignMapResponse>, ValidationProblem, ProblemHttpResult>
@@ -135,6 +136,7 @@ internal static partial class MapEndpoints
         else if (GridChanges(map, request))
         {
             await ResnapPlacementsAsync(db, id, map, request, cancellationToken);
+            await GridEndpoints.ForgetAsync(db, id, cancellationToken);
         }
 
         Apply(map, request);

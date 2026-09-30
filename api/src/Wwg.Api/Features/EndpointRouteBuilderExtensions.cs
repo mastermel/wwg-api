@@ -29,6 +29,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapArmyEndpoints()
             .MapArmyUnitEndpoints()
             .MapMapEndpoints()
+            .MapGridEndpoints()
             .MapTurnEndpoints()
             .MapOrderEndpoints()
             .MapTurnActionEndpoints()

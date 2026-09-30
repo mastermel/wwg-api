@@ -2361,7 +2361,7 @@
         "tags": [
           "Maps"
         ],
-        "summary": "Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to\nnorth. The bounds and hex size lay out the grid: once the campaign has started they're\nfixed (409); while setting up, changing them moves each placement to the new hex holding\nthe old one's centre, and takes it off the map if that's outside the new grid.",
+        "summary": "Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to\nnorth. The bounds and hex size lay out the grid: once the campaign has started they're\nfixed (409); while setting up, changing them moves each placement to the new hex holding\nthe old one's centre (or takes it off the map if that's outside the new grid), and clears\nthe terrain, which belonged to the old hexes.",
         "operationId": "UpdateCampaignMap",
         "parameters": [
           {
@@ -2401,6 +2401,289 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/grid": {
+      "get": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The campaign's terrain (every member): the hexes and edges with something on them. Empty\nuntil inferred or set.",
+        "operationId": "GetCampaignGrid",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignGridResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "Saves the terrain inferred for the whole grid (Umpire or Admin): it replaces what inference\nsaved before, and the hexes and edges the Umpire set stay as they are. 409 without an area.",
+        "operationId": "SaveCampaignGrid",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCampaignGridRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/grid/cells/{q}/{r}": {
+      "put": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The Umpire sets a hex's terrain (Umpire or Admin); inference leaves it alone from then on.\n404 for a hex outside the grid, 409 without an area.",
+        "operationId": "UpdateHexCell",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "r",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHexCellRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HexCellResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/grid/edges/{q}/{r}/{side}": {
+      "put": {
+        "tags": [
+          "Maps"
+        ],
+        "summary": "The Umpire sets an edge's road and river (Umpire or Admin); inference leaves it alone from\nthen on. The edge is on hex (q, r)'s N, NE or SE side; 404 unless it touches the grid, 409\nwithout an area.",
+        "operationId": "UpdateHexEdge",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "r",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "side",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/EdgeSide"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHexEdgeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HexEdgeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -3843,6 +4126,30 @@
         },
         "description": "Gives an army a commander."
       },
+      "CampaignGridResponse": {
+        "required": [
+          "cells",
+          "edges"
+        ],
+        "type": "object",
+        "properties": {
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HexCellResponse"
+            },
+            "description": "The hexes with terrain."
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HexEdgeResponse"
+            },
+            "description": "The edges with roads or rivers."
+          }
+        },
+        "description": "A campaign's terrain: the hexes and edges with something on them. Any other hex is Flat with\nnothing on it, and any other edge has no road or river."
+      },
       "CampaignMapResponse": {
         "required": [
           "bounds",
@@ -4324,6 +4631,14 @@
         ],
         "description": "How distances are shown (they're stored in metres)."
       },
+      "EdgeSide": {
+        "enum": [
+          "N",
+          "NE",
+          "SE"
+        ],
+        "description": "A hex side an edge is stored on: N, NE or SE. The other three (S, SW, NW) are the neighbours'\nN, NE and SE, so every edge has one place."
+      },
       "FactionResponse": {
         "required": [
           "id",
@@ -4464,6 +4779,91 @@
         },
         "description": "A hex in a campaign's grid, by its axial coordinates (q east, r south-east)."
       },
+      "HexCellResponse": {
+        "required": [
+          "q",
+          "r",
+          "terrain",
+          "forest",
+          "settlement",
+          "setByUmpire"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "description": "The hex's q (east).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex's r (south-east).",
+            "format": "int32"
+          },
+          "terrain": {
+            "description": "Its ground.",
+            "$ref": "#/components/schemas/Terrain"
+          },
+          "forest": {
+            "type": "boolean",
+            "description": "Whether it's mostly forest."
+          },
+          "settlement": {
+            "description": "The largest place in it.",
+            "$ref": "#/components/schemas/Settlement"
+          },
+          "setByUmpire": {
+            "type": "boolean",
+            "description": "Set by the Umpire, so inference leaves it alone."
+          }
+        },
+        "description": "A hex with terrain on it."
+      },
+      "HexEdgeResponse": {
+        "required": [
+          "q",
+          "r",
+          "side",
+          "road",
+          "river",
+          "bridge",
+          "setByUmpire"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "description": "The hex's q (east).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex's r (south-east).",
+            "format": "int32"
+          },
+          "side": {
+            "description": "The hex's side the edge is on: N, NE or SE (the others are its neighbours').",
+            "$ref": "#/components/schemas/EdgeSide"
+          },
+          "road": {
+            "description": "The best road across it.",
+            "$ref": "#/components/schemas/RoadQuality"
+          },
+          "river": {
+            "type": "boolean",
+            "description": "Whether a river runs along it."
+          },
+          "bridge": {
+            "type": "boolean",
+            "description": "Whether a bridge crosses the river."
+          },
+          "setByUmpire": {
+            "type": "boolean",
+            "description": "Set by the Umpire, so inference leaves it alone."
+          }
+        },
+        "description": "An edge with a road or river on it."
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -4508,6 +4908,81 @@
             }
           }
         }
+      },
+      "InferredHexCell": {
+        "required": [
+          "q",
+          "r",
+          "terrain",
+          "forest",
+          "settlement"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "description": "The hex's q (east).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex's r (south-east).",
+            "format": "int32"
+          },
+          "terrain": {
+            "description": "Its ground.",
+            "$ref": "#/components/schemas/Terrain"
+          },
+          "forest": {
+            "type": "boolean",
+            "description": "Whether it's mostly forest."
+          },
+          "settlement": {
+            "description": "The largest place in it.",
+            "$ref": "#/components/schemas/Settlement"
+          }
+        },
+        "description": "A hex's inferred terrain."
+      },
+      "InferredHexEdge": {
+        "required": [
+          "q",
+          "r",
+          "side",
+          "road",
+          "river",
+          "bridge"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "description": "The hex's q (east).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex's r (south-east).",
+            "format": "int32"
+          },
+          "side": {
+            "description": "The hex's side: N, NE or SE.",
+            "$ref": "#/components/schemas/EdgeSide"
+          },
+          "road": {
+            "description": "The best road across it.",
+            "$ref": "#/components/schemas/RoadQuality"
+          },
+          "river": {
+            "type": "boolean",
+            "description": "Whether a river runs along it."
+          },
+          "bridge": {
+            "type": "boolean",
+            "description": "Whether a bridge crosses the river (only with a river)."
+          }
+        },
+        "description": "An edge's inferred road and river."
       },
       "JoinCampaignResponse": {
         "required": [
@@ -5104,6 +5579,40 @@
         },
         "description": "Why the Umpire sends a turn back or reverts it: a note, and notes on units."
       },
+      "RoadQuality": {
+        "enum": [
+          "None",
+          "Poor",
+          "Good"
+        ],
+        "description": "The best road across an edge."
+      },
+      "SaveCampaignGridRequest": {
+        "required": [
+          "cells",
+          "edges"
+        ],
+        "type": "object",
+        "properties": {
+          "cells": {
+            "maxItems": 60000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InferredHexCell"
+            },
+            "description": "The hexes, each once, inside the grid."
+          },
+          "edges": {
+            "maxItems": 180000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InferredHexEdge"
+            },
+            "description": "The edges, each once, touching the grid."
+          }
+        },
+        "description": "The terrain inferred for the whole grid. It replaces what inference saved before; what the\nUmpire set stays. Hexes and edges with nothing on them can be left out."
+      },
       "SaveFactionRequest": {
         "required": [
           "name",
@@ -5173,6 +5682,16 @@
         },
         "description": "Makes a user a Manager (decision 0015), or not."
       },
+      "Settlement": {
+        "enum": [
+          "None",
+          "SmallCity",
+          "LargeCity",
+          "WalledCity",
+          "Fortress"
+        ],
+        "description": "The largest place in a hex, if any."
+      },
       "SetUmpireRequest": {
         "required": [
           "userId"
@@ -5211,6 +5730,16 @@
           }
         },
         "description": "A side in the campaign. Every member sees them all."
+      },
+      "Terrain": {
+        "enum": [
+          "Flat",
+          "LowHill",
+          "HighHill",
+          "Mountain",
+          "Water"
+        ],
+        "description": "A hex's ground (decision 0014): what it costs to move into it."
       },
       "TokenResponse": {
         "required": [
@@ -5532,6 +6061,52 @@
           }
         },
         "description": "Changes a campaign's name and description."
+      },
+      "UpdateHexCellRequest": {
+        "required": [
+          "terrain",
+          "forest",
+          "settlement"
+        ],
+        "type": "object",
+        "properties": {
+          "terrain": {
+            "description": "Its ground.",
+            "$ref": "#/components/schemas/Terrain"
+          },
+          "forest": {
+            "type": "boolean",
+            "description": "Whether it's mostly forest."
+          },
+          "settlement": {
+            "description": "The largest place in it.",
+            "$ref": "#/components/schemas/Settlement"
+          }
+        },
+        "description": "The Umpire sets a hex's terrain."
+      },
+      "UpdateHexEdgeRequest": {
+        "required": [
+          "road",
+          "river",
+          "bridge"
+        ],
+        "type": "object",
+        "properties": {
+          "road": {
+            "description": "The best road across it.",
+            "$ref": "#/components/schemas/RoadQuality"
+          },
+          "river": {
+            "type": "boolean",
+            "description": "Whether a river runs along it."
+          },
+          "bridge": {
+            "type": "boolean",
+            "description": "Whether a bridge crosses the river (only with a river)."
+          }
+        },
+        "description": "The Umpire sets an edge's road and river."
       },
       "UpdateProfileRequest": {
         "required": [

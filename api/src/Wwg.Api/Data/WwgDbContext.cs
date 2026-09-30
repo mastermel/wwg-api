@@ -28,6 +28,12 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<CampaignMap> CampaignMaps => Set<CampaignMap>();
 
+    /// <summary>The grid's hexes with terrain (decision 0014).</summary>
+    public DbSet<HexCell> HexCells => Set<HexCell>();
+
+    /// <summary>The grid's edges with roads or rivers (decision 0014).</summary>
+    public DbSet<HexEdge> HexEdges => Set<HexEdge>();
+
     public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();
 
     public DbSet<ArmyTurn> ArmyTurns => Set<ArmyTurn>();

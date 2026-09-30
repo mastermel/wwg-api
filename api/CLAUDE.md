@@ -103,6 +103,9 @@ true, because the build launches the app to write the document.
   campaign's. Tests check it through the endpoints against `testdata/hex-grid.json` (copied into
   the test output; `HexGridFigures`), the same figures the front-end's `hex-grid.ts` is tested
   against. Positions and orders are hexes (`Q`, `R`, `Path`); DTOs add the hex's centre.
+  Terrain (`HexCell`, `HexEdge`; `GridEndpoints`) is stored only where there's something on it;
+  an edge lives on one hex's N, NE or SE side (`EdgeSide`), the other three being its
+  neighbours'.
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.
