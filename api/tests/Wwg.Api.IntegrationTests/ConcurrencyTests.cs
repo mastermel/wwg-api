@@ -6,7 +6,7 @@ using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Account;
 using Wwg.Api.Features.Armies;
-using Wwg.Api.Features.Units;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
@@ -31,7 +31,7 @@ public sealed class ConcurrencyTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
         _interceptor.BeforeNext(
-            sql => sql.Contains("INSERT INTO \"Units\"", StringComparison.Ordinal),
+            sql => sql.Contains("INSERT INTO \"ArmyUnits\"", StringComparison.Ordinal),
             $"DELETE FROM \"Armies\" WHERE \"Id\" = '{Sql(scenario.ArmyId)}';"
         );
 
@@ -39,7 +39,7 @@ public sealed class ConcurrencyTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest("2nd Division", UnitType.LightInfantry, 4, 10),
+                new CreateArmyUnitRequest("2nd Division", UnitType.LightInfantry, 4, 10),
                 CancellationToken
             );
 

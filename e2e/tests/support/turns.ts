@@ -51,7 +51,7 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
       fightingFactor: 6,
       points: 30,
     });
-    await api.put(`/api/units/${unit.id}/placement`, startingPlaces[unitName]);
+    await api.put(`/api/army-units/${unit.id}/placement`, startingPlaces[unitName]);
   }
   await api.post(`/api/campaigns/${campaignId}/start`, null);
   return { campaignUrl, campaignId, armyId: army.id };

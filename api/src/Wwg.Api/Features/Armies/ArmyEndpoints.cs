@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Turns;
-using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -326,10 +326,10 @@ internal static class ArmyEndpoints
                 a.Side == null ? null : new ArmySide(a.Side.Id, a.Side.Name),
                 a.Color,
                 a.Nation,
-                db.Units.Where(u => u.ArmyId == a.Id)
+                db.ArmyUnits.Where(u => u.ArmyId == a.Id)
                     .OrderBy(u => u.Name)
                     .ThenBy(u => u.Id)
-                    .Select(u => new UnitResponse(
+                    .Select(u => new ArmyUnitResponse(
                         u.Id,
                         u.ArmyId,
                         u.Name,

@@ -32,15 +32,15 @@ public sealed class UmpireOrderTests : ApiTest
                 .ArmyTurns.Where(t => t.ArmyId == scenario.ArmyId && t.CampaignTurn.Number == 0)
                 .Select(t => t.Id)
                 .SingleAsync(TestContext.Current.CancellationToken);
-            var unit = new Unit
+            var unit = new ArmyUnit
             {
                 ArmyId = scenario.ArmyId,
                 Name = "2nd Division",
                 Type = UnitType.LightInfantry,
-                FightingFactor = Unit.MinFightingFactor,
-                Points = Unit.MinPoints,
+                FightingFactor = ArmyUnit.MinFightingFactor,
+                Points = ArmyUnit.MinPoints,
             };
-            db.Units.Add(unit);
+            db.ArmyUnits.Add(unit);
             db.UnitOrders.Add(
                 new UnitOrder
                 {

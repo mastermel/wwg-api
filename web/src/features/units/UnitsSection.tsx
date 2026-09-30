@@ -5,8 +5,12 @@ import { IconEdit, IconPlus, IconShield, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getGetArmyQueryKey } from "@/api/generated/endpoints/armies/armies";
-import { useCreateUnit, useDeleteUnit, useUpdateUnit } from "@/api/generated/endpoints/units/units";
-import type { ArmyResponse, UnitResponse } from "@/api/generated/model";
+import {
+  useCreateArmyUnit,
+  useDeleteArmyUnit,
+  useUpdateArmyUnit,
+} from "@/api/generated/endpoints/army-units/army-units";
+import type { ArmyResponse, ArmyUnitResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EmptyState } from "@/components/EmptyState";
 import { Section } from "@/components/Section";
@@ -24,16 +28,16 @@ import { errorMessage } from "@/lib/errors";
 export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: boolean }) {
   const online = useOnline();
   const queryClient = useQueryClient();
-  const create = useCreateUnit();
-  const update = useUpdateUnit();
-  const remove = useDeleteUnit();
+  const create = useCreateArmyUnit();
+  const update = useUpdateArmyUnit();
+  const remove = useDeleteArmyUnit();
   const [adding, addModal] = useDisclosure(false);
-  const [editing, setEditing] = useState<UnitResponse | null>(null);
-  const deleting = useConfirmTarget<UnitResponse>();
+  const [editing, setEditing] = useState<ArmyUnitResponse | null>(null);
+  const deleting = useConfirmTarget<ArmyUnitResponse>();
   const refresh = () => queryClient.invalidateQueries({ queryKey: getGetArmyQueryKey(army.id) });
   const totalPoints = army.units.reduce((sum, unit) => sum + unit.points, 0);
 
-  const confirmDelete = async (unit: UnitResponse) => {
+  const confirmDelete = async (unit: ArmyUnitResponse) => {
     try {
       await remove.mutateAsync({ id: unit.id });
       notifications.show({ color: "green", message: `Deleted ${unit.name}.` });

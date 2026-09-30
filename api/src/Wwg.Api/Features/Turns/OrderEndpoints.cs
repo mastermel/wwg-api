@@ -113,7 +113,7 @@ internal static class OrderEndpoints
             await db
                 .UnitOrders.AsNoTracking()
                 .Where(o => o.ArmyTurn.ArmyId == armyId)
-                .OrderBy(o => o.Unit.Name)
+                .OrderBy(o => o.ArmyUnit.Name)
                 .ThenBy(o => o.UnitId)
                 .Select(o => new ArmyOrder(
                     o.ArmyTurnId,
@@ -193,7 +193,7 @@ internal static class OrderEndpoints
         }
 
         var unit = await db
-            .Units.AsNoTracking()
+            .ArmyUnits.AsNoTracking()
             .Where(u => u.Id == unitId && u.ArmyId == turn.ArmyId)
             .Select(u => new { u.Type, u.Army.CampaignId })
             .SingleOrDefaultAsync(cancellationToken);

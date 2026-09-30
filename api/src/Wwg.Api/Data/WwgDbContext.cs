@@ -14,7 +14,7 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Army> Armies => Set<Army>();
 
-    public DbSet<Unit> Units => Set<Unit>();
+    public DbSet<ArmyUnit> ArmyUnits => Set<ArmyUnit>();
 
     public DbSet<Side> Sides => Set<Side>();
 

@@ -84,7 +84,7 @@ internal sealed class UnitOrderConfiguration : IEntityTypeConfiguration<UnitOrde
             .HasForeignKey(o => o.ArmyTurnId)
             .OnDelete(DeleteBehavior.Cascade);
         builder
-            .HasOne(o => o.Unit)
+            .HasOne(o => o.ArmyUnit)
             .WithMany()
             .HasForeignKey(o => o.UnitId)
             .OnDelete(DeleteBehavior.NoAction);
@@ -122,7 +122,7 @@ internal sealed class UnitNoteConfiguration : IEntityTypeConfiguration<UnitNote>
     {
         builder.Property(n => n.Text).HasMaxLength(1000);
         builder
-            .HasOne(n => n.Unit)
+            .HasOne(n => n.ArmyUnit)
             .WithMany()
             .HasForeignKey(n => n.UnitId)
             .OnDelete(DeleteBehavior.NoAction);

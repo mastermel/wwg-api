@@ -19,7 +19,7 @@ import {
   useListTurns,
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
-import { useListCampaignUnits } from "@/api/generated/endpoints/units/units";
+import { useListCampaignUnits } from "@/api/generated/endpoints/army-units/army-units";
 import type { CampaignMapResponse, MapBounds, MeResponse } from "@/api/generated/model";
 import { BackLink } from "@/components/BackLink";
 import { EmptyState } from "@/components/EmptyState";

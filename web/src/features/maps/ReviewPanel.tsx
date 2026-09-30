@@ -6,7 +6,7 @@ import type {
   ArmyTurnDetails,
   ArmyTurnStatus,
   CampaignTurnSummary,
-  UnitResponse,
+  ArmyUnitResponse,
 } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Section } from "@/components/Section";
@@ -28,7 +28,7 @@ interface ReviewPanelProps {
   /** What stops the next turn starting. */
   problems: readonly string[];
   armyTurns: readonly OpenArmyTurn[];
-  units: readonly UnitResponse[];
+  units: readonly ArmyUnitResponse[];
   review: ReturnType<typeof useReview>;
 }
 

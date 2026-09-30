@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ArmySummary, UnitResponse } from "@/api/generated/model";
+import type { ArmySummary, ArmyUnitResponse } from "@/api/generated/model";
 import { describeUnit, stackUnits, type PlacedUnit } from "@/features/maps/stacks";
 
 const army: ArmySummary = {
@@ -19,7 +19,7 @@ const placed = (id: string, longitude: number, latitude = 0): PlacedUnit => ({
     type: "LineInfantry",
     fightingFactor: 5,
     points: 20,
-  } satisfies UnitResponse,
+  } satisfies ArmyUnitResponse,
   army,
   hex: { q: 0, r: 0 },
   latitude,

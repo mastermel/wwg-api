@@ -52,7 +52,7 @@ internal static class TurnSteps
         scenario
             .As(role)
             .PutAsJsonAsync(
-                new Uri($"/api/units/{unitId}/placement", UriKind.Relative),
+                new Uri($"/api/army-units/{unitId}/placement", UriKind.Relative),
                 new PlaceUnitRequest((at ?? Start).Q, (at ?? Start).R),
                 CancellationToken
             );

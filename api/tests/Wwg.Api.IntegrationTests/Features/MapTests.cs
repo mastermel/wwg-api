@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
-using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
@@ -294,10 +294,10 @@ public sealed class MapTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest("Brigade", UnitType.LineInfantry, 3, 10),
+                new CreateArmyUnitRequest("Brigade", UnitType.LineInfantry, 3, 10),
                 CancellationToken
             );
-        return (await created.Content.ReadAsAsync<UnitResponse>())?.Id
+        return (await created.Content.ReadAsAsync<ArmyUnitResponse>())?.Id
             ?? throw new InvalidOperationException("No unit.");
     }
 }

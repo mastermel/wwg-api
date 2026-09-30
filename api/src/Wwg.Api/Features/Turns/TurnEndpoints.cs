@@ -27,16 +27,16 @@ internal static class TurnEndpoints
             .RequireCampaignAccess(CampaignAccess.Umpire)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
-        var placement = app.MapGroup("/api/units/{id:guid}/placement").WithTags("Turns");
+        var placement = app.MapGroup("/api/army-units/{id:guid}/placement").WithTags("Turns");
         placement
             .MapPut("", PlaceUnitAsync)
             .WithName("PlaceUnit")
-            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Unit)
+            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.ArmyUnit)
             .ProducesProblem(StatusCodes.Status409Conflict);
         placement
             .MapDelete("", UnplaceUnitAsync)
             .WithName("UnplaceUnit")
-            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Unit)
+            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.ArmyUnit)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
@@ -146,7 +146,7 @@ internal static class TurnEndpoints
         };
 
         var rows = await orders
-            .OrderBy(o => o.Unit.Name)
+            .OrderBy(o => o.ArmyUnit.Name)
             .ThenBy(o => o.UnitId)
             .Select(o => new OrderRow(
                 o.UnitId,
@@ -184,7 +184,7 @@ internal static class TurnEndpoints
     )
     {
         var unit = await db
-            .Units.Where(u => u.Id == id)
+            .ArmyUnits.Where(u => u.Id == id)
             .Select(u => new
             {
                 u.Id,
@@ -243,7 +243,7 @@ internal static class TurnEndpoints
         {
             return Conflict(
                 "Campaign started",
-                "Units can only be taken off the map while setting up."
+                "ArmyUnits can only be taken off the map while setting up."
             );
         }
 
@@ -345,7 +345,7 @@ internal static class TurnEndpoints
             armies.Where(a => a.SideId is null).Select(a => $"Put {a.Name} on a side.")
         );
 
-        var unplaced = await db.Units.CountAsync(
+        var unplaced = await db.ArmyUnits.CountAsync(
             u =>
                 u.Army.CampaignId == campaignId
                 && !db.UnitOrders.Any(o => o.UnitId == u.Id && o.ArmyTurn.CampaignTurn.Number == 0),

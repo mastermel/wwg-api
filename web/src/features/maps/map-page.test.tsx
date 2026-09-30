@@ -149,7 +149,7 @@ describe("the map page", () => {
         http.get(`*/api/campaigns/${campaignId}/turns`, () =>
           HttpResponse.json({ stage: "Setup", openTurn: 0, turns: [], startProblems }),
         ),
-        http.put(`*/api/units/${unitId}/placement`, async ({ request }) => {
+        http.put(`*/api/army-units/${unitId}/placement`, async ({ request }) => {
           requests.push({ method: "PUT", url: request.url, body: await request.json() });
           return HttpResponse.json({
             unitId,

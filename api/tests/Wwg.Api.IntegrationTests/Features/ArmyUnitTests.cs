@@ -3,12 +3,12 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
-using Wwg.Api.Features.Units;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
 
-public sealed class UnitTests : ApiTest
+public sealed class ArmyUnitTests : ApiTest
 {
     private static Task<HttpResponseMessage> CreateAsync(
         CampaignScenario scenario,
@@ -16,7 +16,7 @@ public sealed class UnitTests : ApiTest
         UnitType type = UnitType.LineInfantry,
         int fightingFactor = 5,
         int points = 10
-    ) => PostAsync(scenario, new CreateUnitRequest(name, type, fightingFactor, points));
+    ) => PostAsync(scenario, new CreateArmyUnitRequest(name, type, fightingFactor, points));
 
     /// <summary>Any body, e.g. JSON the typed request can't express.</summary>
     private static Task<HttpResponseMessage> PostAsync(CampaignScenario scenario, object body) =>
@@ -51,10 +51,10 @@ public sealed class UnitTests : ApiTest
         );
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var unit = await response.Content.ReadAsAsync<UnitResponse>();
-        Assert.Equal($"/api/units/{unit?.Id}", response.Headers.Location?.ToString());
+        var unit = await response.Content.ReadAsAsync<ArmyUnitResponse>();
+        Assert.Equal($"/api/army-units/{unit?.Id}", response.Headers.Location?.ToString());
         Assert.Equal(
-            new UnitResponse(
+            new ArmyUnitResponse(
                 unit!.Id,
                 scenario.ArmyId,
                 "Light Division",
@@ -179,12 +179,12 @@ public sealed class UnitTests : ApiTest
         using var response = await scenario
             .As(Role.Umpire)
             .PutAsJsonAsync(
-                new Uri($"/api/units/{scenario.UnitId}", UriKind.Relative),
-                new UpdateUnitRequest(" Horse Guards ", UnitType.HeavyCavalry, 8, 60),
+                new Uri($"/api/army-units/{scenario.UnitId}", UriKind.Relative),
+                new UpdateArmyUnitRequest(" Horse Guards ", UnitType.HeavyCavalry, 8, 60),
                 CancellationToken
             );
 
-        var expected = new UnitResponse(
+        var expected = new ArmyUnitResponse(
             scenario.UnitId,
             scenario.ArmyId,
             "Horse Guards",
@@ -192,7 +192,7 @@ public sealed class UnitTests : ApiTest
             8,
             60
         );
-        Assert.Equal(expected, await response.Content.ReadAsAsync<UnitResponse>());
+        Assert.Equal(expected, await response.Content.ReadAsAsync<ArmyUnitResponse>());
         var army = await scenario
             .As(Role.Commander)
             .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}");
@@ -207,8 +207,8 @@ public sealed class UnitTests : ApiTest
         using var response = await scenario
             .As(Role.Umpire)
             .PutAsJsonAsync(
-                new Uri($"/api/units/{scenario.UnitId}", UriKind.Relative),
-                new UpdateUnitRequest("Guard", UnitType.LineInfantry, 0, 101),
+                new Uri($"/api/army-units/{scenario.UnitId}", UriKind.Relative),
+                new UpdateArmyUnitRequest("Guard", UnitType.LineInfantry, 0, 101),
                 CancellationToken
             );
 
@@ -223,7 +223,7 @@ public sealed class UnitTests : ApiTest
         using var response = await scenario
             .As(Role.Umpire)
             .DeleteAsync(
-                new Uri($"/api/units/{scenario.UnitId}", UriKind.Relative),
+                new Uri($"/api/army-units/{scenario.UnitId}", UriKind.Relative),
                 CancellationToken
             );
 
@@ -244,7 +244,7 @@ public sealed class UnitTests : ApiTest
             );
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(0, await WithDbAsync(db => db.Units.CountAsync(CancellationToken)));
+        Assert.Equal(0, await WithDbAsync(db => db.ArmyUnits.CountAsync(CancellationToken)));
     }
 
     [Fact]
@@ -260,6 +260,6 @@ public sealed class UnitTests : ApiTest
             );
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(1, await WithDbAsync(db => db.Units.CountAsync(CancellationToken)));
+        Assert.Equal(1, await WithDbAsync(db => db.ArmyUnits.CountAsync(CancellationToken)));
     }
 }

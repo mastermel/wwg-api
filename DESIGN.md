@@ -2297,24 +2297,27 @@ build on positions.
       map layer like the others (`MapLayers.Grid`, on by default and for existing maps), drawn
       under the units on the map page; the settings preview draws the size being chosen.
 41. **Factions and units for every campaign** (decision
-    [0015](docs/decisions/0015-global-factions-and-units.md)); three commits:
+    [0015](docs/decisions/0015-global-factions-and-units.md)); four commits:
     - ✅ **41a. Sides:** Phase 8's campaign factions become sides: `Faction` → `Side`,
       `Army.FactionId` → `SideId` (renamed in place: `ALTER TABLE … RENAME`, no rebuild of
       `Armies`, whose triggers stay), `/api/campaigns/{id}/sides` and `/api/sides/{id}`, the
       campaign page's **Sides** section, "Put X on a side". No change in behaviour.
-    - **41b. The library and Managers:** global `Faction` (name, nation) and `Unit` (faction,
+    - ✅ **41b. Army units:** the campaign's `Unit` becomes `ArmyUnit` (the `Units` table
+      renamed in place, so orders and notes keep their foreign keys), its routes
+      `/api/army-units/{id}` and `/api/army-units/{id}/placement`. No change in behaviour; it
+      frees `Unit` for the library.
+    - **41c. The library and Managers:** global `Faction` (name, nation) and `Unit` (faction,
       name, type, FF, points); `/api/factions`, `/api/factions/{id}`, `/api/factions/{id}/units`,
       `/api/units/{id}`. The `Manager` role (`isManager` on `GET /api/me`; the Admin's user page
       grants it, `PUT /api/admin/users/{id}/manager`); Managers and Admins edit, and a faction or
       unit in use can't be deleted (409). The **Library** pages (every signed-in user; in the
       navigation): factions, each with its units, and for Managers and Admins create, edit and
       delete.
-    - **41c. Army factions and army units:** `ArmyFaction` (an army's selected factions, in
-      **Edit army**; `UpdateArmy`'s `factionIds`); the old `Unit` becomes `ArmyUnit` (`ArmyId`,
-      `UnitId` → the library unit, `CampaignId`, and its own name, type, FF and points), unique per
-      campaign and library unit. The migration renames `Units` to `ArmyUnits` in place (orders,
-      notes and their foreign keys follow the rename), puts a copy of each into the library in a
-      faction per army nation ("Unsorted" for none), and selects that faction for the army.
+    - **41d. Army factions, and units from the library:** `ArmyFaction` (an army's selected
+      factions, in **Edit army**; `UpdateArmy`'s `factionIds`); `ArmyUnit` gains `UnitId` (→ the
+      library unit) and `CampaignId`, unique together. The migration puts a copy of each army unit
+      into the library in a faction per army nation ("Unsorted" for none), links them, and
+      selects that faction for the army.
       `POST /api/armies/{id}/units { unitIds }` adds library units from the army's factions (409
       for one from another faction, or already in the campaign); `PUT` / `DELETE
       /api/army-units/{id}` edit the campaign's copy and remove it (setup only). Orders,

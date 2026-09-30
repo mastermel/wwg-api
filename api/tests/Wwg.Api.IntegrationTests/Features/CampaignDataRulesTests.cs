@@ -127,7 +127,7 @@ public sealed class CampaignDataRulesTests : ApiTest
             (0, 0),
             (
                 await WithDbAsync(db => db.Armies.CountAsync(CancellationToken)),
-                await WithDbAsync(db => db.Units.CountAsync(CancellationToken))
+                await WithDbAsync(db => db.ArmyUnits.CountAsync(CancellationToken))
             )
         );
     }

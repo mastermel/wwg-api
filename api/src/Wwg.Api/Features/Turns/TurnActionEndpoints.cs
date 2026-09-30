@@ -294,7 +294,7 @@ internal static class TurnActionEndpoints
             )
             .ToList();
 
-        var unplaced = await db.Units.CountAsync(
+        var unplaced = await db.ArmyUnits.CountAsync(
             u =>
                 u.Army.CampaignId == campaignId
                 && !db.UnitOrders.Any(o =>
@@ -442,7 +442,7 @@ internal static class TurnActionEndpoints
         var turn = await TurnAsync(db, review.Id, cancellationToken);
         var unitNotes = review.Request.UnitNotes ?? [];
         var names = await db
-            .Units.AsNoTracking()
+            .ArmyUnits.AsNoTracking()
             .Where(u => u.ArmyId == turn.ArmyId)
             .ToDictionaryAsync(u => u.Id, u => u.Name, cancellationToken);
         if (
@@ -489,7 +489,7 @@ internal static class TurnActionEndpoints
     )
     {
         var without = await db
-            .Units.AsNoTracking()
+            .ArmyUnits.AsNoTracking()
             .Where(u =>
                 u.ArmyId == turn.ArmyId
                 && db.UnitOrders.Any(o =>
@@ -534,8 +534,8 @@ internal static class TurnActionEndpoints
         var umpireOrders = await db
             .UnitOrders.AsNoTracking()
             .Where(o => o.ArmyTurnId == turn.Id && o.ByUmpire)
-            .OrderBy(o => o.Unit.Name)
-            .Select(o => o.Unit.Name + (o.Kind == OrderKind.Hold ? ": hold" : ": move"))
+            .OrderBy(o => o.ArmyUnit.Name)
+            .Select(o => o.ArmyUnit.Name + (o.Kind == OrderKind.Hold ? ": hold" : ": move"))
             .ToListAsync(cancellationToken);
         await emails.QueueAsync(
             TurnEmails.Create(

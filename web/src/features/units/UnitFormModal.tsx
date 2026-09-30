@@ -5,11 +5,11 @@ import { Controller, useForm, type DefaultValues } from "react-hook-form";
 import { z } from "zod";
 import { UnitType } from "@/api/generated/model";
 import {
-  CreateUnitBody,
-  createUnitBodyFightingFactorMax,
-  createUnitBodyPointsMax,
-  createUnitBodyPointsMin,
-} from "@/api/generated/zod/units/units.zod";
+  CreateArmyUnitBody,
+  createArmyUnitBodyFightingFactorMax,
+  createArmyUnitBodyPointsMax,
+  createArmyUnitBodyPointsMin,
+} from "@/api/generated/zod/army-units/army-units.zod";
 import { unitTypeOptions } from "@/features/units/unit-types";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
@@ -18,20 +18,20 @@ import { useOnline } from "@/lib/use-online";
 const ffMin = 1;
 
 // The generated schema, with messages people can act on.
-const UnitForm = CreateUnitBody.extend({
+const UnitForm = CreateArmyUnitBody.extend({
   type: z.enum(Object.values(UnitType), { error: "Choose a type." }),
   fightingFactor: z
     .int({
-      error: `Enter an FF from ${String(ffMin)} to ${String(createUnitBodyFightingFactorMax)}.`,
+      error: `Enter an FF from ${String(ffMin)} to ${String(createArmyUnitBodyFightingFactorMax)}.`,
     })
     .min(ffMin)
-    .max(createUnitBodyFightingFactorMax),
+    .max(createArmyUnitBodyFightingFactorMax),
   points: z
     .int({
-      error: `Enter points from ${String(createUnitBodyPointsMin)} to ${String(createUnitBodyPointsMax)}.`,
+      error: `Enter points from ${String(createArmyUnitBodyPointsMin)} to ${String(createArmyUnitBodyPointsMax)}.`,
     })
-    .min(createUnitBodyPointsMin)
-    .max(createUnitBodyPointsMax),
+    .min(createArmyUnitBodyPointsMin)
+    .max(createArmyUnitBodyPointsMax),
 });
 
 export type UnitValues = z.infer<typeof UnitForm>;
@@ -115,7 +115,7 @@ export function UnitFormModal({
                   label="Fighting Factor (FF)"
                   required
                   min={ffMin}
-                  max={createUnitBodyFightingFactorMax}
+                  max={createArmyUnitBodyFightingFactorMax}
                   allowDecimal={false}
                   allowNegative={false}
                   clampBehavior="strict"
@@ -137,8 +137,8 @@ export function UnitFormModal({
                 <NumberInput
                   label="Points"
                   required
-                  min={createUnitBodyPointsMin}
-                  max={createUnitBodyPointsMax}
+                  min={createArmyUnitBodyPointsMin}
+                  max={createArmyUnitBodyPointsMax}
                   allowDecimal={false}
                   allowNegative={false}
                   clampBehavior="strict"

@@ -31,8 +31,8 @@ internal enum CampaignRouteId
     /// <summary>An army in the campaign (<c>/api/armies/{id}/...</c>).</summary>
     Army,
 
-    /// <summary>A unit in one of the campaign's armies (<c>/api/units/{id}</c>).</summary>
-    Unit,
+    /// <summary>A unit in one of the campaign's armies (<c>/api/army-units/{id}</c>).</summary>
+    ArmyUnit,
 
     /// <summary>One of the campaign's sides (<c>/api/sides/{id}</c>).</summary>
     Side,
@@ -206,7 +206,7 @@ internal static class CampaignAccessExtensions
                         .Select(a => new { a.CampaignId, a.CommanderId })
                         .FirstOrDefaultAsync(cancellationToken)
                     : await db
-                        .Units.AsNoTracking()
+                        .ArmyUnits.AsNoTracking()
                         .Where(u => u.Id == id)
                         .Select(u => new { u.Army.CampaignId, u.Army.CommanderId })
                         .FirstOrDefaultAsync(cancellationToken);

@@ -5,7 +5,7 @@ import type {
   ArmyTurnEventKind,
   ArmyTurnStatus,
   CampaignTurnSummary,
-  UnitResponse,
+  ArmyUnitResponse,
 } from "@/api/generated/model";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
@@ -31,7 +31,7 @@ interface PastTurnPanelProps {
   armies: readonly ArmySummary[];
   /** The armies' turns, for what happened to each in this one. */
   armyTurns: readonly OpenArmyTurn[];
-  units: readonly UnitResponse[];
+  units: readonly ArmyUnitResponse[];
   /** The open turn's number, to go back to. */
   openTurn: number;
   onBack: () => void;

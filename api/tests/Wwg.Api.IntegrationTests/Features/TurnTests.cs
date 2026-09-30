@@ -3,9 +3,9 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
-using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
@@ -156,7 +156,7 @@ public sealed class TurnTests : ApiTest
         using var response = await scenario
             .As(Role.Umpire)
             .DeleteAsync(
-                new Uri($"/api/units/{scenario.UnitId}/placement", UriKind.Relative),
+                new Uri($"/api/army-units/{scenario.UnitId}/placement", UriKind.Relative),
                 CancellationToken
             );
 
@@ -214,7 +214,7 @@ public sealed class TurnTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
-                new CreateUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
+                new CreateArmyUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
                 CancellationToken
             );
 
@@ -259,10 +259,10 @@ public sealed class TurnTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest("Hussars", UnitType.LightCavalry, 4, 15),
+                new CreateArmyUnitRequest("Hussars", UnitType.LightCavalry, 4, 15),
                 CancellationToken
             );
-        var hussars = (await created.Content.ReadAsAsync<UnitResponse>())!.Id;
+        var hussars = (await created.Content.ReadAsAsync<ArmyUnitResponse>())!.Id;
 
         using var response = await TurnSteps.PlaceAsync(scenario, hussars, new Hex(2, -1));
 
@@ -283,7 +283,7 @@ public sealed class TurnTests : ApiTest
         using var response = await scenario
             .As(Role.Umpire)
             .DeleteAsync(
-                new Uri($"/api/units/{scenario.UnitId}/placement", UriKind.Relative),
+                new Uri($"/api/army-units/{scenario.UnitId}/placement", UriKind.Relative),
                 CancellationToken
             );
 
@@ -388,7 +388,7 @@ public sealed class TurnTests : ApiTest
 
     [Theory]
     [InlineData("armies")]
-    [InlineData("units")]
+    [InlineData("army-units")]
     public async Task Delete_AfterTheStart_Returns409AndKeepsIt(string what)
     {
         using var scenario = await ReadyAsync();
@@ -407,7 +407,7 @@ public sealed class TurnTests : ApiTest
 
     [Theory]
     [InlineData("armies")]
-    [InlineData("units")]
+    [InlineData("army-units")]
     public async Task Delete_WhileSettingUp_ItsPlacementGoesToo(string what)
     {
         using var scenario = await ReadyAsync();
@@ -440,10 +440,10 @@ public sealed class TurnTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
-                new CreateUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
+                new CreateArmyUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
                 CancellationToken
             );
-        var guard = (await unit.Content.ReadAsAsync<UnitResponse>())!.Id;
+        var guard = (await unit.Content.ReadAsAsync<ArmyUnitResponse>())!.Id;
 
         using var placed = await TurnSteps.PlaceAsync(scenario, guard, new Hex(-2, 2));
 

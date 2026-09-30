@@ -146,7 +146,7 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
     fightingFactor: 4,
     points: 20,
   });
-  await api.put(`/api/units/${brigade.id}/placement`, { q: 2, r: 0 });
+  await api.put(`/api/army-units/${brigade.id}/placement`, { q: 2, r: 0 });
 
   // Bob steps back to the setup, and forward to turn 1: the Guard is further north after it.
   const page = commander.page;

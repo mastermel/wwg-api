@@ -6,10 +6,10 @@ using Microsoft.Extensions.Time.Testing;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Sides;
-using Wwg.Api.Features.Units;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.IntegrationTests.Support;
@@ -146,10 +146,10 @@ public abstract class ApiTest : IAsyncDisposable
             new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"], sideId),
             a => a.Id
         );
-        var unitId = await PostForIdAsync<UnitResponse>(
+        var unitId = await PostForIdAsync<ArmyUnitResponse>(
             umpire,
             $"/api/armies/{armyId}/units",
-            new CreateUnitRequest("1st Division", UnitType.LineInfantry, 5, 20),
+            new CreateArmyUnitRequest("1st Division", UnitType.LineInfantry, 5, 20),
             u => u.Id
         );
 

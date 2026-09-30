@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
-using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
@@ -30,15 +30,15 @@ public sealed class TurnActionTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest(
+                new CreateArmyUnitRequest(
                     "2nd Division",
                     UnitType.LightInfantry,
-                    Unit.MinFightingFactor,
-                    Unit.MinPoints
+                    ArmyUnit.MinFightingFactor,
+                    ArmyUnit.MinPoints
                 ),
                 Token
             );
-        var unit = await created.Content.ReadAsAsync<UnitResponse>();
+        var unit = await created.Content.ReadAsAsync<ArmyUnitResponse>();
         var id = unit?.Id ?? throw new InvalidOperationException("No unit.");
         if (place)
         {

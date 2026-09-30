@@ -1,10 +1,10 @@
-import type { ArmySummary, UnitResponse } from "@/api/generated/model";
+import type { ArmySummary, ArmyUnitResponse } from "@/api/generated/model";
 import type { Hex } from "@/features/maps/hex-grid";
 import { unitTypeLabels } from "@/features/units/unit-types";
 
 /** A unit where it is on the map, with its army (for its colour): its hex, and that hex's centre. */
 export interface PlacedUnit {
-  unit: UnitResponse;
+  unit: ArmyUnitResponse;
   army: ArmySummary;
   hex: Hex;
   latitude: number;

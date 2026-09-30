@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Wwg.Api.Data.Entities;
-using Wwg.Api.Features.Units;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Armies;
@@ -87,7 +87,7 @@ public sealed record ArmyResponse(
     ArmySide? Side,
     ArmyColor Color,
     Nation Nation,
-    IReadOnlyList<UnitResponse> Units,
+    IReadOnlyList<ArmyUnitResponse> Units,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );

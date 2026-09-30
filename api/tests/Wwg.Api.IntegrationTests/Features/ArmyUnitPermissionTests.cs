@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
-using Wwg.Api.Features.Units;
+using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
@@ -11,7 +11,7 @@ namespace Wwg.Api.IntegrationTests.Features;
 /// DESIGN.md §5.2's unit rows. Viewing an army's units is the "view an army" row
 /// (<see cref="ArmyPermissionTests"/>): its details carry them.
 /// </summary>
-public sealed class UnitPermissionTests : ApiTest
+public sealed class ArmyUnitPermissionTests : ApiTest
 {
     [Theory]
     [InlineData(Role.Admin, true)]
@@ -50,7 +50,7 @@ public sealed class UnitPermissionTests : ApiTest
             .As(role)
             .PostAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateUnitRequest("2nd Division", UnitType.LightInfantry, 4, 15),
+                new CreateArmyUnitRequest("2nd Division", UnitType.LightInfantry, 4, 15),
                 CancellationToken
             );
 
@@ -71,7 +71,7 @@ public sealed class UnitPermissionTests : ApiTest
             .As(role)
             .PutAsJsonAsync(
                 UnitUri(scenario),
-                new UpdateUnitRequest("Light Division", UnitType.LightInfantry, 4, 15),
+                new UpdateArmyUnitRequest("Light Division", UnitType.LightInfantry, 4, 15),
                 CancellationToken
             );
 
@@ -101,14 +101,14 @@ public sealed class UnitPermissionTests : ApiTest
     public async Task AnyUnitEndpoint_UnknownUnit_Returns404EvenForAdmins(string method)
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        var uri = new Uri($"/api/units/{Guid.CreateVersion7()}", UriKind.Relative);
+        var uri = new Uri($"/api/army-units/{Guid.CreateVersion7()}", UriKind.Relative);
         var admin = scenario.As(Role.Admin);
 
         using var response = method switch
         {
             "put" => await admin.PutAsJsonAsync(
                 uri,
-                new UpdateUnitRequest("x", UnitType.Partisans, 1, 0),
+                new UpdateArmyUnitRequest("x", UnitType.Partisans, 1, 0),
                 CancellationToken
             ),
             _ => await admin.DeleteAsync(uri, CancellationToken),
@@ -118,7 +118,7 @@ public sealed class UnitPermissionTests : ApiTest
     }
 
     private static Uri UnitUri(CampaignScenario scenario) =>
-        new($"/api/units/{scenario.UnitId}", UriKind.Relative);
+        new($"/api/army-units/{scenario.UnitId}", UriKind.Relative);
 
     [Theory]
     [InlineData(Role.Admin, 1)]
@@ -143,7 +143,7 @@ public sealed class UnitPermissionTests : ApiTest
             return;
         }
 
-        var units = await response.Content.ReadAsAsync<List<UnitResponse>>();
+        var units = await response.Content.ReadAsAsync<List<ArmyUnitResponse>>();
         Assert.Equal(scenario.UnitId, Assert.Single(units!).Id);
     }
 }

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import type { ArmyResponse, CampaignResponse, UnitResponse } from "@/api/generated/model";
+import type { ArmyResponse, CampaignResponse, ArmyUnitResponse } from "@/api/generated/model";
 import { expectNoAxeViolations, renderApp } from "@/test/render";
 import { server } from "@/test/server";
 import { testUser } from "@/test/session";
@@ -13,10 +13,10 @@ const armyId = "0192f5c1-0000-7000-8000-00000000a001";
 const unit = (
   id: string,
   name: string,
-  type: UnitResponse["type"] = "LineInfantry",
+  type: ArmyUnitResponse["type"] = "LineInfantry",
   fightingFactor = 5,
   points = 20,
-): UnitResponse => ({
+): ArmyUnitResponse => ({
   id: `0192f5c1-0000-7000-8000-00000000e00${id}`,
   armyId,
   name,
@@ -26,7 +26,7 @@ const unit = (
 });
 
 /** Serves a campaign and its army, with units that change as the test adds and removes them. */
-function serveArmy(myRole: CampaignResponse["myRole"], initial: UnitResponse[]) {
+function serveArmy(myRole: CampaignResponse["myRole"], initial: ArmyUnitResponse[]) {
   let units = initial;
   const requests: { method: string; path: string; body: unknown }[] = [];
   const army = (): ArmyResponse => ({
@@ -62,19 +62,23 @@ function serveArmy(myRole: CampaignResponse["myRole"], initial: UnitResponse[]) 
     ),
     http.get(`*/api/armies/${armyId}`, () => HttpResponse.json(army())),
     http.post(`*/api/armies/${armyId}/units`, async ({ request }) => {
-      const body = (await request.json()) as Omit<UnitResponse, "id" | "armyId">;
+      const body = (await request.json()) as Omit<ArmyUnitResponse, "id" | "armyId">;
       requests.push({ method: "POST", path: "units", body });
-      const added: UnitResponse = { ...body, id: unit(String(units.length + 1), "").id, armyId };
+      const added: ArmyUnitResponse = {
+        ...body,
+        id: unit(String(units.length + 1), "").id,
+        armyId,
+      };
       units = [...units, added];
       return HttpResponse.json(added, { status: 201 });
     }),
-    http.put("*/api/units/:id", async ({ params, request }) => {
-      const body = (await request.json()) as Omit<UnitResponse, "id" | "armyId">;
+    http.put("*/api/army-units/:id", async ({ params, request }) => {
+      const body = (await request.json()) as Omit<ArmyUnitResponse, "id" | "armyId">;
       requests.push({ method: "PUT", path: String(params.id), body });
       units = units.map((u) => (u.id === params.id ? { ...u, ...body } : u));
       return HttpResponse.json(units.find((u) => u.id === params.id));
     }),
-    http.delete("*/api/units/:id", ({ params }) => {
+    http.delete("*/api/army-units/:id", ({ params }) => {
       requests.push({ method: "DELETE", path: String(params.id), body: null });
       units = units.filter((u) => u.id !== params.id);
       return new HttpResponse(null, { status: 204 });

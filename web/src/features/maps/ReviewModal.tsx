@@ -3,7 +3,7 @@ import { Alert, Button, Group, Modal, Stack, Text, Textarea } from "@mantine/cor
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import type { ArmySummary, UnitResponse } from "@/api/generated/model";
+import type { ArmySummary, ArmyUnitResponse } from "@/api/generated/model";
 import { SendBackTurnBody } from "@/api/generated/zod/turns/turns.zod";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
@@ -27,7 +27,7 @@ interface ReviewModalProps {
   army: ArmySummary;
   turn: number;
   /** The army's units, for notes on their orders. */
-  units: readonly UnitResponse[];
+  units: readonly ArmyUnitResponse[];
   onSubmit: (values: {
     note: string | null;
     unitNotes: { unitId: string; text: string }[] | null;

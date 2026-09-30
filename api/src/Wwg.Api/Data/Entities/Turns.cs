@@ -71,7 +71,7 @@ internal sealed class UnitOrder : Entity
 
     public Guid UnitId { get; set; }
 
-    public Unit Unit { get; set; } = null!; // Set by EF Core when loaded.
+    public ArmyUnit ArmyUnit { get; set; } = null!; // Set by EF Core when loaded.
 
     public OrderKind Kind { get; set; }
 
@@ -133,7 +133,7 @@ internal sealed class UnitNote : Entity
 
     public Guid UnitId { get; set; }
 
-    public Unit Unit { get; set; } = null!; // Set by EF Core when loaded.
+    public ArmyUnit ArmyUnit { get; set; } = null!; // Set by EF Core when loaded.
 
     public required string Text { get; set; }
 }

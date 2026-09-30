@@ -22,7 +22,7 @@ public enum UnitType
 }
 
 /// <summary>A unit in an army. Every member sees it; where it is follows the visibility rule.</summary>
-internal sealed class Unit : Entity
+internal sealed class ArmyUnit : Entity
 {
     /// <summary>The lowest and highest Fighting Factor.</summary>
     public const int MinFightingFactor = 1,

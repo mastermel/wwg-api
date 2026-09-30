@@ -30,7 +30,7 @@ internal static class TurnEmails
         string action,
         Uri map,
         string? note = null,
-        IReadOnlyList<(string Unit, string Text)>? unitNotes = null,
+        IReadOnlyList<(string ArmyUnit, string Text)>? unitNotes = null,
         IReadOnlyList<string>? umpireOrders = null
     )
     {

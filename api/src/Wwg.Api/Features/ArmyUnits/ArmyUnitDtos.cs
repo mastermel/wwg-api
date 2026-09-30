@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure;
 
-namespace Wwg.Api.Features.Units;
+namespace Wwg.Api.Features.ArmyUnits;
 
 // The numbers and type are [JsonRequired]: left out, they'd quietly read as 0 or Heavy Infantry.
 // EnumDataType refuses a type sent as an undefined number (the enum converter accepts numbers).
@@ -13,12 +13,12 @@ namespace Wwg.Api.Features.Units;
 /// <param name="Type">What kind of troops it is.</param>
 /// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
 /// <param name="Points">What it's worth, 0–100.</param>
-public sealed record CreateUnitRequest(
+public sealed record CreateArmyUnitRequest(
     [property: Trimmed, Required, StringLength(100)] string Name,
     [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType Type,
-    [property: JsonRequired, Range(Unit.MinFightingFactor, Unit.MaxFightingFactor)]
+    [property: JsonRequired, Range(ArmyUnit.MinFightingFactor, ArmyUnit.MaxFightingFactor)]
         int FightingFactor,
-    [property: JsonRequired, Range(Unit.MinPoints, Unit.MaxPoints)] int Points
+    [property: JsonRequired, Range(ArmyUnit.MinPoints, ArmyUnit.MaxPoints)] int Points
 );
 
 /// <summary>Changes a unit.</summary>
@@ -26,12 +26,12 @@ public sealed record CreateUnitRequest(
 /// <param name="Type">What kind of troops it is.</param>
 /// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
 /// <param name="Points">What it's worth, 0–100.</param>
-public sealed record UpdateUnitRequest(
+public sealed record UpdateArmyUnitRequest(
     [property: Trimmed, Required, StringLength(100)] string Name,
     [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType Type,
-    [property: JsonRequired, Range(Unit.MinFightingFactor, Unit.MaxFightingFactor)]
+    [property: JsonRequired, Range(ArmyUnit.MinFightingFactor, ArmyUnit.MaxFightingFactor)]
         int FightingFactor,
-    [property: JsonRequired, Range(Unit.MinPoints, Unit.MaxPoints)] int Points
+    [property: JsonRequired, Range(ArmyUnit.MinPoints, ArmyUnit.MaxPoints)] int Points
 );
 
 /// <summary>A unit in an army.</summary>
@@ -41,7 +41,7 @@ public sealed record UpdateUnitRequest(
 /// <param name="Type">What kind of troops it is.</param>
 /// <param name="FightingFactor">Its Fighting Factor ("FF"), 1–9.</param>
 /// <param name="Points">What it's worth, 0–100.</param>
-public sealed record UnitResponse(
+public sealed record ArmyUnitResponse(
     Guid Id,
     Guid ArmyId,
     string Name,

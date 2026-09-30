@@ -4,9 +4,9 @@ using Wwg.Api.Data.Entities;
 
 namespace Wwg.Api.Data.Configurations;
 
-internal sealed class UnitConfiguration : IEntityTypeConfiguration<Unit>
+internal sealed class ArmyUnitConfiguration : IEntityTypeConfiguration<ArmyUnit>
 {
-    public void Configure(EntityTypeBuilder<Unit> builder)
+    public void Configure(EntityTypeBuilder<ArmyUnit> builder)
     {
         // Sorted on in the army's unit list.
         builder.Property(u => u.Name).HasMaxLength(100).UseCollation("NOCASE");
