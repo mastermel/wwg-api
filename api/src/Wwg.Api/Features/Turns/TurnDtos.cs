@@ -58,6 +58,10 @@ public sealed record CampaignTurnsResponse(
 /// <param name="Longitude">The hex's centre, in degrees.</param>
 /// <param name="Path">A Move's steps, the hexes it passes through in order; empty otherwise.</param>
 /// <param name="ByUmpire">Whether the Umpire set this order, on the commander's behalf.</param>
+/// <param name="Progress">
+/// Part of the way (0–1) into the path's last hex, which takes more than a turn: the unit is still
+/// in Q, R. Null when it got where it was going.
+/// </param>
 public sealed record UnitPosition(
     Guid UnitId,
     Guid ArmyId,
@@ -69,7 +73,8 @@ public sealed record UnitPosition(
     double Latitude,
     double Longitude,
     IReadOnlyList<Hex> Path,
-    bool ByUmpire
+    bool ByUmpire,
+    double? Progress
 );
 
 /// <summary>Where the Umpire places a unit: a hex in the campaign's grid.</summary>

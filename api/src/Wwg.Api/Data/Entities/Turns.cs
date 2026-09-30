@@ -86,6 +86,12 @@ internal sealed class UnitOrder : Entity
     /// </summary>
     public List<Hex> Path { get; set; } = [];
 
+    /// <summary>
+    /// Part of the way (0–1) into the path's last hex, when that hex takes more than a turn (step
+    /// 44): the unit is still in Q, R, the hex before it. Null when it got where it was going.
+    /// </summary>
+    public double? Progress { get; set; }
+
     /// <summary>Set by the Umpire (or an Admin) on the commander's behalf (decision 0011).</summary>
     public bool ByUmpire { get; set; }
 }

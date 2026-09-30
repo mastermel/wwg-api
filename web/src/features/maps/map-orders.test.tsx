@@ -97,6 +97,7 @@ const hold: UnitPosition = {
   latitude: 50.7,
   longitude: 4.4,
   byUmpire: false,
+  progress: null,
   q: 0,
   r: 0,
   path: [],

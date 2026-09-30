@@ -6,6 +6,7 @@ import { armyColorVar } from "@/features/armies/identity/army-colors";
 import { describeUnit, type PlacedUnit } from "@/features/maps/stacks";
 import { UnitSymbol } from "@/features/units/UnitSymbol";
 import { unitTypeLabels } from "@/features/units/unit-types";
+import { shareOfTheWay } from "@/features/maps/movement";
 
 interface UnitDrawerProps {
   /** The units chosen on the map: one, or a stack to choose from. Closed when empty. */
@@ -57,6 +58,17 @@ export function UnitDrawer({ units, selected, onSelect, onClose, actions }: Unit
                 <Table.Th>Points</Table.Th>
                 <Table.Td>{shown.unit.points}</Table.Td>
               </Table.Tr>
+              {shown.headingInto && (
+                <Table.Tr>
+                  <Table.Th>Moving</Table.Th>
+                  <Table.Td>
+                    {shareOfTheWay(shown.headingInto.progress).replace(/^./, (c) =>
+                      c.toUpperCase(),
+                    )}{" "}
+                    of the way into the next hex; it goes on there next turn.
+                  </Table.Td>
+                </Table.Tr>
+              )}
             </Table.Tbody>
           </Table>
           {actions?.(shown)}

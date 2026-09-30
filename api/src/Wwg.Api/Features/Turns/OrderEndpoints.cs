@@ -92,7 +92,8 @@ internal static class OrderEndpoints
                                             o.Q,
                                             o.R,
                                             o.Path,
-                                            o.ByUmpire
+                                            o.ByUmpire,
+                                            o.Progress
                                         )
                                     )
                                 ),
@@ -122,7 +123,8 @@ internal static class OrderEndpoints
                     o.Q,
                     o.R,
                     o.Path,
-                    o.ByUmpire
+                    o.ByUmpire,
+                    o.Progress
                 ))
                 .ToListAsync(cancellationToken)
         ).ToLookup(o => o.ArmyTurnId);
@@ -134,7 +136,8 @@ internal static class OrderEndpoints
         int Q,
         int R,
         List<Hex> Path,
-        bool ByUmpire
+        bool ByUmpire,
+        double? Progress
     );
 
     /// <summary>What happened to an army's turns (submitted, sent back...), by army turn.</summary>
@@ -205,8 +208,7 @@ internal static class OrderEndpoints
             );
         }
 
-        var current = await TurnRules.CurrentPositionAsync(db, unitId, cancellationToken);
-        if (current is null)
+        if (await TurnRules.CurrentStateAsync(db, unitId, cancellationToken) is not { } state)
         {
             return Conflict("Not placed", "The Umpire hasn't placed this unit on the map yet.");
         }
@@ -214,24 +216,23 @@ internal static class OrderEndpoints
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
         var path = request.Kind == OrderKind.Hold ? [] : request.Path ?? [];
-        var movement = new MoveCheck(
-            grid,
-            await MovementTable.LoadAsync(db, unit.CampaignId, cancellationToken),
-            await PathTerrain.LoadAsync(
-                db,
-                unit.CampaignId,
-                [current.Value, .. path],
-                cancellationToken
-            ),
-            Movement.ClassOf(unit.Type)
+        var plan = await PlanAsync(
+            db,
+            new MoveRequest(grid, unit.CampaignId, unit.Type, state, request.Kind, path, byUmpire),
+            cancellationToken
         );
-        if (PathProblem(movement, current.Value, request.Kind, path, byUmpire) is { } problem)
+        if (plan.Problem is { } problem)
         {
             return Invalid("path", problem);
         }
 
-        var at = path.Count == 0 ? current.Value : path[^1];
-        var saved = await StageOrderAsync(db, grid, turn, unitId, request.Kind, at, path, byUmpire);
+        var saved = await StageOrderAsync(
+            db,
+            grid,
+            turn,
+            unitId,
+            new StagedOrder(request.Kind, plan.At, path, plan.Progress, byUmpire)
+        );
         if (byUmpire)
         {
             var text = request.Kind == OrderKind.Hold ? "Set to hold." : "Set to move.";
@@ -282,27 +283,34 @@ internal static class OrderEndpoints
     }
 
     /// <summary>Adds or changes the unit's order (not saved), and says where it leaves the unit.</summary>
+    /// <summary>An order as it's staged: where the unit ends up, and how it got there.</summary>
+    private sealed record StagedOrder(
+        OrderKind Kind,
+        Hex At,
+        IReadOnlyList<Hex> Path,
+        double? Progress,
+        bool ByUmpire
+    );
+
     private static async Task<UnitPosition> StageOrderAsync(
         WwgDbContext db,
         HexGrid grid,
         EditableTurn turn,
         Guid unitId,
-        OrderKind kind,
-        Hex at,
-        IReadOnlyList<Hex> path,
-        bool byUmpire
+        StagedOrder staged
     )
     {
         var order =
             await db.UnitOrders.SingleOrDefaultAsync(o =>
                 o.ArmyTurnId == turn.Id && o.UnitId == unitId
             ) ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = turn.Id, UnitId = unitId }).Entity;
-        (order.Kind, order.Q, order.R, order.Path, order.ByUmpire) = (
-            kind,
-            at.Q,
-            at.R,
-            [.. path],
-            byUmpire
+        (order.Kind, order.Q, order.R, order.Path, order.Progress, order.ByUmpire) = (
+            staged.Kind,
+            staged.At.Q,
+            staged.At.R,
+            [.. staged.Path],
+            staged.Progress,
+            staged.ByUmpire
         );
         return Positions.Of(
             grid,
@@ -311,11 +319,12 @@ internal static class OrderEndpoints
                 turn.ArmyId,
                 turn.Number,
                 turn.Status,
-                kind,
-                at.Q,
-                at.R,
+                staged.Kind,
+                staged.At.Q,
+                staged.At.R,
                 order.Path,
-                byUmpire
+                staged.ByUmpire,
+                staged.Progress
             )
         );
     }
@@ -403,6 +412,56 @@ internal static class OrderEndpoints
             .Select(t => new EditableTurn(t.Id, t.ArmyId, t.CampaignTurn.Number, t.Status))
             .SingleOrDefaultAsync(cancellationToken);
 
+    /// <summary>A unit's order to be planned: where it is, and where it's told to go.</summary>
+    private sealed record MoveRequest(
+        HexGrid Grid,
+        Guid CampaignId,
+        UnitType Type,
+        UnitState State,
+        OrderKind Kind,
+        IReadOnlyList<Hex> Path,
+        bool ByUmpire
+    );
+
+    /// <summary>
+    /// Where an order leaves the unit, or why it won't do. The Umpire's moves get where they're
+    /// going (decision 0011); a commander's go by the terrain and the campaign's table, and may
+    /// stop part of the way into a hex that takes more than a turn.
+    /// </summary>
+    private static async Task<MovePlan> PlanAsync(
+        WwgDbContext db,
+        MoveRequest move,
+        CancellationToken cancellationToken
+    )
+    {
+        var movement = new MoveCheck(
+            move.Grid,
+            await MovementTable.LoadAsync(db, move.CampaignId, cancellationToken),
+            await PathTerrain.LoadAsync(
+                db,
+                move.CampaignId,
+                [move.State.At, .. move.Path],
+                cancellationToken
+            ),
+            Movement.ClassOf(move.Type)
+        );
+        if (PathProblem(movement, move.State.At, move.Kind, move.Path) is { } problem)
+        {
+            return MovePlan.Refused(problem);
+        }
+
+        return move.ByUmpire || move.Kind == OrderKind.Hold
+            ? new MovePlan(move.Path.Count == 0 ? move.State.At : move.Path[^1], null, null)
+            : Movement.Plan(
+                movement.Table,
+                movement.Terrain,
+                movement.Class,
+                move.State.At,
+                move.Path,
+                move.State
+            );
+    }
+
     /// <summary>What a move is checked against: the grid, the campaign's table and the terrain.</summary>
     private sealed record MoveCheck(
         HexGrid Grid,
@@ -412,17 +471,15 @@ internal static class OrderEndpoints
     );
 
     /// <summary>
-    /// Why a Move's path won't do, or null if it will: it needs a step; each step is next to the
-    /// last (the first to the unit's hex) and inside the grid; and unless the Umpire gives it
-    /// (decision 0011: the Umpire may go past the table), no step is closed and the unit's class
-    /// can afford it this turn. A Hold has no path.
+    /// Why a Move's path won't do, or null if it will: it needs a step, and each step is next to
+    /// the last (the first to the unit's hex) and inside the grid. (What it costs is the move's
+    /// plan.) A Hold has no path.
     /// </summary>
     private static string? PathProblem(
         MoveCheck movement,
         Hex from,
         OrderKind kind,
-        IReadOnlyList<Hex> path,
-        bool byUmpire
+        IReadOnlyList<Hex> path
     )
     {
         if (kind == OrderKind.Hold)
@@ -451,15 +508,7 @@ internal static class OrderEndpoints
             at = step;
         }
 
-        if (byUmpire)
-        {
-            return null;
-        }
-
-        var cost = Movement.PathCost(movement.Table, movement.Terrain, movement.Class, from, path);
-        return cost.ClosedBecause is { } closed ? $"The unit can't go that way: {closed}."
-            : Movement.Affordable(cost.Cost) ? null
-            : "That's further than the unit can move in a turn.";
+        return null;
     }
 
     private static ValidationProblem Invalid(string field, string message) =>

@@ -6546,7 +6546,8 @@
           "latitude",
           "longitude",
           "path",
-          "byUmpire"
+          "byUmpire",
+          "progress"
         ],
         "type": "object",
         "properties": {
@@ -6603,6 +6604,14 @@
           "byUmpire": {
             "type": "boolean",
             "description": "Whether the Umpire set this order, on the commander's behalf."
+          },
+          "progress": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Part of the way (0–1) into the path's last hex, which takes more than a turn: the unit is still\nin Q, R. Null when it got where it was going.",
+            "format": "double"
           }
         },
         "description": "Where a unit is (or is ordered to be) after a turn."

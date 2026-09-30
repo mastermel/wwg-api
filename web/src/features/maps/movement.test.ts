@@ -9,6 +9,7 @@ import {
   ratesOf,
   reach,
   rulesTable,
+  shareOfTheWay,
   stepCost,
 } from "@/features/maps/movement";
 import { indexTerrain, noSettlement } from "@/features/maps/terrain";
@@ -165,6 +166,64 @@ describe("reach", () => {
     expect(
       reach(grid, centre, "SupplyTrain", { rates: rules, terrain, budget: Infinity }).size,
     ).toBe(grid.hexes().length);
+  });
+});
+
+describe("reach, into a hex that takes more than a turn", () => {
+  const hills = indexTerrain({
+    cells: [
+      {
+        q: 0,
+        r: -1,
+        terrain: "HighHill",
+        forest: false,
+        settlement: noSettlement,
+        setByUmpire: true,
+      },
+    ],
+    edges: [],
+  });
+
+  it("goes part of the way in with what's left of the turn", () => {
+    const found = reach(grid, centre, "LineInfantry", { rates: rules, terrain: hills });
+
+    // Straight in: half of it with the whole turn.
+    expect(found.get(hexKey({ q: 0, r: -1 }))).toMatchObject({ progress: 0.5, from: "0,0" });
+    // From two steps away, a flat hex first leaves half the turn: a quarter of the way in.
+    const further = reach(grid, { q: 1, r: 0 }, "LineInfantry", { rates: rules, terrain: hills });
+    expect(further.get(hexKey({ q: 0, r: -1 }))?.progress).toBe(0.25);
+    expect(pathTo(found, { q: 0, r: -1 })).toEqual([{ q: 0, r: -1 }]);
+  });
+
+  it("carries on from how far it got last turn", () => {
+    const found = reach(grid, centre, "LineInfantry", {
+      rates: rules,
+      terrain: hills,
+      carried: { hex: { q: 0, r: -1 }, progress: 0.5 },
+    });
+
+    // The rest of the way in costs the whole turn: it gets there.
+    expect(found.get(hexKey({ q: 0, r: -1 }))).toMatchObject({ cost: 1 });
+    expect(found.get(hexKey({ q: 0, r: -1 }))?.progress).toBeUndefined();
+  });
+
+  it("isn't for hexes a turn or less away, or for the Umpire", () => {
+    const flat = reach(grid, centre, "LineInfantry", { rates: rules, terrain: open });
+    expect([...flat.values()].some((entry) => entry.progress !== undefined)).toBe(false);
+    const umpire = reach(grid, centre, "LineInfantry", {
+      rates: rules,
+      terrain: hills,
+      budget: Infinity,
+    });
+    expect(umpire.get(hexKey({ q: 0, r: -1 }))?.progress).toBeUndefined();
+  });
+});
+
+describe("shareOfTheWay", () => {
+  it("reads the common shares in words", () => {
+    expect(shareOfTheWay(0.5)).toBe("half");
+    expect(shareOfTheWay(1 / 3)).toBe("a third");
+    expect(shareOfTheWay(0.4)).toBe("40%");
   });
 });
 

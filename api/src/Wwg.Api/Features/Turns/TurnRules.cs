@@ -146,6 +146,34 @@ internal static class TurnRules
             detail: $"The campaign has started: deleting this {what} would erase its history."
         );
 
+    /// <summary>
+    /// Where a unit is now, and how far into the next hex it got (step 44): its latest Completed
+    /// order's; null if it has none.
+    /// </summary>
+    public static async Task<UnitState?> CurrentStateAsync(
+        WwgDbContext db,
+        Guid unitId,
+        CancellationToken cancellationToken
+    )
+    {
+        var order = await db
+            .UnitOrders.AsNoTracking()
+            .Where(o => o.UnitId == unitId && o.ArmyTurn.Status == ArmyTurnStatus.Completed)
+            .OrderByDescending(o => o.ArmyTurn.CampaignTurn.Number)
+            .Select(o => new
+            {
+                o.Q,
+                o.R,
+                o.Path,
+                o.Progress,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        return order is null ? null
+            : order is { Progress: { } progress, Path: [.., var toward] }
+                ? new UnitState(new Hex(order.Q, order.R), toward, progress)
+            : new UnitState(new Hex(order.Q, order.R), null, 0);
+    }
+
     /// <summary>Where a unit is now: its latest Completed order's hex; null if it has none.</summary>
     public static async Task<Hex?> CurrentPositionAsync(
         WwgDbContext db,

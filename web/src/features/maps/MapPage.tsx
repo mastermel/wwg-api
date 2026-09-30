@@ -36,7 +36,7 @@ import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import type { Point } from "@/features/maps/geo";
 import { hexGrid, hexKey, type Hex } from "@/features/maps/hex-grid";
-import { classOf, pathTo, ratesOf, reach, stepCost } from "@/features/maps/movement";
+import { classOf, pathTo, ratesOf, reach, shareOfTheWay, stepCost } from "@/features/maps/movement";
 import { indexTerrain } from "@/features/maps/terrain";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
@@ -206,6 +206,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 hex: { q: position.q, r: position.r },
                 latitude: position.latitude,
                 longitude: position.longitude,
+                headingInto:
+                  position.progress !== null && position.path.length > 0
+                    ? { hex: position.path.at(-1) ?? position, progress: position.progress }
+                    : undefined,
               },
             ]
           : [];
@@ -239,7 +243,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   // table, and (for the Umpire, who can go past that after a warning, closed steps too; decision
   // 0011) anywhere in the grid.
   const withinTurn = useMemo(
-    () => (moving ? reach(grid, moving.hex, moving.unit.type, costs) : null),
+    () =>
+      moving
+        ? reach(grid, moving.hex, moving.unit.type, { ...costs, carried: moving.headingInto })
+        : null,
     [grid, moving, costs],
   );
   const reachable = useMemo(
@@ -250,6 +257,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     [grid, moving, manager, withinTurn, costs],
   );
   const targetPath = target && reachable ? pathTo(reachable, target) : null;
+  // Part of the way into it, when it takes more than a turn (the commander's moves only).
+  const targetProgress = target && !manager ? withinTurn?.get(hexKey(target))?.progress : undefined;
   // Why the Umpire's move breaks the rules, if it crosses a closed step: the first one's reason.
   const closedStep =
     moving && targetPath
@@ -413,7 +422,19 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 <Text size="sm">
                   {target && targetPath ? (
                     <>
-                      Move <strong>{moving.unit.name}</strong> {hexes(targetPath.length)} to here?
+                      {targetProgress === undefined ? (
+                        <>
+                          Move <strong>{moving.unit.name}</strong> {hexes(targetPath.length)} to
+                          here?
+                        </>
+                      ) : (
+                        <>
+                          Move <strong>{moving.unit.name}</strong>{" "}
+                          {targetPath.length > 1 ? `${hexes(targetPath.length - 1)}, and ` : ""}
+                          {shareOfTheWay(targetProgress)} of the way into here? It takes more than a
+                          turn: it gets there next turn, going on.
+                        </>
+                      )}
                       {pastTurn &&
                         (closedStep
                           ? ` It can't go that way (${closedStep}), but you may take it there.`

@@ -1,5 +1,6 @@
 import type { UnitPosition } from "@/api/generated/model";
 import type { Point } from "@/features/maps/geo";
+import { shareOfTheWay } from "@/features/maps/movement";
 
 /** A count of hexes, for reading: "1 hex", "2 hexes". */
 export const hexes = (count: number) => `${String(count)} ${count === 1 ? "hex" : "hexes"}`;
@@ -13,5 +14,12 @@ export function describeOrder(order: UnitPosition | undefined, from: Point | und
   if (!from) return "Not on the map yet";
   if (!order) return "No order yet";
   if (order.kind === "Hold") return "Holds";
+  if (order.progress !== null) {
+    // The last hex takes more than a turn: it gets part of the way in (step 44).
+    const into = `${shareOfTheWay(order.progress)} of the way into the next`;
+    return order.path.length > 1
+      ? `Moves ${hexes(order.path.length - 1)}, and ${into}`
+      : `Goes ${into}`;
+  }
   return order.path.length > 0 ? `Moves ${hexes(order.path.length)}` : "Moves";
 }

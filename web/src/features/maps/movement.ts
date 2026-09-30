@@ -149,30 +149,50 @@ const tolerance = 1e-9;
 /** For the Umpire, who may cross a closed step (decision 0011): dear, so it's the last resort. */
 const closedForUmpire = 100;
 
-/** Where a unit could go: each hex's cheapest cost from the start, and the hex it's reached from. */
-export type Reach = ReadonlyMap<string, { hex: Hex; cost: number; from: string | null }>;
+/**
+ * Where a unit could go: each hex's cheapest cost from the start, and the hex it's reached from;
+ * `progress` for a hex it only gets part of the way into this turn (0–1).
+ */
+export type Reach = ReadonlyMap<
+  string,
+  { hex: Hex; cost: number; from: string | null; progress?: number }
+>;
+
+/** How far into a hex a unit got last turn (step 44), which a move on into it carries on. */
+export interface HeadingInto {
+  hex: Hex;
+  progress: number;
+}
 
 export interface ReachOptions {
   rates: Rates;
   terrain: TerrainIndex;
   /** Turns' worth of movement (Infinity: anywhere, for the Umpire, closed steps and all). */
   budget?: number;
+  /** Where the unit's last move left it part of the way into. */
+  carried?: HeadingInto;
 }
 
 /**
  * Every hex in the grid a unit of `type` can reach from `start` within the budget, by the
- * cheapest way (Dijkstra), as the API costs it.
+ * cheapest way (Dijkstra), as the API's Movement.Plan: a step on into the hex it's part of the
+ * way into costs only the rest; and a hex that takes more than a turn, next to one it reaches
+ * with some of the turn left, it gets part of the way into (`progress`).
  */
 export function reach(
   grid: HexGrid,
   start: Hex,
   type: UnitType,
-  { rates, terrain, budget = 1 }: ReachOptions,
+  { rates, terrain, budget = 1, carried }: ReachOptions,
 ): Reach {
   const movementClass = classOf(type);
-  const found = new Map<string, { hex: Hex; cost: number; from: string | null }>([
-    [hexKey(start), { hex: start, cost: 0, from: null }],
-  ]);
+  const already = (from: Hex, to: Hex) =>
+    carried && hexKey(from) === hexKey(start) && hexKey(to) === hexKey(carried.hex)
+      ? carried.progress
+      : 0;
+  const found = new Map<string, { hex: Hex; cost: number; from: string | null; progress?: number }>(
+    [[hexKey(start), { hex: start, cost: 0, from: null }]],
+  );
   const queue: { hex: Hex; cost: number }[] = [{ hex: start, cost: 0 }];
   while (queue.length > 0) {
     queue.sort((a, b) => a.cost - b.cost);
@@ -182,7 +202,10 @@ export function reach(
       if (!grid.contains(next)) continue;
       const step = stepCost(rates, terrain, movementClass, hex, next);
       const nextCost =
-        cost + (step.closedBecause !== null && budget === Infinity ? closedForUmpire : step.cost);
+        cost +
+        (step.closedBecause !== null && budget === Infinity
+          ? closedForUmpire
+          : step.cost * (1 - already(hex, next)));
       const key = hexKey(next);
       if (nextCost > budget + tolerance) continue;
       if (nextCost < (found.get(key)?.cost ?? Infinity) - tolerance) {
@@ -191,7 +214,40 @@ export function reach(
       }
     }
   }
+  if (budget === Infinity) return found;
+
+  // Part of the way into a hex that takes more than a turn, with what's left of this one.
+  for (const { hex, cost, progress } of [...found.values()]) {
+    const left = budget - cost;
+    if (progress !== undefined || left <= tolerance) continue;
+    for (const next of neighbours(hex)) {
+      const key = hexKey(next);
+      if (!grid.contains(next) || found.has(key)) continue;
+      const step = stepCost(rates, terrain, movementClass, hex, next);
+      if (step.closedBecause !== null || step.cost <= 1) continue;
+      const reached = already(hex, next) + left / step.cost;
+      const current = found.get(key);
+      if (!current || (current.progress ?? 0) < reached) {
+        found.set(key, { hex: next, cost: budget, from: hexKey(hex), progress: reached });
+      }
+    }
+  }
   return found;
+}
+
+/** A share of the way, for reading: "half", "a quarter", "two thirds", "40%". */
+export function shareOfTheWay(progress: number) {
+  const words: [number, string][] = [
+    [1 / 4, "a quarter"],
+    [1 / 3, "a third"],
+    [1 / 2, "half"],
+    [2 / 3, "two thirds"],
+    [3 / 4, "three quarters"],
+  ];
+  return (
+    words.find(([share]) => Math.abs(share - progress) < 0.01)?.[1] ??
+    `${String(Math.round(progress * 100))}%`
+  );
 }
 
 /** The cheapest path to `target` in a reach, as the order sends it (the start left out); null if out of reach. */

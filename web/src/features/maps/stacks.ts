@@ -1,6 +1,7 @@
 import type { ArmySummary, ArmyUnitResponse } from "@/api/generated/model";
 import type { Hex } from "@/features/maps/hex-grid";
 import { unitTypeLabels } from "@/features/units/unit-types";
+import type { HeadingInto } from "@/features/maps/movement";
 
 /** A unit where it is on the map, with its army (for its colour): its hex, and that hex's centre. */
 export interface PlacedUnit {
@@ -9,6 +10,8 @@ export interface PlacedUnit {
   hex: Hex;
   latitude: number;
   longitude: number;
+  /** Part of the way into the next hex, from its last move (step 44). */
+  headingInto?: HeadingInto;
 }
 
 /** Units drawn as one marker: those that would overlap at the current zoom. */

@@ -121,19 +121,22 @@ public sealed class MovementTests : ApiTest
 
         using var response = await MoveAsync(scenario, unitId, Role.Commander, North);
 
-        if (step.Cost is <= Movement.Budget)
+        if (step.Cost is { } cost)
         {
+            // A hex that takes more than a turn is entered part of the way: the unit stays put.
+            var order = await response.Content.ReadAsAsync<UnitPosition>();
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(
+                cost <= Movement.Budget ? (North, null) : (TurnSteps.Start, 1 / cost),
+                (new Hex(order!.Q, order.R), order.Progress)
+            );
         }
         else
         {
             var problem = await response.AssertValidationProblemAsync("path");
-            var message = Assert.Single(problem.Errors["path"]);
             Assert.Equal(
-                step.ClosedBecause is { } closed
-                    ? $"The unit can't go that way: {closed}."
-                    : "That's further than the unit can move in a turn.",
-                message
+                $"The unit can't go that way: {step.ClosedBecause}.",
+                Assert.Single(problem.Errors["path"])
             );
         }
     }
@@ -157,6 +160,110 @@ public sealed class MovementTests : ApiTest
 
         Assert.Equal(HttpStatusCode.OK, three.StatusCode);
         await four.AssertValidationProblemAsync("path");
+    }
+
+    /// <summary>Submits and approves the army's open turn as it is, and starts the next.</summary>
+    private static async Task NextTurnAsync(CampaignScenario scenario)
+    {
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var submitted = await TurnSteps.ActAsync(scenario, turn.Id, "submit", Role.Commander);
+        submitted.EnsureSuccessStatusCode();
+        using var approved = await TurnSteps.ActAsync(scenario, turn.Id, "approve", Role.Umpire);
+        approved.EnsureSuccessStatusCode();
+        using var next = await TurnSteps.StartNextTurnAsync(scenario);
+        next.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<UnitPosition> OrderedAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadAsAsync<UnitPosition>())!;
+    }
+
+    [Fact]
+    public async Task GiveOrder_IntoHighHills_TakesTwoTurns()
+    {
+        var (scenario, unitId) = await StartedWithAsync(UnitType.LineInfantry);
+        using var _ = scenario;
+        await SetCellAsync(scenario, North, Terrain.HighHill, false);
+
+        using var first = await MoveAsync(scenario, unitId, Role.Commander, North);
+        var halfway = await OrderedAsync(first);
+        await NextTurnAsync(scenario);
+        using var second = await MoveAsync(scenario, unitId, Role.Commander, North);
+        var through = await OrderedAsync(second);
+
+        Assert.Equal((0, 0, 0.5), (halfway.Q, halfway.R, halfway.Progress));
+        Assert.Equal([North], halfway.Path);
+        Assert.Equal((0, -1, (double?)null), (through.Q, through.R, through.Progress));
+    }
+
+    [Fact]
+    public async Task GiveOrder_ThenIntoHighHills_TakesWhatsLeftOfTheTurn()
+    {
+        var (scenario, unitId) = await StartedWithAsync(UnitType.LineInfantry);
+        using var _ = scenario;
+        var hills = new Hex(0, -2);
+        await SetCellAsync(scenario, hills, Terrain.HighHill, false);
+
+        using var response = await MoveAsync(scenario, unitId, Role.Commander, North, hills);
+
+        var order = await OrderedAsync(response);
+        // Half a turn to the flat hex, and the other half a quarter of the way into the hills.
+        Assert.Equal((0, -1, 0.25), (order.Q, order.R, order.Progress));
+    }
+
+    [Fact]
+    public async Task GiveOrder_PastAHexThatTakesMoreThanATurn_IsTooFar()
+    {
+        var (scenario, unitId) = await StartedWithAsync(UnitType.LineInfantry);
+        using var _ = scenario;
+        await SetCellAsync(scenario, North, Terrain.HighHill, false);
+
+        using var response = await MoveAsync(
+            scenario,
+            unitId,
+            Role.Commander,
+            North,
+            new Hex(0, -2)
+        );
+
+        await response.AssertValidationProblemAsync("path");
+    }
+
+    [Fact]
+    public async Task GiveOrder_AfterAHold_StartsTheHillsAgain()
+    {
+        var (scenario, unitId) = await StartedWithAsync(UnitType.LineInfantry);
+        using var _ = scenario;
+        await SetCellAsync(scenario, North, Terrain.HighHill, false);
+        using var first = await MoveAsync(scenario, unitId, Role.Commander, North);
+        await NextTurnAsync(scenario);
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var held = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Hold, unitId);
+        await NextTurnAsync(scenario);
+
+        using var again = await MoveAsync(scenario, unitId, Role.Commander, North);
+
+        Assert.Equal(0.5, (await OrderedAsync(again)).Progress);
+    }
+
+    [Fact]
+    public async Task ListPositions_PartOfTheWayIn_SaysHowFar()
+    {
+        var (scenario, unitId) = await StartedWithAsync(UnitType.LineInfantry);
+        using var _ = scenario;
+        await SetCellAsync(scenario, North, Terrain.HighHill, false);
+        using var first = await MoveAsync(scenario, unitId, Role.Commander, North);
+        await NextTurnAsync(scenario);
+
+        var positions = await scenario
+            .As(Role.Commander)
+            .GetAsAsync<List<UnitPosition>>($"/api/campaigns/{scenario.CampaignId}/positions");
+
+        var position = Assert.Single(positions!);
+        Assert.Equal((0, 0, 0.5), (position.Q, position.R, position.Progress));
+        Assert.Equal([North], position.Path);
     }
 
     [Fact]

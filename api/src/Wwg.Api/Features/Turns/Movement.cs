@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
@@ -91,34 +92,51 @@ internal static class Movement
             : StepCost.Closed($"{ClassLabel(movementClass)} can't cross {GroundLabel(land)}");
     }
 
-    /// <summary>What a path from <paramref name="start"/> costs, or its first closed step's reason.</summary>
-    public static StepCost PathCost(
+    /// <summary>Whether a cost is within a turn's budget.</summary>
+    public static bool Affordable(double cost) => cost <= Budget + Tolerance;
+
+    /// <summary>
+    /// Where a turn's move leaves a unit (step 44): each step paid from the turn's budget in turn.
+    /// A last step into a hex that costs more than a whole turn takes what's left, and the unit
+    /// stays short of it, part of the way in; next turn, a move on into the same hex starts from
+    /// there (<paramref name="carried"/>). Any other step past the budget is too far.
+    /// </summary>
+    public static MovePlan Plan(
         MovementTable table,
         PathTerrain terrain,
         MovementClass movementClass,
         Hex start,
-        IReadOnlyList<Hex> path
+        IReadOnlyList<Hex> path,
+        UnitState? carried
     )
     {
-        var cost = 0.0;
+        var budget = Budget;
         var at = start;
-        foreach (var step in path)
+        for (var i = 0; i < path.Count; i++)
         {
-            var next = Step(table, terrain, movementClass, at, step);
-            if (next.ClosedBecause is not null)
+            var step = Step(table, terrain, movementClass, at, path[i]);
+            if (step.ClosedBecause is { } closed)
             {
-                return next;
+                return MovePlan.Refused($"The unit can't go that way: {closed}.");
             }
 
-            cost += next.Cost;
-            at = step;
+            // On into the hex it's part of the way into: only the rest to go.
+            var already = i == 0 && carried?.Toward == path[i] ? carried.Value.Progress : 0;
+            var cost = step.Cost * (1 - already);
+            if (cost <= budget + Tolerance)
+            {
+                budget -= cost;
+                at = path[i];
+                continue;
+            }
+
+            return i == path.Count - 1 && step.Cost > Budget && budget > Tolerance
+                ? new MovePlan(at, already + (budget / step.Cost), null)
+                : MovePlan.Refused("That's further than the unit can move in a turn.");
         }
 
-        return new StepCost(cost, null);
+        return new MovePlan(at, null, null);
     }
-
-    /// <summary>Whether a cost is within a turn's budget.</summary>
-    public static bool Affordable(double cost) => cost <= Budget + Tolerance;
 
     private static string ClassLabel(MovementClass movementClass) =>
         movementClass switch
@@ -140,7 +158,22 @@ internal static class Movement
         };
 }
 
+/// <summary>
+/// Where a move leaves a unit: in <paramref name="At"/>, and <paramref name="Progress"/> of the way
+/// into the path's last hex when it didn't get there; or why it's refused.
+/// </summary>
+[StructLayout(LayoutKind.Auto)]
+internal readonly record struct MovePlan(Hex At, double? Progress, string? Problem)
+{
+    public static MovePlan Refused(string problem) => new(default, null, problem);
+}
+
+/// <summary>Where a unit is after its last turn, and how far into the hex it was heading for.</summary>
+[StructLayout(LayoutKind.Auto)]
+internal readonly record struct UnitState(Hex At, Hex? Toward, double Progress);
+
 /// <summary>A step's (or path's) cost in turns, or why it's closed (then the cost is infinite).</summary>
+[StructLayout(LayoutKind.Auto)]
 internal readonly record struct StepCost(double Cost, string? ClosedBecause)
 {
     public static StepCost Closed(string because) => new(double.PositiveInfinity, because);

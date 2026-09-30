@@ -235,3 +235,36 @@ test("the Umpire moves a unit past its limit, holds another, and submits for the
   const bobsPanel = commander.page.getByRole("region", { name: "Turn 1" });
   await expect(bobsPanel.getByText(/set by the Umpire$/)).toHaveCount(2);
 });
+
+test("a commander moves into high hills, which take two turns", async ({ signUp }) => {
+  test.slow();
+  const umpire = await signUp("Ada");
+  const commander = await signUp("Bob");
+  const { campaignUrl, campaignId } = await startedCampaign(umpire, commander, "Grouchy 1815");
+  // The hex north of the Guard is high hills: half of it a turn, for infantry.
+  await (
+    await apiAs(umpire.page)
+  ).put(`/api/campaigns/${campaignId}/grid/cells/0/-1`, {
+    terrain: "HighHill",
+    forest: false,
+    settlement: { size: "None", walled: false, fortress: false, capital: "None" },
+  });
+
+  const page = commander.page;
+  await page.goto(`${campaignUrl}/map`);
+  const panel = page.getByRole("region", { name: "Turn 1" });
+  await page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" }).click();
+  await page
+    .getByRole("dialog", { name: "Imperial Guard" })
+    .getByRole("button", { name: "Move" })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await clickMapPart(page, 0, -0.22);
+  await expect(
+    page.getByText(/half of the way into here\? It takes more than a turn/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Confirm" }).click();
+
+  await expect(page.getByText("Imperial Guard will move.")).toBeVisible();
+  await expect(panel.getByText("Goes half of the way into the next")).toBeVisible();
+});

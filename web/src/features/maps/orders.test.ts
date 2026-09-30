@@ -15,6 +15,7 @@ const order = (kind: UnitPosition["kind"], path: UnitPosition["path"] = []): Uni
   longitude: 4.4,
   path,
   byUmpire: false,
+  progress: null,
 });
 
 describe("describeOrder", () => {
@@ -29,6 +30,19 @@ describe("describeOrder", () => {
         from,
       ),
     ).toBe("Moves 2 hexes");
+  });
+
+  it("says how far into a hex that takes more than a turn a Move gets", () => {
+    const twoSteps = order("Move", [
+      { q: 0, r: -1 },
+      { q: 0, r: -2 },
+    ]);
+    expect(describeOrder({ ...twoSteps, progress: 0.25 }, from)).toBe(
+      "Moves 1 hex, and a quarter of the way into the next",
+    );
+    expect(describeOrder({ ...order("Move", [{ q: 0, r: -1 }]), progress: 0.5 }, from)).toBe(
+      "Goes half of the way into the next",
+    );
   });
 
   it("says a move from before the grid just moves", () => {
