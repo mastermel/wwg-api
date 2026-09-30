@@ -13,6 +13,7 @@ import {
   IconChevronDown,
   IconInfoCircle,
   IconLogout,
+  IconMasksTheater,
   IconMap,
   IconSwords,
   IconUser,
@@ -25,7 +26,9 @@ import classes from "@/components/AppLayout.module.css";
 import { BrandMark } from "@/components/BrandMark";
 import { InstallHint } from "@/components/InstallHint";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { useMasqueradeSession } from "@/features/admin/use-masquerade-session";
 import { useSession, useSessionStore } from "@/features/auth/session-context";
+import { formatDateTime } from "@/lib/format";
 
 interface NavItem {
   to: "/campaigns" | "/admin/campaigns" | "/admin/users" | "/about";
@@ -52,6 +55,7 @@ export function AppLayout() {
   const matchRoute = useMatchRoute();
   const session = useSessionStore();
   const { user } = useSession();
+  const masquerade = useMasqueradeSession();
   const navItems = user?.isAdmin ? adminNavItems : memberNavItems;
   const isActive = (to: NavItem["to"]) => Boolean(matchRoute({ to, fuzzy: true }));
 
@@ -83,15 +87,32 @@ export function AppLayout() {
                 <Button
                   variant="subtle"
                   className={classes.userButton}
+                  data-masquerade={user.masquerade ? true : undefined}
+                  leftSection={user.masquerade && <IconMasksTheater size={16} aria-hidden />}
                   rightSection={<IconChevronDown size={16} aria-hidden />}
                 >
-                  {user.firstName}
+                  {user.masquerade ? `${user.firstName} (masquerade)` : user.firstName}
                 </Button>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>
                   {user.firstName} {user.lastName}
                 </Menu.Label>
+                {user.masquerade && (
+                  <>
+                    <Text size="xs" c="dimmed" px="sm" pb={6} maw={260}>
+                      {user.masquerade.adminName} is masquerading as {user.firstName}, until{" "}
+                      {formatDateTime(user.masquerade.endsAt)}.
+                    </Text>
+                    <Menu.Item
+                      leftSection={<IconMasksTheater size={16} aria-hidden />}
+                      onClick={() => void masquerade.end()}
+                    >
+                      End masquerade
+                    </Menu.Item>
+                    <Menu.Divider />
+                  </>
+                )}
                 <Menu.Item
                   leftSection={<IconUser size={16} aria-hidden />}
                   renderRoot={(props) => <Link to="/account" {...props} />}

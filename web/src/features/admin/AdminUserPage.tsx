@@ -1,7 +1,7 @@
 import { Alert, Anchor, Badge, Button, Group, List, SimpleGrid, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconSwords, IconTrash } from "@tabler/icons-react";
+import { IconMasksTheater, IconSwords, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Page } from "@/components/Page";
 import { Section } from "@/components/Section";
 import { QueryState } from "@/components/QueryState";
+import { useMasqueradeSession } from "@/features/admin/use-masquerade-session";
 import { useSession } from "@/features/auth/session-context";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useOnline } from "@/lib/use-online";
@@ -66,6 +67,8 @@ function UserDetailsView({ user }: { user: UserDetails }) {
   const queryClient = useQueryClient();
   const remove = useDeleteUser();
   const [confirming, { open, close }] = useDisclosure(false);
+  const [masquerading, masqueradeModal] = useDisclosure(false);
+  const masquerade = useMasqueradeSession();
   const isMe = me?.id === user.id;
 
   const confirmDelete = async () => {
@@ -111,6 +114,26 @@ function UserDetailsView({ user }: { user: UserDetails }) {
       </Section>
       <UserCampaigns user={user} />
       <Section
+        title="Masquerade"
+        description="Use the app as this person, with exactly their permissions, to see what they see."
+      >
+        <Group>
+          <Button
+            variant="light"
+            leftSection={<IconMasksTheater size={16} aria-hidden />}
+            onClick={masqueradeModal.open}
+            disabled={isMe || !online}
+          >
+            Masquerade as {user.firstName}
+          </Button>
+          {isMe && (
+            <Text size="sm" c="dimmed">
+              You can&apos;t masquerade as yourself.
+            </Text>
+          )}
+        </Group>
+      </Section>
+      <Section
         title="Danger zone"
         tone="danger"
         description="Deletes the account and signs them out everywhere. Their campaigns stay."
@@ -132,6 +155,19 @@ function UserDetailsView({ user }: { user: UserDetails }) {
           )}
         </Group>
       </Section>
+      <ConfirmModal
+        opened={masquerading}
+        onClose={masqueradeModal.close}
+        title={`Masquerade as ${user.firstName}?`}
+        confirmLabel="Masquerade"
+        color="navy"
+        onConfirm={() => void masquerade.start(user).then(masqueradeModal.close)}
+        loading={masquerade.busy}
+      >
+        You&apos;ll use the app as {user.firstName} {user.lastName}, able to do what they can and no
+        more, until you end the masquerade from your account menu (or after 8 hours). What&apos;s
+        saved on this device is cleared, now and when it ends.
+      </ConfirmModal>
       <ConfirmModal
         opened={confirming}
         onClose={close}

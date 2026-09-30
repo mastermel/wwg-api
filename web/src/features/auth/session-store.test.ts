@@ -224,4 +224,44 @@ describe("session store", () => {
     expect(store.getState().status).toBe("signed-out");
     expect(getAccessToken()).toBeNull();
   });
+
+  it("switches to another user (a masquerade), forgetting everything saved first", async () => {
+    mockSession("signed-in");
+    const { store, queryClient, clearSavedData } = newStore();
+    await store.start();
+    queryClient.setQueryData(["/api/campaigns"], ["the Admin's campaigns"]);
+    clearSavedData.mockClear();
+    const bob = {
+      ...testUser,
+      id: "0192f5c1-0000-7000-8000-0000000000b0",
+      firstName: "Bob",
+      masquerade: { adminName: "Mel Green", endsAt: "2026-09-30T20:00:00Z" },
+    };
+    server.use(
+      http.get("*/api/me", ({ request }) =>
+        request.headers.get("Authorization") === `Bearer token-for-${bob.id}`
+          ? HttpResponse.json(bob)
+          : new HttpResponse(null, { status: 401 }),
+      ),
+    );
+
+    await store.switchUser({ accessToken: `token-for-${bob.id}`, expiresIn: 1800 });
+
+    expect(store.getState()).toEqual({ status: "signed-in", user: bob, ended: false });
+    expect(queryClient.getQueryData(["/api/campaigns"])).toBeUndefined();
+    expect(clearSavedData).toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem("wwg:last-user") ?? "null")).toEqual(bob);
+  });
+
+  it("reads a last user saved before masquerades existed", async () => {
+    mockSession("offline");
+    const before: Partial<typeof testUser> = { ...testUser };
+    delete before.masquerade;
+    localStorage.setItem("wwg:last-user", JSON.stringify(before));
+    const { store } = newStore();
+
+    await store.start();
+
+    expect(store.getState()).toEqual({ status: "offline", user: testUser, ended: false });
+  });
 });

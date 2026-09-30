@@ -2094,10 +2094,17 @@ Decision [0011](docs/decisions/0011-umpire-edits-orders.md).
 
 Decision [0012](docs/decisions/0012-admin-masquerade.md).
 
-37. **Masquerade (API):** `POST /api/admin/users/{id}/masquerade` and
+37. ✅ **Masquerade (API):** `POST /api/admin/users/{id}/masquerade` and
     `POST /api/auth/masquerade/end`; the masquerade claims, capped token lifetimes and the
     checks on refresh; `masquerade` on `GET /api/me`; log lines for start and end.
-38. **Masquerade (UI):** **Masquerade as** on an Admin's user page (with confirmation); the
+38. ✅ **Masquerade (UI):** **Masquerade as** on an Admin's user page (with confirmation); the
     session switches, clearing the cache (and other tabs'); the account button in another colour
     naming who you are, with **End masquerade**. End-to-end: an Admin masquerades as a Player,
     sees only what they see, and ends it.
+    - The session store's `switchUser` clears the cache and the saved copy, then signs in with
+      the new tokens, and tells other tabs ("switched"), which clear theirs and start again.
+    - While masquerading the account button is gold (`--app-masquerade`, contrast in
+      theme.ts), reads "Bob (masquerade)", and its menu says who and until when, above **End
+      masquerade**. Starting lands on the user's campaigns; ending on the Admin's user list.
+    - A saved last user from before masquerades is read as not one (`masquerade: null`), so an
+      offline start still works after the upgrade.

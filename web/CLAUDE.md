@@ -28,7 +28,7 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   user finds things), not CSS selectors or test IDs.
 - Prettier owns formatting (line width 100). Don't hand-format.
 - Session: `useSession()` for the state (status, user), `useSessionStore()` for `signIn` /
-  `signOut`. Pages inside the app frame live under `routes/_app/` (guarded); sign-in and register
+  `signOut`, and `switchUser` for a masquerade (decision 0012; `useMasqueradeSession`). Pages inside the app frame live under `routes/_app/` (guarded); sign-in and register
   under `routes/_public/`. Never store tokens yourself: the access token is in memory in
   `lib/access-token`, the refresh token is an HttpOnly cookie.
 - Forms: React Hook Form + `zodResolver` with the generated schema (`@/api/generated/zod/...`);
@@ -53,6 +53,7 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
 - Every successful change confirms itself with a green notification ("Saved …", "Deleted …").
 - Mantine's `Select` is a `combobox` to Testing Library, and its options need `hidden: true`
   (the dropdown's transition leaves it `display: none` in jsdom).
+  A `Menu`'s items can too, just after something else re-rendered the page.
 - Show dates with `formatDate` / `formatDateTime` (`lib/format`): the API sends UTC.
 - Don't set a `gcTime` above 2^31 - 1 ms (about 24.8 days): timers overflow and fire at once,
   dropping the data before it can be saved or restored.

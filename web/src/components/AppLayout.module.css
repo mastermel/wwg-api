@@ -20,6 +20,17 @@
   }
 }
 
+/* While an Admin masquerades as someone (decision 0012): colours in theme.ts. */
+.userButton[data-masquerade] {
+  color: var(--app-masquerade-text);
+  background-color: var(--app-masquerade);
+
+  &:hover {
+    background-color: var(--app-masquerade);
+    filter: brightness(1.08);
+  }
+}
+
 .navbar {
   background-color: var(--mantine-color-body);
   border-right: 1px solid var(--mantine-color-default-border);

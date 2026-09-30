@@ -33,6 +33,11 @@ export interface SessionStore {
   ready: Promise<void>;
   start: () => Promise<void>;
   signIn: (token: TokenResponse) => Promise<void>;
+  /**
+   * Starting or ending a masquerade (decision 0012): the session becomes another user's. Everything
+   * saved (here and in other tabs) is cleared first, so nothing crosses between the two.
+   */
+  switchUser: (token: TokenResponse) => Promise<void>;
   signOut: () => Promise<void>;
   /** After the user's profile changes (e.g. their name). */
   setUser: (user: MeResponse) => void;
@@ -165,6 +170,13 @@ export function createSessionStore({
     channel?.postMessage("signed-in");
   }
 
+  async function switchUser(token: TokenResponse) {
+    await forgetData();
+    storage.remove(lastUserKey);
+    await signIn(token);
+    channel?.postMessage("switched");
+  }
+
   async function signOut() {
     await tryLogout();
     await forgetSession(false);
@@ -191,6 +203,9 @@ export function createSessionStore({
   channel?.addEventListener("message", (event: MessageEvent<unknown>) => {
     if (event.data === "signed-out") {
       void forgetSession(false);
+    } else if (event.data === "switched") {
+      // Another tab started or ended a masquerade: this one's data is someone else's now.
+      void forgetData().then(start);
     } else if (event.data === "signed-in" && state.status !== "signed-in") {
       // Another tab signed in: get this tab its own access token from the shared cookie.
       void start();
@@ -208,6 +223,7 @@ export function createSessionStore({
     ready,
     start,
     signIn,
+    switchUser,
     signOut,
     setUser(user) {
       storage.write(lastUserKey, user);
@@ -224,7 +240,11 @@ export function createSessionStore({
 
 /** The last user record, if there is one and it still has the right shape. */
 function readLastUser(): MeResponse | null {
-  const parsed = GetMeResponse.safeParse(storage.read(lastUserKey));
+  const stored = storage.read(lastUserKey);
+  // Saved before masquerades existed: not one.
+  const parsed = GetMeResponse.safeParse(
+    typeof stored === "object" && stored !== null ? { masquerade: null, ...stored } : stored,
+  );
   return parsed.success ? parsed.data : null;
 }
 

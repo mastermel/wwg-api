@@ -114,6 +114,78 @@ describe("admin users", () => {
     expect(deleted).toBe(mel.id);
   });
 
+  it("masquerades as a user after confirming, marks it, and ends it", async () => {
+    const mel = { ...summary(7), firstName: "Mel", lastName: "Green", email: "mel@example.com" };
+    mockUserList([mel]);
+    const calls: string[] = [];
+    server.use(
+      http.get("*/api/admin/users/:id", () =>
+        HttpResponse.json({ ...mel, lockedOutUntil: null, campaigns: [] }),
+      ),
+      http.post("*/api/admin/users/:id/masquerade", ({ params }) => {
+        calls.push(`start ${String(params.id)}`);
+        return HttpResponse.json({ accessToken: "token-for-mel", expiresIn: 1800 });
+      }),
+      http.post("*/api/auth/masquerade/end", () => {
+        calls.push("end");
+        return HttpResponse.json({ accessToken: `token-for-${testAdmin.id}`, expiresIn: 1800 });
+      }),
+    );
+    await renderApp(`/admin/users/${mel.id}`, { user: testAdmin });
+    // After renderApp, whose session handlers would otherwise answer first.
+    server.use(
+      // Mel's session, as the masquerade; anything else falls through to the Admin's.
+      http.get("*/api/me", ({ request }) =>
+        request.headers.get("Authorization") === "Bearer token-for-mel"
+          ? HttpResponse.json({
+              id: mel.id,
+              email: mel.email,
+              firstName: "Mel",
+              lastName: "Green",
+              isAdmin: false,
+              masquerade: { adminName: "Ada Admin", endsAt: "2026-09-30T20:00:00Z" },
+            })
+          : undefined,
+      ),
+    );
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Masquerade as Mel" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Masquerade" }),
+    );
+
+    expect(await screen.findByText("You're masquerading as Mel Green.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Campaigns" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Mel (masquerade)" }));
+    expect(await screen.findByText(/Ada Admin is masquerading as Mel, until/)).toBeInTheDocument();
+    await expectNoAxeViolations(document.body);
+    // The dropdown's transition can leave it display: none in jsdom, as with Select.
+    await user.click(await screen.findByRole("menuitem", { name: "End masquerade", hidden: true }));
+
+    expect(await screen.findByText("Masquerade ended: you're yourself again.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Users" })).toBeInTheDocument();
+    expect(calls).toEqual([`start ${mel.id}`, "end"]);
+  });
+
+  it("doesn't offer a masquerade as yourself", async () => {
+    server.use(
+      http.get("*/api/admin/users/:id", () =>
+        HttpResponse.json({
+          ...testAdmin,
+          createdAt: "2026-09-01T12:00:00Z",
+          lockedOutUntil: null,
+          campaigns: [],
+        }),
+      ),
+    );
+
+    await renderApp(`/admin/users/${testAdmin.id}`, { user: testAdmin });
+
+    expect(await screen.findByRole("button", { name: "Masquerade as Ada" })).toBeDisabled();
+  });
+
   it("doesn't let admins delete themselves", async () => {
     server.use(
       http.get("*/api/admin/users/:id", () =>

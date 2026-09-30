@@ -94,6 +94,15 @@ export const theme = createTheme({
  * in light mode are silver 9 on gray 1, 4.9:1 (app.css; Mantine's are 3.2:1). The army colours
  * (`--army-red`…) are checked in `army-colors.ts`.
  */
+/**
+ * The account button while an Admin masquerades as someone (decision 0012): gold, to stand out on
+ * the navy header (6.1:1 against it in light mode, more in dark), with near-black text (10.9:1).
+ */
+const masqueradeColors = {
+  "--app-masquerade": "#f2c14e",
+  "--app-masquerade-text": "#1b1400",
+};
+
 export const cssVariablesResolver: CSSVariablesResolver = (t) => ({
   variables: {},
   light: {
@@ -101,6 +110,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (t) => ({
     "--app-header": t.colors.navy[9],
     "--app-header-text": t.white,
     "--app-header-dimmed": "#c7d3ea",
+    ...masqueradeColors,
     "--app-input-border": t.colors.silver[7],
     "--mantine-color-dimmed": t.colors.silver[9],
     "--mantine-color-yellow-light-color": "#7a5200",
@@ -112,6 +122,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (t) => ({
     "--app-header": "#172c52",
     "--app-header-text": t.white,
     "--app-header-dimmed": t.colors.navy[2],
+    ...masqueradeColors,
     "--app-input-border": t.colors.dark[2],
     "--mantine-color-dimmed": t.colors.dark[1],
     "--mantine-color-anchor": t.colors.navy[3],
