@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { admin } from "./support/accounts.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
 import { scan } from "./support/axe.ts";
-import { browserOf, closeFactionList, libraryFaction } from "./support/library.ts";
+import { browserOf, chooseFromList, closeFactionList, libraryFaction } from "./support/library.ts";
 import { expect, test } from "./support/fixtures.ts";
 
 async function visit(page: Page, url: string, heading: string) {
@@ -44,8 +44,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await dialog.getByRole("textbox", { name: "Name" }).fill("First Corps");
       await dialog.getByRole("combobox", { name: "Commander" }).click();
       await dialog.getByRole("option", { name: player.name }).click();
-      await dialog.getByRole("combobox", { name: "Factions" }).fill(faction.name);
-      await dialog.getByRole("option", { name: faction.name }).click();
+      await chooseFromList(dialog.getByRole("combobox", { name: "Factions" }), faction.name);
       await closeFactionList(umpire.page);
       violations.push(...(await scan(umpire.page, "new army form")));
       await dialog.getByRole("button", { name: "Add army" }).click();

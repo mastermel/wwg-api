@@ -33,6 +33,11 @@ npm run lint && npm run typecheck && npm run format:check
   `waitForTimeout`, and not `waitForFunction` with an async predicate: it doesn't wait for the
   promise.
 - Debounced searches keep their query in the URL: wait for the URL before using the results.
+- A searchable list in a dialog (the army form's Factions): `chooseFromList(field, name)`
+  (tests/support/library.ts). Filled below a phone's fold, its list stays hidden (Mantine hides
+  the list of a field out of sight), and clicking an option scrolls the dialog, which flips the
+  list, so it never holds still: the helper centres the field and picks with the keyboard. CI's
+  fonts are larger than a desktop's, so forms are taller there: a field in view here may not be.
 - Mantine's hidden inputs: click a `Switch` itself (`getByRole("switch")`: its input lies over
   the label), but a `SegmentedControl` option by its label (its input is off-screen). Don't
   `force`; it can click without toggling.

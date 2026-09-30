@@ -1,4 +1,4 @@
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, type Browser, type Locator, type Page } from "@playwright/test";
 import { admin } from "./accounts.ts";
 import { apiIn } from "./api.ts";
 
@@ -60,12 +60,28 @@ export function browserOf(page: { context: () => { browser: () => Browser | null
   return browser;
 }
 
+/**
+ * Picks `name` in a searchable list (a Mantine MultiSelect in a dialog), as a person would. The
+ * field is brought to the middle of the screen first: Mantine hides the list of a field that's
+ * out of sight (below a phone's fold). The option is then chosen with the keyboard: clicking it
+ * makes Playwright scroll it into view, which moves the field, which flips the list above or
+ * below it, so the option never holds still long enough to click.
+ */
+export async function chooseFromList(field: Locator, name: string) {
+  await field.evaluate((element) => {
+    element.scrollIntoView({ block: "center" });
+  });
+  await field.fill(name);
+  await expect(field.page().getByRole("option", { name })).toBeVisible();
+  await field.press("ArrowDown");
+  await field.press("Enter");
+}
+
 /** The Umpire, on an army's page, has it take units from this library faction (Edit army). */
 export async function chooseFaction(page: Page, factionName: string) {
   await page.getByRole("button", { name: "Edit army" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox", { name: "Factions" }).fill(factionName);
-  await dialog.getByRole("option", { name: factionName }).click();
+  await chooseFromList(dialog.getByRole("combobox", { name: "Factions" }), factionName);
   await closeFactionList(page);
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText(`Units from ${factionName}`)).toBeVisible();
