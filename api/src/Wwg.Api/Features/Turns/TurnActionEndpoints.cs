@@ -21,7 +21,7 @@ internal static class TurnActionEndpoints
         var turn = app.MapGroup("/api/army-turns/{id:guid}").WithTags("Turns");
         turn.MapPost("/submit", SubmitTurnAsync)
             .WithName("SubmitTurn")
-            .RequireCampaignAccess(CampaignAccess.OwnCommander, CampaignRouteId.ArmyTurn)
+            .RequireCampaignAccess(CampaignAccess.Commander, CampaignRouteId.ArmyTurn)
             .ProducesProblem(StatusCodes.Status409Conflict);
         turn.MapPost("/approve", ApproveTurnAsync)
             .WithName("ApproveTurn")
@@ -46,8 +46,9 @@ internal static class TurnActionEndpoints
     }
 
     /// <summary>
-    /// Submits the army's turn for the Umpire to approve (the army's commander): a Draft in the
-    /// open turn, once every unit on the map has an order. Nothing changes while it's Submitted.
+    /// Submits the army's turn for the Umpire to approve (the army's commander, or the Umpire or an
+    /// Admin on its behalf): a Draft in the open turn, once every unit on the map has an order.
+    /// Only the Umpire changes it while it's Submitted.
     /// </summary>
     internal static async Task<Results<NoContent, ProblemHttpResult>> SubmitTurnAsync(
         Guid id,
@@ -60,24 +61,12 @@ internal static class TurnActionEndpoints
     )
     {
         var turn = await TurnAsync(db, id, cancellationToken);
-        var without = await db
-            .Units.AsNoTracking()
-            .Where(u =>
-                u.ArmyId == turn.ArmyId
-                && db.UnitOrders.Any(o =>
-                    o.UnitId == u.Id && o.ArmyTurn.Status == ArmyTurnStatus.Completed
-                )
-                && !db.UnitOrders.Any(o => o.UnitId == u.Id && o.ArmyTurnId == id)
-            )
-            .OrderBy(u => u.Name)
-            .Select(u => u.Name)
-            .ToListAsync(cancellationToken);
-        if (turn.Status == ArmyTurnStatus.Draft && without.Count > 0)
+        if (
+            turn.Status == ArmyTurnStatus.Draft
+            && await OrdersMissingAsync(db, turn, cancellationToken) is { } missing
+        )
         {
-            return Conflict(
-                "Orders missing",
-                $"Give every unit an order first. Without one: {string.Join(", ", without)}."
-            );
+            return missing;
         }
 
         var action = new TurnAction(ArmyTurnEventKind.Submitted, ArmyTurnStatus.Draft);
@@ -88,6 +77,23 @@ internal static class TurnActionEndpoints
 
         var by = await NameAsync(db, httpContext, cancellationToken);
         var map = MapLink(appOptions, turn.CampaignId);
+        // The Umpire submitting on the army's behalf tells its commander instead.
+        if (httpContext.CampaignContext().CanManage)
+        {
+            await EmailCommanderAsync(
+                db,
+                emails,
+                turn,
+                $"{turn.Campaign}: turn {turn.Number} submitted for {turn.Army}",
+                $"{by} submitted {turn.Army}'s orders for turn {turn.Number} of {turn.Campaign} on your behalf.",
+                "See them on the map",
+                map,
+                null,
+                cancellationToken
+            );
+            return TypedResults.NoContent();
+        }
+
         foreach (var umpire in await UmpiresAsync(db, turn.CampaignId, cancellationToken))
         {
             await emails.QueueAsync(
@@ -105,7 +111,10 @@ internal static class TurnActionEndpoints
         return TypedResults.NoContent();
     }
 
-    /// <summary>Approves a Submitted turn in the open turn (Umpire or Admin): it's Completed.</summary>
+    /// <summary>
+    /// Approves a Submitted turn in the open turn (Umpire or Admin), once every unit on the map
+    /// has an order: it's Completed.
+    /// </summary>
     internal static async Task<Results<NoContent, ProblemHttpResult>> ApproveTurnAsync(
         Guid id,
         WwgDbContext db,
@@ -117,6 +126,15 @@ internal static class TurnActionEndpoints
     )
     {
         var turn = await TurnAsync(db, id, cancellationToken);
+        // The Umpire can take an order back from a Submitted turn: it needs one again first.
+        if (
+            turn.Status == ArmyTurnStatus.Submitted
+            && await OrdersMissingAsync(db, turn, cancellationToken) is { } missing
+        )
+        {
+            return missing;
+        }
+
         var action = new TurnAction(ArmyTurnEventKind.Approved, ArmyTurnStatus.Submitted);
         if (!await ActAsync(db, time, httpContext, turn, action, cancellationToken))
         {
@@ -272,7 +290,7 @@ internal static class TurnActionEndpoints
             .Select(a =>
                 a.Status == ArmyTurnStatus.Submitted ? $"Approve or send back {a.Name}'s turn."
                 : a.HasCommander ? $"{a.Name} hasn't submitted yet."
-                : $"{a.Name} has no commander to submit its turn."
+                : $"{a.Name} has no commander: submit its turn for it."
             )
             .ToList();
 
@@ -463,6 +481,34 @@ internal static class TurnActionEndpoints
         return TypedResults.NoContent();
     }
 
+    /// <summary>409 naming the army's units on the map without an order in the turn; null if none.</summary>
+    private static async Task<ProblemHttpResult?> OrdersMissingAsync(
+        WwgDbContext db,
+        TurnInfo turn,
+        CancellationToken cancellationToken
+    )
+    {
+        var without = await db
+            .Units.AsNoTracking()
+            .Where(u =>
+                u.ArmyId == turn.ArmyId
+                && db.UnitOrders.Any(o =>
+                    o.UnitId == u.Id && o.ArmyTurn.Status == ArmyTurnStatus.Completed
+                )
+                && !db.UnitOrders.Any(o => o.UnitId == u.Id && o.ArmyTurnId == turn.Id)
+            )
+            .OrderBy(u => u.Name)
+            .Select(u => u.Name)
+            .ToListAsync(cancellationToken);
+        return without.Count == 0
+            ? null
+            : Conflict(
+                "Orders missing",
+                $"Give every unit an order first. Without one: {string.Join(", ", without)}."
+            );
+    }
+
+    /// <summary>Emails the army's commander, if it has one, listing any orders the Umpire set.</summary>
     private static async Task EmailCommanderAsync(
         WwgDbContext db,
         IEmailQueue emails,
@@ -480,21 +526,30 @@ internal static class TurnActionEndpoints
             .Where(m => db.Armies.Any(a => a.Id == turn.ArmyId && a.CommanderId == m.Id))
             .Select(m => new TurnRecipient(m.User.Email ?? "", m.User.FirstName, m.User.LastName))
             .SingleOrDefaultAsync(cancellationToken);
-        if (commander is not null)
+        if (commander is null)
         {
-            await emails.QueueAsync(
-                TurnEmails.Create(
-                    commander,
-                    subject,
-                    what,
-                    action,
-                    map,
-                    notes?.Note,
-                    notes?.UnitNotes
-                ),
-                cancellationToken
-            );
+            return;
         }
+
+        var umpireOrders = await db
+            .UnitOrders.AsNoTracking()
+            .Where(o => o.ArmyTurnId == turn.Id && o.ByUmpire)
+            .OrderBy(o => o.Unit.Name)
+            .Select(o => o.Unit.Name + (o.Kind == OrderKind.Hold ? ": hold" : ": move"))
+            .ToListAsync(cancellationToken);
+        await emails.QueueAsync(
+            TurnEmails.Create(
+                commander,
+                subject,
+                what,
+                action,
+                map,
+                notes?.Note,
+                notes?.UnitNotes,
+                umpireOrders
+            ),
+            cancellationToken
+        );
     }
 
     private static async Task EmailTurnStartedAsync(

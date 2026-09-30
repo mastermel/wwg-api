@@ -154,7 +154,8 @@ internal static class TurnEndpoints
                 o.ArmyTurn.Status,
                 o.Kind,
                 o.Latitude,
-                o.Longitude
+                o.Longitude,
+                o.ByUmpire
             ))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(positions);
@@ -425,7 +426,8 @@ internal static class TurnEndpoints
             armyTurn.Status,
             OrderKind.Move,
             order.Latitude,
-            order.Longitude
+            order.Longitude,
+            ByUmpire: false
         );
     }
 

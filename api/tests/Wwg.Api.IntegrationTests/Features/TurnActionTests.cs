@@ -49,8 +49,8 @@ public sealed class TurnActionTests : ApiTest
     }
 
     [Theory]
-    [InlineData(Role.Admin, HttpStatusCode.Forbidden)]
-    [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Admin, HttpStatusCode.NoContent)]
+    [InlineData(Role.Umpire, HttpStatusCode.NoContent)]
     [InlineData(Role.Commander, HttpStatusCode.NoContent)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]

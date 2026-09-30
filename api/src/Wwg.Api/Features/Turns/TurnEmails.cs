@@ -10,8 +10,8 @@ internal sealed record TurnRecipient(string Email, string FirstName, string Last
 
 /// <summary>
 /// The emails every turn action sends to the other side (DESIGN.md §3.13): the Umpire when a
-/// commander submits; the commander when the Umpire approves, sends back or reverts; every
-/// commander when a turn starts.
+/// commander submits; the commander when the Umpire submits for them, approves, sends back or
+/// reverts (listing the orders the Umpire set); every commander when a turn starts.
 /// </summary>
 internal static class TurnEmails
 {
@@ -22,6 +22,7 @@ internal static class TurnEmails
     /// <param name="map">The campaign's map.</param>
     /// <param name="note">The Umpire's note on the turn, if any.</param>
     /// <param name="unitNotes">The Umpire's notes on units, by unit name.</param>
+    /// <param name="umpireOrders">The orders the Umpire set for the commander ("Name: move").</param>
     public static EmailMessage Create(
         TurnRecipient to,
         string subject,
@@ -29,7 +30,8 @@ internal static class TurnEmails
         string action,
         Uri map,
         string? note = null,
-        IReadOnlyList<(string Unit, string Text)>? unitNotes = null
+        IReadOnlyList<(string Unit, string Text)>? unitNotes = null,
+        IReadOnlyList<string>? umpireOrders = null
     )
     {
         var html = new StringBuilder();
@@ -55,6 +57,20 @@ internal static class TurnEmails
                     $"<li><strong>{Encode(unit)}:</strong> {Encode(unitNote)}</li>\n"
                 );
                 text.Append(CultureInfo.InvariantCulture, $"- {unit}: {unitNote}\n");
+            }
+
+            html.Append("</ul>\n");
+            text.Append('\n');
+        }
+
+        if (umpireOrders is { Count: > 0 })
+        {
+            html.Append("<p>Orders the Umpire set:</p>\n<ul>\n");
+            text.Append("Orders the Umpire set:\n");
+            foreach (var order in umpireOrders)
+            {
+                html.Append(CultureInfo.InvariantCulture, $"<li>{Encode(order)}</li>\n");
+                text.Append(CultureInfo.InvariantCulture, $"- {order}\n");
             }
 
             html.Append("</ul>\n");

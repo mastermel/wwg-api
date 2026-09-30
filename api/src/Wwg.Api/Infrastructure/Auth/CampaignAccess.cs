@@ -13,19 +13,13 @@ internal enum CampaignAccess
     Member,
 
     /// <summary>
-    /// The army's commander, the campaign's Umpire, or an Admin. Army routes only: other members
-    /// get 403.
+    /// The army's commander, the campaign's Umpire, or an Admin. Army and army-turn routes only:
+    /// other members get 403.
     /// </summary>
     Commander,
 
     /// <summary>The campaign's Umpire, or an Admin.</summary>
     Umpire,
-
-    /// <summary>
-    /// The army's commander, and no one else: giving orders is theirs alone (DESIGN.md §5.2), the
-    /// one rule Admins don't pass. Army and army-turn routes only.
-    /// </summary>
-    OwnCommander,
 }
 
 /// <summary>What the route's <c>{id}</c> is, and so how the campaign is found from it.</summary>
@@ -82,7 +76,7 @@ internal static class CampaignAccessExtensions
     {
         // Only an army (or army-turn) route knows which army, so which commander.
         if (
-            access is CampaignAccess.Commander or CampaignAccess.OwnCommander
+            access == CampaignAccess.Commander
             && routeId is not (CampaignRouteId.Army or CampaignRouteId.ArmyTurn)
         )
         {
@@ -154,12 +148,10 @@ internal static class CampaignAccessExtensions
             var role = campaign.Member?.Role;
             var isCommander = commanderId is not null && campaign.Member?.Id == commanderId;
             var allowed =
-                access == CampaignAccess.OwnCommander
-                    ? isCommander
-                    : isAdmin
-                        || role == CampaignRole.Umpire
-                        || access == CampaignAccess.Member
-                        || (access == CampaignAccess.Commander && isCommander);
+                isAdmin
+                || role == CampaignRole.Umpire
+                || access == CampaignAccess.Member
+                || (access == CampaignAccess.Commander && isCommander);
             if (!allowed)
             {
                 return Forbidden();
@@ -227,8 +219,7 @@ internal static class CampaignAccessExtensions
                 detail: access switch
                 {
                     CampaignAccess.Commander =>
-                        "Only the army's commander or the campaign's Umpire can see this.",
-                    CampaignAccess.OwnCommander => "Only the army's commander can give its orders.",
+                        "Only the army's commander or the campaign's Umpire can do this.",
                     _ => "Only the campaign's Umpire can do this.",
                 }
             );

@@ -76,6 +76,9 @@ internal sealed class UnitOrder : Entity
     public double Latitude { get; set; }
 
     public double Longitude { get; set; }
+
+    /// <summary>Set by the Umpire (or an Admin) on the commander's behalf (decision 0011).</summary>
+    public bool ByUmpire { get; set; }
 }
 
 /// <summary>What happened to an army's turn.</summary>
@@ -85,6 +88,9 @@ public enum ArmyTurnEventKind
     Approved,
     SentBack,
     Reverted,
+
+    /// <summary>The Umpire changed orders (a note per unit): one event per run of changes.</summary>
+    Edited,
 }
 
 /// <summary>

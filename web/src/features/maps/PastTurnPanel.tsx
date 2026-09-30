@@ -23,6 +23,7 @@ const eventLabels: Record<ArmyTurnEventKind, string> = {
   Approved: "Approved",
   SentBack: "Sent back",
   Reverted: "Reopened",
+  Edited: "Orders changed",
 };
 
 interface PastTurnPanelProps {

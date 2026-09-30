@@ -57,8 +57,9 @@ true, because the build launches the app to write the document.
   strings), so the SDK's generated Zod schemas validate the same way the API does.
 - **Access rules:** sign-in is required by default, but every endpoint declares its rule:
   `.AllowAnonymous()`, `.RequireSignedIn()`, `.AdminOnly()` (on the `/api/admin` group) or
-  `.RequireCampaignAccess(CampaignAccess.Member | Commander | Umpire | OwnCommander, routeId)`.
-  `OwnCommander` is the army's commander alone (not the Umpire, not Admins): giving orders.
+  `.RequireCampaignAccess(CampaignAccess.Member | Commander | Umpire, routeId)`. `Commander`
+  (the army's commander, the Umpire, Admins) needs an army or army-turn route; where the Umpire's
+  rules differ (orders, decision 0011), the handler checks `CampaignContext().CanManage`.
   `EndpointConventionTests` fails for any endpoint without one.
 - Campaign endpoints: the `RequireCampaignAccess` filter finds the campaign from the route's `{id}`
   (a campaign's; an army's with `CampaignRouteId.Army`; an army turn's with

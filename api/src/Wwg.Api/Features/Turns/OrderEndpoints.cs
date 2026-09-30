@@ -21,12 +21,12 @@ internal static class OrderEndpoints
         orders
             .MapPut("", GiveOrderAsync)
             .WithName("GiveOrder")
-            .RequireCampaignAccess(CampaignAccess.OwnCommander, CampaignRouteId.ArmyTurn)
+            .RequireCampaignAccess(CampaignAccess.Commander, CampaignRouteId.ArmyTurn)
             .ProducesProblem(StatusCodes.Status409Conflict);
         orders
             .MapDelete("", UndoOrderAsync)
             .WithName("UndoOrder")
-            .RequireCampaignAccess(CampaignAccess.OwnCommander, CampaignRouteId.ArmyTurn)
+            .RequireCampaignAccess(CampaignAccess.Commander, CampaignRouteId.ArmyTurn)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
@@ -57,22 +57,7 @@ internal static class OrderEndpoints
                 t.CompletedAt,
             })
             .ToListAsync(cancellationToken);
-        var orders = (
-            await db
-                .UnitOrders.AsNoTracking()
-                .Where(o => o.ArmyTurn.ArmyId == id)
-                .OrderBy(o => o.Unit.Name)
-                .ThenBy(o => o.UnitId)
-                .Select(o => new
-                {
-                    o.ArmyTurnId,
-                    o.UnitId,
-                    o.Kind,
-                    o.Latitude,
-                    o.Longitude,
-                })
-                .ToListAsync(cancellationToken)
-        ).ToLookup(o => o.ArmyTurnId);
+        var orders = await OrdersAsync(db, id, cancellationToken);
         var history = await HistoryAsync(db, id, cancellationToken);
 
         return TypedResults.Ok(
@@ -93,7 +78,8 @@ internal static class OrderEndpoints
                                 t.Status,
                                 o.Kind,
                                 o.Latitude,
-                                o.Longitude
+                                o.Longitude,
+                                o.ByUmpire
                             )),
                     ],
                     [.. history[t.Id]]
@@ -101,6 +87,38 @@ internal static class OrderEndpoints
                 .ToList()
         );
     }
+
+    /// <summary>An army's orders in all its turns, by army turn.</summary>
+    private static async Task<ILookup<Guid, ArmyOrder>> OrdersAsync(
+        WwgDbContext db,
+        Guid armyId,
+        CancellationToken cancellationToken
+    ) =>
+        (
+            await db
+                .UnitOrders.AsNoTracking()
+                .Where(o => o.ArmyTurn.ArmyId == armyId)
+                .OrderBy(o => o.Unit.Name)
+                .ThenBy(o => o.UnitId)
+                .Select(o => new ArmyOrder(
+                    o.ArmyTurnId,
+                    o.UnitId,
+                    o.Kind,
+                    o.Latitude,
+                    o.Longitude,
+                    o.ByUmpire
+                ))
+                .ToListAsync(cancellationToken)
+        ).ToLookup(o => o.ArmyTurnId);
+
+    private sealed record ArmyOrder(
+        Guid ArmyTurnId,
+        Guid UnitId,
+        OrderKind Kind,
+        double Latitude,
+        double Longitude,
+        bool ByUmpire
+    );
 
     /// <summary>What happened to an army's turns (submitted, sent back...), by army turn.</summary>
     private static async Task<ILookup<Guid, ArmyTurnEventDto>> HistoryAsync(
@@ -122,16 +140,21 @@ internal static class OrderEndpoints
                         e.At,
                         e.ByUser == null ? null : e.ByUser.FirstName + " " + e.ByUser.LastName,
                         e.Note,
-                        e.UnitNotes.Select(n => new UnitNoteDto(n.UnitId, n.Text)).ToList()
+                        e.UnitNotes.OrderBy(n => n.CreatedAt)
+                            .ThenBy(n => n.Id)
+                            .Select(n => new UnitNoteDto(n.UnitId, n.Text))
+                            .ToList()
                     ),
                 })
                 .ToListAsync(cancellationToken)
         ).ToLookup(e => e.ArmyTurnId, e => e.Event);
 
     /// <summary>
-    /// Gives a unit its order for the turn (the army's commander, while the turn is a Draft in
-    /// the open campaign turn): Move, inside the campaign's area and within the unit type's limit
-    /// of where it is (a straight line); or Hold, where it is. Replaces any order it had.
+    /// Gives a unit its order for the turn: Move, inside the campaign's area (and for the
+    /// commander, within the unit type's limit of where it is, in a straight line); or Hold, where
+    /// it is. Replaces any order it had. The army's commander gives orders while the turn is a
+    /// Draft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on
+    /// the commander's behalf (decision 0011), which goes in the turn's history.
     /// </summary>
     internal static async Task<
         Results<Ok<UnitPosition>, ValidationProblem, ProblemHttpResult>
@@ -140,13 +163,16 @@ internal static class OrderEndpoints
         Guid unitId,
         GiveOrderRequest request,
         WwgDbContext db,
+        TimeProvider time,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
-        var turn = await OpenDraftAsync(db, id, cancellationToken);
+        var byUmpire = httpContext.CampaignContext().CanManage;
+        var turn = await EditableTurnAsync(db, id, byUmpire, cancellationToken);
         if (turn is null)
         {
-            return NotADraft();
+            return NotEditable(byUmpire);
         }
 
         var unit = await db
@@ -171,8 +197,7 @@ internal static class OrderEndpoints
         var (problem, at) = await TargetAsync(
             db,
             request,
-            unit.CampaignId,
-            unit.Type,
+            new MoveRules(unit.CampaignId, unit.Type, Limited: !byUmpire),
             current.Value,
             cancellationToken
         );
@@ -181,77 +206,164 @@ internal static class OrderEndpoints
             return Invalid("latitude", problem);
         }
 
-        return TypedResults.Ok(
-            await SaveOrderAsync(db, id, turn, unitId, request.Kind, at, cancellationToken)
-        );
+        var saved = await StageOrderAsync(db, turn, unitId, request.Kind, at, byUmpire);
+        if (byUmpire)
+        {
+            var text = request.Kind == OrderKind.Hold ? "Set to hold." : "Set to move.";
+            await RecordEditAsync(db, time, httpContext, id, unitId, text, cancellationToken);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return TypedResults.Ok(saved);
     }
 
-    /// <summary>Takes back a unit's order for the turn (the army's commander, while it's a Draft).</summary>
+    /// <summary>
+    /// Takes back a unit's order for the turn: the army's commander while it's a Draft; the
+    /// Umpire and Admins while it's a Draft or Submitted, which goes in the turn's history.
+    /// </summary>
     internal static async Task<Results<NoContent, ProblemHttpResult>> UndoOrderAsync(
         Guid id,
         Guid unitId,
         WwgDbContext db,
+        TimeProvider time,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
-        if (await OpenDraftAsync(db, id, cancellationToken) is null)
+        var byUmpire = httpContext.CampaignContext().CanManage;
+        if (await EditableTurnAsync(db, id, byUmpire, cancellationToken) is null)
         {
-            return NotADraft();
+            return NotEditable(byUmpire);
         }
 
-        await db
+        var removed = await db
             .UnitOrders.Where(o => o.ArmyTurnId == id && o.UnitId == unitId)
             .ExecuteDeleteAsync(cancellationToken);
+        if (byUmpire && removed > 0)
+        {
+            await RecordEditAsync(
+                db,
+                time,
+                httpContext,
+                id,
+                unitId,
+                "Order taken back.",
+                cancellationToken
+            );
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return TypedResults.NoContent();
     }
 
-    private static async Task<UnitPosition> SaveOrderAsync(
+    /// <summary>Adds or changes the unit's order (not saved), and says where it leaves the unit.</summary>
+    private static async Task<UnitPosition> StageOrderAsync(
         WwgDbContext db,
-        Guid armyTurnId,
-        OpenDraft turn,
+        EditableTurn turn,
         Guid unitId,
         OrderKind kind,
         (double Latitude, double Longitude) at,
-        CancellationToken cancellationToken
+        bool byUmpire
     )
     {
         var order =
-            await db.UnitOrders.SingleOrDefaultAsync(
-                o => o.ArmyTurnId == armyTurnId && o.UnitId == unitId,
-                cancellationToken
-            )
-            ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = armyTurnId, UnitId = unitId }).Entity;
-        (order.Kind, order.Latitude, order.Longitude) = (kind, at.Latitude, at.Longitude);
-        await db.SaveChangesAsync(cancellationToken);
+            await db.UnitOrders.SingleOrDefaultAsync(o =>
+                o.ArmyTurnId == turn.Id && o.UnitId == unitId
+            ) ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = turn.Id, UnitId = unitId }).Entity;
+        (order.Kind, order.Latitude, order.Longitude, order.ByUmpire) = (
+            kind,
+            at.Latitude,
+            at.Longitude,
+            byUmpire
+        );
         return new UnitPosition(
             unitId,
             turn.ArmyId,
             turn.Number,
-            ArmyTurnStatus.Draft,
+            turn.Status,
             kind,
             at.Latitude,
-            at.Longitude
+            at.Longitude,
+            byUmpire
         );
     }
 
-    private sealed record OpenDraft(Guid ArmyId, int Number);
+    /// <summary>
+    /// Records the Umpire's change to a unit's order in the turn's history (not saved): in the
+    /// turn's latest event if it's an Edited one of theirs, so a run of changes is one event, with
+    /// one note per unit (the latest change to it); otherwise in a new one.
+    /// </summary>
+    private static async Task RecordEditAsync(
+        WwgDbContext db,
+        TimeProvider time,
+        HttpContext httpContext,
+        Guid armyTurnId,
+        Guid unitId,
+        string text,
+        CancellationToken cancellationToken
+    )
+    {
+        var userId = httpContext.User.GetUserId();
+        var now = time.GetUtcNow().UtcDateTime;
+        var latest = await db
+            .ArmyTurnEvents.Include(e => e.UnitNotes)
+            .Where(e => e.ArmyTurnId == armyTurnId)
+            .OrderByDescending(e => e.At)
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        var edit =
+            latest is { Kind: ArmyTurnEventKind.Edited } && latest.ByUserId == userId
+                ? latest
+                : db
+                    .ArmyTurnEvents.Add(
+                        new ArmyTurnEvent
+                        {
+                            ArmyTurnId = armyTurnId,
+                            Kind = ArmyTurnEventKind.Edited,
+                            ByUserId = userId,
+                        }
+                    )
+                    .Entity;
+        edit.At = now;
+        var note = edit.UnitNotes.FirstOrDefault(n => n.UnitId == unitId);
+        if (note is null)
+        {
+            edit.UnitNotes.Add(new UnitNote { UnitId = unitId, Text = text });
+        }
+        else
+        {
+            note.Text = text;
+        }
+    }
 
-    /// <summary>The army turn, if it's a Draft in the open campaign turn (after setup); else null.</summary>
-    private static Task<OpenDraft?> OpenDraftAsync(
+    private sealed record EditableTurn(Guid Id, Guid ArmyId, int Number, ArmyTurnStatus Status);
+
+    /// <summary>
+    /// The army turn, if its orders can change now: in the open campaign turn (after setup), and
+    /// a Draft, or for the Umpire a Draft or Submitted. Else null.
+    /// </summary>
+    private static Task<EditableTurn?> EditableTurnAsync(
         WwgDbContext db,
         Guid id,
+        bool byUmpire,
         CancellationToken cancellationToken
     ) =>
         db
             .ArmyTurns.AsNoTracking()
             .Where(t =>
                 t.Id == id
-                && t.Status == ArmyTurnStatus.Draft
+                && (
+                    t.Status == ArmyTurnStatus.Draft
+                    || (byUmpire && t.Status == ArmyTurnStatus.Submitted)
+                )
                 && t.CampaignTurn.ClosedAt == null
                 && t.CampaignTurn.Number > 0
             )
-            .Select(t => new OpenDraft(t.ArmyId, t.CampaignTurn.Number))
+            .Select(t => new EditableTurn(t.Id, t.ArmyId, t.CampaignTurn.Number, t.Status))
             .SingleOrDefaultAsync(cancellationToken);
+
+    /// <summary>Whose move, and whether it's held to the unit type's movement limit.</summary>
+    private sealed record MoveRules(Guid CampaignId, UnitType Type, bool Limited);
 
     /// <summary>
     /// Where the order leaves the unit: for a Hold, where it is; for a Move, where it goes, if
@@ -263,8 +375,7 @@ internal static class OrderEndpoints
     )> TargetAsync(
         WwgDbContext db,
         GiveOrderRequest request,
-        Guid campaignId,
-        UnitType type,
+        MoveRules rules,
         (double Latitude, double Longitude) current,
         CancellationToken cancellationToken
     )
@@ -280,16 +391,18 @@ internal static class OrderEndpoints
         }
 
         return (
-            await MoveProblemAsync(db, campaignId, type, current, (lat, lon), cancellationToken),
+            await MoveProblemAsync(db, rules, current, (lat, lon), cancellationToken),
             (lat, lon)
         );
     }
 
-    /// <summary>Why a move isn't allowed (outside the area, or too far), or null if it is.</summary>
+    /// <summary>
+    /// Why a move isn't allowed (outside the area, or too far when it's held to the limit), or
+    /// null if it is.
+    /// </summary>
     private static async Task<string?> MoveProblemAsync(
         WwgDbContext db,
-        Guid campaignId,
-        UnitType type,
+        MoveRules rules,
         (double Latitude, double Longitude) from,
         (double Latitude, double Longitude) to,
         CancellationToken cancellationToken
@@ -297,7 +410,7 @@ internal static class OrderEndpoints
     {
         var map = await db
             .CampaignMaps.AsNoTracking()
-            .SingleOrDefaultAsync(m => m.CampaignId == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(m => m.CampaignId == rules.CampaignId, cancellationToken);
         if (
             map is { West: { } west, South: { } south, East: { } east, North: { } north }
             && (
@@ -311,12 +424,19 @@ internal static class OrderEndpoints
             return "That's outside the campaign's area.";
         }
 
+        if (!rules.Limited)
+        {
+            return null;
+        }
+
         var limit =
             await db
-                .MovementLimits.Where(l => l.CampaignId == campaignId && l.UnitType == type)
+                .MovementLimits.Where(l =>
+                    l.CampaignId == rules.CampaignId && l.UnitType == rules.Type
+                )
                 .Select(l => (int?)l.Metres)
                 .SingleOrDefaultAsync(cancellationToken)
-            ?? CampaignMaps.DefaultMetres[type];
+            ?? CampaignMaps.DefaultMetres[rules.Type];
         // A metre's grace, for rounding between the browser and here.
         return Geo.Metres(from.Latitude, from.Longitude, to.Latitude, to.Longitude) > limit + 1
             ? "That's further than the unit can move in a turn."
@@ -328,11 +448,17 @@ internal static class OrderEndpoints
             new Dictionary<string, string[]>(StringComparer.Ordinal) { [field] = [message] }
         );
 
-    private static ProblemHttpResult NotADraft() =>
-        Conflict(
-            "Not a draft",
-            "Orders can only change while the army's turn is a draft in the open turn."
-        );
+    private static ProblemHttpResult NotEditable(bool byUmpire) =>
+        byUmpire
+            ? Conflict(
+                "Not now",
+                "Orders can only change while the army's turn is a draft or submitted, in the "
+                    + "open turn. Reopen an approved turn first."
+            )
+            : Conflict(
+                "Not a draft",
+                "Orders can only change while the army's turn is a draft in the open turn."
+            );
 
     private static ProblemHttpResult Conflict(string title, string detail) =>
         TypedResults.Problem(

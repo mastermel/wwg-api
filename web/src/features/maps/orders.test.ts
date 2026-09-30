@@ -11,6 +11,7 @@ const order = (kind: UnitPosition["kind"], latitude = 50.7): UnitPosition => ({
   kind,
   latitude,
   longitude: 4.4,
+  byUmpire: false,
 });
 
 describe("describeOrder", () => {

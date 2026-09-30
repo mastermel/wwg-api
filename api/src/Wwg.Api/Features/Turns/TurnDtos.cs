@@ -53,6 +53,7 @@ public sealed record CampaignTurnsResponse(
 /// <param name="Kind">Its order: Move (or placed, in turn 0) or Hold.</param>
 /// <param name="Latitude">Latitude, in degrees.</param>
 /// <param name="Longitude">Longitude, in degrees.</param>
+/// <param name="ByUmpire">Whether the Umpire set this order, on the commander's behalf.</param>
 public sealed record UnitPosition(
     Guid UnitId,
     Guid ArmyId,
@@ -60,7 +61,8 @@ public sealed record UnitPosition(
     ArmyTurnStatus Status,
     OrderKind Kind,
     double Latitude,
-    double Longitude
+    double Longitude,
+    bool ByUmpire
 );
 
 /// <summary>Where the Umpire places a unit.</summary>

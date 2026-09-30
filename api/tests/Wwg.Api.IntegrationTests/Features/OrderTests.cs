@@ -28,8 +28,8 @@ public sealed class OrderTests : ApiTest
     private static readonly GiveOrderRequest Hold = new(OrderKind.Hold, null, null);
 
     [Theory]
-    [InlineData(Role.Admin, HttpStatusCode.Forbidden)]
-    [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
     [InlineData(Role.Commander, HttpStatusCode.OK)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
@@ -44,8 +44,8 @@ public sealed class OrderTests : ApiTest
     }
 
     [Theory]
-    [InlineData(Role.Admin, HttpStatusCode.Forbidden)]
-    [InlineData(Role.Umpire, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Admin, HttpStatusCode.NoContent)]
+    [InlineData(Role.Umpire, HttpStatusCode.NoContent)]
     [InlineData(Role.Commander, HttpStatusCode.NoContent)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]

@@ -2432,7 +2432,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Gives a unit its order for the turn (the army's commander, while the turn is a Draft in\nthe open campaign turn): Move, inside the campaign's area and within the unit type's limit\nof where it is (a straight line); or Hold, where it is. Replaces any order it had.",
+        "summary": "Gives a unit its order for the turn: Move, inside the campaign's area (and for the\ncommander, within the unit type's limit of where it is, in a straight line); or Hold, where\nit is. Replaces any order it had. The army's commander gives orders while the turn is a\nDraft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on\nthe commander's behalf (decision 0011), which goes in the turn's history.",
         "operationId": "GiveOrder",
         "parameters": [
           {
@@ -2506,7 +2506,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Takes back a unit's order for the turn (the army's commander, while it's a Draft).",
+        "summary": "Takes back a unit's order for the turn: the army's commander while it's a Draft; the\nUmpire and Admins while it's a Draft or Submitted, which goes in the turn's history.",
         "operationId": "UndoOrder",
         "parameters": [
           {
@@ -2555,7 +2555,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Submits the army's turn for the Umpire to approve (the army's commander): a Draft in the\nopen turn, once every unit on the map has an order. Nothing changes while it's Submitted.",
+        "summary": "Submits the army's turn for the Umpire to approve (the army's commander, or the Umpire or an\nAdmin on its behalf): a Draft in the open turn, once every unit on the map has an order.\nOnly the Umpire changes it while it's Submitted.",
         "operationId": "SubmitTurn",
         "parameters": [
           {
@@ -2595,7 +2595,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Approves a Submitted turn in the open turn (Umpire or Admin): it's Completed.",
+        "summary": "Approves a Submitted turn in the open turn (Umpire or Admin), once every unit on the map\nhas an order: it's Completed.",
         "operationId": "ApproveTurn",
         "parameters": [
           {
@@ -3103,7 +3103,8 @@
           "Submitted",
           "Approved",
           "SentBack",
-          "Reverted"
+          "Reverted",
+          "Edited"
         ],
         "description": "What happened to an army's turn."
       },
@@ -4454,7 +4455,8 @@
           "status",
           "kind",
           "latitude",
-          "longitude"
+          "longitude",
+          "byUmpire"
         ],
         "type": "object",
         "properties": {
@@ -4490,6 +4492,10 @@
             "type": "number",
             "description": "Longitude, in degrees.",
             "format": "double"
+          },
+          "byUmpire": {
+            "type": "boolean",
+            "description": "Whether the Umpire set this order, on the commander's behalf."
           }
         },
         "description": "Where a unit is (or is ordered to be) after a turn."

@@ -95,6 +95,7 @@ const hold = {
   kind: "Hold",
   latitude: 50.7,
   longitude: 4.4,
+  byUmpire: false,
 } as const;
 
 /** A running campaign where the signed-in Player commands one army with one unit. */

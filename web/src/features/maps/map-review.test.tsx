@@ -157,6 +157,7 @@ const submitted = armyTurn(nord, {
       kind: "Move",
       latitude: 50.72,
       longitude: 4.4,
+      byUmpire: false,
     },
   ],
 });
@@ -171,7 +172,7 @@ const openMap = () => renderApp(`/campaigns/${campaignId}/map`);
 
 describe("the Umpire's turn", () => {
   it("shows each army's turn, and what stops the next turn starting", async () => {
-    serveUmpire(submitted, waiting, ["Prussian I Corps has no commander to submit its turn."]);
+    serveUmpire(submitted, waiting, ["Prussian I Corps has no commander: submit its turn for it."]);
 
     await openMap();
 
@@ -180,7 +181,7 @@ describe("the Umpire's turn", () => {
     expect(within(panel).getByText(/^1 move, 0 holds\. Submitted/)).toBeInTheDocument();
     expect(within(panel).getByText("No commander: it can't be submitted.")).toBeInTheDocument();
     expect(
-      within(panel).getByText("Prussian I Corps has no commander to submit its turn."),
+      within(panel).getByText("Prussian I Corps has no commander: submit its turn for it."),
     ).toBeInTheDocument();
     expect(within(panel).getByRole("button", { name: "Start turn 2" })).toBeDisabled();
     await expectNoAxeViolations(document.body);
