@@ -6,6 +6,7 @@ import {
   IconHistory,
   IconMap,
   IconMapPin,
+  IconMountain,
   IconSettings,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,7 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useListArmies } from "@/api/generated/endpoints/armies/armies";
 import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
-import { useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
+import { useGetCampaignGrid, useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
 import {
   useListPositions,
   useListTurns,
@@ -42,6 +43,7 @@ import { hexes } from "@/features/maps/orders";
 import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
+import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
 import { UnitDrawer } from "@/features/maps/UnitDrawer";
@@ -75,11 +77,30 @@ export function MapPage({ campaignId }: { campaignId: string }) {
       Map settings
     </LinkButton>
   );
+  const terrainButton = (
+    <LinkButton
+      variant="default"
+      leftSection={<IconMountain size={16} aria-hidden />}
+      disabled={!online}
+      renderLink={(props) => (
+        <Link to="/campaigns/$id/map/terrain" params={{ id: campaignId }} {...props} />
+      )}
+    >
+      Terrain
+    </LinkButton>
+  );
 
   return (
     <Page
       title="Map"
-      actions={manager && settingsButton}
+      actions={
+        manager && (
+          <Group gap="xs">
+            {map.data?.bounds && terrainButton}
+            {settingsButton}
+          </Group>
+        )
+      }
       back={
         <BackLink
           renderLink={(props) => (
@@ -205,6 +226,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
   const turnOf = (armyId: string) => openTurns.find((c) => c.army.id === armyId)?.turn;
   const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
+  const terrain = useGetCampaignGrid(campaignId, live);
   // While moving: the hexes the unit can reach this turn, and (for the Umpire, who can go past
   // that after a warning; decision 0011) anywhere in the grid.
   const withinTurn = useMemo(
@@ -400,6 +422,9 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 placingUnit ? (point) => void placeAt(point) : moving ? chooseTarget : undefined
               }
             >
+              {settings.layers.grid && terrain.data && (
+                <TerrainLayer grid={grid} terrain={terrain.data} />
+              )}
               <OrderOverlay
                 moves={moves}
                 reachable={

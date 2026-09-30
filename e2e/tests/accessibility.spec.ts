@@ -71,6 +71,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["army", armyUrl, "First Corps"],
         ["map (no area yet)", `${campaignUrl}/map`, "Map"],
         ["map settings", `${campaignUrl}/map/settings`, "Map settings"],
+        ["terrain (no area yet)", `${campaignUrl}/map/terrain`, "Terrain"],
         ["new campaign", "/campaigns/new", "New campaign"],
         ["library", "/library", "Library"],
         ["library faction", `/library/${faction.id}`, faction.name],

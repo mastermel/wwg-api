@@ -2370,15 +2370,24 @@ build on positions.
       `HexSettlement` (walled and capital need a town or city; a name, a town, city or fortress);
       `HexEdge` gains `Waterway` (a navigable course across the edge, and which way it flows). The
       migration maps an old single settlement onto the parts (and back).
-43. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
-    Mapterhorn elevation (roughly: under 50 m flat, under 150 m low hills, under 400 m high hills,
-    else mountains), forest from land cover (half the hex or more), water, cities and towns (with
-    their names; capitals from the place data), roads (trunk and primary good, secondary poor)
-    crossing each edge, and rivers: a waterway where a navigable river's line crosses an edge
-    (flowing the way the line runs), and a river along the edges nearest its line (a road
-    crossing one makes a bridge); the terrain layer on the map; the Umpire's editor (choose a hex
-    or edge and set it). End-to-end: infer, correct a hex.
-    - **43b. A hex's actual terrain** (decision 0016): `HexDetail` and its reveals; the Umpire
+43. **Terrain (UI)**, in three parts:
+    - ✅ **43a. The terrain layer and the Umpire's editor:** every member's map draws the stored
+      terrain with the grid (ground and forest as tints; rivers along hexsides, roads and
+      waterways from hex centre to hex centre, bridges; towns, cities and fortresses at the
+      centres, with their names). The Umpire's **Terrain** page (`/campaigns/{id}/map/terrain`,
+      from the Map page): choose a hex on the map, set its ground, forest and settlement, and any
+      of its six sides (clicking near a side chooses it; S, SW and NW are saved as the
+      neighbours' N, NE and SE, with a waterway's flow turned round). End-to-end: set a hex and
+      an edge, and find them again.
+    - **43b. Inference** in the Umpire's browser from the tiles the map uses: relief from
+      Mapterhorn elevation (the rise within a hex, roughly: under 50 m flat, under 150 m low
+      hills, under 400 m high hills, else mountains), forest from land cover (half the hex or
+      more), water, cities and towns (with their names; capitals from the place data), roads
+      (trunk and primary good, secondary poor) crossing each edge, and rivers: a waterway where
+      a navigable river's line crosses an edge (flowing the way the line runs), and a river
+      along the edges nearest its line (a road crossing one makes a bridge). On the Terrain
+      page, **Infer terrain** saves it for the whole grid, keeping what the Umpire set.
+    - **43c. A hex's actual terrain** (decision 0016): `HexDetail` and its reveals; the Umpire
       rolls for a hex (the app shakes the rules' three dice, with the red die's modifier from the
       map terrain), adjusts it, and shows it to armies or to all; members see what's been shown
       to them, in the hex's panel on the map. End-to-end: roll, reveal to an army, a commander

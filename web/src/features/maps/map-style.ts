@@ -22,6 +22,34 @@ export const attribution =
   '<a href="https://mapterhorn.com" target="_blank" rel="noreferrer">Mapterhorn</a>';
 
 /**
+ * The terrain layer's tints (decision 0014): hexes are washed over the map at 45%, so the base
+ * map still reads through; hills darken with height. Towns and cities are drawn in the label
+ * colour (9.5:1 or more, as labels), fortresses in a red that's 4.5:1 or more against land in
+ * each scheme.
+ */
+function terrainLight() {
+  return {
+    lowHill: "#d8c39a",
+    highHill: "#b08b58",
+    mountain: "#7d5d3a",
+    waterHex: "#8fbbe0",
+    forestHex: "#6f9f5c",
+    fortress: "#a3261f",
+  } as const;
+}
+
+function terrainDark() {
+  return {
+    lowHill: "#5a4c33",
+    highHill: "#7a6140",
+    mountain: "#9c7c55",
+    waterHex: "#2f5a80",
+    forestHex: "#3f6b3a",
+    fortress: "#ff7b6e",
+  } as const;
+}
+
+/**
  * Per colour scheme. Checked with the WCAG formula: labels are 9.5:1 or more against land, forest
  * and water (and have a halo); roads and rivers are at least 3:1 against land, forest and water
  * in both schemes (WCAG 1.4.11). Unit icons (step 32) carry their own outline.
@@ -38,6 +66,7 @@ export const mapPalettes = {
     contour: "rgba(60, 50, 30, 0.35)",
     hillShadow: "#3d4a3a",
     hillHighlight: "#ffffff",
+    ...terrainLight(),
   },
   dark: {
     land: "#1d2126",
@@ -50,6 +79,7 @@ export const mapPalettes = {
     contour: "rgba(220, 225, 235, 0.3)",
     hillShadow: "#000000",
     hillHighlight: "#5a6675",
+    ...terrainDark(),
   },
 } as const;
 

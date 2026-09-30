@@ -5,9 +5,13 @@ export const campaignMap = (page: Page) => page.getByRole("region", { name: "Map
 
 /**
  * Clicks the campaign map `right` and `down` pixels from its middle (up and left if negative),
- * where it is now (read after anything that scrolls).
+ * where it is now (read after anything that scrolls). The map is scrolled to the middle of the
+ * screen first: on a phone its middle can be under the tab bar, which would take the click.
  */
 export async function clickMap(page: Page, right = 0, down = 0): Promise<void> {
+  await campaignMap(page).evaluate((map) => {
+    map.scrollIntoView({ block: "center" });
+  });
   const box = await campaignMap(page).boundingBox();
   if (!box) throw new Error("The map isn't on the page.");
   await page.mouse.click(box.x + box.width / 2 + right, box.y + box.height / 2 + down);

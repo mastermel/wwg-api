@@ -37,8 +37,8 @@ npm run lint && npm run typecheck && npm run format:check
   the label), but a `SegmentedControl` option by its label (its input is off-screen). Don't
   `force`; it can click without toggling.
 - The campaign map is a MapLibre canvas: `getByRole("region", { name: "Map", exact: true })`.
-  `clickMapCentre(page)` and `clickMap(page, right, down)` (tests/support/map.ts) click it where
-  it is now (call them after anything that scrolls). After a drawer closes, wait for
+  `clickMapCentre(page)` and `clickMap(page, right, down)` (tests/support/map.ts) scroll it to
+  the middle of the screen and click it there (on a phone its middle can be under the tab bar). After a drawer closes, wait for
   `getByRole("dialog")` to have a count of 0 before clicking the map or scanning: its overlay
   fades out, taking the click (and failing axe while it fades). A phone shows the area's full height
   but only part of its width: a unit near the east or west edge is off the map there (its
