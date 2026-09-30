@@ -178,6 +178,7 @@ function ArmyTurnOrders({
                     )}
                     <Text size="xs" c="dimmed">
                       {describeOrder(order, placed, distanceUnit)}
+                      {order?.byUmpire && " · set by the Umpire"}
                     </Text>
                     {note && (
                       <Text size="xs" fw={500}>

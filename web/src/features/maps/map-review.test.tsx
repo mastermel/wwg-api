@@ -179,7 +179,12 @@ describe("the Umpire's turn", () => {
     const panel = await screen.findByRole("region", { name: "Turn 1" });
     expect(await within(panel).findByText("Submitted")).toBeInTheDocument();
     expect(within(panel).getByText(/^1 move, 0 holds\. Submitted/)).toBeInTheDocument();
-    expect(within(panel).getByText("No commander: it can't be submitted.")).toBeInTheDocument();
+    expect(
+      within(panel).getByText("No commander: give its orders on the map (0 so far)."),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: "Submit Prussian I Corps's turn for it" }),
+    ).toBeInTheDocument();
     expect(
       within(panel).getByText("Prussian I Corps has no commander: submit its turn for it."),
     ).toBeInTheDocument();
@@ -252,5 +257,18 @@ describe("the Umpire's turn", () => {
 
     expect(await screen.findByText("Turn 2 has started.")).toBeInTheDocument();
     expect(requests).toEqual([{ url: `/api/campaigns/${campaignId}/turns`, body: null }]);
+  });
+
+  it("submits an army's draft for it", async () => {
+    const requests = serveUmpire(approved, waiting, []);
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Submit Prussian I Corps's turn for it" }),
+    );
+
+    expect(await screen.findByText("Submitted Prussian I Corps's turn 1.")).toBeInTheDocument();
+    expect(requests).toEqual([{ url: `/api/army-turns/${waiting.id}/submit`, body: null }]);
   });
 });

@@ -2,10 +2,13 @@ import { apiAs, waterlooMap } from "./api.ts";
 import { createCampaign, join, joinLink } from "./campaigns.ts";
 import type { User } from "./fixtures.ts";
 
-/** Where the units start: the middle of the map's area, and away to the south-west. */
+/**
+ * Where the units start: the middle of the map's area, and 5 km or so to the south-west, apart
+ * but both in view on a phone (which shows the area's full height, and only part of its width).
+ */
 export const startingPlaces = {
   "Imperial Guard": { latitude: 50.7, longitude: 4.4 },
-  "Reserve Artillery": { latitude: 50.64, longitude: 4.25 },
+  "Reserve Artillery": { latitude: 50.66, longitude: 4.34 },
 } as const;
 
 /**

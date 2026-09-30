@@ -1,5 +1,5 @@
 import { Button, Group, Stack, Text } from "@mantine/core";
-import { IconArrowMoveRight, IconHandStop } from "@tabler/icons-react";
+import { IconArrowBackUp, IconArrowMoveRight, IconHandStop } from "@tabler/icons-react";
 import type { ArmyTurnDetails, DistanceUnit } from "@/api/generated/model";
 import { describeOrder } from "@/features/maps/orders";
 import type { PlacedUnit } from "@/features/maps/stacks";
@@ -11,19 +11,27 @@ interface OrderActionsProps {
   /** The unit's army's turn in the open campaign turn. */
   turn: ArmyTurnDetails;
   distanceUnit: DistanceUnit;
+  /** Whether the viewer can change its orders now (a commander: a Draft; the Umpire: or Submitted). */
+  editable: boolean;
   busy: boolean;
   onMove: () => void;
   onHold: () => void;
+  onUndo: () => void;
 }
 
-/** In the unit drawer, for the unit's commander: its order this turn, the Umpire's note, Move and Hold. */
+/**
+ * In the unit drawer, for the unit's commander or the Umpire: its order this turn (and whether
+ * the Umpire set it), the Umpire's note, and Move, Hold and Take back while it can change.
+ */
 export function OrderActions({
   placed,
   turn,
   distanceUnit,
+  editable,
   busy,
   onMove,
   onHold,
+  onUndo,
 }: OrderActionsProps) {
   const online = useOnline();
   const order = turn.orders.find((o) => o.unitId === placed.unit.id);
@@ -33,13 +41,14 @@ export function OrderActions({
     <Stack gap="xs">
       <Text size="sm">
         Turn {turn.turn}: {describeOrder(order, placed, distanceUnit)}
+        {order?.byUmpire && " (set by the Umpire)"}
       </Text>
       {note && (
         <Text size="sm" fw={500}>
           Umpire: {note.text}
         </Text>
       )}
-      {turn.status === "Draft" ? (
+      {editable ? (
         <Group grow>
           <Button
             variant="light"
@@ -57,6 +66,16 @@ export function OrderActions({
           >
             Hold
           </Button>
+          {order && (
+            <Button
+              variant="subtle"
+              leftSection={<IconArrowBackUp size={16} aria-hidden />}
+              disabled={!online || busy}
+              onClick={onUndo}
+            >
+              Take back
+            </Button>
+          )}
         </Group>
       ) : (
         <Text size="sm" c="dimmed">

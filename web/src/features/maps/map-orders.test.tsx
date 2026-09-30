@@ -321,4 +321,12 @@ describe("a commander's turn", () => {
     expect(screen.queryByRole("button", { name: /Submit turn/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Imperial Guard" })).not.toBeInTheDocument();
   });
+
+  it("marks an order the Umpire set", async () => {
+    serveCommander(draft({ orders: [{ ...hold, byUmpire: true }] }));
+
+    await openMap();
+
+    expect(await screen.findByText("Holds · set by the Umpire")).toBeInTheDocument();
+  });
 });

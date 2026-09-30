@@ -1,6 +1,6 @@
 import { Alert, Badge, Button, Group, List, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconCheck, IconPlayerTrackNext } from "@tabler/icons-react";
+import { IconCheck, IconPlayerTrackNext, IconSend } from "@tabler/icons-react";
 import { useState } from "react";
 import type {
   ArmyTurnDetails,
@@ -33,9 +33,9 @@ interface ReviewPanelProps {
 }
 
 /**
- * The Umpire's open turn (DESIGN.md §3.13): each army's turn with its status and times, Approve
- * or Send back once it's submitted, Reopen once it's approved, and Start turn N+1 once every
- * army's turn is approved.
+ * The Umpire's open turn (DESIGN.md §3.13): each army's turn with its status and times; Submit
+ * for it while it's a Draft (decision 0011), Approve or Send back once it's submitted, Reopen
+ * once it's approved; and Start turn N+1 once every army's turn is approved.
  */
 export function ReviewPanel({ open, problems, armyTurns, units, review }: ReviewPanelProps) {
   const online = useOnline();
@@ -140,9 +140,7 @@ function ArmyTurnReview({ entry: { army }, turn, review, onReview }: ArmyTurnRev
       </Group>
       <Text size="xs" c="dimmed">
         {turn.status === "Draft"
-          ? commander
-            ? `${commander} is giving orders.`
-            : "No commander: it can't be submitted."
+          ? `${commander ? `${commander} is giving orders` : "No commander: give its orders on the map"} (${String(turn.orders.length)} so far).`
           : `${String(moves)} ${moves === 1 ? "move" : "moves"}, ${String(holds)} ${holds === 1 ? "hold" : "holds"}. ` +
             (turn.status === "Submitted" && turn.submittedAt
               ? `Submitted ${formatDateTime(turn.submittedAt)}.`
@@ -150,6 +148,20 @@ function ArmyTurnReview({ entry: { army }, turn, review, onReview }: ArmyTurnRev
                 ? `Approved ${formatDateTime(turn.completedAt)}.`
                 : "")}
       </Text>
+      {turn.status === "Draft" && (
+        <Group gap="xs">
+          <Button
+            size="compact-sm"
+            variant="default"
+            leftSection={<IconSend size={14} aria-hidden />}
+            aria-label={`Submit ${army.name}'s turn for it`}
+            disabled={!online || review.busy}
+            onClick={() => void review.submit(turn, army.name)}
+          >
+            Submit for it
+          </Button>
+        </Group>
+      )}
       {turn.status === "Submitted" && (
         <Group gap="xs">
           <Button

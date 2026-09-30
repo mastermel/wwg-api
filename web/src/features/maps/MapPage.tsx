@@ -194,7 +194,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const orders = useOrders(campaignId);
   const review = useReview(campaignId);
   const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
-  const turnOf = (armyId: string) => commanded.find((c) => c.army.id === armyId)?.turn;
+  const turnOf = (armyId: string) => openTurns.find((c) => c.army.id === armyId)?.turn;
   const limitOf = (placed: PlacedUnit) =>
     settings.movementLimits.find((l) => l.unitType === placed.unit.type)?.metres ?? 0;
   const allMoves: PendingMove[] =
@@ -221,13 +221,16 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     setMoving(null);
     setTarget(null);
   };
+  // A metre's grace, as the API allows, for rounding.
+  const pastLimit = (placed: PlacedUnit, point: Point) =>
+    distanceMetres(placed, point) > limitOf(placed) + 1;
   const chooseTarget = (point: Point) => {
     if (!moving) return;
     const limit = limitOf(moving);
+    // The Umpire may go past the limit (decision 0011): the banner warns instead.
     const problem = !inBounds(point, bounds)
       ? "That's outside the campaign's area."
-      : // A metre's grace, as the API allows, for rounding.
-        distanceMetres(moving, point) > limit + 1
+      : !manager && pastLimit(moving, point)
         ? `That's further than ${moving.unit.name} can move in a turn (${formatDistance(limit, settings.distanceUnit)}).`
         : null;
     if (problem) {
@@ -324,6 +327,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                       Move <strong>{moving.unit.name}</strong>{" "}
                       {formatDistance(distanceMetres(moving, target), settings.distanceUnit)} to
                       here?
+                      {pastLimit(moving, target) &&
+                        ` That's past its ${formatDistance(limitOf(moving), settings.distanceUnit)} limit.`}
                     </>
                   ) : (
                     <>
@@ -339,7 +344,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                       loading={orders.busy}
                       onClick={() => void confirmMove()}
                     >
-                      Confirm
+                      {pastLimit(moving, target) ? "Move anyway" : "Confirm"}
                     </Button>
                   )}
                   <Button size="compact-sm" variant="default" onClick={stopMoving}>
@@ -493,6 +498,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                       <OrderActions
                         placed={unit}
                         turn={turn}
+                        // The Umpire can change a Submitted turn too (decision 0011).
+                        editable={
+                          turn.status === "Draft" || (manager && turn.status === "Submitted")
+                        }
+                        onUndo={() => {
+                          void orders.undo(unit.army.id, turn.id, unit.unit).then((undone) => {
+                            if (undone) closeDrawer();
+                          });
+                        }}
                         distanceUnit={settings.distanceUnit}
                         busy={orders.busy}
                         onMove={() => {

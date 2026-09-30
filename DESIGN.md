@@ -1247,6 +1247,10 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   back** or **Revert** (the last two with a note for the turn and for units),
   for the open turn only.
 - **Start turn N+1**, with confirmation, once every army's turn is Completed.
+- **On a commander's behalf** (decision 0011): Move, Hold and Take back in the drawer for any
+  army's unit while its turn is a Draft or Submitted (a move past the limit warns first), and
+  **Submit for it** for a Draft. The commander's panel marks orders the Umpire set, and the
+  history lists what the Umpire changed.
 - **Setup (turn 0):** the units not yet placed are listed; the Umpire places
   each one on the map, then presses **Start campaign** (every army needs a
   faction, and every unit a position). A unit or army added later appears in
@@ -2048,13 +2052,23 @@ including the e2e flows) and DESIGN updates, in commits under 500 lines.
 
 Decision [0011](docs/decisions/0011-umpire-edits-orders.md).
 
-35. **Umpire orders (API):** `GiveOrder`, `UndoOrder` and `SubmitTurn` for the Umpire and
+35. ✅ **Umpire orders (API):** `GiveOrder`, `UndoOrder` and `SubmitTurn` for the Umpire and
     Admins (`Commander` access; `OwnCommander` goes): a Draft or Submitted turn in the open
     turn, Moves inside the area but not held to the limit. `UnitOrder.ByUmpire` (and on
     `UnitPosition`); an **Edited** history event per run of changes, with a note per unit;
     Approve checks every unit on the map has an order; the approve, send-back and submit
     emails list the orders the Umpire set.
-36. **Umpire orders (UI):** Move, Hold and undo in the drawer for any army's unit (a Draft or
+36. ✅ **Umpire orders (UI):** Move, Hold and undo in the drawer for any army's unit (a Draft or
     Submitted turn), warning before a move past the limit; **Submit for the army** in the
     review panel; "Set by the Umpire" beside such orders in the commander's panel; Edited in
     the history. End-to-end: the Umpire moves a commanderless army's unit, submits, approves.
+    - An edit's note says what the Umpire did ("Set to move.", "Set to hold.", "Order taken
+      back."); a run of changes by the same person is one Edited event, one note per unit.
+    - The Umpire gets orders in the drawer from the map's markers (there's no unit list in the
+      review panel: the markers are buttons, so keyboards reach them too). Take back is in the
+      drawer, for the commander too.
+    - Past the limit, the banner adds "That's past its 5 km limit." and Confirm becomes
+      **Move anyway**; the range circle still shows the limit.
+    - A Draft's row in the review panel says who's giving orders and how many so far, with
+      **Submit for it**; the API refuses (409, naming the units) while any unit on the map has
+      no order.
