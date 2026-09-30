@@ -1,8 +1,8 @@
 # wwg — Design & Implementation Plan
 
-> **Status:** Phases 1–8 (steps 1–34) are done; Phase 8 was the campaign map and turns.
-> Next: Phase 9, the Umpire editing orders (steps 35–36).
-> **Last updated:** 2026-09-29
+> **Status:** Phases 1–9 (steps 1–36) are done; Phase 9 was the Umpire editing orders.
+> Next: Phase 10, Admins masquerading as other users (steps 37–38).
+> **Last updated:** 2026-09-30
 >
 > This document describes the design **as it currently stands**. The reasons
 > for significant changes are recorded in the decision log,
@@ -401,6 +401,18 @@ Identity has two layers:
     expires (at most 30 minutes).
   - `POST /api/me/sign-out-everywhere` rotates the security stamp, which
     immediately invalidates every access and refresh token for that user.
+- **Masquerade** (decision 0012): an Admin can use the app as another user,
+  without their password.
+  - `POST /api/admin/users/{id}/masquerade` issues the user's own tokens (their
+    claims and roles) plus claims for the Admin's ID, the Admin's security
+    stamp and when it ends (`Auth:MasqueradeLifetime`, 8 hours), replacing the
+    refresh cookie. Not as yourself, and not while masquerading.
+  - Refreshing a masquerade also checks it hasn't ended and the Admin still
+    exists, is an Admin and has the same stamp. Neither token outlives it.
+  - `POST /api/auth/masquerade/end` checks the same and issues the Admin's own
+    tokens. Sign out while masquerading signs out entirely.
+  - The app log records each start and end. `GET /api/me` includes
+    `masquerade` (the Admin's name, when it ends) or null.
 - **Password reset:**
   1. `POST /api/auth/forgot-password { email }` always returns 204, whether or
      not the account exists, so the endpoint can't be used to find out which
@@ -1603,6 +1615,7 @@ New rows:
 | POST | `/api/auth/login` | Email + password → access token + refresh cookie |
 | POST | `/api/auth/refresh` | Refresh cookie → new access token + refresh cookie |
 | POST | `/api/auth/logout` | Expire the refresh cookie |
+| POST | `/api/auth/masquerade/end` | End a masquerade → the Admin's own tokens (not masquerading: 409) |
 | POST | `/api/auth/forgot-password` | Send reset email (always 204) |
 | POST | `/api/auth/reset-password` | Email + code + new password |
 
@@ -1610,7 +1623,7 @@ New rows:
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/me` | Current user: id, email, names, `isAdmin` |
+| GET | `/api/me` | Current user: id, email, names, `isAdmin`, `masquerade` (who, until when) |
 | PUT | `/api/me` | Update first/last name |
 | PUT | `/api/me/email` | Change email (needs current password) → new tokens; notice to the old address. Rate-limited (`auth`) |
 | PUT | `/api/me/password` | Change password (needs current password) → new tokens. Rate-limited (`auth`) |
@@ -1623,6 +1636,7 @@ New rows:
 | GET | `/api/admin/users` | Paged list, `?search=` on name/email |
 | GET | `/api/admin/users/{id}` | User details, with their campaigns and roles |
 | DELETE | `/api/admin/users/{id}` | Delete user (not self: 409) |
+| POST | `/api/admin/users/{id}/masquerade` | Masquerade as the user → their tokens, marked (not self or while masquerading: 409) |
 | GET | `/api/admin/campaigns` | Paged list of every campaign, incl. umpire-less ones (`?search=`, `?withoutUmpire=`) |
 | PUT | `/api/admin/campaigns/{id}/umpire` | Set the Umpire `{ userId }` |
 
@@ -2075,3 +2089,15 @@ Decision [0011](docs/decisions/0011-umpire-edits-orders.md).
     - A Draft's row in the review panel says who's giving orders and how many so far, with
       **Submit for it**; the API refuses (409, naming the units) while any unit on the map has
       no order.
+
+### Phase 10 — Admins masquerade as other users
+
+Decision [0012](docs/decisions/0012-admin-masquerade.md).
+
+37. **Masquerade (API):** `POST /api/admin/users/{id}/masquerade` and
+    `POST /api/auth/masquerade/end`; the masquerade claims, capped token lifetimes and the
+    checks on refresh; `masquerade` on `GET /api/me`; log lines for start and end.
+38. **Masquerade (UI):** **Masquerade as** on an Admin's user page (with confirmation); the
+    session switches, clearing the cache (and other tabs'); the account button in another colour
+    naming who you are, with **End masquerade**. End-to-end: an Admin masquerades as a Player,
+    sees only what they see, and ends it.

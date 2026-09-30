@@ -52,3 +52,4 @@ A reversal gets a new entry.
 | [0009](0009-campaign-map-stack.md) | The campaign map: MapLibre, OpenFreeMap, Mapterhorn and a server-side geocoder | 2026-09-28 |
 | [0010](0010-turns-factions-and-visibility.md) | Turns in step, per army; orders; factions; one visibility rule | 2026-09-28 |
 | [0011](0011-umpire-edits-orders.md) | The Umpire edits orders on a commander's behalf | 2026-09-29 |
+| [0012](0012-admin-masquerade.md) | Admins masquerade as other users | 2026-09-30 |
