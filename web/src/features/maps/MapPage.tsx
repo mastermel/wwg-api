@@ -43,6 +43,7 @@ import { hexes } from "@/features/maps/orders";
 import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
+import { HexDetailsList } from "@/features/maps/HexDetailsList";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
@@ -512,6 +513,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 </Text>
               </Section>
             ))}
+          <HexDetailsList campaignId={campaignId} />
           {manager && (armies.data?.length ?? 0) > 0 && (
             <ArmiesPanel
               armies={armies.data ?? []}

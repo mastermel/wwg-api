@@ -19,6 +19,7 @@ const defaults = [
   http.get("*/api/factions", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/positions", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/grid", () => HttpResponse.json({ cells: [], edges: [] })),
+  http.get("*/api/campaigns/:id/grid/details", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/turns", () =>
     HttpResponse.json({ stage: "Setup", openTurn: 0, turns: [], startProblems: [] }),
   ),

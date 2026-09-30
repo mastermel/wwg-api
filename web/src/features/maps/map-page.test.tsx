@@ -78,6 +78,44 @@ describe("the map page", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Map" })).toBeInTheDocument();
   });
 
+  it("lists the hex details shown to the viewer", async () => {
+    serveCampaign("Player", settings({ west: 4.2, south: 50.6, east: 4.6, north: 50.8 }));
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/grid/details`, () =>
+        HttpResponse.json([
+          {
+            q: 1,
+            r: -2,
+            relief: "Hilly",
+            features: {
+              scrub: false,
+              village: false,
+              woods: false,
+              forest: false,
+              farms: true,
+              fields: true,
+              streams: true,
+            },
+            dominant: "StrongFarmhouse",
+            favorability: "NotRolled",
+            dice: { red: 6, white: 5, green: null },
+            forArmyId: null,
+            shownToArmyIds: [],
+            shownToAll: false,
+          },
+        ]),
+      ),
+    );
+
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    const details = within(await screen.findByRole("region", { name: "Hex details" }));
+    expect(details.getByText("Hex (1, −2)")).toBeInTheDocument();
+    expect(
+      details.getByText("Hilly: farms, fields and streams. A strong farmhouse."),
+    ).toBeInTheDocument();
+  });
+
   it("tells a Player the Umpire hasn't chosen the area yet", async () => {
     serveCampaign("Player", settings(null));
 

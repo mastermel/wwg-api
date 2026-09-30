@@ -26,10 +26,16 @@ import {
   getGetCampaignGridQueryKey,
   useGetCampaignGrid,
   useGetCampaignMap,
+  useListHexDetails,
   useUpdateHexCell,
   useUpdateHexEdge,
 } from "@/api/generated/endpoints/maps/maps";
-import type { CampaignGridResponse, CampaignMapResponse, MapBounds } from "@/api/generated/model";
+import type {
+  CampaignGridResponse,
+  CampaignMapResponse,
+  HexDetailResponse,
+  MapBounds,
+} from "@/api/generated/model";
 import { UpdateHexCellBody, UpdateHexEdgeBody } from "@/api/generated/zod/maps/maps.zod";
 import { BackLink } from "@/components/BackLink";
 import { EmptyState } from "@/components/EmptyState";
@@ -57,6 +63,7 @@ import {
   type Side,
   type TerrainIndex,
 } from "@/features/maps/terrain";
+import { HexDetailSection } from "@/features/maps/HexDetailSection";
 import { InferTerrainSection } from "@/features/maps/InferTerrainSection";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { applyServerErrors } from "@/lib/form-errors";
@@ -125,6 +132,7 @@ interface TerrainAreaProps {
 /** The editor, once the campaign's terrain has loaded. */
 function TerrainArea({ campaignId, settings, bounds }: TerrainAreaProps) {
   const terrain = useGetCampaignGrid(campaignId, live);
+  const details = useListHexDetails(campaignId, live);
   return (
     <QueryState query={terrain}>
       {(loaded) => (
@@ -133,6 +141,7 @@ function TerrainArea({ campaignId, settings, bounds }: TerrainAreaProps) {
           settings={settings}
           bounds={bounds}
           terrain={loaded}
+          details={details.data ?? []}
         />
       )}
     </QueryState>
@@ -141,9 +150,10 @@ function TerrainArea({ campaignId, settings, bounds }: TerrainAreaProps) {
 
 interface TerrainEditorProps extends TerrainAreaProps {
   terrain: CampaignGridResponse;
+  details: HexDetailResponse[];
 }
 
-function TerrainEditor({ campaignId, settings, bounds, terrain }: TerrainEditorProps) {
+function TerrainEditor({ campaignId, settings, bounds, terrain, details }: TerrainEditorProps) {
   const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
   const index = useMemo(() => indexTerrain(terrain), [terrain]);
   const [chosen, setChosen] = useState<{ hex: Hex; side: Side } | null>(null);
@@ -185,6 +195,13 @@ function TerrainEditor({ campaignId, settings, bounds, terrain }: TerrainEditorP
                 onSide={(side) => {
                   setChosen({ hex: chosen.hex, side });
                 }}
+              />
+              <HexDetailSection
+                key={`detail:${hexKey(chosen.hex)}`}
+                campaignId={campaignId}
+                hex={chosen.hex}
+                cell={index.cell(chosen.hex)}
+                detail={details.find((d) => d.q === chosen.hex.q && d.r === chosen.hex.r)}
               />
             </Stack>
           ) : (

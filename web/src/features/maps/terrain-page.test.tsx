@@ -6,6 +6,7 @@ import type {
   CampaignGridResponse,
   CampaignMapResponse,
   CampaignResponse,
+  HexDetailResponse,
 } from "@/api/generated/model";
 import { expectNoAxeViolations, renderApp } from "@/test/render";
 import { server } from "@/test/server";
@@ -117,6 +118,66 @@ function serveCampaign(
 }
 
 const page = `/campaigns/${campaignId}/map/terrain`;
+const armyId = "0192f5c1-0000-7000-8000-00000000a001";
+
+const rolled: HexDetailResponse = {
+  q: 0,
+  r: 0,
+  relief: "Rolling",
+  features: {
+    scrub: false,
+    village: true,
+    woods: true,
+    forest: false,
+    farms: false,
+    fields: false,
+    streams: false,
+  },
+  dominant: "SmallCastle",
+  favorability: "Favorable",
+  dice: { red: 4, white: 1, green: 1 },
+  forArmyId: armyId,
+  shownToArmyIds: [],
+  shownToAll: false,
+};
+
+/** The hexes' actual terrain, changing as the test rolls, saves and forgets; records the calls. */
+function serveDetails(initial: HexDetailResponse[]) {
+  let details = initial;
+  const calls: { method: string; body: unknown }[] = [];
+  server.use(
+    http.get(`*/api/campaigns/${campaignId}/armies`, () =>
+      HttpResponse.json([
+        {
+          id: armyId,
+          name: "First Corps",
+          commander: null,
+          side: null,
+          color: "Red",
+          nation: "None",
+        },
+      ]),
+    ),
+    http.get(`*/api/campaigns/${campaignId}/grid/details`, () => HttpResponse.json(details)),
+    http.post(`*/api/campaigns/${campaignId}/grid/details/0/0/roll`, async ({ request }) => {
+      calls.push({ method: "POST", body: await request.json() });
+      details = [rolled];
+      return HttpResponse.json(rolled);
+    }),
+    http.put(`*/api/campaigns/${campaignId}/grid/details/0/0`, async ({ request }) => {
+      const body = (await request.json()) as Partial<HexDetailResponse>;
+      calls.push({ method: "PUT", body });
+      details = [{ ...rolled, ...body }];
+      return HttpResponse.json(details[0]);
+    }),
+    http.delete(`*/api/campaigns/${campaignId}/grid/details/0/0`, () => {
+      calls.push({ method: "DELETE", body: null });
+      details = [];
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return calls;
+}
 
 describe("the terrain page", () => {
   it("asks the Umpire to choose a hex, and says when it's outside the grid", async () => {
@@ -327,6 +388,119 @@ describe("the terrain page", () => {
 
     expect(await screen.findByText(/^Inferred the terrain/)).toBeInTheDocument();
     expect(saved).toHaveLength(1);
+  });
+
+  it("lets the Umpire roll a hex's actual terrain for an army, and shows what the dice found", async () => {
+    serveCampaign("Umpire");
+    const calls = serveDetails([]);
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Click the middle" }));
+    const section = within(screen.getByRole("region", { name: "Actual terrain" }));
+    await user.click(section.getByRole("combobox", { name: "Asked by" }));
+    await user.click(await section.findByRole("option", { name: "First Corps", hidden: true }));
+    await user.click(section.getByRole("switch", { name: "Roll favourability" }));
+    await user.click(section.getByRole("button", { name: "Roll the dice" }));
+
+    expect(
+      await screen.findByText(
+        "The dice found: Rolling: a small village and small woods. A small castle. Favourable ground.",
+      ),
+    ).toBeInTheDocument();
+    expect(calls).toEqual([
+      { method: "POST", body: { forArmyId: armyId, favorability: true, flatMinusOne: false } },
+    ]);
+    // Now it's there to change.
+    expect(await section.findByText("Red 4, white 1, green 1.")).toBeInTheDocument();
+    expect(section.getByRole("button", { name: "Roll again" })).toBeInTheDocument();
+  });
+
+  it("lets the Umpire change what was found and show it to an army", async () => {
+    serveCampaign("Umpire");
+    const calls = serveDetails([rolled]);
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Click the middle" }));
+    const section = within(screen.getByRole("region", { name: "Actual terrain" }));
+    await user.click(await section.findByRole("checkbox", { name: "Streams" }));
+    const shownTo = section.getByRole("combobox", { name: "Shown to" });
+    await user.click(shownTo);
+    // "Asked by" lists the armies too: the option in this field's own list.
+    const list = document.getElementById(shownTo.getAttribute("aria-controls") ?? "");
+    await user.click(
+      within(list ?? document.body).getByRole("option", { name: "First Corps", hidden: true }),
+    );
+    await user.click(section.getByRole("button", { name: "Save actual terrain" }));
+
+    expect(await screen.findByText("Saved the actual terrain.")).toBeInTheDocument();
+    expect(calls).toEqual([
+      {
+        method: "PUT",
+        body: {
+          relief: "Rolling",
+          features: {
+            scrub: false,
+            village: true,
+            woods: true,
+            forest: false,
+            farms: false,
+            fields: false,
+            streams: true,
+          },
+          dominant: "SmallCastle",
+          favorability: "Favorable",
+          forArmyId: armyId,
+          shownToArmyIds: [armyId],
+          shownToAll: false,
+        },
+      },
+    ]);
+  });
+
+  it("offers one off the red die only on a flat hex", async () => {
+    serveCampaign("Umpire", {
+      cells: [
+        {
+          q: 0,
+          r: 0,
+          terrain: "LowHill",
+          forest: false,
+          settlement: { size: "None", walled: false, fortress: false, capital: "None", name: null },
+          setByUmpire: true,
+        },
+      ],
+      edges: [],
+    });
+    serveDetails([]);
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Click the middle" }));
+
+    const section = within(screen.getByRole("region", { name: "Actual terrain" }));
+    expect(section.queryByRole("switch", { name: "One off the red die" })).not.toBeInTheDocument();
+  });
+
+  it("lets the Umpire forget it, once confirmed", async () => {
+    serveCampaign("Umpire");
+    const calls = serveDetails([rolled]);
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Click the middle" }));
+    await user.click(
+      await within(screen.getByRole("region", { name: "Actual terrain" })).findByRole("button", {
+        name: "Forget",
+      }),
+    );
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Forget" }),
+    );
+
+    expect(await screen.findByText("Forgot the actual terrain.")).toBeInTheDocument();
+    expect(calls.map((c) => c.method)).toEqual(["DELETE"]);
   });
 
   it("isn't for Players", async () => {

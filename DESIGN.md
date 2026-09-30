@@ -2393,11 +2393,11 @@ build on positions.
       streams are left to the hex's detail (43c). On the Terrain page, **Infer terrain** saves
       it for the whole grid, keeping what the Umpire set (asking first when it replaces an earlier
       inference). End-to-end runs it on empty tiles (the flow, not the data).
-    - **43c. A hex's actual terrain** (decision 0016): `HexDetail` and its reveals; the Umpire
-      rolls for a hex (the app shakes the rules' three dice, with the red die's modifier from the
-      map terrain), adjusts it, and shows it to armies or to all; members see what's been shown
-      to them, in the hex's panel on the map. End-to-end: roll, reveal to an army, a commander
-      sees it.
+    - ✅ **43c. A hex's actual terrain** (decision 0016): `HexDetail` and its reveals; the Umpire
+      rolls for a hex on the Terrain page (the app shakes the rules' three dice, with the red
+      die's modifier from the map terrain), adjusts it, and shows it to armies or to all; members
+      see what's been shown to them in the Map page's **Hex details** list. End-to-end: roll,
+      reveal to an army, a commander sees it.
 44. **Costed movement:** terrain, roads, rivers and bridges in the costs, closed steps, and
     `Progress` for hexes that take more than a turn; the movement table per campaign (the rules'
     by default), editable in the settings. Boats (a unit type or a transport) follow waterways:

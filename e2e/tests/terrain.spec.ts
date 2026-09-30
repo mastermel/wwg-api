@@ -3,6 +3,7 @@ import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
 import { expect, test } from "./support/fixtures.ts";
 import { clickMapCentre } from "./support/map.ts";
+import { startedCampaign } from "./support/turns.ts";
 
 test("the Umpire sets a hex's terrain and an edge, and a Player can't", async ({ signUp }) => {
   test.slow();
@@ -64,30 +65,75 @@ test("the Umpire sets a hex's terrain and an edge, and a Player can't", async ({
   await expect(player.page.getByText("Only the Umpire can change the terrain")).toBeVisible();
 });
 
-test("the Umpire infers the terrain from the map's tiles", async ({ signUp }) => {
+test.describe("inference", () => {
+  // Requests the app's service worker makes don't reach page.route: without it, they all do.
+  test.use({ serviceWorkers: "block" });
+
+  test("the Umpire infers the terrain from the map's tiles", async ({ signUp }) => {
+    const umpire = await signUp("Ada");
+    await createCampaign(umpire.page, "Wavre 1815");
+    const campaignUrl = umpire.page.url();
+    const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
+    await (await apiAs(umpire.page)).put(`/api/campaigns/${campaignId}/map`, waterlooMap);
+    // Not the internet's tiles (e2e/CLAUDE.md): an empty build of them, so the flow is tested
+    // without depending on what they hold. The unit tests cover what's inferred from data.
+    const page = umpire.page;
+    await page.route("https://tiles.openfreemap.org/planet", (route) =>
+      route.fulfill({
+        json: { tiles: ["https://tiles.openfreemap.org/empty/{z}/{x}/{y}.pbf"], maxzoom: 14 },
+      }),
+    );
+    await page.route("https://tiles.openfreemap.org/empty/**", (route) =>
+      route.fulfill({ status: 404 }),
+    );
+    await page.route("https://tiles.mapterhorn.com/**", (route) => route.fulfill({ status: 404 }));
+
+    await page.goto(`${campaignUrl}/map/terrain`);
+    await page.getByRole("button", { name: "Infer terrain" }).click();
+
+    await expect(
+      page.getByText("Inferred the terrain: 0 hexes and 0 edges with something on them."),
+    ).toBeVisible();
+    expect(await scan(page, "terrain, inferred")).toEqual([]);
+  });
+});
+
+test("the Umpire rolls a hex's actual terrain, shows it to an army, and its commander sees it", async ({
+  signUp,
+}) => {
+  test.slow();
   const umpire = await signUp("Ada");
-  await createCampaign(umpire.page, "Wavre 1815");
-  const campaignUrl = umpire.page.url();
-  const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
-  await (await apiAs(umpire.page)).put(`/api/campaigns/${campaignId}/map`, waterlooMap);
-  // Not the internet's tiles (e2e/CLAUDE.md): an empty build of them, so the flow is tested
-  // without depending on what they hold. The unit tests cover what's inferred from data.
+  const commander = await signUp("Bob");
+  const { campaignUrl } = await startedCampaign(umpire, commander, "Quatre Bras 1815");
+
   const page = umpire.page;
-  await page.route("https://tiles.openfreemap.org/planet", (route) =>
-    route.fulfill({
-      json: { tiles: ["https://tiles.openfreemap.org/empty/{z}/{x}/{y}.pbf"], maxzoom: 14 },
-    }),
-  );
-  await page.route("https://tiles.openfreemap.org/empty/**", (route) =>
-    route.fulfill({ status: 404 }),
-  );
-  await page.route("https://tiles.mapterhorn.com/**", (route) => route.fulfill({ status: 404 }));
-
   await page.goto(`${campaignUrl}/map/terrain`);
-  await page.getByRole("button", { name: "Infer terrain" }).click();
+  await clickMapCentre(page);
+  const section = page.getByRole("region", { name: "Actual terrain" });
+  await section.getByRole("combobox", { name: "Asked by" }).click();
+  await section.getByRole("option", { name: "Armée du Nord" }).click();
+  await section.getByRole("button", { name: "Roll the dice" }).click();
+  // The dice are real: what they find isn't known, only that it's shown.
+  await expect(page.getByText(/^The dice found: /)).toBeVisible();
+  await expect(section.getByText(/^Red \d, white \d\.$/)).toBeVisible();
+  const found =
+    (await section.getByText(/^(Flat|Rolling|Hilly|High hills)[:.]/).textContent()) ?? "";
 
-  await expect(
-    page.getByText("Inferred the terrain: 0 hexes and 0 edges with something on them."),
-  ).toBeVisible();
-  expect(await scan(page, "terrain, inferred")).toEqual([]);
+  // The commander sees nothing until it's shown to his army.
+  await commander.page.goto(`${campaignUrl}/map`);
+  await expect(commander.page.getByRole("heading", { level: 2, name: "Turn 1" })).toBeVisible();
+  await expect(commander.page.getByRole("region", { name: "Hex details" })).toHaveCount(0);
+
+  const shownTo = section.getByRole("combobox", { name: "Shown to" });
+  await shownTo.click();
+  await page.getByRole("listbox").getByRole("option", { name: "Armée du Nord" }).click();
+  // Its list stays open after a pick: move on, as a person would.
+  await section.getByText("What's there").click();
+  await section.getByRole("button", { name: "Save actual terrain" }).click();
+  await expect(page.getByText("Saved the actual terrain.")).toBeVisible();
+  expect(await scan(page, "terrain, actual terrain")).toEqual([]);
+
+  await commander.page.reload();
+  const details = commander.page.getByRole("region", { name: "Hex details" });
+  await expect(details).toContainText(found);
 });

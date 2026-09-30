@@ -85,7 +85,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   and where each of a hex's six sides is stored: `storedEdge`, `flowFor`), drawn by
   `TerrainLayer` and edited on `TerrainPage`. Inference (`inference/`) reads the map's tiles in
   the browser: `tiles.ts` fetches and decodes them (browser only), `sources.ts` and `infer.ts`
-  are plain arithmetic, tested with made-up data. The Umpire's
+  are plain arithmetic, tested with made-up data. A hex's actual terrain (the rules' p. 57
+  roll) is `hex-detail.ts` in words, `HexDetailSection` for the Umpire and `HexDetailsList` on
+  the Map page. The Umpire's
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - The library (decision 0015) is `features/library`: every signed-in user views it; edits are
   shown only to `canEditLibrary(user)` (Managers and Admins). `UnitFormModal` (`features/units`)
