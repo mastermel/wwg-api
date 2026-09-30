@@ -18,8 +18,8 @@ club's own name.
 - **The mark** is the purchased silhouette of an officer (converted from EPS to SVG through PDF),
   cropped to the figure. It's kept as a mask: the figure's shapes show and its white details
   cut through, so it takes the theme's colours in light and dark mode, as the old mark did.
-- **The app icon** is the officer in white on a rounded square with a navy-to-silver gradient,
-  top to bottom. The maskable and Apple icons use it without padding, since the platforms cut
+- **The app icon** is the officer in white on a navy rounded square. (A navy-to-silver gradient
+  was tried first, and didn't work well.) The maskable and Apple icons use it without padding, since the platforms cut
   their own shape; the figure keeps to Android's safe middle circle.
 
 ## Consequences

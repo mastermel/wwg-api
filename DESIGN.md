@@ -927,8 +927,8 @@ people see; the project keeps `wwg-campaigner` wherever they don't (decision
   century** (`web/public/logo.svg`, from a purchased vector image). It's a
   mask, drawn in the text colour (`BrandMark`), its details cut through to
   what's behind.
-- The app icon (`web/public/app-icon.svg`): the officer in white on a rounded
-  square, navy at the top fading to silver, rendered to the PNG sizes the
+- The app icon (`web/public/app-icon.svg`): the officer in white on a navy
+  rounded square, rendered to the PNG sizes the
   manifest needs. The maskable and Apple icons are the square without padding
   (Android and iOS cut their own shape); the figure keeps to Android's safe
   middle circle.

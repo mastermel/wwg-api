@@ -8,8 +8,8 @@ export default defineConfig({
   headLinkOptions: { preset: "2023" },
   preset: {
     ...minimal2023Preset,
-    // Full colour: the default (quality 60) reduces the icons to a palette, which bands the
-    // gradient.
+    // Full colour: the default (quality 60) reduces the icons to a palette, which roughens the
+    // figure's edges.
     png: { compressionLevel: 9, palette: false },
     // The rounded square fills these: Android and iOS cut their own shape from it (the figure
     // keeps to Android's safe middle circle). The corners it leaves are the icon's navy, not white.
