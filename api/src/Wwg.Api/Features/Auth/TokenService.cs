@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Auth;
 
@@ -22,29 +23,70 @@ internal sealed class TokenService(
 
     private BearerTokenOptions Options => bearerOptions.Get(IdentityConstants.BearerScheme);
 
-    /// <summary>Signs the user in: returns an access token and sets the refresh cookie.</summary>
-    public async Task<TokenResponse> IssueAsync(HttpContext httpContext, AppUser user)
+    /// <summary>
+    /// Signs the user in: returns an access token and sets the refresh cookie. With a
+    /// <paramref name="masquerade"/>, the session is that masquerade (decision 0012): its claims
+    /// ride along, and neither token outlives it. Pass the current one on whenever tokens are
+    /// reissued, or the session would quietly become the user's own.
+    /// </summary>
+    public async Task<TokenResponse> IssueAsync(
+        HttpContext httpContext,
+        AppUser user,
+        Masquerade? masquerade = null
+    )
     {
         var principal = await signInManager.CreateUserPrincipalAsync(user);
+        if (masquerade is not null && principal.Identity is ClaimsIdentity identity)
+        {
+            identity.AddClaims(masquerade.ToClaims());
+        }
+
         var now = timeProvider.GetUtcNow();
         var options = Options;
+        var ends = masquerade?.Ends ?? DateTimeOffset.MaxValue;
+        var accessLifetime = Shortest(options.BearerTokenExpiration, ends - now);
+        var refreshLifetime = Shortest(options.RefreshTokenExpiration, ends - now);
 
         var accessToken = options.BearerTokenProtector.Protect(
-            CreateTicket(principal, now + options.BearerTokenExpiration)
+            CreateTicket(principal, now + accessLifetime)
         );
-        var refreshExpires = now + options.RefreshTokenExpiration;
         var refreshToken = options.RefreshTokenProtector.Protect(
-            CreateTicket(principal, refreshExpires)
+            CreateTicket(principal, now + refreshLifetime)
         );
 
         httpContext.Response.Cookies.Append(
             RefreshCookieName,
             refreshToken,
-            CookieOptions(maxAge: options.RefreshTokenExpiration)
+            CookieOptions(maxAge: refreshLifetime)
         );
 
-        return new TokenResponse(accessToken, (int)options.BearerTokenExpiration.TotalSeconds);
+        return new TokenResponse(accessToken, (int)accessLifetime.TotalSeconds);
     }
+
+    /// <summary>
+    /// The Admin behind a masquerade, if it may go on: it hasn't ended, and they still exist, are
+    /// still an Admin and have the same security stamp (no password change or sign out everywhere
+    /// since). Null if not.
+    /// </summary>
+    public async Task<AppUser?> MasqueradingAdminAsync(Masquerade masquerade)
+    {
+        if (masquerade.Ends <= timeProvider.GetUtcNow())
+        {
+            return null;
+        }
+
+        var users = signInManager.UserManager;
+        var admin = await users.FindByIdAsync(masquerade.AdminId.ToString());
+        return
+            admin is not null
+            && string.Equals(admin.SecurityStamp, masquerade.AdminStamp, StringComparison.Ordinal)
+            && await users.IsInRoleAsync(admin, Roles.Admin)
+            ? admin
+            : null;
+    }
+
+    private static TimeSpan Shortest(TimeSpan lifetime, TimeSpan left) =>
+        left < lifetime ? left : lifetime;
 
     /// <summary>
     /// The principal inside a refresh token, or null if it's missing, can't be read or has

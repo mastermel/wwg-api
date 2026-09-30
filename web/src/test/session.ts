@@ -8,6 +8,7 @@ export const testUser: MeResponse = {
   firstName: "Mel",
   lastName: "Green",
   isAdmin: false,
+  masquerade: null,
 };
 
 export const testAdmin: MeResponse = {
@@ -16,6 +17,7 @@ export const testAdmin: MeResponse = {
   firstName: "Ada",
   lastName: "Admin",
   isAdmin: true,
+  masquerade: null,
 };
 
 /**

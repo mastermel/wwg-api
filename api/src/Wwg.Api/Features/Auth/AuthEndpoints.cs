@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure;
+using Wwg.Api.Infrastructure.Auth;
 using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Auth;
@@ -32,6 +34,13 @@ internal static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
         auth.MapPost("/logout", Logout).WithName("Logout");
+        // Under /api/auth with the rest, but for a signed-in (masquerading) session.
+        app.MapPost("/api/auth/masquerade/end", EndMasqueradeAsync)
+            .WithName("EndMasquerade")
+            .WithTags("Auth")
+            .RequireSignedIn()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         auth.MapPost("/forgot-password", ForgotPasswordAsync)
             .WithName("ForgotPassword")
             .RequireRateLimiting(RateLimiting.EmailPolicy)
@@ -123,7 +132,8 @@ internal static class AuthEndpoints
     /// <summary>
     /// Swaps the refresh cookie for a new access token and a new refresh cookie (sliding: the 30
     /// days start again). Fails if the cookie is missing, unreadable or expired, or the account is
-    /// gone or its security stamp changed (password change, sign out everywhere).
+    /// gone or its security stamp changed (password change, sign out everywhere). A masquerade
+    /// (decision 0012) goes on only while it may: see <see cref="TokenService.MasqueradingAdminAsync"/>.
     /// </summary>
     internal static async Task<Results<Ok<TokenResponse>, ProblemHttpResult>> RefreshAsync(
         TokenService tokens,
@@ -137,18 +147,59 @@ internal static class AuthEndpoints
         var user = principal is null
             ? null
             : await signInManager.ValidateSecurityStampAsync(principal);
+        var masquerade = principal is null ? null : Masquerade.From(principal);
 
-        if (user is null)
+        if (
+            user is null
+            || (masquerade is not null && await tokens.MasqueradingAdminAsync(masquerade) is null)
+        )
         {
-            TokenService.ClearRefreshCookie(httpContext);
+            return SessionEnded(httpContext);
+        }
+
+        return TypedResults.Ok(await tokens.IssueAsync(httpContext, user, masquerade));
+    }
+
+    /// <summary>
+    /// Ends a masquerade (decision 0012): back to the Admin's own session, without a password, if
+    /// the masquerade may still go on. 409 if the session isn't a masquerade.
+    /// </summary>
+    internal static async Task<Results<Ok<TokenResponse>, ProblemHttpResult>> EndMasqueradeAsync(
+        ClaimsPrincipal principal,
+        TokenService tokens,
+        ILogger<Masquerade> logger,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (Masquerade.From(principal) is not { } masquerade)
+        {
             return TypedResults.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Signed out",
-                detail: "Your session has ended. Sign in again."
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Not masquerading",
+                detail: "This session isn't a masquerade."
             );
         }
 
-        return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+        if (await tokens.MasqueradingAdminAsync(masquerade) is not { } admin)
+        {
+            return SessionEnded(httpContext);
+        }
+
+        var userId = principal.GetUserId();
+        MasqueradeLog.Ended(logger, admin.Id, userId);
+        return TypedResults.Ok(await tokens.IssueAsync(httpContext, admin));
+    }
+
+    private static ProblemHttpResult SessionEnded(HttpContext httpContext)
+    {
+        TokenService.ClearRefreshCookie(httpContext);
+        return TypedResults.Problem(
+            statusCode: StatusCodes.Status401Unauthorized,
+            title: "Signed out",
+            detail: "Your session has ended. Sign in again."
+        );
     }
 
     /// <summary>

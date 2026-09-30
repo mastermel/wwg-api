@@ -21,6 +21,12 @@ internal sealed class AuthOptions
     public TimeSpan RefreshTokenLifetime { get; set; } = TimeSpan.FromDays(30);
 
     /// <summary>
+    /// How long an Admin's masquerade as another user lasts before it ends on its own (decision
+    /// 0012): neither of its tokens outlives it.
+    /// </summary>
+    public TimeSpan MasqueradeLifetime { get; set; } = TimeSpan.FromHours(8);
+
+    /// <summary>
     /// How long a password reset link works (Identity's default is a day). Identity checks it
     /// against the system clock, not the injected TimeProvider.
     /// </summary>

@@ -114,7 +114,9 @@ internal static class AccountEndpoints
         }
 
         // The password change rotated the security stamp; these tokens carry the new one.
-        return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+        return TypedResults.Ok(
+            await tokens.IssueAsync(httpContext, user, Masquerade.From(principal))
+        );
     }
 
     /// <summary>
@@ -187,7 +189,9 @@ internal static class AccountEndpoints
             EmailChangedEmail.Create(user, oldEmail, request.NewEmail),
             cancellationToken
         );
-        return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+        return TypedResults.Ok(
+            await tokens.IssueAsync(httpContext, user, Masquerade.From(principal))
+        );
     }
 
     /// <summary>
@@ -249,7 +253,10 @@ internal static class AccountEndpoints
             user.Email ?? "",
             user.FirstName,
             user.LastName,
-            principal.IsInRole(Roles.Admin)
+            principal.IsInRole(Roles.Admin),
+            Masquerade.From(principal) is { } masquerade
+                ? new MasqueradeInfo(masquerade.AdminName, masquerade.Ends.UtcDateTime)
+                : null
         );
 
     private static Dictionary<string, string[]> Errors(string field, params string[] messages) =>

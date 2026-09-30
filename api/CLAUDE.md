@@ -69,6 +69,8 @@ true, because the build launches the app to write the document.
   doesn't declare the path parameter. Row-level rules are checked in the handler.
 - Tokens: `TokenService` issues them (access token in the body, refresh token only in the
   cookie). Don't use Identity's sign-in or `MapIdentityApi`, which would put both in the body.
+  Reissuing tokens for a signed-in session passes `Masquerade.From(principal)` on, or an Admin's
+  masquerade (decision 0012) would quietly become the user's own session.
 - Entities derive from `Entity` (v7 GUID id, audit fields set by `AuditInterceptor`) and are
   configured in `Data/Configurations/` with `IEntityTypeConfiguration<T>`, not data attributes.
   Name/email columns that are searched or sorted use `UseCollation("NOCASE")`.

@@ -3,8 +3,10 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Auth;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -22,6 +24,11 @@ internal static class AdminUserEndpoints
             .WithName("GetUser")
             .ProducesProblem(StatusCodes.Status404NotFound);
         users
+            .MapPost("/{id:guid}/masquerade", MasqueradeAsync)
+            .WithName("Masquerade")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+        users
             .MapDelete("/{id:guid}", DeleteUserAsync)
             .WithName("DeleteUser")
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -29,6 +36,58 @@ internal static class AdminUserEndpoints
 
         return admin;
     }
+
+    /// <summary>
+    /// Starts a masquerade as the user (decision 0012): the session becomes theirs, with exactly
+    /// their permissions, marked as the Admin's masquerade and ending after
+    /// <c>Auth:MasqueradeLifetime</c>. Not as yourself, and not while already masquerading (409).
+    /// </summary>
+    internal static async Task<Results<Ok<TokenResponse>, ProblemHttpResult>> MasqueradeAsync(
+        Guid id,
+        ClaimsPrincipal principal,
+        UserManager<AppUser> userManager,
+        TokenService tokens,
+        IOptions<AuthOptions> authOptions,
+        TimeProvider time,
+        ILogger<Masquerade> logger,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (Masquerade.From(principal) is not null)
+        {
+            return MasqueradeConflict("Already masquerading", "End this masquerade first.");
+        }
+
+        if (id == principal.GetUserId())
+        {
+            return MasqueradeConflict("That's you", "You can't masquerade as yourself.");
+        }
+
+        var target = await userManager.FindByIdAsync(id.ToString());
+        var admin = await userManager.GetUserAsync(principal);
+        if (target is null || admin is null)
+        {
+            return TypedResults.Problem(statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var masquerade = new Masquerade(
+            admin.Id,
+            $"{admin.FirstName} {admin.LastName}",
+            admin.SecurityStamp ?? "",
+            time.GetUtcNow() + authOptions.Value.MasqueradeLifetime
+        );
+        MasqueradeLog.Started(logger, admin.Id, target.Id, masquerade.Ends);
+        return TypedResults.Ok(await tokens.IssueAsync(httpContext, target, masquerade));
+    }
+
+    private static ProblemHttpResult MasqueradeConflict(string title, string detail) =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: title,
+            detail: detail
+        );
 
     /// <summary>
     /// Users, sorted by last then first name, one page at a time. <c>search</c> matches any part of

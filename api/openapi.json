@@ -37,6 +37,52 @@
         }
       }
     },
+    "/api/auth/masquerade/end": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Ends a masquerade (decision 0012): back to the Admin's own session, without a password, if\nthe masquerade may still go on. 409 if the session isn't a masquerade.",
+        "operationId": "EndMasquerade",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/units": {
       "get": {
         "tags": [
@@ -443,7 +489,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Swaps the refresh cookie for a new access token and a new refresh cookie (sliding: the 30\ndays start again). Fails if the cookie is missing, unreadable or expired, or the account is\ngone or its security stamp changed (password change, sign out everywhere).",
+        "summary": "Swaps the refresh cookie for a new access token and a new refresh cookie (sliding: the 30\ndays start again). Fails if the cookie is missing, unreadable or expired, or the account is\ngone or its security stamp changed (password change, sign out everywhere). A masquerade\n(decision 0012) goes on only while it may: see Task&lt;AppUser?&gt; TokenService.MasqueradingAdminAsync(Masquerade masquerade).",
         "operationId": "Refresh",
         "responses": {
           "200": {
@@ -917,6 +963,63 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}/masquerade": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Starts a masquerade as the user (decision 0012): the session becomes theirs, with exactly\ntheir permissions, marked as the Admin's masquerade and ending after\n`Auth:MasqueradeLifetime`. Not as yourself, and not while already masquerading (409).",
+        "operationId": "Masquerade",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
           },
           "404": {
             "description": "Not Found",
@@ -3966,6 +4069,25 @@
         },
         "description": "Which of the map's layers are shown."
       },
+      "MasqueradeInfo": {
+        "required": [
+          "adminName",
+          "endsAt"
+        ],
+        "type": "object",
+        "properties": {
+          "adminName": {
+            "type": "string",
+            "description": "The Admin's name."
+          },
+          "endsAt": {
+            "type": "string",
+            "description": "When it ends on its own (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A masquerade: an Admin using the app as the signed-in user."
+      },
       "MemberArmy": {
         "required": [
           "id",
@@ -4001,7 +4123,8 @@
           "email",
           "firstName",
           "lastName",
-          "isAdmin"
+          "isAdmin",
+          "masquerade"
         ],
         "type": "object",
         "properties": {
@@ -4025,6 +4148,17 @@
           "isAdmin": {
             "type": "boolean",
             "description": "Whether they're a site-wide Admin."
+          },
+          "masquerade": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "When an Admin is using the app as this user (decision 0012): who, and until when. Null otherwise.",
+                "$ref": "#/components/schemas/MasqueradeInfo"
+              }
+            ]
           }
         },
         "description": "The signed-in user."
@@ -4846,6 +4980,9 @@
       "name": "Health"
     },
     {
+      "name": "Auth"
+    },
+    {
       "name": "Units"
     },
     {
@@ -4853,9 +4990,6 @@
     },
     {
       "name": "Turns"
-    },
-    {
-      "name": "Auth"
     },
     {
       "name": "Account"

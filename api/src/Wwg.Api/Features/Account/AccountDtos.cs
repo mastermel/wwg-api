@@ -9,13 +9,22 @@ namespace Wwg.Api.Features.Account;
 /// <param name="FirstName">First name.</param>
 /// <param name="LastName">Last name.</param>
 /// <param name="IsAdmin">Whether they're a site-wide Admin.</param>
+/// <param name="Masquerade">
+/// When an Admin is using the app as this user (decision 0012): who, and until when. Null otherwise.
+/// </param>
 public sealed record MeResponse(
     Guid Id,
     string Email,
     string FirstName,
     string LastName,
-    bool IsAdmin
+    bool IsAdmin,
+    MasqueradeInfo? Masquerade
 );
+
+/// <summary>A masquerade: an Admin using the app as the signed-in user.</summary>
+/// <param name="AdminName">The Admin's name.</param>
+/// <param name="EndsAt">When it ends on its own (UTC).</param>
+public sealed record MasqueradeInfo(string AdminName, DateTime EndsAt);
 
 /// <summary>Updates the signed-in user's name.</summary>
 public sealed record UpdateProfileRequest(
