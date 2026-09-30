@@ -6680,8 +6680,7 @@
         "enum": [
           "Morning",
           "Afternoon",
-          "Night",
-          null
+          "Night"
         ]
       },
       "UnitNoteDto": {

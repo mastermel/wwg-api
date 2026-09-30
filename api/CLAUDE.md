@@ -50,6 +50,9 @@ true, because the build launches the app to write the document.
   validation source generator ignores internal types, and validation then silently never runs.
 - Attributes on positional record parameters use the `property:` target, or OpenAPI misses them:
   `[property: Trimmed, Required, StringLength(100)] string Name`.
+- `EnumSchemaTransformer` keeps null out of an enum's own values: the document describes an enum
+  from the first property of its type, and a nullable one would otherwise make every property
+  of that enum nullable in the SDK.
 - `[Trimmed]` trims name-like strings and emails while the JSON is read (before validation).
   Never on passwords.
 - `PropertySchemaTransformer` keeps the OpenAPI schema honest: it restores the string type on

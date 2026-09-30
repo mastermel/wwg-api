@@ -4,6 +4,7 @@ import type { CampaignGridResponse, HexEdgeResponse, UnitType } from "@/api/gene
 import { hexGrid, hexKey } from "@/features/maps/hex-grid";
 import {
   affordable,
+  budgetFor,
   classOf,
   pathTo,
   ratesOf,
@@ -215,6 +216,31 @@ describe("reach, into a hex that takes more than a turn", () => {
       budget: Infinity,
     });
     expect(umpire.get(hexKey({ q: 0, r: -1 }))?.progress).toBeUndefined();
+  });
+});
+
+describe("budgetFor", () => {
+  const marches = { morningNations: ["France"], afternoonNations: ["Russia"] } as const;
+
+  it("gives the named nations' infantry a flat hex's worth more each Morning, less each Afternoon", () => {
+    expect(budgetFor(rules, "LineInfantry", "France", "Morning", marches)).toBe(1.5);
+    expect(budgetFor(rules, "Engineers", "Russia", "Afternoon", marches)).toBe(0.5);
+  });
+
+  it("leaves everyone else, and the other times of day, at a turn", () => {
+    expect(budgetFor(rules, "LineInfantry", "France", "Afternoon", marches)).toBe(1);
+    expect(budgetFor(rules, "LineInfantry", "France", "Night", marches)).toBe(1);
+    expect(budgetFor(rules, "LineInfantry", "Saxony", "Morning", marches)).toBe(1);
+    expect(budgetFor(rules, "HeavyCavalry", "France", "Morning", marches)).toBe(1);
+    expect(budgetFor(rules, "LineInfantry", "France", "Morning", undefined)).toBe(1);
+  });
+
+  it("goes by the campaign's flat rate", () => {
+    const faster = ratesOf({
+      rules: false,
+      rates: [{ class: "Infantry", ground: "Flat", hexes: 4 }],
+    });
+    expect(budgetFor(faster, "LineInfantry", "France", "Morning", marches)).toBe(1.25);
   });
 });
 

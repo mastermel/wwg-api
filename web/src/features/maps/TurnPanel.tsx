@@ -1,6 +1,6 @@
 import { ActionIcon, Alert, Badge, Button, Group, List, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconArrowBackUp, IconSend } from "@tabler/icons-react";
+import { IconArrowBackUp, IconMoon, IconSend } from "@tabler/icons-react";
 import { useState } from "react";
 import type { ArmyTurnDetails, ArmyTurnStatus, CampaignTurnSummary } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -12,6 +12,7 @@ import type { PlacedUnit } from "@/features/maps/stacks";
 import { reviewOf, type OpenArmyTurn, type useOrders } from "@/features/maps/use-orders";
 import { UnitSymbol } from "@/features/units/UnitSymbol";
 import { useOnline } from "@/lib/use-online";
+import { turnPartHours, turnWhen } from "@/features/campaigns/calendar";
 
 /** A commander's unit, and where it is (undefined: the Umpire hasn't placed it yet). */
 export interface CommandedUnit {
@@ -47,9 +48,20 @@ export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPane
   return (
     <Section
       title={`Turn ${String(open.number)}`}
-      description={`${String(open.submitted)} of ${String(open.armies)} armies have submitted this turn.`}
+      description={[
+        turnWhen(open) ? `${turnWhen(open) ?? ""}.` : null,
+        `${String(open.submitted)} of ${String(open.armies)} armies have submitted this turn.`,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <Stack gap="lg">
+        {open.part === "Night" && (
+          <Alert role="status" color="gray" icon={<IconMoon aria-hidden />}>
+            It&apos;s night ({turnPartHours.Night}): a unit that moves by night counts it towards a
+            forced march.
+          </Alert>
+        )}
         {commanded.map((entry) =>
           entry.turn ? (
             <ArmyTurnOrders
@@ -58,6 +70,7 @@ export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPane
               turn={entry.turn}
               units={units.filter((u) => u.army.id === entry.army.id)}
               orders={orders}
+              night={open.part === "Night"}
               onChoose={onChoose}
               onSubmit={() => {
                 setSubmitting(entry);
@@ -95,6 +108,8 @@ interface ArmyTurnOrdersProps {
   orders: ReturnType<typeof useOrders>;
   onChoose: (placed: PlacedUnit) => void;
   onSubmit: () => void;
+  /** The turn is a Night: its moves are night moves. */
+  night: boolean;
 }
 
 function ArmyTurnOrders({
@@ -104,6 +119,7 @@ function ArmyTurnOrders({
   orders,
   onChoose,
   onSubmit,
+  night,
 }: ArmyTurnOrdersProps) {
   const online = useOnline();
   const draft = turn.status === "Draft";
@@ -161,7 +177,7 @@ function ArmyTurnOrders({
                       </Text>
                     )}
                     <Text size="xs" c="dimmed">
-                      {describeOrder(order, placed)}
+                      {describeOrder(order, placed, night)}
                       {order?.byUmpire && " · set by the Umpire"}
                     </Text>
                     {note && (

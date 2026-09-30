@@ -10,10 +10,20 @@ export const hexes = (count: number) => `${String(count)} ${count === 1 ? "hex" 
  * yet" for a unit the Umpire hasn't placed (it can't have one). A move from before the grid, with
  * no path, just "Moves".
  */
-export function describeOrder(order: UnitPosition | undefined, from: Point | undefined) {
+export function describeOrder(
+  order: UnitPosition | undefined,
+  from: Point | undefined,
+  night = false,
+) {
   if (!from) return "Not on the map yet";
   if (!order) return "No order yet";
   if (order.kind === "Hold") return "Holds";
+  // A move by night counts towards a forced march (step 45).
+  if (night) return `${describeMove(order)}, by night`;
+  return describeMove(order);
+}
+
+function describeMove(order: UnitPosition) {
   if (order.progress !== null) {
     // The last hex takes more than a turn: it gets part of the way in (step 44).
     const into = `${shareOfTheWay(order.progress)} of the way into the next`;

@@ -1,4 +1,11 @@
-import type { Ground, MovementClass, MovementTableResponse, UnitType } from "@/api/generated/model";
+import type {
+  Ground,
+  MovementClass,
+  MovementTableResponse,
+  Nation,
+  TurnPart,
+  UnitType,
+} from "@/api/generated/model";
 import { directions, hexKey, neighbours, type Hex, type HexGrid } from "@/features/maps/hex-grid";
 import { flowFor, sides, storedEdge, type Side, type TerrainIndex } from "@/features/maps/terrain";
 
@@ -179,6 +186,32 @@ function boatStep(rates: Rates, terrain: TerrainIndex, from: Hex, to: Hex, side:
 
 // Sums of thirds don't come to exactly 1.
 const tolerance = 1e-9;
+
+/** Whose infantry march further or less, from the campaign's calendar. */
+export interface Marches {
+  morningNations: readonly Nation[];
+  afternoonNations: readonly Nation[];
+}
+
+/**
+ * A turn's movement for a unit, as the API's Movement.BudgetFor (step 45; the rules, §E.1): 1,
+ * and for infantry (the Infantry class) of a nation the campaign names, a flat hex's worth more
+ * each Morning or less each Afternoon.
+ */
+export function budgetFor(
+  rates: Rates,
+  type: UnitType,
+  nation: Nation,
+  part: TurnPart | null | undefined,
+  marches: Marches | undefined,
+): number {
+  const flat = rates("Infantry", "Flat");
+  if (classOf(type) !== "Infantry" || flat <= 0 || !marches) return 1;
+  if (part === "Morning" && marches.morningNations.includes(nation)) return 1 + 1 / flat;
+  if (part === "Afternoon" && marches.afternoonNations.includes(nation))
+    return Math.max(0, 1 - 1 / flat);
+  return 1;
+}
 
 /** For the Umpire, who may cross a closed step (decision 0011): dear, so it's the last resort. */
 const closedForUmpire = 100;

@@ -3,6 +3,7 @@ import { useRef, type KeyboardEvent } from "react";
 import type { ArmyTurnStatus, CampaignTurnsResponse } from "@/api/generated/model";
 import { Section } from "@/components/Section";
 import classes from "@/features/maps/PanelList.module.css";
+import { turnWhen } from "@/features/campaigns/calendar";
 
 const statusLabels: Record<ArmyTurnStatus, string> = {
   Draft: "draft",
@@ -41,12 +42,14 @@ export function TurnList({ turns, viewing, onView, manager }: TurnListProps) {
       <Stack component="ul" gap={2} p={0} m={0} aria-label="Turns">
         {newestFirst.map((turn) => {
           const open = turn.closedAt === null;
-          const detail =
+          const progress =
             turn.number === 0
               ? "Setup"
               : manager
                 ? `${String(turn.submitted)} of ${String(turn.armies)} submitted`
                 : turn.armyTurns.map((a) => statusLabels[a.status]).join(", ") || "—";
+          // When it fell, first: "17 June 1815, Afternoon · 2 of 3 submitted".
+          const detail = [turnWhen(turn), progress].filter(Boolean).join(" · ");
           return (
             <li key={turn.number} style={{ listStyle: "none" }}>
               <UnstyledButton

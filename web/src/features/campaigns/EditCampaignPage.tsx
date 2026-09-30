@@ -1,5 +1,5 @@
 import { notifications } from "@mantine/notifications";
-import { Alert } from "@mantine/core";
+import { Alert, Stack } from "@mantine/core";
 import { IconLock } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -13,6 +13,7 @@ import { Page } from "@/components/Page";
 import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
+import { CalendarSection } from "@/features/campaigns/CalendarSection";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { CampaignForm } from "@/features/campaigns/CampaignForm";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
@@ -51,20 +52,23 @@ export function EditCampaignPage({ id }: { id: string }) {
               if something needs changing.
             </Alert>
           ) : (
-            <Section title="Details" description="Players see these on the campaign's page.">
-              <CampaignForm
-                defaultValues={{ name: details.name, description: details.description ?? "" }}
-                submitLabel="Save changes"
-                onSubmit={async (values) => {
-                  const updated = await update.mutateAsync({ id, data: values });
-                  queryClient.setQueryData(getGetCampaignQueryKey(id), updated);
-                  notifications.show({ color: "green", message: `Saved ${updated.name}.` });
-                  await refreshCampaign(queryClient, id);
-                  await back();
-                }}
-                onCancel={() => void back()}
-              />
-            </Section>
+            <Stack gap="xl">
+              <Section title="Details" description="Players see these on the campaign's page.">
+                <CampaignForm
+                  defaultValues={{ name: details.name, description: details.description ?? "" }}
+                  submitLabel="Save changes"
+                  onSubmit={async (values) => {
+                    const updated = await update.mutateAsync({ id, data: values });
+                    queryClient.setQueryData(getGetCampaignQueryKey(id), updated);
+                    notifications.show({ color: "green", message: `Saved ${updated.name}.` });
+                    await refreshCampaign(queryClient, id);
+                    await back();
+                  }}
+                  onCancel={() => void back()}
+                />
+              </Section>
+              <CalendarSection campaignId={id} />
+            </Stack>
           )
         }
       </QueryState>

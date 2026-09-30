@@ -2432,9 +2432,11 @@ build on positions.
       carry their `part` and `date`; a unit marches as its library faction's nation, or its
       army's when the faction has none (`ArmyUnitResponse.nation`). A move in a Night turn is a
       night move (the turn says so), for forced marches later.
-    - **45b. The calendar in the app:** the Umpire sets it on the campaign's edit page; every
-      turn labelled ("Turn 7 · 17 June 1815, Afternoon"); the map's reach and the commander's
-      budget with the march; night moves marked, with a warning when ordering one.
+    - ✅ **45b. The calendar in the app:** the Umpire sets it on the campaign's edit page
+      (**Calendar**); every turn is labelled with its day and time of day ("17 June 1815,
+      Afternoon", under its "Turn 7" heading and in the turn list); the map's reach uses the
+      unit's march; in a Night turn the Turn panel says moving counts towards a forced march,
+      and its moves read "by night".
 46. **Contact and concentration:** the Umpire is shown where opposing armies share a hex after a
     turn (battles themselves happen at the table), and warned of hexes over the concentration
     limits (200 points of infantry or 160 of cavalry; double in large and walled cities and

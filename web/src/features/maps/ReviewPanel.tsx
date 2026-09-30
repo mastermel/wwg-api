@@ -16,6 +16,7 @@ import type { OpenArmyTurn } from "@/features/maps/use-orders";
 import type { useReview } from "@/features/maps/use-review";
 import { formatDateTime } from "@/lib/format";
 import { useOnline } from "@/lib/use-online";
+import { turnWhen } from "@/features/campaigns/calendar";
 
 const statusLabels: Record<ArmyTurnStatus, string> = {
   Draft: "Draft",
@@ -50,7 +51,12 @@ export function ReviewPanel({ open, problems, armyTurns, units, review }: Review
   return (
     <Section
       title={`Turn ${String(open.number)}`}
-      description={`${String(open.submitted)} of ${String(open.armies)} armies have submitted this turn.`}
+      description={[
+        turnWhen(open) ? `${turnWhen(open) ?? ""}.` : null,
+        `${String(open.submitted)} of ${String(open.armies)} armies have submitted this turn.`,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <Stack gap="lg">
         {armyTurns.map((entry) =>

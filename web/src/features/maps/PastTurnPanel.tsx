@@ -11,6 +11,7 @@ import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
 import type { OpenArmyTurn } from "@/features/maps/use-orders";
 import { formatDateTime } from "@/lib/format";
+import { turnWhen } from "@/features/campaigns/calendar";
 
 const statusLabels: Record<ArmyTurnStatus, string> = {
   Draft: "Draft",
@@ -57,7 +58,7 @@ export function PastTurnPanel({
       description={
         turn.number === 0
           ? "Where the Umpire placed the units."
-          : "Where the units were after this turn."
+          : `Where the units were after this turn${turnWhen(turn) ? ` (${turnWhen(turn) ?? ""})` : ""}.`
       }
     >
       <Stack gap="lg">

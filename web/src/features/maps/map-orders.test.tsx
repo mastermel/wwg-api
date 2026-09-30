@@ -104,7 +104,7 @@ const hold: UnitPosition = {
 };
 
 /** A running campaign where the signed-in Player commands one army with one unit. */
-function serveCommander(turn: ArmyTurnDetails) {
+function serveCommander(turn: ArmyTurnDetails, turns: CampaignTurnsResponse = running) {
   const requests: { method: string; url: string; body: unknown }[] = [];
   const record = async (request: Request) => {
     const text = await request.text();
@@ -157,7 +157,7 @@ function serveCommander(turn: ArmyTurnDetails) {
         },
       ]),
     ),
-    http.get(`*/api/campaigns/${campaignId}/turns`, () => HttpResponse.json(running)),
+    http.get(`*/api/campaigns/${campaignId}/turns`, () => HttpResponse.json(turns)),
     http.get(`*/api/campaigns/${campaignId}/positions`, () =>
       HttpResponse.json([{ ...hold, turn: 0, status: "Completed", kind: "Move" }]),
     ),
@@ -198,6 +198,45 @@ describe("a commander's turn", () => {
     expect(within(panel).getByRole("button", { name: "Submit turn 1" })).toBeDisabled();
     expect(within(panel).getByText(/1 to go/)).toBeInTheDocument();
     await expectNoAxeViolations(document.body);
+  });
+
+  it("says when the turn falls, and marks a move by night", async () => {
+    const night: CampaignTurnsResponse = {
+      ...running,
+      turns: running.turns.map((t) =>
+        t.number === 1 ? { ...t, part: "Night", date: "1815-06-17" } : t,
+      ),
+    };
+    serveCommander(
+      draft({
+        orders: [
+          {
+            unitId: unitId,
+            armyId,
+            turn: 1,
+            status: "Draft",
+            kind: "Move",
+            q: 0,
+            r: -1,
+            latitude: 50.7,
+            longitude: 4.4,
+            path: [{ q: 0, r: -1 }],
+            byUmpire: false,
+            progress: null,
+          },
+        ],
+      }),
+      night,
+    );
+
+    await openMap();
+
+    const panel = await screen.findByRole("region", { name: "Turn 1" });
+    expect(
+      within(panel).getByText("17 June 1815, Night. 1 of 2 armies have submitted this turn."),
+    ).toBeInTheDocument();
+    expect(within(panel).getByRole("status")).toHaveTextContent(/It's night/);
+    expect(within(panel).getByText("Moves 1 hex, by night")).toBeInTheDocument();
   });
 
   it("orders a unit to hold from its drawer", async () => {

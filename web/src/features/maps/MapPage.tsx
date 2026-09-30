@@ -13,7 +13,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useListArmies } from "@/api/generated/endpoints/armies/armies";
-import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
+import {
+  useGetCampaign,
+  useGetCampaignCalendar,
+} from "@/api/generated/endpoints/campaigns/campaigns";
 import { useGetCampaignGrid, useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
 import { useGetMovementTable } from "@/api/generated/endpoints/turns/turns";
 import {
@@ -36,7 +39,15 @@ import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import type { Point } from "@/features/maps/geo";
 import { hexGrid, hexKey, type Hex } from "@/features/maps/hex-grid";
-import { classOf, pathTo, ratesOf, reach, shareOfTheWay, stepCost } from "@/features/maps/movement";
+import {
+  budgetFor,
+  classOf,
+  pathTo,
+  ratesOf,
+  reach,
+  shareOfTheWay,
+  stepCost,
+} from "@/features/maps/movement";
 import { indexTerrain } from "@/features/maps/terrain";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
@@ -235,6 +246,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
   const terrain = useGetCampaignGrid(campaignId, live);
   const movementTable = useGetMovementTable(campaignId, live);
+  const calendar = useGetCampaignCalendar(campaignId, live);
   const costs = useMemo(
     () => ({ rates: ratesOf(movementTable.data), terrain: indexTerrain(terrain.data) }),
     [movementTable.data, terrain.data],
@@ -245,9 +257,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const withinTurn = useMemo(
     () =>
       moving
-        ? reach(grid, moving.hex, moving.unit.type, { ...costs, carried: moving.headingInto })
+        ? reach(grid, moving.hex, moving.unit.type, {
+            ...costs,
+            carried: moving.headingInto,
+            // Further or less by the time of day, for some nations' infantry (step 45).
+            budget: budgetFor(
+              costs.rates,
+              moving.unit.type,
+              moving.unit.nation,
+              openTurn?.part,
+              calendar.data,
+            ),
+          })
         : null,
-    [grid, moving, costs],
+    [grid, moving, costs, openTurn?.part, calendar.data],
   );
   const reachable = useMemo(
     () =>

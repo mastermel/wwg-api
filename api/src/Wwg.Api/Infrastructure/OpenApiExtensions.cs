@@ -25,6 +25,7 @@ internal static class OpenApiExtensions
                     }
                 )
                 .AddSchemaTransformer<PropertySchemaTransformer>()
+                .AddSchemaTransformer<EnumSchemaTransformer>()
                 .AddDocumentTransformer<BearerSecurityTransformers>()
                 .AddOperationTransformer<BearerSecurityTransformers>()
         );

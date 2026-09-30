@@ -1,3 +1,4 @@
+import { scan } from "./support/axe.ts";
 import { createCampaign } from "./support/campaigns.ts";
 import { expect, test } from "./support/fixtures.ts";
 import { waitForServiceWorker, waitUntilSaved } from "./support/offline.ts";
@@ -60,4 +61,25 @@ test("shows saved campaigns offline, read-only", async ({ signUp, browserName })
   await page.context().setOffline(false);
   await expect(page.getByText("You're offline")).toBeHidden();
   await expect(page.getByRole("button", { name: "Delete campaign" })).toBeEnabled();
+});
+
+test("the Umpire sets the calendar, and the turns are labelled with their days", async ({
+  signUp,
+}) => {
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Waterloo 1815");
+  const page = umpire.page;
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+
+  const calendar = page.getByRole("region", { name: "Calendar" });
+  await calendar.getByLabel(/The first turn's day/).fill("1815-06-18");
+  await calendar.getByText("Afternoon (14:00–22:00)").click();
+  await calendar.getByRole("button", { name: "Save calendar" }).click();
+  await expect(page.getByText("Saved the calendar.")).toBeVisible();
+  expect(await scan(page, "edit campaign, the calendar")).toEqual([]);
+
+  // Kept: it comes back as it was left.
+  await page.reload();
+  await expect(calendar.getByLabel(/The first turn's day/)).toHaveValue("1815-06-18");
+  await expect(calendar.getByRole("radio", { name: "Afternoon (14:00–22:00)" })).toBeChecked();
 });

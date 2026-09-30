@@ -54,6 +54,14 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
   for (const unit of units) {
     await api.put(`/api/army-units/${unit.id}/placement`, startingPlaces[unit.name]);
   }
+  // French infantry would march a hex further in turn 1's Morning (step 45): not in these tests,
+  // which are about the moves themselves.
+  await api.put(`/api/campaigns/${campaignId}/calendar`, {
+    startDate: null,
+    firstTurnPart: "Morning",
+    morningNations: [],
+    afternoonNations: [],
+  });
   await api.post(`/api/campaigns/${campaignId}/start`, null);
   return { campaignUrl, campaignId, armyId: army.id };
 }

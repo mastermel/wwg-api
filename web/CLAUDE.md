@@ -95,6 +95,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   is shared by library units and the army's copies of them. An army takes units only from its
   factions (the army form's **Factions**), through `AddUnitsModal`; both fetch the library afresh
   each time they open (`refetchOnMount: "always"`), as a Manager may have changed it.
+- A campaign's calendar (step 45) is `features/campaigns/calendar.ts`: `turnWhen(turn)` labels a
+  turn ("17 June 1815, Afternoon"); the rule book's marching nations mirror the API's
+  `TurnParts`. The march itself is `movement.ts`'s `budgetFor`, as the API's.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and
