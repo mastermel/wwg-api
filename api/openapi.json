@@ -2243,7 +2243,7 @@
         "tags": [
           "Maps"
         ],
-        "summary": "The campaign's map settings (every member): its bounds (null until set), label language,\ndistance unit, layers and movement limits. Before the Umpire saves any, the defaults.",
+        "summary": "The campaign's map settings (every member): its bounds (null until set), label language,\ndistance unit, layers and hex size. Before the Umpire saves any, the defaults.",
         "operationId": "GetCampaignMap",
         "parameters": [
           {
@@ -2278,7 +2278,7 @@
         "tags": [
           "Maps"
         ],
-        "summary": "Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to\nnorth; every unit type has a movement limit, once.",
+        "summary": "Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to\nnorth. The bounds and hex size lay out the grid: once the campaign has started they're\nfixed (409); while setting up, changing them moves each placement to the new hex holding\nthe old one's centre, and takes it off the map if that's outside the new grid.",
         "operationId": "UpdateCampaignMap",
         "parameters": [
           {
@@ -2440,7 +2440,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a\nunit added since that has no position yet (it's placed where its army last was, in the\narmy's turn in the last closed campaign turn, which can't be reverted). Inside the\ncampaign's area, which must be set.",
+        "summary": "Places a unit in a hex of the grid (Umpire or Admin): while setting up, in turn 0; once\nstarted, a unit added since that has no position yet (it's placed where its army last was, in the\narmy's turn in the last closed campaign turn, which can't be reverted). Inside the\ncampaign's area, which must be set.",
         "operationId": "PlaceUnit",
         "parameters": [
           {
@@ -2545,7 +2545,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Gives a unit its order for the turn: Move, inside the campaign's area (and for the\ncommander, within the unit type's limit of where it is, in a straight line); or Hold, where\nit is. Replaces any order it had. The army's commander gives orders while the turn is a\nDraft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on\nthe commander's behalf (decision 0011), which goes in the turn's history.",
+        "summary": "Gives a unit its order for the turn: Move along a path of adjacent hexes from its current\none, inside the grid (and for the commander, one its movement class can afford this turn:\nDESIGN.md §5.2); or Hold, where it is. Replaces any order it had. The army's commander gives orders while the turn is a\nDraft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on\nthe commander's behalf (decision 0011), which goes in the turn's history.",
         "operationId": "GiveOrder",
         "parameters": [
           {
@@ -3286,8 +3286,7 @@
           "labelLanguage",
           "distanceUnit",
           "layers",
-          "hexSize",
-          "movementLimits"
+          "hexSize"
         ],
         "type": "object",
         "properties": {
@@ -3318,13 +3317,6 @@
             "type": "integer",
             "description": "The hex grid's hexes, in metres across the flats (4828: 3 miles).",
             "format": "int32"
-          },
-          "movementLimits": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MovementLimitDto"
-            },
-            "description": "How far each type of unit moves in a turn, one per type."
           }
         },
         "description": "A campaign's map settings."
@@ -3836,34 +3828,24 @@
       "GiveOrderRequest": {
         "required": [
           "kind",
-          "latitude",
-          "longitude"
+          "path"
         ],
         "type": "object",
         "properties": {
           "kind": {
-            "description": "Move (to the position) or Hold (stay where it is).",
+            "description": "Move (along the path) or Hold (stay where it is).",
             "$ref": "#/components/schemas/OrderKind"
           },
-          "latitude": {
-            "maximum": 85,
-            "minimum": -85,
+          "path": {
+            "maxItems": 50,
             "type": [
               "null",
-              "number"
+              "array"
             ],
-            "description": "Where to move, in degrees (Move only).",
-            "format": "double"
-          },
-          "longitude": {
-            "maximum": 180,
-            "minimum": -180,
-            "type": [
-              "null",
-              "number"
-            ],
-            "description": "Where to move, in degrees (Move only).",
-            "format": "double"
+            "items": {
+              "$ref": "#/components/schemas/Hex"
+            },
+            "description": "A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it\nends. Adjacent, inside the grid, and within what the unit can move in a turn."
           }
         },
         "description": "A unit's order for the turn."
@@ -3887,6 +3869,24 @@
           "Degraded",
           "Healthy"
         ]
+      },
+      "Hex": {
+        "required": [
+          "q",
+          "r"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "A hex in a campaign's grid, by its axial coordinates (q east, r south-east)."
       },
       "HttpValidationProblemDetails": {
         "type": "object",
@@ -4179,27 +4179,6 @@
         },
         "description": "The signed-in user."
       },
-      "MovementLimitDto": {
-        "required": [
-          "unitType",
-          "metres"
-        ],
-        "type": "object",
-        "properties": {
-          "unitType": {
-            "description": "The type of unit.",
-            "$ref": "#/components/schemas/UnitType"
-          },
-          "metres": {
-            "maximum": 1000000,
-            "minimum": 0,
-            "type": "integer",
-            "description": "The straight-line distance, in metres (up to 1,000 km).",
-            "format": "int32"
-          }
-        },
-        "description": "How far a unit of one type can move in one turn."
-      },
       "Nation": {
         "enum": [
           "None",
@@ -4380,27 +4359,23 @@
       },
       "PlaceUnitRequest": {
         "required": [
-          "latitude",
-          "longitude"
+          "q",
+          "r"
         ],
         "type": "object",
         "properties": {
-          "latitude": {
-            "maximum": 85,
-            "minimum": -85,
-            "type": "number",
-            "description": "Latitude, in degrees, inside the campaign's area.",
-            "format": "double"
+          "q": {
+            "type": "integer",
+            "description": "The hex (axial q).",
+            "format": "int32"
           },
-          "longitude": {
-            "maximum": 180,
-            "minimum": -180,
-            "type": "number",
-            "description": "Longitude, in degrees, inside the campaign's area.",
-            "format": "double"
+          "r": {
+            "type": "integer",
+            "description": "The hex (axial r).",
+            "format": "int32"
           }
         },
-        "description": "Where the Umpire places a unit."
+        "description": "Where the Umpire places a unit: a hex in the campaign's grid."
       },
       "ProblemDetails": {
         "type": "object",
@@ -4604,8 +4579,11 @@
           "turn",
           "status",
           "kind",
+          "q",
+          "r",
           "latitude",
           "longitude",
+          "path",
           "byUmpire"
         ],
         "type": "object",
@@ -4633,15 +4611,32 @@
             "description": "Its order: Move (or placed, in turn 0) or Hold.",
             "$ref": "#/components/schemas/OrderKind"
           },
+          "q": {
+            "type": "integer",
+            "description": "The hex it's in (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex it's in (axial r).",
+            "format": "int32"
+          },
           "latitude": {
             "type": "number",
-            "description": "Latitude, in degrees.",
+            "description": "The hex's centre, in degrees.",
             "format": "double"
           },
           "longitude": {
             "type": "number",
-            "description": "Longitude, in degrees.",
+            "description": "The hex's centre, in degrees.",
             "format": "double"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Hex"
+            },
+            "description": "A Move's steps, the hexes it passes through in order; empty otherwise."
           },
           "byUmpire": {
             "type": "boolean",
@@ -4749,8 +4744,7 @@
           "labelLanguage",
           "distanceUnit",
           "layers",
-          "hexSize",
-          "movementLimits"
+          "hexSize"
         ],
         "type": "object",
         "properties": {
@@ -4784,13 +4778,6 @@
             "type": "integer",
             "description": "The hex grid's hexes, in metres across the flats. With the bounds, fixed once the campaign has\nstarted.",
             "format": "int32"
-          },
-          "movementLimits": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MovementLimitDto"
-            },
-            "description": "How far each type of unit moves in a turn: every type, once."
           }
         },
         "description": "Changes a campaign's map settings (all of them)."

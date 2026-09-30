@@ -107,9 +107,28 @@ for name, bounds, size, points in CASES:
         }
     )
 
+# Changing the hex size while setting up moves each placement to the new hex that holds the old
+# one's centre.
+b = CASES[0][1]
+_, old_centre, _, _ = grid(b, 4828)
+new_hex_at, _, new_contains, _ = grid(b, 3000)
+resnap = []
+for q, r in [(0, 0), (1, -1), (-1, 1), (2, -2), (-3, 4)]:
+    lat, lon = old_centre(q, r)
+    nq, nr = new_hex_at(lat, lon)
+    resnap.append({"q": q, "r": r, "to": {"q": nq, "r": nr}, "inGrid": new_contains(nq, nr)})
+
 about = (
     "Expected figures for the hex grid (decision 0014), from an independent Python "
     "implementation (hex_grid.py). HexGrid.cs and hex-grid.ts are both tested against them."
 )
 with open("hex-grid.json", "w") as out:
-    json.dump({"about": about, "cases": cases}, out, indent=2)
+    json.dump(
+        {
+            "about": about,
+            "cases": cases,
+            "resnap": {"bounds": b, "fromHexSize": 4828, "toHexSize": 3000, "hexes": resnap},
+        },
+        out,
+        indent=2,
+    )

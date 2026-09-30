@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
@@ -18,7 +19,7 @@ public sealed class TurnActionTests : ApiTest
     private async Task<CampaignScenario> StartedAsync()
     {
         var scenario = await CreateCampaignScenarioAsync();
-        await TurnSteps.StartedAsync(scenario, limitMetres: 5_000);
+        await TurnSteps.StartedAsync(scenario);
         return scenario;
     }
 
@@ -58,11 +59,7 @@ public sealed class TurnActionTests : ApiTest
     {
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
-        using var held = await TurnSteps.OrderAsync(
-            scenario,
-            turn.Id,
-            new GiveOrderRequest(OrderKind.Hold, null, null)
-        );
+        using var held = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Hold);
 
         using var response = await TurnSteps.ActAsync(scenario, turn.Id, "submit", role);
 
@@ -207,7 +204,7 @@ public sealed class TurnActionTests : ApiTest
         using var response = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            new GiveOrderRequest(OrderKind.Move, 50.71, 4.4)
+            TurnSteps.Move(new Hex(0, -1))
         );
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
@@ -513,11 +510,11 @@ public sealed class TurnActionTests : ApiTest
     {
         using var scenario = await StartedAsync();
         var first = await TurnSteps.OpenArmyTurnAsync(scenario);
-        // About 3.3 km each: two moves take the unit further than one turn's 5 km.
+        // Turn 1 leaves the unit in (0, -2); from there, (1, -2) is the next hex.
         using var moved = await TurnSteps.OrderAsync(
             scenario,
             first.Id,
-            new GiveOrderRequest(OrderKind.Move, 50.73, 4.4)
+            TurnSteps.Move(new Hex(0, -1), new Hex(0, -2))
         );
         using var submitted = await TurnSteps.ActAsync(
             scenario,
@@ -533,11 +530,13 @@ public sealed class TurnActionTests : ApiTest
         using var response = await TurnSteps.OrderAsync(
             scenario,
             second.Id,
-            new GiveOrderRequest(OrderKind.Move, 50.76, 4.4)
+            TurnSteps.Move(new Hex(1, -2))
         );
 
         response.EnsureSuccessStatusCode();
     }
+
+    private static (int Q, int R) HexOf(UnitPosition position) => (position.Q, position.R);
 
     private static async Task<List<UnitPosition>> PositionsAsync(
         CampaignScenario scenario,
@@ -558,7 +557,7 @@ public sealed class TurnActionTests : ApiTest
         using var moved = await TurnSteps.OrderAsync(
             scenario,
             first.Id,
-            new GiveOrderRequest(OrderKind.Move, 50.73, 4.4)
+            TurnSteps.Move(new Hex(0, -1), new Hex(0, -2))
         );
         using var submitted = await TurnSteps.ActAsync(
             scenario,
@@ -570,9 +569,9 @@ public sealed class TurnActionTests : ApiTest
         using var next = await TurnSteps.StartNextTurnAsync(scenario);
         next.EnsureSuccessStatusCode();
 
-        Assert.Equal(50.7, Assert.Single(await PositionsAsync(scenario, 0)).Latitude);
-        Assert.Equal(50.73, Assert.Single(await PositionsAsync(scenario, 1)).Latitude);
-        Assert.Equal(50.73, Assert.Single(await PositionsAsync(scenario, null)).Latitude);
+        Assert.Equal((0, 0), HexOf(Assert.Single(await PositionsAsync(scenario, 0))));
+        Assert.Equal((0, -2), HexOf(Assert.Single(await PositionsAsync(scenario, 1))));
+        Assert.Equal((0, -2), HexOf(Assert.Single(await PositionsAsync(scenario, null))));
     }
 
     [Fact]
@@ -600,11 +599,11 @@ public sealed class TurnActionTests : ApiTest
         using var moved = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            new GiveOrderRequest(OrderKind.Move, 50.73, 4.4)
+            TurnSteps.Move(new Hex(0, -1), new Hex(0, -2))
         );
 
         var position = Assert.Single(await PositionsAsync(scenario, 1));
 
-        Assert.Equal((ArmyTurnStatus.Draft, 50.73), (position.Status, position.Latitude));
+        Assert.Equal((ArmyTurnStatus.Draft, (0, -2)), (position.Status, HexOf(position)));
     }
 }

@@ -102,7 +102,6 @@ function serveHistory() {
           contours: false,
         },
         hexSize: 4828,
-        movementLimits: [],
       } satisfies CampaignMapResponse),
     ),
     http.get(`*/api/campaigns/${campaignId}/armies`, () => HttpResponse.json([nord])),

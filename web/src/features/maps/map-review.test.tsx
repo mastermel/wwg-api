@@ -114,7 +114,6 @@ function serveUmpire(nordTurn: ArmyTurnDetails, prussianTurn: ArmyTurnDetails, p
           contours: false,
         },
         hexSize: 4828,
-        movementLimits: [],
       } satisfies CampaignMapResponse),
     ),
     http.get(`*/api/campaigns/${campaignId}/armies`, () => HttpResponse.json([nord, prussians])),
@@ -159,6 +158,9 @@ const submitted = armyTurn(nord, {
       latitude: 50.72,
       longitude: 4.4,
       byUmpire: false,
+      q: 0,
+      r: 0,
+      path: [],
     },
   ],
 });

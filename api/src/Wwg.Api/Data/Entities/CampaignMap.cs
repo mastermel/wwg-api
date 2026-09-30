@@ -54,16 +54,3 @@ internal sealed class CampaignMap : Entity
 
     public bool ShowContours { get; set; }
 }
-
-/// <summary>How far a unit of a type can move in one turn, in a campaign.</summary>
-internal sealed class MovementLimit : Entity
-{
-    public Guid CampaignId { get; set; }
-
-    public Campaign Campaign { get; set; } = null!; // Set by EF Core when loaded.
-
-    public UnitType UnitType { get; set; }
-
-    /// <summary>The straight-line distance, in metres.</summary>
-    public int Metres { get; set; }
-}

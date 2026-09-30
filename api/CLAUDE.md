@@ -96,6 +96,10 @@ true, because the build launches the app to write the document.
   does). If a rebuild can't be avoided, drop the triggers in that migration and recreate them in
   the next. `DatabaseTests` fails if they're missing. Check with
   `dotnet ef migrations script <From> <To>`.
+- The hex grid (decision 0014) is `Features/Maps/HexGrid.cs`; `CampaignMaps.GridAsync` loads a
+  campaign's. Tests check it through the endpoints against `testdata/hex-grid.json` (copied into
+  the test output; `HexGridFigures`), the same figures the front-end's `hex-grid.ts` is tested
+  against. Positions and orders are hexes (`Q`, `R`, `Path`); DTOs add the hex's centre.
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.

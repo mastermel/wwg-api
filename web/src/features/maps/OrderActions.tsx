@@ -1,6 +1,6 @@
 import { Button, Group, Stack, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowMoveRight, IconHandStop } from "@tabler/icons-react";
-import type { ArmyTurnDetails, DistanceUnit } from "@/api/generated/model";
+import type { ArmyTurnDetails } from "@/api/generated/model";
 import { describeOrder } from "@/features/maps/orders";
 import type { PlacedUnit } from "@/features/maps/stacks";
 import { reviewOf } from "@/features/maps/use-orders";
@@ -10,7 +10,6 @@ interface OrderActionsProps {
   placed: PlacedUnit;
   /** The unit's army's turn in the open campaign turn. */
   turn: ArmyTurnDetails;
-  distanceUnit: DistanceUnit;
   /** Whether the viewer can change its orders now (a commander: a Draft; the Umpire: or Submitted). */
   editable: boolean;
   busy: boolean;
@@ -26,7 +25,6 @@ interface OrderActionsProps {
 export function OrderActions({
   placed,
   turn,
-  distanceUnit,
   editable,
   busy,
   onMove,
@@ -40,7 +38,7 @@ export function OrderActions({
   return (
     <Stack gap="xs">
       <Text size="sm">
-        Turn {turn.turn}: {describeOrder(order, placed, distanceUnit)}
+        Turn {turn.turn}: {describeOrder(order, placed)}
         {order?.byUmpire && " (set by the Umpire)"}
       </Text>
       {note && (

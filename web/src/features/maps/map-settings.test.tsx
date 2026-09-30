@@ -34,10 +34,6 @@ const saved: CampaignMapResponse = {
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
   hexSize: 4828,
-  movementLimits: [
-    { unitType: "LineInfantry", metres: 20_000 },
-    { unitType: "LightCavalry", metres: 40_000 },
-  ],
 };
 
 const leipzig: PlaceResult = {
@@ -75,7 +71,7 @@ function serve(myRole: CampaignResponse["myRole"]) {
 }
 
 describe("map settings", () => {
-  it("finds a place, uses the view as the area, and saves it all in metres", async () => {
+  it("finds a place, uses the view as the area, and saves it", async () => {
     const puts = serve("Umpire");
     const user = userEvent.setup();
     const { router } = await renderApp(`/campaigns/${campaignId}/map/settings`);
@@ -89,9 +85,6 @@ describe("map settings", () => {
     await user.click(screen.getByRole("button", { name: "Use this view" }));
     expect(screen.getByText("The outline is the campaign's area.")).toBeInTheDocument();
     await user.click(screen.getByRole("switch", { name: "Forests" }));
-    const cavalry = screen.getByRole("textbox", { name: "Light Cavalry" });
-    await user.clear(cavalry);
-    await user.type(cavalry, "45");
     await user.click(screen.getByRole("button", { name: "Save map settings" }));
 
     expect(await screen.findByText("Saved the map settings.")).toBeInTheDocument();
@@ -102,10 +95,6 @@ describe("map settings", () => {
         distanceUnit: "Kilometres",
         layers: { ...saved.layers, forests: false },
         hexSize: 4828,
-        movementLimits: [
-          { unitType: "LineInfantry", metres: 20_000 },
-          { unitType: "LightCavalry", metres: 45_000 },
-        ],
       },
     ]);
     await waitFor(() => {
@@ -113,16 +102,14 @@ describe("map settings", () => {
     });
   });
 
-  it("keeps the distances when switching to miles", async () => {
+  it("keeps the hex size when switching to miles", async () => {
     serve("Umpire");
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/map/settings`);
 
     await user.click(await screen.findByRole("radio", { name: "Miles" }));
 
-    // 20 km and 40 km.
-    expect(screen.getByRole("textbox", { name: "Line Infantry" })).toHaveValue("12.4 mi");
-    expect(screen.getByRole("textbox", { name: "Light Cavalry" })).toHaveValue("24.9 mi");
+    expect(screen.getByRole("textbox", { name: "Hex size, across the flats" })).toHaveValue("3 mi");
   });
 
   it("saves the hex size in metres", async () => {

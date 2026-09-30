@@ -32,28 +32,18 @@ public sealed record MapLayers(
     bool Contours
 );
 
-/// <summary>How far a unit of one type can move in one turn.</summary>
-/// <param name="UnitType">The type of unit.</param>
-/// <param name="Metres">The straight-line distance, in metres (up to 1,000 km).</param>
-public sealed record MovementLimitDto(
-    [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType UnitType,
-    [property: JsonRequired, Range(0, CampaignMaps.MaxMetres)] int Metres
-);
-
 /// <summary>A campaign's map settings.</summary>
 /// <param name="Bounds">The area everyone's map is held inside, or null until the Umpire sets it.</param>
 /// <param name="LabelLanguage">Place names' language: an ISO 639-1 code, or "local".</param>
 /// <param name="DistanceUnit">How distances are shown.</param>
 /// <param name="Layers">What the map shows.</param>
 /// <param name="HexSize">The hex grid's hexes, in metres across the flats (4828: 3 miles).</param>
-/// <param name="MovementLimits">How far each type of unit moves in a turn, one per type.</param>
 public sealed record CampaignMapResponse(
     MapBounds? Bounds,
     string LabelLanguage,
     DistanceUnit DistanceUnit,
     MapLayers Layers,
-    int HexSize,
-    IReadOnlyList<MovementLimitDto> MovementLimits
+    int HexSize
 );
 
 /// <summary>Changes a campaign's map settings (all of them).</summary>
@@ -65,7 +55,6 @@ public sealed record CampaignMapResponse(
 /// The hex grid's hexes, in metres across the flats. With the bounds, fixed once the campaign has
 /// started.
 /// </param>
-/// <param name="MovementLimits">How far each type of unit moves in a turn: every type, once.</param>
 public sealed record UpdateCampaignMapRequest(
     MapBounds? Bounds,
     [property:
@@ -88,8 +77,7 @@ public sealed record UpdateCampaignMapRequest(
         string LabelLanguage,
     [property: JsonRequired, EnumDataType(typeof(DistanceUnit))] DistanceUnit DistanceUnit,
     [property: Required] MapLayers Layers,
-    [property: JsonRequired, Range(CampaignMap.MinHexSize, CampaignMap.MaxHexSize)] int HexSize,
-    [property: Required] IReadOnlyList<MovementLimitDto> MovementLimits
+    [property: JsonRequired, Range(CampaignMap.MinHexSize, CampaignMap.MaxHexSize)] int HexSize
 );
 
 /// <summary>A place found by a search, to frame the map on.</summary>

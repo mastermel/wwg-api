@@ -29,7 +29,8 @@ test("the Umpire sets the map's area, and a Player sees the map inside it", asyn
   await expect(page.getByRole("switch", { name: "Forests" })).not.toBeChecked();
   await page.getByText("Kilometres", { exact: true }).click();
   await expect(page.getByRole("radio", { name: "Kilometres" })).toBeChecked();
-  await page.getByRole("textbox", { name: "Light Cavalry" }).fill("45");
+  // Big hexes for the big area the view gives: the grid is drawn over it.
+  await page.getByRole("textbox", { name: "Hex size, across the flats" }).fill("45");
   await page.getByRole("button", { name: "Save map settings" }).click();
   await expect(page.getByText("Saved the map settings.")).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Map" })).toBeVisible();
@@ -38,7 +39,9 @@ test("the Umpire sets the map's area, and a Player sees the map inside it", asyn
   // Saved: the settings come back as they were left.
   await page.getByRole("link", { name: "Map settings" }).click();
   await expect(page.getByRole("switch", { name: "Forests" })).not.toBeChecked();
-  await expect(page.getByRole("textbox", { name: "Light Cavalry" })).toHaveValue("45 km");
+  await expect(page.getByRole("textbox", { name: "Hex size, across the flats" })).toHaveValue(
+    "45 km",
+  );
 
   // The Player sees the map, not its settings.
   await player.page.goto(`${campaignUrl}/map`);

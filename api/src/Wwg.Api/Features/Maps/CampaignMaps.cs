@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 
 namespace Wwg.Api.Features.Maps;
@@ -6,9 +8,6 @@ namespace Wwg.Api.Features.Maps;
 internal static class CampaignMaps
 {
     public const string LocalLanguage = "local";
-
-    /// <summary>The most a limit can be: 1,000 km.</summary>
-    public const int MaxMetres = 1_000_000;
 
     /// <summary>Places are named in English (or their own name where there's none).</summary>
     public const string DefaultLanguage = "en";
@@ -25,26 +24,27 @@ internal static class CampaignMaps
         Contours: false
     );
 
-    /// <summary>
-    /// A starting point for a turn of a day or so: a march for infantry, further for cavalry,
-    /// less for guns. The Umpire sets the real ones.
-    /// </summary>
-    public static readonly IReadOnlyDictionary<UnitType, int> DefaultMetres = new Dictionary<
-        UnitType,
-        int
-    >
+    /// <summary>The campaign's hex grid, or null while it has no area.</summary>
+    public static async Task<HexGrid?> GridAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        CancellationToken cancellationToken
+    )
     {
-        [UnitType.LineInfantry] = 20_000,
-        [UnitType.FootArtillery] = 15_000,
-        [UnitType.Engineers] = 20_000,
-        [UnitType.LightInfantry] = 25_000,
-        [UnitType.Partisans] = 25_000,
-        [UnitType.LightCavalry] = 40_000,
-        [UnitType.Scouts] = 40_000,
-        [UnitType.MediumCavalry] = 30_000,
-        [UnitType.HeavyCavalry] = 30_000,
-        [UnitType.HorseArtillery] = 30_000,
-        [UnitType.SupplyTrain] = 10_000,
-        [UnitType.SiegeArtillery] = 10_000,
-    };
+        var map = await db
+            .CampaignMaps.AsNoTracking()
+            .Where(m => m.CampaignId == campaignId)
+            .Select(m => new
+            {
+                m.West,
+                m.South,
+                m.East,
+                m.North,
+                m.HexSize,
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        return map is { West: { } west, South: { } south, East: { } east, North: { } north }
+            ? new HexGrid(new MapBounds(west, south, east, north), map.HexSize)
+            : null;
+    }
 }

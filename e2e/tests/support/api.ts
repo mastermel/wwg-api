@@ -28,21 +28,6 @@ export async function apiAs(page: Page) {
   };
 }
 
-const unitTypes = [
-  "LineInfantry",
-  "FootArtillery",
-  "Engineers",
-  "LightInfantry",
-  "Partisans",
-  "LightCavalry",
-  "Scouts",
-  "MediumCavalry",
-  "HeavyCavalry",
-  "HorseArtillery",
-  "SupplyTrain",
-  "SiegeArtillery",
-];
-
 /** The map settings the tests use: the country around Waterloo. */
 export const waterlooMap = {
   bounds: { west: 4.2, south: 50.6, east: 4.6, north: 50.8 },
@@ -50,5 +35,4 @@ export const waterlooMap = {
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
   hexSize: 4828,
-  movementLimits: unitTypes.map((unitType) => ({ unitType, metres: 20_000 })),
 };

@@ -47,8 +47,9 @@ npm run lint && npm run typecheck && npm run format:check
   place search here (it calls a service over the internet).
 - Setup the test isn't about (a map's area, armies, units) goes through the API: `apiAs(page)`
   (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.
-  `startedCampaign(umpire, commander, name)` (tests/support/turns.ts) is a campaign at turn 1,
-  with the commander's army and two units placed. `holdAndSubmit` and `approveAndStartNext` move a turn on
+  `startedCampaign(umpire, commander, name, hexSize?)` (tests/support/turns.ts) is a campaign
+  at turn 1, with the commander's army and two units placed in hexes (both move two a turn).
+  Pass small hexes when a test needs several in view on a phone. `holdAndSubmit` and `approveAndStartNext` move a turn on
   through the API.
 - `scan(page, label)` (tests/support/axe.ts) is axe's violations, for pages that need data only a
   flow sets up; the rest belong in `accessibility.spec.ts`.

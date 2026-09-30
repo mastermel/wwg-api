@@ -1,3 +1,5 @@
+using Wwg.Api.Features.Maps;
+
 namespace Wwg.Api.Data.Entities;
 
 /// <summary>
@@ -73,9 +75,16 @@ internal sealed class UnitOrder : Entity
 
     public OrderKind Kind { get; set; }
 
-    public double Latitude { get; set; }
+    /// <summary>The hex the order leaves the unit in (decision 0014).</summary>
+    public int Q { get; set; }
 
-    public double Longitude { get; set; }
+    public int R { get; set; }
+
+    /// <summary>
+    /// A Move's steps, the hexes it passes through in order (the last is Q, R). Empty for a Hold, a
+    /// placement, or a move from before the grid.
+    /// </summary>
+    public List<Hex> Path { get; set; } = [];
 
     /// <summary>Set by the Umpire (or an Admin) on the commander's behalf (decision 0011).</summary>
     public bool ByUmpire { get; set; }

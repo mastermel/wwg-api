@@ -11,13 +11,21 @@ internal static class TurnSteps
     /// <summary>Waterloo and around.</summary>
     public static readonly MapBounds Area = new(4.2, 50.6, 4.6, 50.8);
 
-    /// <summary>Where the scenario's unit is placed: in the area's middle.</summary>
-    public static readonly (double Latitude, double Longitude) Start = (50.7, 4.4);
+    /// <summary>Where the scenario's unit is placed: the hex in the area's middle.</summary>
+    public static readonly Hex Start = new(0, 0);
 
     private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
-    /// <summary>Sets the map's area, and every unit type's movement limit.</summary>
-    public static async Task SetAreaAsync(CampaignScenario scenario, int limitMetres = 20_000)
+    /// <summary>A Move along these hexes, in order.</summary>
+    public static GiveOrderRequest Move(params Hex[] path) => new(OrderKind.Move, path);
+
+    public static readonly GiveOrderRequest Hold = new(OrderKind.Hold, null);
+
+    /// <summary>Sets the map's area (and its hex size: 3 miles unless given).</summary>
+    public static async Task SetAreaAsync(
+        CampaignScenario scenario,
+        int hexSize = CampaignMap.DefaultHexSize
+    )
     {
         using var response = await scenario
             .As(Role.Umpire)
@@ -28,11 +36,7 @@ internal static class TurnSteps
                     "en",
                     DistanceUnit.Kilometres,
                     CampaignMaps.DefaultLayers,
-                    CampaignMap.DefaultHexSize,
-                    [
-                        .. Enum.GetValues<UnitType>()
-                            .Select(type => new MovementLimitDto(type, limitMetres)),
-                    ]
+                    hexSize
                 ),
                 CancellationToken
             );
@@ -42,15 +46,14 @@ internal static class TurnSteps
     public static Task<HttpResponseMessage> PlaceAsync(
         CampaignScenario scenario,
         Guid unitId,
-        double latitude = 50.7,
-        double longitude = 4.4,
+        Hex? at = null,
         Role role = Role.Umpire
     ) =>
         scenario
             .As(role)
             .PutAsJsonAsync(
                 new Uri($"/api/units/{unitId}/placement", UriKind.Relative),
-                new PlaceUnitRequest(latitude, longitude),
+                new PlaceUnitRequest((at ?? Start).Q, (at ?? Start).R),
                 CancellationToken
             );
 
@@ -67,22 +70,17 @@ internal static class TurnSteps
             );
 
     /// <summary>The area set and the scenario's unit placed at <see cref="Start"/>: ready to start.</summary>
-    public static async Task ReadyAsync(CampaignScenario scenario, int limitMetres = 20_000)
+    public static async Task ReadyAsync(CampaignScenario scenario)
     {
-        await SetAreaAsync(scenario, limitMetres);
-        using var placed = await PlaceAsync(
-            scenario,
-            scenario.UnitId,
-            Start.Latitude,
-            Start.Longitude
-        );
+        await SetAreaAsync(scenario);
+        using var placed = await PlaceAsync(scenario, scenario.UnitId);
         placed.EnsureSuccessStatusCode();
     }
 
     /// <summary>Ready, and started: turn 1 is open.</summary>
-    public static async Task StartedAsync(CampaignScenario scenario, int limitMetres = 20_000)
+    public static async Task StartedAsync(CampaignScenario scenario)
     {
-        await ReadyAsync(scenario, limitMetres);
+        await ReadyAsync(scenario);
         using var started = await StartAsync(scenario);
         started.EnsureSuccessStatusCode();
     }
@@ -136,11 +134,7 @@ internal static class TurnSteps
     public static async Task<ArmyTurnDetails> SubmittedAsync(CampaignScenario scenario)
     {
         var turn = await OpenArmyTurnAsync(scenario);
-        using var held = await OrderAsync(
-            scenario,
-            turn.Id,
-            new GiveOrderRequest(OrderKind.Hold, null, null)
-        );
+        using var held = await OrderAsync(scenario, turn.Id, Hold);
         held.EnsureSuccessStatusCode();
         using var submitted = await ActAsync(scenario, turn.Id, "submit", Role.Commander);
         submitted.EnsureSuccessStatusCode();

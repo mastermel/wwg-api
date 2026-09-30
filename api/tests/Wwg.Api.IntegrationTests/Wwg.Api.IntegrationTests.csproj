@@ -17,4 +17,12 @@
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The hex grid's expected figures, shared with the front-end's tests. -->
+    <None
+      Include="../../../testdata/hex-grid.json"
+      Link="testdata/hex-grid.json"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+  </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Maps;
 using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Turns;
@@ -51,8 +52,11 @@ public sealed record CampaignTurnsResponse(
 /// <param name="Turn">The turn this is its position after.</param>
 /// <param name="Status">That army turn's status (a Draft's positions are orders not yet approved).</param>
 /// <param name="Kind">Its order: Move (or placed, in turn 0) or Hold.</param>
-/// <param name="Latitude">Latitude, in degrees.</param>
-/// <param name="Longitude">Longitude, in degrees.</param>
+/// <param name="Q">The hex it's in (axial q).</param>
+/// <param name="R">The hex it's in (axial r).</param>
+/// <param name="Latitude">The hex's centre, in degrees.</param>
+/// <param name="Longitude">The hex's centre, in degrees.</param>
+/// <param name="Path">A Move's steps, the hexes it passes through in order; empty otherwise.</param>
 /// <param name="ByUmpire">Whether the Umpire set this order, on the commander's behalf.</param>
 public sealed record UnitPosition(
     Guid UnitId,
@@ -60,27 +64,31 @@ public sealed record UnitPosition(
     int Turn,
     ArmyTurnStatus Status,
     OrderKind Kind,
+    int Q,
+    int R,
     double Latitude,
     double Longitude,
+    IReadOnlyList<Hex> Path,
     bool ByUmpire
 );
 
-/// <summary>Where the Umpire places a unit.</summary>
-/// <param name="Latitude">Latitude, in degrees, inside the campaign's area.</param>
-/// <param name="Longitude">Longitude, in degrees, inside the campaign's area.</param>
+/// <summary>Where the Umpire places a unit: a hex in the campaign's grid.</summary>
+/// <param name="Q">The hex (axial q).</param>
+/// <param name="R">The hex (axial r).</param>
 public sealed record PlaceUnitRequest(
-    [property: JsonRequired, Range(-85.0, 85.0)] double Latitude,
-    [property: JsonRequired, Range(-180.0, 180.0)] double Longitude
+    [property: JsonRequired] int Q,
+    [property: JsonRequired] int R
 );
 
 /// <summary>A unit's order for the turn.</summary>
-/// <param name="Kind">Move (to the position) or Hold (stay where it is).</param>
-/// <param name="Latitude">Where to move, in degrees (Move only).</param>
-/// <param name="Longitude">Where to move, in degrees (Move only).</param>
+/// <param name="Kind">Move (along the path) or Hold (stay where it is).</param>
+/// <param name="Path">
+/// A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it
+/// ends. Adjacent, inside the grid, and within what the unit can move in a turn.
+/// </param>
 public sealed record GiveOrderRequest(
     [property: JsonRequired, EnumDataType(typeof(OrderKind))] OrderKind Kind,
-    [property: Range(-85.0, 85.0)] double? Latitude,
-    [property: Range(-180.0, 180.0)] double? Longitude
+    [property: MaxLength(Movement.MaxSteps)] IReadOnlyList<Hex>? Path
 );
 
 /// <summary>The Umpire's note on one unit's order.</summary>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Maps;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -144,26 +145,31 @@ internal static class TurnEndpoints
             ),
         };
 
-        var positions = await orders
+        var rows = await orders
             .OrderBy(o => o.Unit.Name)
             .ThenBy(o => o.UnitId)
-            .Select(o => new UnitPosition(
+            .Select(o => new OrderRow(
                 o.UnitId,
                 o.ArmyTurn.ArmyId,
                 o.ArmyTurn.CampaignTurn.Number,
                 o.ArmyTurn.Status,
                 o.Kind,
-                o.Latitude,
-                o.Longitude,
+                o.Q,
+                o.R,
+                o.Path,
                 o.ByUmpire
             ))
             .ToListAsync(cancellationToken);
-        return TypedResults.Ok(positions);
+        // Orders need a grid; without an area there are none.
+        var grid = await CampaignMaps.GridAsync(db, id, cancellationToken);
+        return TypedResults.Ok(
+            grid is null ? [] : rows.Select(r => Positions.Of(grid, r)).ToList()
+        );
     }
 
     /// <summary>
-    /// Places a unit on the map (Umpire or Admin): while setting up, in turn 0; once started, a
-    /// unit added since that has no position yet (it's placed where its army last was, in the
+    /// Places a unit in a hex of the grid (Umpire or Admin): while setting up, in turn 0; once
+    /// started, a unit added since that has no position yet (it's placed where its army last was, in the
     /// army's turn in the last closed campaign turn, which can't be reverted). Inside the
     /// campaign's area, which must be set.
     /// </summary>
@@ -186,25 +192,19 @@ internal static class TurnEndpoints
                 u.Army.CampaignId,
             })
             .SingleOrGoneAsync(cancellationToken);
-        var map = await db
-            .CampaignMaps.AsNoTracking()
-            .SingleOrDefaultAsync(m => m.CampaignId == unit.CampaignId, cancellationToken);
-        if (map is not { West: { } west, South: { } south, East: { } east, North: { } north })
+        var grid = await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken);
+        if (grid is null)
         {
             return Conflict("No map area", "Choose the map's area first, in the map settings.");
         }
 
-        if (
-            request.Latitude < south
-            || request.Latitude > north
-            || request.Longitude < west
-            || request.Longitude > east
-        )
+        var hex = new Hex(request.Q, request.R);
+        if (!grid.Contains(hex))
         {
             return TypedResults.ValidationProblem(
                 new Dictionary<string, string[]>(StringComparer.Ordinal)
                 {
-                    ["latitude"] = ["That's outside the campaign's area."],
+                    ["q"] = ["That's outside the campaign's area."],
                 }
             );
         }
@@ -226,7 +226,7 @@ internal static class TurnEndpoints
         }
 
         return TypedResults.Ok(
-            await SavePlacementAsync(db, armyTurn, unit.ArmyId, id, request, cancellationToken)
+            await SavePlacementAsync(db, grid, armyTurn, unit.ArmyId, id, hex, cancellationToken)
         );
     }
 
@@ -399,10 +399,11 @@ internal static class TurnEndpoints
     /// <summary>Saves the unit's placement as a Move order in <paramref name="armyTurn"/>.</summary>
     private static async Task<UnitPosition> SavePlacementAsync(
         WwgDbContext db,
+        HexGrid grid,
         ArmyTurn armyTurn,
         Guid armyId,
         Guid id,
-        PlaceUnitRequest request,
+        Hex hex,
         CancellationToken cancellationToken
     )
     {
@@ -412,22 +413,26 @@ internal static class TurnEndpoints
                 cancellationToken
             ) ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = armyTurn.Id, UnitId = id }).Entity;
         order.Kind = OrderKind.Move;
-        (order.Latitude, order.Longitude) = (request.Latitude, request.Longitude);
+        (order.Q, order.R) = (hex.Q, hex.R);
         await db.SaveChangesAsync(cancellationToken);
 
         var number = await db
             .CampaignTurns.Where(t => t.Id == armyTurn.CampaignTurnId)
             .Select(t => t.Number)
             .SingleAsync(cancellationToken);
-        return new UnitPosition(
-            id,
-            armyId,
-            number,
-            armyTurn.Status,
-            OrderKind.Move,
-            order.Latitude,
-            order.Longitude,
-            ByUmpire: false
+        return Positions.Of(
+            grid,
+            new OrderRow(
+                id,
+                armyId,
+                number,
+                armyTurn.Status,
+                OrderKind.Move,
+                hex.Q,
+                hex.R,
+                [],
+                false
+            )
         );
     }
 

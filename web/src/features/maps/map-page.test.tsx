@@ -37,7 +37,6 @@ const settings = (bounds: CampaignMapResponse["bounds"]): CampaignMapResponse =>
   distanceUnit: "Kilometres",
   layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
   hexSize: 4828,
-  movementLimits: [],
 });
 
 function serveCampaign(myRole: CampaignResponse["myRole"], map: CampaignMapResponse) {
@@ -180,7 +179,8 @@ describe("the map page", () => {
         {
           method: "PUT",
           url: expect.stringContaining(unitId) as unknown,
-          body: { longitude: 4.4, latitude: 50.7 },
+          // The stand-in map's click, (4.4, 50.7), is in hex (-1, 0) of this area's grid.
+          body: { q: -1, r: 0 },
         },
       ]);
       expect(screen.queryByText(/Click the map where/)).not.toBeInTheDocument();

@@ -20,19 +20,3 @@ internal sealed class CampaignMapConfiguration : IEntityTypeConfiguration<Campai
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
-
-internal sealed class MovementLimitConfiguration : IEntityTypeConfiguration<MovementLimit>
-{
-    public void Configure(EntityTypeBuilder<MovementLimit> builder)
-    {
-        builder.HasIndex(l => new { l.CampaignId, l.UnitType }).IsUnique();
-        builder.Property(l => l.UnitType).HasMaxLength(32);
-
-        // Deleting a campaign deletes its movement limits.
-        builder
-            .HasOne(l => l.Campaign)
-            .WithMany()
-            .HasForeignKey(l => l.CampaignId)
-            .OnDelete(DeleteBehavior.Cascade);
-    }
-}

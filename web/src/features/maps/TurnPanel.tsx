@@ -2,12 +2,7 @@ import { ActionIcon, Alert, Badge, Button, Group, List, Stack, Text } from "@man
 import { useDisclosure } from "@mantine/hooks";
 import { IconArrowBackUp, IconSend } from "@tabler/icons-react";
 import { useState } from "react";
-import type {
-  ArmyTurnDetails,
-  ArmyTurnStatus,
-  CampaignTurnSummary,
-  DistanceUnit,
-} from "@/api/generated/model";
+import type { ArmyTurnDetails, ArmyTurnStatus, CampaignTurnSummary } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
@@ -36,7 +31,6 @@ interface TurnPanelProps {
   open: CampaignTurnSummary;
   commanded: readonly OpenArmyTurn[];
   units: readonly CommandedUnit[];
-  distanceUnit: DistanceUnit;
   orders: ReturnType<typeof useOrders>;
   /** Opens a unit on the map (its drawer, with Move and Hold). */
   onChoose: (placed: PlacedUnit) => void;
@@ -46,14 +40,7 @@ interface TurnPanelProps {
  * A commander's turn (DESIGN.md §3.13): how far the turn has got, and for each army they command
  * its status, the Umpire's notes, each unit's order (with undo) and Submit.
  */
-export function TurnPanel({
-  open,
-  commanded,
-  units,
-  distanceUnit,
-  orders,
-  onChoose,
-}: TurnPanelProps) {
+export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPanelProps) {
   const [submitting, setSubmitting] = useState<OpenArmyTurn | null>(null);
   const [confirming, { open: ask, close }] = useDisclosure(false);
 
@@ -70,7 +57,6 @@ export function TurnPanel({
               entry={entry}
               turn={entry.turn}
               units={units.filter((u) => u.army.id === entry.army.id)}
-              distanceUnit={distanceUnit}
               orders={orders}
               onChoose={onChoose}
               onSubmit={() => {
@@ -106,7 +92,6 @@ interface ArmyTurnOrdersProps {
   entry: OpenArmyTurn;
   turn: ArmyTurnDetails;
   units: readonly CommandedUnit[];
-  distanceUnit: DistanceUnit;
   orders: ReturnType<typeof useOrders>;
   onChoose: (placed: PlacedUnit) => void;
   onSubmit: () => void;
@@ -116,7 +101,6 @@ function ArmyTurnOrders({
   entry: { army },
   turn,
   units,
-  distanceUnit,
   orders,
   onChoose,
   onSubmit,
@@ -177,7 +161,7 @@ function ArmyTurnOrders({
                       </Text>
                     )}
                     <Text size="xs" c="dimmed">
-                      {describeOrder(order, placed, distanceUnit)}
+                      {describeOrder(order, placed)}
                       {order?.byUmpire && " · set by the Umpire"}
                     </Text>
                     {note && (

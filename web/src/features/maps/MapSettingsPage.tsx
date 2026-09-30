@@ -46,33 +46,21 @@ import {
   maxHexDistance,
   minHexDistance,
   labelLanguages,
-  maxDistance,
   toMetres,
   toUnit,
 } from "@/features/maps/map-units";
-import { unitTypeLabels } from "@/features/units/unit-types";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
 /** Where the Umpire starts choosing, before there's an area: Europe. */
 const europe: MapBounds = { west: -10, south: 36, east: 30, north: 60 };
 
-// Movement limits and the hex size are entered in the campaign's unit, and saved in metres.
-const SettingsForm = UpdateCampaignMapBody.omit({ movementLimits: true, hexSize: true }).extend({
+// The hex size is entered in the campaign's unit, and saved in metres.
+const SettingsForm = UpdateCampaignMapBody.omit({ hexSize: true }).extend({
   hexDistance: z.number({ error: "Enter a size." }),
-  limits: z.array(
-    z.object({
-      unitType: UpdateCampaignMapBody.shape.movementLimits.element.shape.unitType,
-      distance: z.number({ error: "Enter a distance." }).min(0),
-    }),
-  ),
 });
 
 type SettingsValues = z.infer<typeof SettingsForm>;
-
-/** The form path of a movement limit's distance. */
-const limitPath = (index: number) =>
-  `limits.${String(index)}.distance` as `limits.${number}.distance`;
 
 const layerSwitches: { key: keyof MapLayers; label: string }[] = [
   { key: "roads", label: "Main roads" },
@@ -152,16 +140,12 @@ function SettingsFormView({
       distanceUnit: settings.distanceUnit,
       layers: settings.layers,
       hexDistance: toUnit(settings.hexSize, settings.distanceUnit),
-      limits: settings.movementLimits.map((limit) => ({
-        unitType: limit.unitType,
-        distance: toUnit(limit.metres, settings.distanceUnit),
-      })),
     },
   });
   const { errors, isSubmitting } = form.formState;
-  const [bounds, layers, labelLanguage, distanceUnit, limits, hexDistance] = useWatch({
+  const [bounds, layers, labelLanguage, distanceUnit, hexDistance] = useWatch({
     control: form.control,
-    name: ["bounds", "layers", "labelLanguage", "distanceUnit", "limits", "hexDistance"],
+    name: ["bounds", "layers", "labelLanguage", "distanceUnit", "hexDistance"],
   });
   const unit = distanceUnitLabels[distanceUnit].short;
   const hexes =
@@ -196,16 +180,9 @@ function SettingsFormView({
     }
   };
 
-  // Changing the unit keeps the distances: 20 km becomes 12.4 mi.
+  // Changing the unit keeps the size: 4.8 km becomes 3 mi.
   const changeUnit = (next: SettingsValues["distanceUnit"]) => {
     form.setValue("hexDistance", toUnit(toMetres(hexDistance, distanceUnit), next));
-    form.setValue(
-      "limits",
-      limits.map((limit) => ({
-        ...limit,
-        distance: toUnit(toMetres(limit.distance, distanceUnit), next),
-      })),
-    );
     form.setValue("distanceUnit", next, { shouldDirty: true });
   };
 
@@ -225,10 +202,6 @@ function SettingsFormView({
             values.distanceUnit === settings.distanceUnit
               ? settings.hexSize
               : toMetres(values.hexDistance, values.distanceUnit),
-          movementLimits: values.limits.map((limit) => ({
-            unitType: limit.unitType,
-            metres: toMetres(limit.distance, values.distanceUnit),
-          })),
         },
       });
       queryClient.setQueryData(getGetCampaignMapQueryKey(campaignId), saved);
@@ -337,30 +310,6 @@ function SettingsFormView({
                 title="Hex grid"
                 description="Units stand and move in hexes. The rule book's are 3 miles across."
               >
-                <Controller
-                  control={form.control}
-                  name="hexDistance"
-                  render={({ field }) => (
-                    <NumberInput
-                      label="Hex size, across the flats"
-                      suffix={` ${unit}`}
-                      min={minHexDistance(distanceUnit)}
-                      max={maxHexDistance(distanceUnit)}
-                      decimalScale={1}
-                      disabled={started}
-                      value={field.value}
-                      onChange={(value) => {
-                        field.onChange(typeof value === "number" ? value : undefined);
-                      }}
-                      error={errors.hexDistance?.message}
-                    />
-                  )}
-                />
-              </Section>
-              <Section
-                title="Movement per turn"
-                description="How far each type of unit can move in one turn, in a straight line."
-              >
                 <Stack gap="sm">
                   <SegmentedControl
                     aria-label="Distances in"
@@ -373,27 +322,25 @@ function SettingsFormView({
                       changeUnit(value);
                     }}
                   />
-                  {limits.map((limit, index) => (
-                    <Controller
-                      key={limit.unitType}
-                      control={form.control}
-                      name={limitPath(index)}
-                      render={({ field }) => (
-                        <NumberInput
-                          label={unitTypeLabels[limit.unitType]}
-                          suffix={` ${unit}`}
-                          min={0}
-                          max={maxDistance(distanceUnit)}
-                          decimalScale={1}
-                          value={field.value}
-                          onChange={(value) => {
-                            field.onChange(typeof value === "number" ? value : undefined);
-                          }}
-                          error={errors.limits?.[index]?.distance?.message}
-                        />
-                      )}
-                    />
-                  ))}
+                  <Controller
+                    control={form.control}
+                    name="hexDistance"
+                    render={({ field }) => (
+                      <NumberInput
+                        label="Hex size, across the flats"
+                        suffix={` ${unit}`}
+                        min={minHexDistance(distanceUnit)}
+                        max={maxHexDistance(distanceUnit)}
+                        decimalScale={1}
+                        disabled={started}
+                        value={field.value}
+                        onChange={(value) => {
+                          field.onChange(typeof value === "number" ? value : undefined);
+                        }}
+                        error={errors.hexDistance?.message}
+                      />
+                    )}
+                  />
                 </Stack>
               </Section>
             </Stack>

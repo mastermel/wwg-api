@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
+using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
@@ -76,9 +77,10 @@ public sealed class TurnTests : ApiTest
         using var scenario = await CreateCampaignScenarioAsync();
         await TurnSteps.SetAreaAsync(scenario);
 
-        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, latitude: 51.5);
+        // Far to the north: no hex of the Waterloo grid.
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, new Hex(0, -10));
 
-        await response.AssertValidationProblemAsync("latitude");
+        await response.AssertValidationProblemAsync("q");
     }
 
     [Fact]
@@ -87,21 +89,15 @@ public sealed class TurnTests : ApiTest
         using var scenario = await CreateCampaignScenarioAsync();
         await TurnSteps.SetAreaAsync(scenario);
 
-        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.7, 4.4);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, new Hex(1, -1));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         foreach (var role in new[] { Role.Admin, Role.Umpire, Role.Commander })
         {
             var position = Assert.Single((await PositionsAsync(scenario, role, turn: 0))!);
             Assert.Equal(
-                (scenario.UnitId, 0, OrderKind.Move, 50.7, 4.4),
-                (
-                    position.UnitId,
-                    position.Turn,
-                    position.Kind,
-                    position.Latitude,
-                    position.Longitude
-                )
+                (scenario.UnitId, 0, OrderKind.Move, 1, -1),
+                (position.UnitId, position.Turn, position.Kind, position.Q, position.R)
             );
         }
 
@@ -110,16 +106,46 @@ public sealed class TurnTests : ApiTest
     }
 
     [Fact]
+    public async Task PlaceUnit_InAHex_IsAtThatHexsCentre()
+    {
+        var waterloo = HexGridFigures.Cases[0];
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.SetAreaAsync(scenario, waterloo.HexSize);
+        var checkedHexes = 0;
+
+        foreach (var point in waterloo.Points)
+        {
+            using var response = await TurnSteps.PlaceAsync(
+                scenario,
+                scenario.UnitId,
+                new Hex(point.Q, point.R)
+            );
+            // Hexes outside the grid are refused (PlaceUnit_OutsideTheArea_IsAValidationError).
+            if (!response.IsSuccessStatusCode)
+            {
+                continue;
+            }
+
+            var position = await response.Content.ReadAsAsync<UnitPosition>();
+            Assert.Equal(point.Centre.Latitude, position!.Latitude, 6);
+            Assert.Equal(point.Centre.Longitude, position.Longitude, 6);
+            checkedHexes++;
+        }
+
+        Assert.True(checkedHexes >= 4, $"Only {checkedHexes} of the figures' hexes were checked.");
+    }
+
+    [Fact]
     public async Task PlaceUnit_Again_MovesIt()
     {
         using var scenario = await CreateCampaignScenarioAsync();
         await TurnSteps.SetAreaAsync(scenario);
-        using var first = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.7, 4.4);
+        using var first = await TurnSteps.PlaceAsync(scenario, scenario.UnitId);
 
-        using var second = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.65, 4.5);
+        using var second = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, new Hex(2, -1));
 
         var position = Assert.Single((await PositionsAsync(scenario, Role.Umpire, turn: 0))!);
-        Assert.Equal((50.65, 4.5), (position.Latitude, position.Longitude));
+        Assert.Equal((2, -1), (position.Q, position.R));
     }
 
     [Fact]
@@ -219,7 +245,7 @@ public sealed class TurnTests : ApiTest
         using var scenario = await ReadyAsync();
         using var started = await TurnSteps.StartAsync(scenario);
 
-        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, 50.65, 4.5);
+        using var response = await TurnSteps.PlaceAsync(scenario, scenario.UnitId, new Hex(2, -1));
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -238,7 +264,7 @@ public sealed class TurnTests : ApiTest
             );
         var hussars = (await created.Content.ReadAsAsync<UnitResponse>())!.Id;
 
-        using var response = await TurnSteps.PlaceAsync(scenario, hussars, 50.65, 4.5);
+        using var response = await TurnSteps.PlaceAsync(scenario, hussars, new Hex(2, -1));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var now = (await PositionsAsync(scenario, Role.Commander))!;
@@ -419,7 +445,7 @@ public sealed class TurnTests : ApiTest
             );
         var guard = (await unit.Content.ReadAsAsync<UnitResponse>())!.Id;
 
-        using var placed = await TurnSteps.PlaceAsync(scenario, guard, 50.62, 4.3);
+        using var placed = await TurnSteps.PlaceAsync(scenario, guard, new Hex(-2, 2));
 
         Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
         var turns = (await TurnsAsync(scenario, Role.Umpire))!.Turns;

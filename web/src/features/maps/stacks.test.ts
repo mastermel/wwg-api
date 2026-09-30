@@ -21,6 +21,7 @@ const placed = (id: string, longitude: number, latitude = 0): PlacedUnit => ({
     points: 20,
   } satisfies UnitResponse,
   army,
+  hex: { q: 0, r: 0 },
   latitude,
   longitude,
 });

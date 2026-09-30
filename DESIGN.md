@@ -2217,13 +2217,22 @@ Decision [0014](docs/decisions/0014-hex-grid-movement.md); the rules are the clu
 dependencies: the grid, then what's on it, then how units move across it, then the rules that
 build on positions.
 
-39. **The hex grid (API):** the hex size on the map settings (3 miles by default; with the
+39. ✅ **The hex grid (API):** the hex size on the map settings (3 miles by default; with the
     bounds, changeable only while setting up); `HexGrid` (axial, flat-topped, local projection);
     unit types by the rules' movement classes (migration: HeavyInfantry → LineInfantry,
     Skirmishers → LightInfantry); orders and placements in hexes (`Q`, `R`, `Path`), existing
     positions converted once at start-up; a Move's path checked against the rules' flat rates
     (every hex Flat until step 41); the movement limits go. `GET /positions` gives each unit's
     hex and its centre.
+    - Done with the web side it needs (the contract changed under it): placing by hex, and
+      moving by hex with the reachable hexes shaded and the cheapest path drawn (`movement.ts`
+      mirrors `Movement.cs`), orders described in hexes ("Moves 2 hexes"). Step 40 adds the grid
+      layer on the map page and the rest.
+    - The migration converts positions in SQL (SQLite's math functions), checked against
+      `testdata/hex_grid.py` both ways; moves from before the grid keep no path, and draw as a
+      straight line. `HexGrid.cs` is tested through the endpoints against the same figures
+      (placement centres, and re-snapping placements when the grid changes during setup).
+    - A path is checked step by step (next to the last, inside the grid) before its cost.
 40. **The hex grid (UI):** the grid layer (on by default, switchable) and the hex size in the
     settings, previewed; placing and moving by hex; the hexes a unit can reach shaded, the
     cheapest path to the chosen one drawn, and its cost; stacks by hex; symbols and legend for

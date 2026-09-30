@@ -80,7 +80,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   The hex grid (decision 0014) is `hex-grid.ts`: its arithmetic matches the API's `HexGrid.cs`,
   and both are tested against `testdata/hex-grid.json` (from an independent Python reference;
   the Dockerfile copies it into the web build). `HexGridLayer` draws it, and nothing past
-  `maxDrawnHexes`. The Umpire's
+  `maxDrawnHexes`. Movement is `movement.ts` (classes, the rules' rates, `reach` and `pathTo`),
+  mirroring the API's `Movement.cs`. The Umpire's
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Maps;
 
 namespace Wwg.Api.Features.Turns;
 
@@ -145,8 +146,8 @@ internal static class TurnRules
             detail: $"The campaign has started: deleting this {what} would erase its history."
         );
 
-    /// <summary>Where a unit is now: its latest Completed order's position; null if it has none.</summary>
-    public static async Task<(double Latitude, double Longitude)?> CurrentPositionAsync(
+    /// <summary>Where a unit is now: its latest Completed order's hex; null if it has none.</summary>
+    public static async Task<Hex?> CurrentPositionAsync(
         WwgDbContext db,
         Guid unitId,
         CancellationToken cancellationToken
@@ -156,8 +157,8 @@ internal static class TurnRules
             .UnitOrders.AsNoTracking()
             .Where(o => o.UnitId == unitId && o.ArmyTurn.Status == ArmyTurnStatus.Completed)
             .OrderByDescending(o => o.ArmyTurn.CampaignTurn.Number)
-            .Select(o => new { o.Latitude, o.Longitude })
+            .Select(o => new { o.Q, o.R })
             .FirstOrDefaultAsync(cancellationToken);
-        return order is null ? null : (order.Latitude, order.Longitude);
+        return order is null ? null : new Hex(order.Q, order.R);
     }
 }

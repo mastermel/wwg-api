@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.IntegrationTests.Support;
 
@@ -9,15 +10,16 @@ namespace Wwg.Api.IntegrationTests.Features;
 /// <summary>The Umpire giving orders on a commander's behalf (decision 0011).</summary>
 public sealed class UmpireOrderTests : ApiTest
 {
-    private static readonly GiveOrderRequest Hold = new(OrderKind.Hold, null, null);
+    private static readonly GiveOrderRequest Hold = TurnSteps.Hold;
 
-    private static GiveOrderRequest MoveTo(double latitude) => new(OrderKind.Move, latitude, 4.4);
+    /// <summary>A move north: one hex, from (0, 0) to (0, -1).</summary>
+    private static readonly GiveOrderRequest North = TurnSteps.Move(new Hex(0, -1));
 
-    /// <summary>Started, with every unit type able to move 5 km a turn.</summary>
+    /// <summary>Started: the unit (line infantry, two flat hexes a turn) in hex (0, 0).</summary>
     private async Task<CampaignScenario> StartedAsync()
     {
         var scenario = await CreateCampaignScenarioAsync();
-        await TurnSteps.StartedAsync(scenario, limitMetres: 5_000);
+        await TurnSteps.StartedAsync(scenario);
         return scenario;
     }
 
@@ -45,8 +47,8 @@ public sealed class UmpireOrderTests : ApiTest
                     ArmyTurnId = setup,
                     UnitId = unit.Id,
                     Kind = OrderKind.Move,
-                    Latitude = 50.7,
-                    Longitude = 4.4,
+                    Q = 0,
+                    R = 0,
                 }
             );
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -77,12 +79,7 @@ public sealed class UmpireOrderTests : ApiTest
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
         using var held = await TurnSteps.OrderAsync(scenario, turn.Id, Hold, role: Role.Umpire);
 
-        using var moved = await TurnSteps.OrderAsync(
-            scenario,
-            turn.Id,
-            MoveTo(50.72),
-            role: Role.Umpire
-        );
+        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, North, role: Role.Umpire);
 
         moved.EnsureSuccessStatusCode();
         var edited = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).History);
@@ -95,12 +92,7 @@ public sealed class UmpireOrderTests : ApiTest
         using var scenario = await StartedAsync();
         var second = await AddPlacedUnitAsync(scenario);
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
-        using var moved = await TurnSteps.OrderAsync(
-            scenario,
-            turn.Id,
-            MoveTo(50.72),
-            role: Role.Umpire
-        );
+        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, North, role: Role.Umpire);
 
         using var held = await TurnSteps.OrderAsync(scenario, turn.Id, Hold, second, Role.Umpire);
 
@@ -121,11 +113,11 @@ public sealed class UmpireOrderTests : ApiTest
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
-        // About 8.9 km: past the 5 km limit, but inside the area.
+        // Three hexes: past the two infantry moves, but inside the area.
         using var response = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            MoveTo(50.78),
+            TurnSteps.Move(new Hex(1, -1), new Hex(2, -2), new Hex(3, -3)),
             role: Role.Umpire
         );
 
@@ -141,11 +133,11 @@ public sealed class UmpireOrderTests : ApiTest
         using var response = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            MoveTo(50.85),
+            TurnSteps.Move(new Hex(0, -1), new Hex(0, -2), new Hex(0, -3)),
             role: Role.Umpire
         );
 
-        await response.AssertValidationProblemAsync("latitude");
+        await response.AssertValidationProblemAsync("path");
     }
 
     [Fact]
@@ -157,7 +149,7 @@ public sealed class UmpireOrderTests : ApiTest
         using var response = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            MoveTo(50.72),
+            North,
             role: Role.Umpire
         );
 
@@ -187,7 +179,7 @@ public sealed class UmpireOrderTests : ApiTest
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
         using var held = await TurnSteps.OrderAsync(scenario, turn.Id, Hold, role: Role.Umpire);
 
-        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.72));
+        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, North);
 
         moved.EnsureSuccessStatusCode();
         Assert.False(Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).Orders).ByUmpire);
@@ -263,12 +255,7 @@ public sealed class UmpireOrderTests : ApiTest
     {
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.SubmittedAsync(scenario);
-        using var moved = await TurnSteps.OrderAsync(
-            scenario,
-            turn.Id,
-            MoveTo(50.72),
-            role: Role.Umpire
-        );
+        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, North, role: Role.Umpire);
 
         using var approved = await TurnSteps.ActAsync(scenario, turn.Id, "approve", Role.Umpire);
 

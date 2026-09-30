@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
@@ -14,18 +15,20 @@ namespace Wwg.Api.IntegrationTests.Features;
 /// </summary>
 public sealed class OrderTests : ApiTest
 {
-    /// <summary>Started, with every unit type able to move 5 km a turn.</summary>
+    /// <summary>
+    /// Started: the unit (line infantry, so two flat hexes a turn) in hex (0, 0) of the Waterloo
+    /// grid, whose hexes run from (0, -2) in the north to (0, 2) in the south.
+    /// </summary>
     private async Task<CampaignScenario> StartedAsync()
     {
         var scenario = await CreateCampaignScenarioAsync();
-        await TurnSteps.StartedAsync(scenario, limitMetres: 5_000);
+        await TurnSteps.StartedAsync(scenario);
         return scenario;
     }
 
-    private static GiveOrderRequest MoveTo(double latitude, double longitude = 4.4) =>
-        new(OrderKind.Move, latitude, longitude);
+    private static readonly GiveOrderRequest Hold = TurnSteps.Hold;
 
-    private static readonly GiveOrderRequest Hold = new(OrderKind.Hold, null, null);
+    private static GiveOrderRequest Move(params Hex[] path) => TurnSteps.Move(path);
 
     [Theory]
     [InlineData(Role.Admin, HttpStatusCode.OK)]
@@ -65,19 +68,26 @@ public sealed class OrderTests : ApiTest
     }
 
     [Fact]
-    public async Task GiveOrder_MoveWithinTheLimit_SavesTheDraftMove()
+    public async Task GiveOrder_MoveWithinTheLimit_SavesTheDraftMoveAndItsPath()
     {
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
-        using var response = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.73));
+        using var response = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            Move(new Hex(0, -1), new Hex(0, -2))
+        );
 
         response.EnsureSuccessStatusCode();
         var order = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).Orders);
         Assert.Equal(
-            (OrderKind.Move, ArmyTurnStatus.Draft, 1, 50.73, 4.4),
-            (order.Kind, order.Status, order.Turn, order.Latitude, order.Longitude)
+            (OrderKind.Move, ArmyTurnStatus.Draft, 1, 0, -2),
+            (order.Kind, order.Status, order.Turn, order.Q, order.R)
         );
+        Assert.Equal([new Hex(0, -1), new Hex(0, -2)], order.Path);
+        // The hex's centre, 2 hexes (about 9.7 km) north of the area's middle.
+        Assert.InRange(order.Latitude, 50.78, 50.79);
     }
 
     [Fact]
@@ -85,13 +95,13 @@ public sealed class OrderTests : ApiTest
     {
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
-        using var first = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.73));
+        using var first = await TurnSteps.OrderAsync(scenario, turn.Id, Move(new Hex(0, -1)));
 
-        using var second = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.68));
+        using var second = await TurnSteps.OrderAsync(scenario, turn.Id, Move(new Hex(1, 0)));
 
         second.EnsureSuccessStatusCode();
         var order = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).Orders);
-        Assert.Equal(50.68, order.Latitude);
+        Assert.Equal((1, 0), (order.Q, order.R));
     }
 
     [Fact]
@@ -100,22 +110,30 @@ public sealed class OrderTests : ApiTest
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
-        // 0.05° of latitude is about 5.6 km: over the 5 km limit, but inside the area.
-        using var response = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.75));
+        // Three hexes: infantry moves two on flat ground.
+        using var response = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            Move(new Hex(1, -1), new Hex(2, -2), new Hex(3, -3))
+        );
 
-        await response.AssertValidationProblemAsync("latitude");
+        await response.AssertValidationProblemAsync("path");
     }
 
     [Fact]
     public async Task GiveOrder_MoveOutsideTheArea_IsAValidationError()
     {
-        using var scenario = await CreateCampaignScenarioAsync();
-        await TurnSteps.StartedAsync(scenario, limitMetres: 50_000);
+        using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
-        using var response = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.85));
+        // (0, -3) is north of the area.
+        using var response = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            Move(new Hex(0, -1), new Hex(0, -2), new Hex(0, -3))
+        );
 
-        await response.AssertValidationProblemAsync("latitude");
+        await response.AssertValidationProblemAsync("path");
     }
 
     [Fact]
@@ -127,10 +145,21 @@ public sealed class OrderTests : ApiTest
         using var response = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            new GiveOrderRequest(OrderKind.Move, null, null)
+            new GiveOrderRequest(OrderKind.Move, null)
         );
 
-        await response.AssertValidationProblemAsync("latitude");
+        await response.AssertValidationProblemAsync("path");
+    }
+
+    [Fact]
+    public async Task GiveOrder_MoveSkippingAHex_IsAValidationError()
+    {
+        using var scenario = await StartedAsync();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        using var response = await TurnSteps.OrderAsync(scenario, turn.Id, Move(new Hex(0, -2)));
+
+        await response.AssertValidationProblemAsync("path");
     }
 
     [Fact]
@@ -139,17 +168,17 @@ public sealed class OrderTests : ApiTest
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
-        // Wherever the request says: a Hold ignores it.
+        // Whatever path the request gives: a Hold ignores it.
         using var response = await TurnSteps.OrderAsync(
             scenario,
             turn.Id,
-            new GiveOrderRequest(OrderKind.Hold, 50.6, 4.2)
+            new GiveOrderRequest(OrderKind.Hold, [new Hex(0, -1)])
         );
 
         var order = await response.Content.ReadAsAsync<UnitPosition>();
         Assert.Equal(
-            (OrderKind.Hold, TurnSteps.Start.Latitude, TurnSteps.Start.Longitude),
-            (order?.Kind, order?.Latitude, order?.Longitude)
+            (OrderKind.Hold, TurnSteps.Start.Q, TurnSteps.Start.R, 0),
+            (order?.Kind, order?.Q, order?.R, order?.Path.Count)
         );
     }
 
@@ -158,7 +187,7 @@ public sealed class OrderTests : ApiTest
     {
         using var scenario = await StartedAsync();
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
-        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, MoveTo(50.73));
+        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, Move(new Hex(0, -1)));
 
         using var response = await scenario
             .As(Role.Commander)

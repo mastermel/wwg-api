@@ -15,9 +15,6 @@ export const toUnit = (metres: number, unit: DistanceUnit) =>
 export const toMetres = (distance: number, unit: DistanceUnit) =>
   Math.round(distance * metresPer[unit]);
 
-/** The most a movement limit can be (the API's 1,000 km), in the campaign's unit. */
-export const maxDistance = (unit: DistanceUnit) => Math.floor(toUnit(1_000_000, unit));
-
 /** The smallest and largest hex size (the API's 500 m and 50 km), in the campaign's unit. */
 export const minHexDistance = (unit: DistanceUnit) => Math.ceil(toUnit(500, unit) * 10) / 10;
 export const maxHexDistance = (unit: DistanceUnit) => Math.floor(toUnit(50_000, unit));

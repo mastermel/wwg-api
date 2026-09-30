@@ -8,6 +8,7 @@ import type {
   CampaignMapResponse,
   CampaignResponse,
   CampaignTurnsResponse,
+  UnitPosition,
 } from "@/api/generated/model";
 import { expectNoAxeViolations, renderApp } from "@/test/render";
 import { server } from "@/test/server";
@@ -87,7 +88,7 @@ const draft = (changes: Partial<ArmyTurnDetails> = {}): ArmyTurnDetails => ({
   ...changes,
 });
 
-const hold = {
+const hold: UnitPosition = {
   unitId,
   armyId,
   turn: 1,
@@ -96,7 +97,10 @@ const hold = {
   latitude: 50.7,
   longitude: 4.4,
   byUmpire: false,
-} as const;
+  q: 0,
+  r: 0,
+  path: [],
+};
 
 /** A running campaign where the signed-in Player commands one army with one unit. */
 function serveCommander(turn: ArmyTurnDetails) {
@@ -136,7 +140,6 @@ function serveCommander(turn: ArmyTurnDetails) {
           contours: false,
         },
         hexSize: 4828,
-        movementLimits: [{ unitType: "LineInfantry", metres: 5000 }],
       } satisfies CampaignMapResponse),
     ),
     http.get(`*/api/campaigns/${campaignId}/armies`, () => HttpResponse.json([army])),
@@ -177,7 +180,8 @@ const openMap = () => renderApp(`/campaigns/${campaignId}/map`);
 
 describe("a commander's turn", () => {
   beforeEach(() => {
-    click.at = { longitude: 4.4, latitude: 50.72 };
+    // In hex (0, -1): the one north of the Guard's (0, 0), in the middle of the area.
+    click.at = { longitude: 4.45, latitude: 50.71 };
   });
 
   it("lists their units' orders, and holds Submit until every unit has one", async () => {
@@ -209,12 +213,12 @@ describe("a commander's turn", () => {
       {
         method: "PUT",
         url: `/api/army-turns/${turnId}/orders/${unitId}`,
-        body: { kind: "Hold", latitude: null, longitude: null },
+        body: { kind: "Hold", path: null },
       },
     ]);
   });
 
-  it("moves a unit: choose Move, tap inside its range, then confirm", async () => {
+  it("moves a unit: choose Move, tap a hex it can reach, then confirm", async () => {
     const requests = serveCommander(draft());
     const user = userEvent.setup();
     await openMap();
@@ -223,9 +227,9 @@ describe("a commander's turn", () => {
     await user.click(
       within(await screen.findByRole("dialog")).getByRole("button", { name: "Move" }),
     );
-    expect(screen.getByText(/Tap the map inside the circle/)).toHaveTextContent("Imperial Guard");
+    expect(screen.getByText(/Tap a shaded hex/)).toHaveTextContent("Imperial Guard");
     await user.click(screen.getByRole("button", { name: "Click the map" }));
-    expect(screen.getByText(/to here\?/)).toHaveTextContent("Move Imperial Guard 2.2 km to here?");
+    expect(screen.getByText(/to here\?/)).toHaveTextContent("Move Imperial Guard 1 hex to here?");
     await user.click(screen.getByRole("button", { name: "Confirm" }));
 
     expect(await screen.findByText("Imperial Guard will move.")).toBeInTheDocument();
@@ -233,16 +237,17 @@ describe("a commander's turn", () => {
       {
         method: "PUT",
         url: `/api/army-turns/${turnId}/orders/${unitId}`,
-        body: { kind: "Move", longitude: 4.4, latitude: 50.72 },
+        body: { kind: "Move", path: [{ q: 0, r: -1 }] },
       },
     ]);
     expect(screen.queryByText(/to here\?/)).not.toBeInTheDocument();
   });
 
-  it("won't pick a point further than the unit can move", async () => {
+  it("won't pick a hex further than the unit can move", async () => {
     const requests = serveCommander(draft());
     const user = userEvent.setup();
-    click.at = { longitude: 4.4, latitude: 50.78 };
+    // In hex (-3, 1): three hexes away, and line infantry moves two.
+    click.at = { longitude: 4.272, latitude: 50.6967 };
     await openMap();
 
     await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
@@ -252,11 +257,11 @@ describe("a commander's turn", () => {
     await user.click(screen.getByRole("button", { name: "Click the map" }));
 
     expect(
-      await screen.findByText("That's further than Imperial Guard can move in a turn (5 km)."),
+      await screen.findByText("That's further than Imperial Guard can move in a turn (2 hexes)."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByText(/Tap the map inside the circle/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tap a shaded hex/)).not.toBeInTheDocument();
     expect(requests).toEqual([]);
   });
 

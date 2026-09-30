@@ -1,23 +1,17 @@
-import type { DistanceUnit, UnitPosition } from "@/api/generated/model";
-import { distanceMetres, type Point } from "@/features/maps/geo";
-import { distanceUnitLabels, toUnit } from "@/features/maps/map-units";
+import type { UnitPosition } from "@/api/generated/model";
+import type { Point } from "@/features/maps/geo";
 
-/** A distance in the campaign's unit, for reading: "3.3 km". */
-export const formatDistance = (metres: number, unit: DistanceUnit) =>
-  `${String(toUnit(metres, unit))} ${distanceUnitLabels[unit].short}`;
+/** A count of hexes, for reading: "1 hex", "2 hexes". */
+export const hexes = (count: number) => `${String(count)} ${count === 1 ? "hex" : "hexes"}`;
 
 /**
- * A unit's order this turn, in words: "Moves 3.3 km", "Holds" or "No order yet"; "Not on the map
- * yet" for a unit the Umpire hasn't placed (it can't have one).
+ * A unit's order this turn, in words: "Moves 2 hexes", "Holds" or "No order yet"; "Not on the map
+ * yet" for a unit the Umpire hasn't placed (it can't have one). A move from before the grid, with
+ * no path, just "Moves".
  */
-export function describeOrder(
-  order: UnitPosition | undefined,
-  from: Point | undefined,
-  unit: DistanceUnit,
-) {
+export function describeOrder(order: UnitPosition | undefined, from: Point | undefined) {
   if (!from) return "Not on the map yet";
   if (!order) return "No order yet";
-  return order.kind === "Hold"
-    ? "Holds"
-    : `Moves ${formatDistance(distanceMetres(from, order), unit)}`;
+  if (order.kind === "Hold") return "Holds";
+  return order.path.length > 0 ? `Moves ${hexes(order.path.length)}` : "Moves";
 }

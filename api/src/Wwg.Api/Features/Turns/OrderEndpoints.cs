@@ -39,9 +39,15 @@ internal static class OrderEndpoints
     internal static async Task<Ok<List<ArmyTurnDetails>>> ListArmyTurnsAsync(
         Guid id,
         WwgDbContext db,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
+        var grid = await CampaignMaps.GridAsync(
+            db,
+            httpContext.CampaignContext().CampaignId,
+            cancellationToken
+        );
         // Three flat queries, put together here: SQLite can't run the nested lists as one.
         var turns = await db
             .ArmyTurns.AsNoTracking()
@@ -69,19 +75,28 @@ internal static class OrderEndpoints
                     t.Status,
                     t.SubmittedAt,
                     t.CompletedAt,
-                    [
-                        .. orders[t.Id]
-                            .Select(o => new UnitPosition(
-                                o.UnitId,
-                                id,
-                                t.Number,
-                                t.Status,
-                                o.Kind,
-                                o.Latitude,
-                                o.Longitude,
-                                o.ByUmpire
-                            )),
-                    ],
+                    grid is null
+                        ? []
+                        :
+                        [
+                            .. orders[t.Id]
+                                .Select(o =>
+                                    Positions.Of(
+                                        grid,
+                                        new OrderRow(
+                                            o.UnitId,
+                                            id,
+                                            t.Number,
+                                            t.Status,
+                                            o.Kind,
+                                            o.Q,
+                                            o.R,
+                                            o.Path,
+                                            o.ByUmpire
+                                        )
+                                    )
+                                ),
+                        ],
                     [.. history[t.Id]]
                 ))
                 .ToList()
@@ -104,8 +119,9 @@ internal static class OrderEndpoints
                     o.ArmyTurnId,
                     o.UnitId,
                     o.Kind,
-                    o.Latitude,
-                    o.Longitude,
+                    o.Q,
+                    o.R,
+                    o.Path,
                     o.ByUmpire
                 ))
                 .ToListAsync(cancellationToken)
@@ -115,8 +131,9 @@ internal static class OrderEndpoints
         Guid ArmyTurnId,
         Guid UnitId,
         OrderKind Kind,
-        double Latitude,
-        double Longitude,
+        int Q,
+        int R,
+        List<Hex> Path,
         bool ByUmpire
     );
 
@@ -150,9 +167,9 @@ internal static class OrderEndpoints
         ).ToLookup(e => e.ArmyTurnId, e => e.Event);
 
     /// <summary>
-    /// Gives a unit its order for the turn: Move, inside the campaign's area (and for the
-    /// commander, within the unit type's limit of where it is, in a straight line); or Hold, where
-    /// it is. Replaces any order it had. The army's commander gives orders while the turn is a
+    /// Gives a unit its order for the turn: Move along a path of adjacent hexes from its current
+    /// one, inside the grid (and for the commander, one its movement class can afford this turn:
+    /// DESIGN.md §5.2); or Hold, where it is. Replaces any order it had. The army's commander gives orders while the turn is a
     /// Draft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on
     /// the commander's behalf (decision 0011), which goes in the turn's history.
     /// </summary>
@@ -194,19 +211,26 @@ internal static class OrderEndpoints
             return Conflict("Not placed", "The Umpire hasn't placed this unit on the map yet.");
         }
 
-        var (problem, at) = await TargetAsync(
-            db,
-            request,
-            new MoveRules(unit.CampaignId, unit.Type, Limited: !byUmpire),
-            current.Value,
-            cancellationToken
-        );
-        if (problem is not null)
+        // A placed unit's campaign has an area.
+        var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
+        var path = request.Kind == OrderKind.Hold ? [] : request.Path ?? [];
+        if (
+            PathProblem(
+                grid,
+                Movement.ClassOf(unit.Type),
+                current.Value,
+                request.Kind,
+                path,
+                byUmpire
+            ) is
+            { } problem
+        )
         {
-            return Invalid("latitude", problem);
+            return Invalid("path", problem);
         }
 
-        var saved = await StageOrderAsync(db, turn, unitId, request.Kind, at, byUmpire);
+        var at = path.Count == 0 ? current.Value : path[^1];
+        var saved = await StageOrderAsync(db, grid, turn, unitId, request.Kind, at, path, byUmpire);
         if (byUmpire)
         {
             var text = request.Kind == OrderKind.Hold ? "Set to hold." : "Set to move.";
@@ -259,10 +283,12 @@ internal static class OrderEndpoints
     /// <summary>Adds or changes the unit's order (not saved), and says where it leaves the unit.</summary>
     private static async Task<UnitPosition> StageOrderAsync(
         WwgDbContext db,
+        HexGrid grid,
         EditableTurn turn,
         Guid unitId,
         OrderKind kind,
-        (double Latitude, double Longitude) at,
+        Hex at,
+        IReadOnlyList<Hex> path,
         bool byUmpire
     )
     {
@@ -270,21 +296,26 @@ internal static class OrderEndpoints
             await db.UnitOrders.SingleOrDefaultAsync(o =>
                 o.ArmyTurnId == turn.Id && o.UnitId == unitId
             ) ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = turn.Id, UnitId = unitId }).Entity;
-        (order.Kind, order.Latitude, order.Longitude, order.ByUmpire) = (
+        (order.Kind, order.Q, order.R, order.Path, order.ByUmpire) = (
             kind,
-            at.Latitude,
-            at.Longitude,
+            at.Q,
+            at.R,
+            [.. path],
             byUmpire
         );
-        return new UnitPosition(
-            unitId,
-            turn.ArmyId,
-            turn.Number,
-            turn.Status,
-            kind,
-            at.Latitude,
-            at.Longitude,
-            byUmpire
+        return Positions.Of(
+            grid,
+            new OrderRow(
+                unitId,
+                turn.ArmyId,
+                turn.Number,
+                turn.Status,
+                kind,
+                at.Q,
+                at.R,
+                order.Path,
+                byUmpire
+            )
         );
     }
 
@@ -371,85 +402,49 @@ internal static class OrderEndpoints
             .Select(t => new EditableTurn(t.Id, t.ArmyId, t.CampaignTurn.Number, t.Status))
             .SingleOrDefaultAsync(cancellationToken);
 
-    /// <summary>Whose move, and whether it's held to the unit type's movement limit.</summary>
-    private sealed record MoveRules(Guid CampaignId, UnitType Type, bool Limited);
-
     /// <summary>
-    /// Where the order leaves the unit: for a Hold, where it is; for a Move, where it goes, if
-    /// that's allowed. Else why not.
+    /// Why a Move's path won't do, or null if it will: it needs a step; each step is next to the
+    /// last (the first to the unit's hex) and inside the grid; and unless the Umpire gives it, the
+    /// unit's class can afford it this turn. A Hold has no path.
     /// </summary>
-    private static async Task<(
-        string? Problem,
-        (double Latitude, double Longitude) At
-    )> TargetAsync(
-        WwgDbContext db,
-        GiveOrderRequest request,
-        MoveRules rules,
-        (double Latitude, double Longitude) current,
-        CancellationToken cancellationToken
+    private static string? PathProblem(
+        HexGrid grid,
+        MovementClass movementClass,
+        Hex from,
+        OrderKind kind,
+        IReadOnlyList<Hex> path,
+        bool byUmpire
     )
     {
-        if (request.Kind == OrderKind.Hold)
-        {
-            return (null, current);
-        }
-
-        if (request is not { Latitude: { } lat, Longitude: { } lon })
-        {
-            return ("Say where the unit moves to.", current);
-        }
-
-        return (
-            await MoveProblemAsync(db, rules, current, (lat, lon), cancellationToken),
-            (lat, lon)
-        );
-    }
-
-    /// <summary>
-    /// Why a move isn't allowed (outside the area, or too far when it's held to the limit), or
-    /// null if it is.
-    /// </summary>
-    private static async Task<string?> MoveProblemAsync(
-        WwgDbContext db,
-        MoveRules rules,
-        (double Latitude, double Longitude) from,
-        (double Latitude, double Longitude) to,
-        CancellationToken cancellationToken
-    )
-    {
-        var map = await db
-            .CampaignMaps.AsNoTracking()
-            .SingleOrDefaultAsync(m => m.CampaignId == rules.CampaignId, cancellationToken);
-        if (
-            map is { West: { } west, South: { } south, East: { } east, North: { } north }
-            && (
-                to.Latitude < south
-                || to.Latitude > north
-                || to.Longitude < west
-                || to.Longitude > east
-            )
-        )
-        {
-            return "That's outside the campaign's area.";
-        }
-
-        if (!rules.Limited)
+        if (kind == OrderKind.Hold)
         {
             return null;
         }
 
-        var limit =
-            await db
-                .MovementLimits.Where(l =>
-                    l.CampaignId == rules.CampaignId && l.UnitType == rules.Type
-                )
-                .Select(l => (int?)l.Metres)
-                .SingleOrDefaultAsync(cancellationToken)
-            ?? CampaignMaps.DefaultMetres[rules.Type];
-        // A metre's grace, for rounding between the browser and here.
-        return Geo.Metres(from.Latitude, from.Longitude, to.Latitude, to.Longitude) > limit + 1
-            ? "That's further than the unit can move in a turn."
-            : null;
+        if (path.Count == 0)
+        {
+            return "Say where the unit moves to.";
+        }
+
+        var at = from;
+        foreach (var step in path)
+        {
+            if (!at.IsNextTo(step))
+            {
+                return "Each step of a move must be to the next hex.";
+            }
+
+            if (!grid.Contains(step))
+            {
+                return "That's outside the campaign's area.";
+            }
+
+            at = step;
+        }
+
+        return byUmpire || Movement.Affordable(Movement.PathCost(movementClass, from, path))
+            ? null
+            : "That's further than the unit can move in a turn.";
     }
 
     private static ValidationProblem Invalid(string field, string message) =>

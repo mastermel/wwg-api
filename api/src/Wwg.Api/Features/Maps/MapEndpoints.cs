@@ -37,7 +37,7 @@ internal static partial class MapEndpoints
 
     /// <summary>
     /// The campaign's map settings (every member): its bounds (null until set), label language,
-    /// distance unit, layers and movement limits. Before the Umpire saves any, the defaults.
+    /// distance unit, layers and hex size. Before the Umpire saves any, the defaults.
     /// </summary>
     internal static async Task<Ok<CampaignMapResponse>> GetCampaignMapAsync(
         Guid id,
@@ -95,7 +95,9 @@ internal static partial class MapEndpoints
 
     /// <summary>
     /// Changes the campaign's map settings (Umpire or Admin). Bounds run west to east and south to
-    /// north; every unit type has a movement limit, once.
+    /// north. The bounds and hex size lay out the grid: once the campaign has started they're
+    /// fixed (409); while setting up, changing them moves each placement to the new hex holding
+    /// the old one's centre, and takes it off the map if that's outside the new grid.
     /// </summary>
     internal static async Task<
         Results<Ok<CampaignMapResponse>, ValidationProblem, ProblemHttpResult>
@@ -130,7 +132,18 @@ internal static partial class MapEndpoints
                 detail: "The campaign has started: its area and hex size can't change now."
             );
         }
+        else if (GridChanges(map, request))
+        {
+            await ResnapPlacementsAsync(db, id, map, request, cancellationToken);
+        }
 
+        Apply(map, request);
+        await db.SaveChangesAsync(cancellationToken);
+        return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
+    }
+
+    private static void Apply(CampaignMap map, UpdateCampaignMapRequest request)
+    {
         (map.West, map.South, map.East, map.North) = request.Bounds is { } b
             ? (b.West, b.South, b.East, b.North)
             : ((double?)null, (double?)null, (double?)null, (double?)null);
@@ -152,11 +165,45 @@ internal static partial class MapEndpoints
             request.Layers.Hills,
             request.Layers.Contours
         );
+    }
 
-        await StageLimitsAsync(db, id, request.MovementLimits, cancellationToken);
+    /// <summary>
+    /// Moves turn 0's placements onto the new grid (not saved): each to the new hex holding its old
+    /// hex's centre, or off the map if that's outside the new grid (or there's no area now).
+    /// </summary>
+    private static async Task ResnapPlacementsAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        CampaignMap map,
+        UpdateCampaignMapRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        if (map is not { West: { } west, South: { } south, East: { } east, North: { } north })
+        {
+            return;
+        }
 
-        await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
+        var before = new HexGrid(new MapBounds(west, south, east, north), map.HexSize);
+        var after = request.Bounds is { } bounds ? new HexGrid(bounds, request.HexSize) : null;
+        var placements = await db
+            .UnitOrders.Where(o =>
+                o.ArmyTurn.Army.CampaignId == campaignId && o.ArmyTurn.CampaignTurn.Number == 0
+            )
+            .ToListAsync(cancellationToken);
+        foreach (var placement in placements)
+        {
+            var (latitude, longitude) = before.Centre(new Hex(placement.Q, placement.R));
+            var hex = after?.HexAt(latitude, longitude);
+            if (hex is { } moved && after!.Contains(moved)) // after is set when hex is.
+            {
+                (placement.Q, placement.R) = (moved.Q, moved.R);
+            }
+            else
+            {
+                db.UnitOrders.Remove(placement);
+            }
+        }
     }
 
     /// <summary>Whether the request moves the grid: other bounds, or another hex size.</summary>
@@ -169,38 +216,6 @@ internal static partial class MapEndpoints
                 request.Bounds?.East,
                 request.Bounds?.North
             );
-
-    /// <summary>Adds or changes the campaign's limits (saved with the rest).</summary>
-    private static async Task StageLimitsAsync(
-        WwgDbContext db,
-        Guid id,
-        IReadOnlyList<MovementLimitDto> wantedLimits,
-        CancellationToken cancellationToken
-    )
-    {
-        var limits = await db
-            .MovementLimits.Where(l => l.CampaignId == id)
-            .ToListAsync(cancellationToken);
-        foreach (var wanted in wantedLimits)
-        {
-            var limit = limits.SingleOrDefault(l => l.UnitType == wanted.UnitType);
-            if (limit is null)
-            {
-                db.MovementLimits.Add(
-                    new MovementLimit
-                    {
-                        CampaignId = id,
-                        UnitType = wanted.UnitType,
-                        Metres = wanted.Metres,
-                    }
-                );
-            }
-            else
-            {
-                limit.Metres = wanted.Metres;
-            }
-        }
-    }
 
     /// <summary>The rules DataAnnotations can't express, as a validation problem; null if none broken.</summary>
     private static ValidationProblem? Invalid(UpdateCampaignMapRequest request)
@@ -219,15 +234,6 @@ internal static partial class MapEndpoints
             }
         }
 
-        var types = request.MovementLimits.Select(l => l.UnitType).ToList();
-        if (
-            types.Count != types.Distinct().Count()
-            || !Enum.GetValues<UnitType>().All(types.Contains)
-        )
-        {
-            errors["movementLimits"] = ["Give every type of unit one movement limit."];
-        }
-
         return errors.Count == 0 ? null : TypedResults.ValidationProblem(errors);
     }
 
@@ -240,17 +246,6 @@ internal static partial class MapEndpoints
         var map = await db
             .CampaignMaps.AsNoTracking()
             .SingleOrDefaultAsync(m => m.CampaignId == campaignId, cancellationToken);
-        var saved = await db
-            .MovementLimits.AsNoTracking()
-            .Where(l => l.CampaignId == campaignId)
-            .ToDictionaryAsync(l => l.UnitType, l => l.Metres, cancellationToken);
-        var limits = Enum.GetValues<UnitType>()
-            .Select(type => new MovementLimitDto(
-                type,
-                saved.TryGetValue(type, out var metres) ? metres : CampaignMaps.DefaultMetres[type]
-            ))
-            .ToList();
-
         if (map is null)
         {
             return new CampaignMapResponse(
@@ -258,8 +253,7 @@ internal static partial class MapEndpoints
                 CampaignMaps.DefaultLanguage,
                 CampaignMaps.DefaultDistanceUnit,
                 CampaignMaps.DefaultLayers,
-                CampaignMap.DefaultHexSize,
-                limits
+                CampaignMap.DefaultHexSize
             );
         }
 
@@ -277,8 +271,7 @@ internal static partial class MapEndpoints
                 map.ShowHills,
                 map.ShowContours
             ),
-            map.HexSize,
-            limits
+            map.HexSize
         );
     }
 }

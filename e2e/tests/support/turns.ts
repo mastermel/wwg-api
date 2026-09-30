@@ -7,22 +7,18 @@ import type { User } from "./fixtures.ts";
  * but both in view on a phone (which shows the area's full height, and only part of its width).
  */
 export const startingPlaces = {
-  "Imperial Guard": { latitude: 50.7, longitude: 4.4 },
-  "Reserve Artillery": { latitude: 50.66, longitude: 4.34 },
+  "Imperial Guard": { q: 0, r: 0 },
+  "Reserve Artillery": { q: -1, r: 1 },
 } as const;
 
 /**
  * A campaign the Umpire has set up and started through the API (the tests aren't about that):
  * the map's area, a faction, and the commander's army "Armée du Nord" with the Imperial Guard
- * and the Reserve Artillery placed apart, each moving up to `limitMetres` a turn. Turn 1 is open.
+ * and the Reserve Artillery placed apart, in hexes `hexSize` metres across (3 miles unless given;
+ * both units are line infantry and foot artillery, which move two hexes a turn). Turn 1 is open.
  * Leaves the Umpire on the campaign.
  */
-export async function startedCampaign(
-  umpire: User,
-  commander: User,
-  name: string,
-  limitMetres = 20_000,
-) {
+export async function startedCampaign(umpire: User, commander: User, name: string, hexSize = 4828) {
   await createCampaign(umpire.page, name);
   const campaignUrl = umpire.page.url();
   const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
@@ -31,7 +27,7 @@ export async function startedCampaign(
   const api = await apiAs(umpire.page);
   await api.put(`/api/campaigns/${campaignId}/map`, {
     ...waterlooMap,
-    movementLimits: waterlooMap.movementLimits.map((l) => ({ ...l, metres: limitMetres })),
+    hexSize,
   });
   const faction = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/factions`, {
     name: "French Empire",
@@ -63,13 +59,13 @@ export async function startedCampaign(
 
 /**
  * The commander gives every unit an order and submits the open turn, through the API: Hold, or
- * for units named in `moves`, a Move there.
+ * for units named in `moves`, a Move along those hexes.
  */
 export async function holdAndSubmit(
   commander: User,
   campaignId: string,
   armyId: string,
-  moves: Partial<Record<string, { latitude: number; longitude: number }>> = {},
+  moves: Partial<Record<string, { q: number; r: number }[]>> = {},
 ) {
   const api = await apiAs(commander.page);
   const turns = await api.get<{ id: string; open: boolean }[]>(`/api/armies/${armyId}/turns`);
@@ -79,10 +75,10 @@ export async function holdAndSubmit(
     `/api/campaigns/${campaignId}/units`,
   );
   for (const unit of units.filter((u) => u.armyId === armyId)) {
-    const to = moves[unit.name];
+    const path = moves[unit.name];
     await api.put(
       `/api/army-turns/${turn.id}/orders/${unit.id}`,
-      to ? { kind: "Move", ...to } : { kind: "Hold" },
+      path ? { kind: "Move", path } : { kind: "Hold" },
     );
   }
   await api.post(`/api/army-turns/${turn.id}/submit`, null);

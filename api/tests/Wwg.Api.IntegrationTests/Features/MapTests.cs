@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Maps;
+using Wwg.Api.Features.Turns;
+using Wwg.Api.Features.Units;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
@@ -12,13 +14,9 @@ public sealed class MapTests : ApiTest
     /// <summary>Waterloo and around.</summary>
     private static readonly MapBounds Waterloo = new(4.2, 50.6, 4.6, 50.8);
 
-    private static List<MovementLimitDto> Limits(int metres = 10_000) =>
-        [.. Enum.GetValues<UnitType>().Select(type => new MovementLimitDto(type, metres))];
-
     private static UpdateCampaignMapRequest Request(
         MapBounds? bounds = null,
         string language = "fr",
-        IReadOnlyList<MovementLimitDto>? limits = null,
         int hexSize = 3000
     ) =>
         new(
@@ -33,8 +31,7 @@ public sealed class MapTests : ApiTest
                 Hills: true,
                 Contours: true
             ),
-            hexSize,
-            limits ?? Limits()
+            hexSize
         );
 
     private static Task<HttpResponseMessage> PutAsync(
@@ -66,14 +63,6 @@ public sealed class MapTests : ApiTest
         Assert.Equal(("en", DistanceUnit.Miles), (map?.LabelLanguage, map?.DistanceUnit));
         Assert.Equal(CampaignMaps.DefaultLayers, map?.Layers);
         Assert.Equal(4828, map?.HexSize);
-        Assert.Equal(
-            Enum.GetValues<UnitType>().Length,
-            map!.MovementLimits.Select(l => l.UnitType).Distinct().Count()
-        );
-        Assert.Equal(
-            40_000,
-            map.MovementLimits.Single(l => l.UnitType == UnitType.LightCavalry).Metres
-        );
     }
 
     [Fact]
@@ -89,7 +78,7 @@ public sealed class MapTests : ApiTest
         Assert.Equal(("fr", DistanceUnit.Kilometres), (map?.LabelLanguage, map?.DistanceUnit));
         Assert.False(map?.Layers.Forests);
         Assert.True(map?.Layers.Contours);
-        Assert.All(map!.MovementLimits, l => Assert.Equal(10_000, l.Metres));
+        Assert.Equal(3000, map?.HexSize);
     }
 
     [Fact]
@@ -100,7 +89,7 @@ public sealed class MapTests : ApiTest
 
         using var second = await PutAsync(
             scenario,
-            Request(language: "local", limits: Limits(5_000)) with
+            Request(language: "local", hexSize: 5000) with
             {
                 Bounds = null,
             }
@@ -109,8 +98,7 @@ public sealed class MapTests : ApiTest
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
         var map = await GetAsync(scenario, Role.Umpire);
         Assert.Null(map?.Bounds);
-        Assert.Equal("local", map?.LabelLanguage);
-        Assert.All(map!.MovementLimits, l => Assert.Equal(5_000, l.Metres));
+        Assert.Equal(("local", 5000), (map?.LabelLanguage, map?.HexSize));
     }
 
     [Theory]
@@ -144,41 +132,6 @@ public sealed class MapTests : ApiTest
         using var response = await PutAsync(scenario, Request(language: "klingon"));
 
         await response.AssertValidationProblemAsync("labelLanguage");
-    }
-
-    [Fact]
-    public async Task UpdateCampaignMap_AUnitTypeMissing_IsAValidationError()
-    {
-        using var scenario = await CreateCampaignScenarioAsync();
-
-        using var response = await PutAsync(scenario, Request(limits: Limits().Skip(1).ToList()));
-
-        await response.AssertValidationProblemAsync("movementLimits");
-    }
-
-    [Fact]
-    public async Task UpdateCampaignMap_AUnitTypeTwice_IsAValidationError()
-    {
-        using var scenario = await CreateCampaignScenarioAsync();
-        var limits = Limits();
-        limits[0] = limits[1];
-
-        using var response = await PutAsync(scenario, Request(limits: limits));
-
-        await response.AssertValidationProblemAsync("movementLimits");
-    }
-
-    [Fact]
-    public async Task UpdateCampaignMap_ALimitOverAThousandKilometres_IsAValidationError()
-    {
-        using var scenario = await CreateCampaignScenarioAsync();
-
-        var limits = Limits();
-        limits[0] = limits[0] with { Metres = 1_000_001 };
-
-        using var response = await PutAsync(scenario, Request(limits: limits));
-
-        await response.AssertValidationProblemAsync("movementLimits[0].metres");
     }
 
     [Theory]
@@ -286,5 +239,63 @@ public sealed class MapTests : ApiTest
 
         response.EnsureSuccessStatusCode();
         Assert.Equal("de", (await GetAsync(scenario, Role.Player))?.LabelLanguage);
+    }
+
+    [Fact]
+    public async Task UpdateCampaignMap_AnotherHexSizeWhileSettingUp_MovesThePlacements()
+    {
+        var resnap = HexGridFigures.Resnap;
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.SetAreaAsync(scenario, resnap.FromHexSize);
+        var units = new List<(Guid Id, HexGridFigures.ResnapHex Hex)>();
+        foreach (var hex in resnap.Hexes.Where(h => new Hex(h.Q, h.R) != TurnSteps.Start))
+        {
+            var id = await AddUnitAsync(scenario);
+            using var placed = await TurnSteps.PlaceAsync(scenario, id, new Hex(hex.Q, hex.R));
+            if (placed.IsSuccessStatusCode)
+            {
+                units.Add((id, hex));
+            }
+        }
+
+        using var response = await PutAsync(
+            scenario,
+            Request(TurnSteps.Area, language: "en", hexSize: resnap.ToHexSize)
+        );
+
+        response.EnsureSuccessStatusCode();
+        var positions =
+            await scenario
+                .As(Role.Umpire)
+                .GetAsAsync<List<UnitPosition>>(
+                    $"/api/campaigns/{scenario.CampaignId}/positions?turn=0"
+                )
+            ?? [];
+        Assert.NotEmpty(units);
+        foreach (var (id, hex) in units)
+        {
+            var position = positions.SingleOrDefault(p => p.UnitId == id);
+            if (hex.InGrid)
+            {
+                Assert.Equal((hex.To.Q, hex.To.R), (position?.Q, position?.R));
+            }
+            else
+            {
+                Assert.Null(position);
+            }
+        }
+    }
+
+    private static async Task<Guid> AddUnitAsync(CampaignScenario scenario)
+    {
+        using var created = await scenario
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
+                new CreateUnitRequest("Brigade", UnitType.LineInfantry, 3, 10),
+                CancellationToken
+            );
+        return (await created.Content.ReadAsAsync<UnitResponse>())?.Id
+            ?? throw new InvalidOperationException("No unit.");
     }
 }

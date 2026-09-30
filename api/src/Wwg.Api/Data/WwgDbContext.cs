@@ -20,8 +20,6 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<CampaignMap> CampaignMaps => Set<CampaignMap>();
 
-    public DbSet<MovementLimit> MovementLimits => Set<MovementLimit>();
-
     public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();
 
     public DbSet<ArmyTurn> ArmyTurns => Set<ArmyTurn>();

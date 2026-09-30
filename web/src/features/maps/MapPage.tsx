@@ -32,11 +32,13 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { CampaignMap } from "@/features/maps/CampaignMap";
-import { distanceMetres, inBounds, type Point } from "@/features/maps/geo";
+import type { Point } from "@/features/maps/geo";
+import { hexGrid, hexKey, type Hex } from "@/features/maps/hex-grid";
+import { flatRate, pathTo, reach } from "@/features/maps/movement";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
 import { PastTurnPanel } from "@/features/maps/PastTurnPanel";
-import { formatDistance } from "@/features/maps/orders";
+import { hexes } from "@/features/maps/orders";
 import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
@@ -154,7 +156,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   // On a phone the setup list is under the map: once the banner is drawn, bring it and the map
   // back into view (below the header: the Stack's scroll margin).
   const [moving, setMoving] = useState<PlacedUnit | null>(null);
-  const [target, setTarget] = useState<Point | null>(null);
+  const [target, setTarget] = useState<Hex | null>(null);
   useEffect(() => {
     if (placing || moving) mapArea.current?.scrollIntoView({ block: "start" });
   }, [placing, moving]);
@@ -174,7 +176,14 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
       (positions.data ?? []).flatMap((position) => {
         const known = everyUnit.find((u) => u.unit.id === position.unitId);
         return known
-          ? [{ ...known, latitude: position.latitude, longitude: position.longitude }]
+          ? [
+              {
+                ...known,
+                hex: { q: position.q, r: position.r },
+                latitude: position.latitude,
+                longitude: position.longitude,
+              },
+            ]
           : [];
       }),
     [positions.data, everyUnit],
@@ -195,8 +204,24 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const review = useReview(campaignId);
   const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
   const turnOf = (armyId: string) => openTurns.find((c) => c.army.id === armyId)?.turn;
-  const limitOf = (placed: PlacedUnit) =>
-    settings.movementLimits.find((l) => l.unitType === placed.unit.type)?.metres ?? 0;
+  const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
+  // While moving: the hexes the unit can reach this turn, and (for the Umpire, who can go past
+  // that after a warning; decision 0011) anywhere in the grid.
+  const withinTurn = useMemo(
+    () => (moving ? reach(grid, moving.hex, moving.unit.type) : null),
+    [grid, moving],
+  );
+  const reachable = useMemo(
+    () => (moving && manager ? reach(grid, moving.hex, moving.unit.type, Infinity) : withinTurn),
+    [grid, moving, manager, withinTurn],
+  );
+  const targetPath = target && reachable ? pathTo(reachable, target) : null;
+  const pastTurn = target !== null && !withinTurn?.has(hexKey(target));
+  const lineOf = (from: Hex, path: readonly Hex[]) =>
+    [from, ...path].map((hex): [number, number] => {
+      const { longitude, latitude } = grid.centre(hex);
+      return [longitude, latitude];
+    });
   const allMoves: PendingMove[] =
     past !== null
       ? []
@@ -206,12 +231,24 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               ? turn.orders.flatMap((order) => {
                   const placed = onMap.find((p) => p.unit.id === order.unitId);
                   return placed && order.kind === "Move" && placed.unit.id !== moving?.unit.id
-                    ? [{ placed, to: order }]
+                    ? [
+                        {
+                          placed,
+                          to: order,
+                          // A move from before the grid has no path: a straight line.
+                          line: lineOf(
+                            placed.hex,
+                            order.path.length > 0 ? order.path : [{ q: order.q, r: order.r }],
+                          ),
+                        },
+                      ]
                     : [];
                 })
               : [],
           ),
-          ...(moving && target ? [{ placed: moving, to: target }] : []),
+          ...(moving && target && targetPath
+            ? [{ placed: moving, to: grid.centre(target), line: lineOf(moving.hex, targetPath) }]
+            : []),
         ];
 
   // A picked-out army's moves only; the rest would clutter it.
@@ -221,35 +258,38 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     setMoving(null);
     setTarget(null);
   };
-  // A metre's grace, as the API allows, for rounding.
-  const pastLimit = (placed: PlacedUnit, point: Point) =>
-    distanceMetres(placed, point) > limitOf(placed) + 1;
   const chooseTarget = (point: Point) => {
     if (!moving) return;
-    const limit = limitOf(moving);
-    // The Umpire may go past the limit (decision 0011): the banner warns instead.
-    const problem = !inBounds(point, bounds)
+    const hex = grid.hexAt(point);
+    const problem = !grid.contains(hex)
       ? "That's outside the campaign's area."
-      : !manager && pastLimit(moving, point)
-        ? `That's further than ${moving.unit.name} can move in a turn (${formatDistance(limit, settings.distanceUnit)}).`
-        : null;
+      : hexKey(hex) === hexKey(moving.hex)
+        ? `${moving.unit.name} is there already: choose another hex, or Hold.`
+        : !reachable?.has(hexKey(hex))
+          ? `That's further than ${moving.unit.name} can move in a turn (${hexes(flatRate(moving.unit.type))}).`
+          : null;
     if (problem) {
       notifications.show({ color: "red", message: problem });
     } else {
-      setTarget(point);
+      setTarget(hex);
     }
   };
   const confirmMove = async () => {
     const turn = moving && turnOf(moving.army.id);
-    if (!moving || !turn || !target) return;
-    const order = { kind: "Move", ...target } as const;
+    if (!moving || !turn || !targetPath) return;
+    const order = { kind: "Move", path: targetPath } as const;
     if (await orders.give(moving.army.id, turn.id, moving.unit, order)) stopMoving();
   };
 
   const placeAt = async (point: { longitude: number; latitude: number }) => {
     if (!placingUnit) return;
+    const hex = grid.hexAt(point);
+    if (!grid.contains(hex)) {
+      notifications.show({ color: "red", message: "That's outside the campaign's area." });
+      return;
+    }
     try {
-      await place.mutateAsync({ id: placingUnit.unit.id, data: point });
+      await place.mutateAsync({ id: placingUnit.unit.id, data: hex });
       notifications.show({ color: "green", message: `Placed ${placingUnit.unit.name}.` });
       setPlacing(null);
       await refreshCampaign(queryClient, campaignId);
@@ -322,18 +362,14 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             <Alert role="status" color="navy" icon={<IconArrowMoveRight aria-hidden />}>
               <Group justify="space-between" gap="xs">
                 <Text size="sm">
-                  {target ? (
+                  {target && targetPath ? (
                     <>
-                      Move <strong>{moving.unit.name}</strong>{" "}
-                      {formatDistance(distanceMetres(moving, target), settings.distanceUnit)} to
-                      here?
-                      {pastLimit(moving, target) &&
-                        ` That's past its ${formatDistance(limitOf(moving), settings.distanceUnit)} limit.`}
+                      Move <strong>{moving.unit.name}</strong> {hexes(targetPath.length)} to here?
+                      {pastTurn && ` That's past its ${hexes(flatRate(moving.unit.type))} a turn.`}
                     </>
                   ) : (
                     <>
-                      Tap the map inside the circle where <strong>{moving.unit.name}</strong> moves
-                      to.
+                      Tap a shaded hex for where <strong>{moving.unit.name}</strong> moves to.
                     </>
                   )}
                 </Text>
@@ -344,7 +380,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                       loading={orders.busy}
                       onClick={() => void confirmMove()}
                     >
-                      {pastLimit(moving, target) ? "Move anyway" : "Confirm"}
+                      {pastTurn ? "Move anyway" : "Confirm"}
                     </Button>
                   )}
                   <Button size="compact-sm" variant="default" onClick={stopMoving}>
@@ -366,7 +402,13 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             >
               <OrderOverlay
                 moves={moves}
-                range={moving ? { centre: moving, metres: limitOf(moving) } : undefined}
+                reachable={
+                  withinTurn
+                    ? [...withinTurn.values()]
+                        .filter(({ from }) => from !== null)
+                        .map(({ hex }) => grid.corners(hex))
+                    : undefined
+                }
               />
               <UnitMarkers
                 units={onMap}
@@ -430,7 +472,6 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 units={everyUnit
                   .filter((u) => myArmies.some((a) => a.id === u.army.id))
                   .map((u) => ({ ...u, placed: onMap.find((p) => p.unit.id === u.unit.id) }))}
-                distanceUnit={settings.distanceUnit}
                 orders={orders}
                 onChoose={(placed) => {
                   setChosen([placed]);
@@ -507,7 +548,6 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                             if (undone) closeDrawer();
                           });
                         }}
-                        distanceUnit={settings.distanceUnit}
                         busy={orders.busy}
                         onMove={() => {
                           setMoving(unit);
@@ -518,8 +558,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                           void orders
                             .give(unit.army.id, turn.id, unit.unit, {
                               kind: "Hold",
-                              latitude: null,
-                              longitude: null,
+                              path: null,
                             })
                             .then((saved) => {
                               if (saved) closeDrawer();

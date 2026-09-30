@@ -2,14 +2,14 @@ import { scan } from "./support/axe.ts";
 import { expect, test } from "./support/fixtures.ts";
 import { latestEmailText } from "./support/mailpit.ts";
 import { apiAs } from "./support/api.ts";
-import { clickMap, clickMapPart } from "./support/map.ts";
+import { clickMapPart } from "./support/map.ts";
 import { approveAndStartNext, holdAndSubmit, startedCampaign } from "./support/turns.ts";
 
 test("a commander moves one unit, holds another and submits the turn", async ({ signUp }) => {
   test.slow();
   const umpire = await signUp("Ada");
   const commander = await signUp("Bob");
-  const { campaignUrl } = await startedCampaign(umpire, commander, "Ligny 1815", 5000);
+  const { campaignUrl } = await startedCampaign(umpire, commander, "Ligny 1815");
 
   const page = commander.page;
   await page.goto(`${campaignUrl}/map`);
@@ -22,15 +22,16 @@ test("a commander moves one unit, holds another and submits the turn", async ({ 
     .getByRole("dialog", { name: "Imperial Guard" })
     .getByRole("button", { name: "Move" })
     .click();
-  await expect(page.getByText(/Tap the map inside the circle/)).toBeInViewport();
+  await expect(page.getByText(/Tap a shaded hex/)).toBeInViewport();
   // The drawer's overlay fades out: wait, or the click lands on it.
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // The unit is in the middle of the map: a little to the right of it is well inside its range.
-  await clickMap(page, 60, -30);
+  // The Guard is in the middle hex; a fifth of the map's height up is the next hex north.
+  await clickMapPart(page, 0, -0.22);
   await expect(page.getByText(/to here\?/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page.getByText("Imperial Guard will move.")).toBeVisible();
-  await expect(panel.getByText(/^Moves \d+(\.\d)? km$/)).toBeVisible();
+  await expect(panel.getByText("Moves 1 hex")).toBeVisible();
 
   // Hold: from the turn panel's list, the other way in.
   await panel.getByRole("button", { name: "Reserve Artillery" }).click();
@@ -129,7 +130,7 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
   );
   // Turn 1: the Imperial Guard marches north (about 5.5 km), and the turn is approved.
   await holdAndSubmit(commander, campaignId, armyId, {
-    "Imperial Guard": { latitude: 50.75, longitude: 4.4 },
+    "Imperial Guard": [{ q: 0, r: -1 }],
   });
   await approveAndStartNext(umpire, campaignId, armyId);
   // A second army joins, with a unit of its own on the map.
@@ -145,7 +146,7 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
     fightingFactor: 4,
     points: 20,
   });
-  await api.put(`/api/units/${brigade.id}/placement`, { latitude: 50.66, longitude: 4.52 });
+  await api.put(`/api/units/${brigade.id}/placement`, { q: 2, r: 0 });
 
   // Bob steps back to the setup, and forward to turn 1: the Guard is further north after it.
   const page = commander.page;
@@ -189,7 +190,8 @@ test("the Umpire moves a unit past its limit, holds another, and submits for the
   test.slow();
   const umpire = await signUp("Ada");
   const commander = await signUp("Bob");
-  const { campaignUrl } = await startedCampaign(umpire, commander, "Genappe 1815", 5000);
+  // Small hexes, so three or more of them are in view on a phone too.
+  const { campaignUrl } = await startedCampaign(umpire, commander, "Genappe 1815", 2000);
 
   const page = umpire.page;
   await page.goto(`${campaignUrl}/map`);
@@ -199,9 +201,9 @@ test("the Umpire moves a unit past its limit, holds another, and submits for the
     .getByRole("button", { name: "Move" })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  // A third of the map east of the Guard: about 10 km, twice its limit.
+  // A third of the map east of the Guard: several 2 km hexes, more than its two a turn.
   await clickMapPart(page, 0.35, 0);
-  await expect(page.getByText(/That's past its 5 km limit\./)).toBeVisible();
+  await expect(page.getByText(/That's past its 2 hexes a turn\./)).toBeVisible();
   await page.getByRole("button", { name: "Move anyway" }).click();
   await expect(page.getByText("Imperial Guard will move.")).toBeVisible();
 
