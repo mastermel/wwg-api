@@ -2575,6 +2575,16 @@
               }
             }
           },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found",
             "content": {
@@ -2608,7 +2618,7 @@
         "tags": [
           "Maps"
         ],
-        "summary": "The Umpire sets an edge's road and river (Umpire or Admin); inference leaves it alone from\nthen on. The edge is on hex (q, r)'s N, NE or SE side; 404 unless it touches the grid, 409\nwithout an area.",
+        "summary": "The Umpire sets an edge's road, river and waterway (Umpire or Admin); inference leaves it alone from\nthen on. The edge is on hex (q, r)'s N, NE or SE side; 404 unless it touches the grid, 409\nwithout an area.",
         "operationId": "UpdateHexEdge",
         "parameters": [
           {
@@ -4479,6 +4489,14 @@
         },
         "description": "The campaign's Umpire."
       },
+      "CapitalStatus": {
+        "enum": [
+          "None",
+          "Minor",
+          "Capital"
+        ],
+        "description": "Whether a town or city is a capital (it scores more)."
+      },
       "ChangeEmailRequest": {
         "required": [
           "newEmail",
@@ -4809,8 +4827,8 @@
             "description": "Whether it's mostly forest."
           },
           "settlement": {
-            "description": "The largest place in it.",
-            "$ref": "#/components/schemas/Settlement"
+            "description": "Its town, city or fortress.",
+            "$ref": "#/components/schemas/HexSettlement"
           },
           "setByUmpire": {
             "type": "boolean",
@@ -4827,6 +4845,7 @@
           "road",
           "river",
           "bridge",
+          "waterway",
           "setByUmpire"
         ],
         "type": "object",
@@ -4851,18 +4870,57 @@
           },
           "river": {
             "type": "boolean",
-            "description": "Whether a river runs along it."
+            "description": "Whether a river lies along it, between the hexes."
           },
           "bridge": {
             "type": "boolean",
             "description": "Whether a bridge crosses the river."
+          },
+          "waterway": {
+            "description": "A navigable course across it, and which way it flows.",
+            "$ref": "#/components/schemas/Waterway"
           },
           "setByUmpire": {
             "type": "boolean",
             "description": "Set by the Umpire, so inference leaves it alone."
           }
         },
-        "description": "An edge with a road or river on it."
+        "description": "An edge with a road, river or waterway on it."
+      },
+      "HexSettlement": {
+        "required": [
+          "size",
+          "walled",
+          "fortress",
+          "capital"
+        ],
+        "type": "object",
+        "properties": {
+          "size": {
+            "description": "A town or city, or none.",
+            "$ref": "#/components/schemas/SettlementSize"
+          },
+          "walled": {
+            "type": "boolean",
+            "description": "The town or city is walled (only with one)."
+          },
+          "fortress": {
+            "type": "boolean",
+            "description": "A fortress, in the town or city or on its own."
+          },
+          "capital": {
+            "description": "Whether the town or city is a capital (only with one).",
+            "$ref": "#/components/schemas/CapitalStatus"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its name, if given (only with a town, city or fortress)."
+          }
+        },
+        "description": "A hex's town, city or fortress (decision 0016)."
       },
       "HttpValidationProblemDetails": {
         "type": "object",
@@ -4938,8 +4996,8 @@
             "description": "Whether it's mostly forest."
           },
           "settlement": {
-            "description": "The largest place in it.",
-            "$ref": "#/components/schemas/Settlement"
+            "description": "Its town, city or fortress.",
+            "$ref": "#/components/schemas/HexSettlement"
           }
         },
         "description": "A hex's inferred terrain."
@@ -4951,7 +5009,8 @@
           "side",
           "road",
           "river",
-          "bridge"
+          "bridge",
+          "waterway"
         ],
         "type": "object",
         "properties": {
@@ -4975,14 +5034,18 @@
           },
           "river": {
             "type": "boolean",
-            "description": "Whether a river runs along it."
+            "description": "Whether a river lies along it, between the hexes."
           },
           "bridge": {
             "type": "boolean",
             "description": "Whether a bridge crosses the river (only with a river)."
+          },
+          "waterway": {
+            "description": "A navigable course across it, and which way it flows.",
+            "$ref": "#/components/schemas/Waterway"
           }
         },
-        "description": "An edge's inferred road and river."
+        "description": "An edge's inferred road, river and waterway."
       },
       "JoinCampaignResponse": {
         "required": [
@@ -5682,15 +5745,13 @@
         },
         "description": "Makes a user a Manager (decision 0015), or not."
       },
-      "Settlement": {
+      "SettlementSize": {
         "enum": [
           "None",
-          "SmallCity",
-          "LargeCity",
-          "WalledCity",
-          "Fortress"
+          "Town",
+          "City"
         ],
-        "description": "The largest place in a hex, if any."
+        "description": "The town or city in a hex, if any (decision 0016): the map legend's small and large cities."
       },
       "SetUmpireRequest": {
         "required": [
@@ -6079,8 +6140,8 @@
             "description": "Whether it's mostly forest."
           },
           "settlement": {
-            "description": "The largest place in it.",
-            "$ref": "#/components/schemas/Settlement"
+            "description": "Its town, city or fortress.",
+            "$ref": "#/components/schemas/HexSettlement"
           }
         },
         "description": "The Umpire sets a hex's terrain."
@@ -6089,7 +6150,8 @@
         "required": [
           "road",
           "river",
-          "bridge"
+          "bridge",
+          "waterway"
         ],
         "type": "object",
         "properties": {
@@ -6099,14 +6161,18 @@
           },
           "river": {
             "type": "boolean",
-            "description": "Whether a river runs along it."
+            "description": "Whether a river lies along it, between the hexes."
           },
           "bridge": {
             "type": "boolean",
             "description": "Whether a bridge crosses the river (only with a river)."
+          },
+          "waterway": {
+            "description": "A navigable course across it, and which way it flows.",
+            "$ref": "#/components/schemas/Waterway"
           }
         },
-        "description": "The Umpire sets an edge's road and river."
+        "description": "The Umpire sets an edge's road, river and waterway."
       },
       "UpdateProfileRequest": {
         "required": [
@@ -6258,6 +6324,14 @@
           }
         },
         "description": "A user in the admin user list."
+      },
+      "Waterway": {
+        "enum": [
+          "None",
+          "Out",
+          "In"
+        ],
+        "description": "A navigable course across an edge (decision 0016), for boats: which way it flows, out of the\nhex the edge is stored on and into the one across, or back in."
       }
     },
     "securitySchemes": {

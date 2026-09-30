@@ -2365,10 +2365,11 @@ build on positions.
     an edge is stored on one hex's N, NE or SE side, and on the grid's border when either of its
     hexes is in the grid. A bridge needs a river. Changing the area or hex size while setting
     up clears the terrain, the Umpire's too (it belonged to the old hexes).
-    - **42b. Settlements in parts, and waterways** (decision 0016): `HexCell`'s settlement becomes
-      a size, Walled, Fortress, a capital status and a name (walled and capital need a town or
-      city); `HexEdge` gains `Waterway` (a navigable course across the edge, and which way it
-      flows). A migration, as nothing is stored yet beyond tests.
+    - ✅ **42b. Settlements in parts, and waterways** (decision 0016): `HexCell`'s settlement
+      becomes a size, Walled, Fortress, a capital status and a name, sent together as a
+      `HexSettlement` (walled and capital need a town or city; a name, a town, city or fortress);
+      `HexEdge` gains `Waterway` (a navigable course across the edge, and which way it flows). The
+      migration maps an old single settlement onto the parts (and back).
 43. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
     Mapterhorn elevation (roughly: under 50 m flat, under 150 m low hills, under 400 m high hills,
     else mountains), forest from land cover (half the hex or more), water, cities and towns (with

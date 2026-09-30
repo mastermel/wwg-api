@@ -10,14 +10,33 @@ public enum Terrain
     Water,
 }
 
-/// <summary>The largest place in a hex, if any.</summary>
-public enum Settlement
+/// <summary>
+/// The town or city in a hex, if any (decision 0016): the map legend's small and large cities.
+/// </summary>
+public enum SettlementSize
 {
     None,
-    SmallCity,
-    LargeCity,
-    WalledCity,
-    Fortress,
+    Town,
+    City,
+}
+
+/// <summary>Whether a town or city is a capital (it scores more).</summary>
+public enum CapitalStatus
+{
+    None,
+    Minor,
+    Capital,
+}
+
+/// <summary>
+/// A navigable course across an edge (decision 0016), for boats: which way it flows, out of the
+/// hex the edge is stored on and into the one across, or back in.
+/// </summary>
+public enum Waterway
+{
+    None,
+    Out,
+    In,
 }
 
 /// <summary>
@@ -58,15 +77,27 @@ internal sealed class HexCell : Entity
 
     public bool Forest { get; set; }
 
-    public Settlement Settlement { get; set; }
+    public SettlementSize SettlementSize { get; set; }
+
+    /// <summary>The town or city is walled.</summary>
+    public bool Walled { get; set; }
+
+    /// <summary>A fortress, in a town or city or on its own.</summary>
+    public bool Fortress { get; set; }
+
+    public CapitalStatus Capital { get; set; }
+
+    /// <summary>The town, city or fortress's name, if given.</summary>
+    public string? Name { get; set; }
 
     /// <summary>Set by the Umpire: inference leaves it alone.</summary>
     public bool SetByUmpire { get; set; }
 }
 
 /// <summary>
-/// An edge of a campaign's grid with a road or river on it, on hex (Q, R)'s <see cref="Side"/>;
-/// an edge without one has neither. Inferred, or set by the Umpire (and then kept).
+/// An edge of a campaign's grid with a road, river or waterway on it, on hex (Q, R)'s
+/// <see cref="Side"/>; an edge without one has none of them. The river lies along the edge,
+/// between the hexes; a waterway runs across it, from one to the other. Inferred, or set by the Umpire (and then kept).
 /// </summary>
 internal sealed class HexEdge : Entity
 {
@@ -86,6 +117,9 @@ internal sealed class HexEdge : Entity
 
     /// <summary>A bridge carries the road over the river: only on an edge with a river.</summary>
     public bool Bridge { get; set; }
+
+    /// <summary>A navigable river's course across the edge, from hex to hex (boats follow it).</summary>
+    public Waterway Waterway { get; set; }
 
     /// <summary>Set by the Umpire: inference leaves it alone.</summary>
     public bool SetByUmpire { get; set; }

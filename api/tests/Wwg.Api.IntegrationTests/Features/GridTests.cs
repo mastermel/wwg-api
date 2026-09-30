@@ -14,7 +14,7 @@ public sealed class GridTests : ApiTest
         0,
         Terrain.LowHill,
         false,
-        Settlement.None
+        HexSettlement.None
     );
 
     private static readonly InferredHexEdge Road = new(
@@ -23,7 +23,15 @@ public sealed class GridTests : ApiTest
         EdgeSide.N,
         RoadQuality.Good,
         false,
-        false
+        false,
+        Waterway.None
+    );
+
+    private static readonly HexSettlement WalledCity = new(
+        SettlementSize.City,
+        true,
+        false,
+        CapitalStatus.None
     );
 
     private static Uri GridUri(CampaignScenario scenario, string path = "") =>
@@ -119,23 +127,34 @@ public sealed class GridTests : ApiTest
             scenario,
             [
                 Hill,
-                new(1, 0, Terrain.Flat, true, Settlement.None),
-                new(0, 1, Terrain.Flat, false, Settlement.None),
+                new(1, 0, Terrain.Flat, true, HexSettlement.None),
+                new(0, 1, Terrain.Flat, false, HexSettlement.None),
             ],
-            [Road, new(0, 0, EdgeSide.NE, RoadQuality.None, false, false)]
+            [Road, new(0, 0, EdgeSide.NE, RoadQuality.None, false, false, Waterway.None)]
         );
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var grid = await GridAsync(scenario);
         Assert.Equal(
             [
-                new HexCellResponse(0, 0, Terrain.LowHill, false, Settlement.None, false),
-                new HexCellResponse(1, 0, Terrain.Flat, true, Settlement.None, false),
+                new HexCellResponse(0, 0, Terrain.LowHill, false, HexSettlement.None, false),
+                new HexCellResponse(1, 0, Terrain.Flat, true, HexSettlement.None, false),
             ],
             grid.Cells
         );
         Assert.Equal(
-            [new HexEdgeResponse(0, 0, EdgeSide.N, RoadQuality.Good, false, false, false)],
+            [
+                new HexEdgeResponse(
+                    0,
+                    0,
+                    EdgeSide.N,
+                    RoadQuality.Good,
+                    false,
+                    false,
+                    Waterway.None,
+                    false
+                ),
+            ],
             grid.Edges
         );
     }
@@ -146,28 +165,28 @@ public sealed class GridTests : ApiTest
         using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
         using var first = await SaveAsync(
             scenario,
-            [Hill, new(1, 0, Terrain.Mountain, false, Settlement.None)],
+            [Hill, new(1, 0, Terrain.Mountain, false, HexSettlement.None)],
             [Road]
         );
         using var cell = await SetCellAsync(
             scenario,
             1,
             0,
-            new UpdateHexCellRequest(Terrain.Flat, false, Settlement.WalledCity)
+            new UpdateHexCellRequest(Terrain.Flat, false, WalledCity)
         );
         using var edge = await SetEdgeAsync(
             scenario,
             0,
             0,
             "NE",
-            new UpdateHexEdgeRequest(RoadQuality.Poor, true, true)
+            new UpdateHexEdgeRequest(RoadQuality.Poor, true, true, Waterway.None)
         );
 
         using var response = await SaveAsync(
             scenario,
             [
-                new(1, 0, Terrain.Water, false, Settlement.None),
-                new(-1, 0, Terrain.HighHill, false, Settlement.None),
+                new(1, 0, Terrain.Water, false, HexSettlement.None),
+                new(-1, 0, Terrain.HighHill, false, HexSettlement.None),
             ],
             [Road with { Side = EdgeSide.NE, Road = RoadQuality.Good }]
         );
@@ -176,13 +195,24 @@ public sealed class GridTests : ApiTest
         var grid = await GridAsync(scenario);
         Assert.Equal(
             [
-                new HexCellResponse(-1, 0, Terrain.HighHill, false, Settlement.None, false),
-                new HexCellResponse(1, 0, Terrain.Flat, false, Settlement.WalledCity, true),
+                new HexCellResponse(-1, 0, Terrain.HighHill, false, HexSettlement.None, false),
+                new HexCellResponse(1, 0, Terrain.Flat, false, WalledCity, true),
             ],
             grid.Cells
         );
         Assert.Equal(
-            [new HexEdgeResponse(0, 0, EdgeSide.NE, RoadQuality.Poor, true, true, true)],
+            [
+                new HexEdgeResponse(
+                    0,
+                    0,
+                    EdgeSide.NE,
+                    RoadQuality.Poor,
+                    true,
+                    true,
+                    Waterway.None,
+                    true
+                ),
+            ],
             grid.Edges
         );
     }
@@ -267,7 +297,13 @@ public sealed class GridTests : ApiTest
                             r = 0,
                             terrain = 99,
                             forest = false,
-                            settlement = "None",
+                            settlement = new
+                            {
+                                size = "None",
+                                walled = false,
+                                fortress = false,
+                                capital = "None",
+                            },
                         },
                     },
                     edges = Array.Empty<object>(),
@@ -280,6 +316,151 @@ public sealed class GridTests : ApiTest
     }
 
     [Fact]
+    public async Task UpdateHexCell_ACombinedSettlement_IsSavedWhole()
+    {
+        using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
+        var brussels = new HexSettlement(
+            SettlementSize.City,
+            true,
+            true,
+            CapitalStatus.Capital,
+            "  Brussels "
+        );
+
+        using var response = await SetCellAsync(
+            scenario,
+            0,
+            0,
+            new UpdateHexCellRequest(Terrain.LowHill, true, brussels)
+        );
+
+        var expected = new HexCellResponse(
+            0,
+            0,
+            Terrain.LowHill,
+            true,
+            brussels with
+            {
+                Name = "Brussels",
+            },
+            true
+        );
+        Assert.Equal(expected, await response.Content.ReadAsAsync<HexCellResponse>());
+        Assert.Equal([expected], (await GridAsync(scenario)).Cells);
+    }
+
+    [Fact]
+    public async Task SaveCampaignGrid_AFortressOnItsOwn_IsKept()
+    {
+        using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
+        var fort = HexSettlement.None with { Fortress = true, Name = "Fort Lillo" };
+
+        using var response = await SaveAsync(
+            scenario,
+            [Hill with { Terrain = Terrain.Flat, Settlement = fort }]
+        );
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(fort, Assert.Single((await GridAsync(scenario)).Cells).Settlement);
+    }
+
+    [Theory]
+    [InlineData(true, CapitalStatus.None, null)]
+    [InlineData(false, CapitalStatus.Minor, null)]
+    [InlineData(false, CapitalStatus.None, "Nowhere")]
+    public async Task UpdateHexCell_WallsCapitalOrNameWithoutAPlace_IsAValidationError(
+        bool walled,
+        CapitalStatus capital,
+        string? name
+    )
+    {
+        using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
+
+        using var response = await SetCellAsync(
+            scenario,
+            0,
+            0,
+            new UpdateHexCellRequest(
+                Terrain.Flat,
+                false,
+                new HexSettlement(SettlementSize.None, walled, false, capital, name)
+            )
+        );
+
+        await response.AssertValidationProblemAsync("settlement");
+    }
+
+    [Fact]
+    public async Task SaveCampaignGrid_AWalledNothing_IsAValidationError()
+    {
+        using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
+
+        using var response = await SaveAsync(
+            scenario,
+            [Hill with { Settlement = HexSettlement.None with { Walled = true } }]
+        );
+
+        await response.AssertValidationProblemAsync("cells");
+    }
+
+    [Fact]
+    public async Task SaveCampaignGrid_AWaterwayAlone_IsKeptWithItsFlow()
+    {
+        using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
+
+        using var response = await SaveAsync(
+            scenario,
+            [],
+            [Road with { Road = RoadQuality.None, Waterway = Waterway.In }]
+        );
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(
+            [
+                new HexEdgeResponse(
+                    0,
+                    0,
+                    EdgeSide.N,
+                    RoadQuality.None,
+                    false,
+                    false,
+                    Waterway.In,
+                    false
+                ),
+            ],
+            (await GridAsync(scenario)).Edges
+        );
+    }
+
+    [Fact]
+    public async Task UpdateHexEdge_ARiverAlongAndAWaterwayAcross_IsSaved()
+    {
+        using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
+
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                GridUri(scenario, "/edges/0/0/SE"),
+                new UpdateHexEdgeRequest(RoadQuality.Good, true, true, Waterway.Out),
+                CancellationToken
+            );
+
+        Assert.Equal(
+            new HexEdgeResponse(
+                0,
+                0,
+                EdgeSide.SE,
+                RoadQuality.Good,
+                true,
+                true,
+                Waterway.Out,
+                true
+            ),
+            await response.Content.ReadAsAsync<HexEdgeResponse>()
+        );
+    }
+
+    [Fact]
     public async Task UpdateHexCell_OutsideTheGrid_Returns404()
     {
         using var scenario = await WithAreaAsync(await CreateCampaignScenarioAsync());
@@ -288,7 +469,7 @@ public sealed class GridTests : ApiTest
             scenario,
             500,
             0,
-            new UpdateHexCellRequest(Terrain.Water, false, Settlement.None)
+            new UpdateHexCellRequest(Terrain.Water, false, HexSettlement.None)
         );
 
         await response.AssertProblemAsync(HttpStatusCode.NotFound);
@@ -303,7 +484,7 @@ public sealed class GridTests : ApiTest
             scenario,
             0,
             0,
-            new UpdateHexCellRequest(Terrain.Water, false, Settlement.None)
+            new UpdateHexCellRequest(Terrain.Water, false, HexSettlement.None)
         );
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
@@ -319,16 +500,16 @@ public sealed class GridTests : ApiTest
             scenario,
             0,
             0,
-            new UpdateHexCellRequest(Terrain.Flat, false, Settlement.None)
+            new UpdateHexCellRequest(Terrain.Flat, false, HexSettlement.None)
         );
         using var again = await SaveAsync(scenario, [Hill]);
 
         Assert.Equal(
-            new HexCellResponse(0, 0, Terrain.Flat, false, Settlement.None, true),
+            new HexCellResponse(0, 0, Terrain.Flat, false, HexSettlement.None, true),
             await response.Content.ReadAsAsync<HexCellResponse>()
         );
         Assert.Equal(
-            [new HexCellResponse(0, 0, Terrain.Flat, false, Settlement.None, true)],
+            [new HexCellResponse(0, 0, Terrain.Flat, false, HexSettlement.None, true)],
             (await GridAsync(scenario)).Cells
         );
     }
@@ -343,7 +524,7 @@ public sealed class GridTests : ApiTest
             0,
             0,
             "SE",
-            new UpdateHexEdgeRequest(RoadQuality.Good, false, true)
+            new UpdateHexEdgeRequest(RoadQuality.Good, false, true, Waterway.None)
         );
 
         await response.AssertValidationProblemAsync("bridge");
@@ -361,7 +542,7 @@ public sealed class GridTests : ApiTest
             0,
             0,
             side,
-            new UpdateHexEdgeRequest(RoadQuality.Good, false, false)
+            new UpdateHexEdgeRequest(RoadQuality.Good, false, false, Waterway.None)
         );
 
         Assert.Equal(expected, response.StatusCode);
@@ -378,7 +559,7 @@ public sealed class GridTests : ApiTest
             below.Q,
             below.R,
             "N",
-            new UpdateHexEdgeRequest(RoadQuality.None, true, false)
+            new UpdateHexEdgeRequest(RoadQuality.None, true, false, Waterway.None)
         );
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -393,7 +574,7 @@ public sealed class GridTests : ApiTest
             scenario,
             1,
             0,
-            new UpdateHexCellRequest(Terrain.Water, false, Settlement.None)
+            new UpdateHexCellRequest(Terrain.Water, false, HexSettlement.None)
         );
 
         await TurnSteps.SetAreaAsync(scenario, hexSize: 3000);
@@ -458,7 +639,7 @@ public sealed class GridTests : ApiTest
             scenario,
             0,
             0,
-            new UpdateHexCellRequest(Terrain.Water, false, Settlement.None),
+            new UpdateHexCellRequest(Terrain.Water, false, HexSettlement.None),
             role
         );
 

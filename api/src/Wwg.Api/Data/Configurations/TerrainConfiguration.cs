@@ -17,7 +17,9 @@ internal sealed class HexCellConfiguration : IEntityTypeConfiguration<HexCell>
             })
             .IsUnique();
         builder.Property(c => c.Terrain).HasMaxLength(16);
-        builder.Property(c => c.Settlement).HasMaxLength(16);
+        builder.Property(c => c.SettlementSize).HasMaxLength(8);
+        builder.Property(c => c.Capital).HasMaxLength(8);
+        builder.Property(c => c.Name).HasMaxLength(100);
 
         // Deleting a campaign deletes its terrain.
         builder
@@ -43,6 +45,7 @@ internal sealed class HexEdgeConfiguration : IEntityTypeConfiguration<HexEdge>
             .IsUnique();
         builder.Property(e => e.Side).HasMaxLength(2);
         builder.Property(e => e.Road).HasMaxLength(8);
+        builder.Property(e => e.Waterway).HasMaxLength(4);
 
         builder
             .HasOne(e => e.Campaign)

@@ -53,7 +53,7 @@ internal static class GridEndpoints
                 c.R,
                 c.Terrain,
                 c.Forest,
-                c.Settlement,
+                new HexSettlement(c.SettlementSize, c.Walled, c.Fortress, c.Capital, c.Name),
                 c.SetByUmpire
             ))
             .ToListAsync(cancellationToken);
@@ -70,6 +70,7 @@ internal static class GridEndpoints
                 e.Road,
                 e.River,
                 e.Bridge,
+                e.Waterway,
                 e.SetByUmpire
             ))
             .ToListAsync(cancellationToken);
@@ -137,7 +138,9 @@ internal static class GridEndpoints
     /// The Umpire sets a hex's terrain (Umpire or Admin); inference leaves it alone from then on.
     /// 404 for a hex outside the grid, 409 without an area.
     /// </summary>
-    internal static async Task<Results<Ok<HexCellResponse>, ProblemHttpResult>> UpdateHexCellAsync(
+    internal static async Task<
+        Results<Ok<HexCellResponse>, ValidationProblem, ProblemHttpResult>
+    > UpdateHexCellAsync(
         Guid id,
         int q,
         int r,
@@ -156,6 +159,16 @@ internal static class GridEndpoints
             return NoSuch("hex");
         }
 
+        if (request.Settlement.Problem() is { } wrong)
+        {
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["settlement"] = [wrong],
+                }
+            );
+        }
+
         var cell = await db.HexCells.SingleOrDefaultAsync(
             c => c.CampaignId == id && c.Q == q && c.R == r,
             cancellationToken
@@ -171,20 +184,16 @@ internal static class GridEndpoints
             db.HexCells.Add(cell);
         }
 
-        (cell.Terrain, cell.Forest, cell.Settlement, cell.SetByUmpire) = (
-            request.Terrain,
-            request.Forest,
-            request.Settlement,
-            true
-        );
+        Apply(cell, request.Terrain, request.Forest, request.Settlement);
+        cell.SetByUmpire = true;
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(
-            new HexCellResponse(q, r, cell.Terrain, cell.Forest, cell.Settlement, true)
+            new HexCellResponse(q, r, cell.Terrain, cell.Forest, SettlementOf(cell), true)
         );
     }
 
     /// <summary>
-    /// The Umpire sets an edge's road and river (Umpire or Admin); inference leaves it alone from
+    /// The Umpire sets an edge's road, river and waterway (Umpire or Admin); inference leaves it alone from
     /// then on. The edge is on hex (q, r)'s N, NE or SE side; 404 unless it touches the grid, 409
     /// without an area.
     /// </summary>
@@ -236,15 +245,16 @@ internal static class GridEndpoints
             db.HexEdges.Add(edge);
         }
 
-        (edge.Road, edge.River, edge.Bridge, edge.SetByUmpire) = (
+        (edge.Road, edge.River, edge.Bridge, edge.Waterway, edge.SetByUmpire) = (
             request.Road,
             request.River,
             request.Bridge,
+            request.Waterway,
             true
         );
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Ok(
-            new HexEdgeResponse(q, r, side, edge.Road, edge.River, edge.Bridge, true)
+            new HexEdgeResponse(q, r, side, edge.Road, edge.River, edge.Bridge, edge.Waterway, true)
         );
     }
 
@@ -276,16 +286,18 @@ internal static class GridEndpoints
         cells
             .Where(c =>
                 !setByUmpire.Contains(new Hex(c.Q, c.R))
-                && (c.Terrain != Terrain.Flat || c.Forest || c.Settlement != Settlement.None)
+                && (c.Terrain != Terrain.Flat || c.Forest || c.Settlement.IsAny)
             )
-            .Select(c => new HexCell
+            .Select(c =>
             {
-                CampaignId = campaignId,
-                Q = c.Q,
-                R = c.R,
-                Terrain = c.Terrain,
-                Forest = c.Forest,
-                Settlement = c.Settlement,
+                var cell = new HexCell
+                {
+                    CampaignId = campaignId,
+                    Q = c.Q,
+                    R = c.R,
+                };
+                Apply(cell, c.Terrain, c.Forest, c.Settlement);
+                return cell;
             });
 
     private static IEnumerable<HexEdge> NewEdges(
@@ -296,7 +308,7 @@ internal static class GridEndpoints
         edges
             .Where(e =>
                 !setByUmpire.Contains((new Hex(e.Q, e.R), e.Side))
-                && (e.Road != RoadQuality.None || e.River)
+                && (e.Road != RoadQuality.None || e.River || e.Waterway != Waterway.None)
             )
             .Select(e => new HexEdge
             {
@@ -307,7 +319,35 @@ internal static class GridEndpoints
                 Road = e.Road,
                 River = e.River,
                 Bridge = e.Bridge,
+                Waterway = e.Waterway,
             });
+
+    private static void Apply(
+        HexCell cell,
+        Terrain terrain,
+        bool forest,
+        HexSettlement settlement
+    ) =>
+        (
+            cell.Terrain,
+            cell.Forest,
+            cell.SettlementSize,
+            cell.Walled,
+            cell.Fortress,
+            cell.Capital,
+            cell.Name
+        ) = (
+            terrain,
+            forest,
+            settlement.Size,
+            settlement.Walled,
+            settlement.Fortress,
+            settlement.Capital,
+            string.IsNullOrWhiteSpace(settlement.Name) ? null : settlement.Name
+        );
+
+    private static HexSettlement SettlementOf(HexCell cell) =>
+        new(cell.SettlementSize, cell.Walled, cell.Fortress, cell.Capital, cell.Name);
 
     private const string BridgeNeedsARiver = "A bridge needs a river to cross.";
 
@@ -328,6 +368,12 @@ internal static class GridEndpoints
             if (!cells.Add(hex))
             {
                 errors["cells"] = [$"Hex ({cell.Q}, {cell.R}) is there twice."];
+                break;
+            }
+
+            if (cell.Settlement.Problem() is { } wrong)
+            {
+                errors["cells"] = [$"Hex ({cell.Q}, {cell.R}): {wrong}"];
                 break;
             }
         }
