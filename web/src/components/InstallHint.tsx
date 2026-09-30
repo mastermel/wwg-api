@@ -74,7 +74,7 @@ export function InstallHint() {
     <Alert
       role="status"
       icon={<IconDeviceMobile aria-hidden />}
-      title="Install WWG Campaigner"
+      title="Install Wasatch Wargamers"
       withCloseButton
       closeButtonLabel="Not now"
       onClose={dismiss}

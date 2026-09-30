@@ -14,10 +14,10 @@ internal static class PasswordResetEmail
         return new EmailMessage(
             ToAddress: user.Email ?? "",
             ToName: $"{user.FirstName} {user.LastName}",
-            Subject: "Reset your WWG Campaigner password",
+            Subject: "Reset your Wasatch Wargamers password",
             HtmlBody: $"""
             <p>Hi {name},</p>
-            <p>Someone asked to reset the password for your WWG Campaigner account.
+            <p>Someone asked to reset the password for your Wasatch Wargamers account.
             If it was you, choose a new password here (the link works for 2 hours):</p>
             <p><a href="{link}">Reset my password</a></p>
             <p>If it wasn't you, you can ignore this email; your password hasn't changed.</p>
@@ -25,7 +25,7 @@ internal static class PasswordResetEmail
             TextBody: $"""
             Hi {user.FirstName},
 
-            Someone asked to reset the password for your WWG Campaigner account.
+            Someone asked to reset the password for your Wasatch Wargamers account.
             If it was you, choose a new password here (the link works for 2 hours):
 
             {resetLink}

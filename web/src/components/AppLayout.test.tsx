@@ -9,7 +9,7 @@ describe("app layout and routing", () => {
     await renderApp("/");
 
     expect(await screen.findByRole("heading", { level: 1, name: "Campaigns" })).toBeInTheDocument();
-    expect(document.title).toBe("Campaigns · WWG Campaigner");
+    expect(document.title).toBe("Campaigns · Wasatch Wargamers");
   });
 
   it("shows a not-found page for an unknown address", async () => {

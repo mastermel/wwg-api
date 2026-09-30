@@ -89,7 +89,7 @@ Umpire can also edit any army's orders in the open turn, and submit for it
 | API docs UI | Swagger UI over the generated OpenAPI document |
 | Repository | **One repo** (`wwg`): `api/` (.NET) and `web/` (React), shared config at the root |
 | Client SDK | **Orval**, run in `web/` against the committed `api/openapi.json`; generated code not committed |
-| Front-end | **WWG Campaigner**: React + TypeScript SPA, **npm**, Vite, **Mantine**, TanStack Router + Query, React Hook Form + Zod; installable **PWA**, read-only offline (§3.12) |
+| Front-end | **Wasatch Wargamers** (the app's name; `wwg-campaigner` in code): React + TypeScript SPA, **npm**, Vite, **Mantine**, TanStack Router + Query, React Hook Form + Zod; installable **PWA**, read-only offline (§3.12) |
 | Campaign map | **MapLibre GL JS** with **OpenFreeMap** vector tiles, **Mapterhorn** hillshading, NATO-style unit symbols (drawn by the app), place search through our own endpoint (decision [0009](docs/decisions/0009-campaign-map-stack.md)); §3.13 |
 | Turns | In step across armies, per army, one order per unit (Move or Hold), approved by the Umpire; one visibility rule for positions (decision [0010](docs/decisions/0010-turns-factions-and-visibility.md)) |
 | API evolution | Prefer additive changes; `oasdiff` **warns** about breaking changes on PRs |
@@ -898,8 +898,10 @@ for amd64 and arm64. The shared `traefik` network is pinned to
 
 ### 3.12 Front-end application (`web/`)
 
-**WWG Campaigner**, a React + TypeScript single-page app, installable as a
-PWA (decision [0005](docs/decisions/0005-front-end-stack.md)).
+**Wasatch Wargamers**, a React + TypeScript single-page app, installable as a
+PWA (decision [0005](docs/decisions/0005-front-end-stack.md)). That's the name
+people see; the project keeps `wwg-campaigner` wherever they don't (decision
+[0013](docs/decisions/0013-wasatch-wargamers-branding.md)).
 
 | Area | Choice |
 |---|---|
@@ -921,9 +923,15 @@ PWA (decision [0005](docs/decisions/0005-front-end-stack.md)).
 - Light and dark mode **follow the OS** (`defaultColorScheme="auto"`).
 - **Desktop-first**, responsive down to phones: Mantine `AppShell` with a
   sidebar on desktop and a bottom tab bar on mobile.
-- App icon and main image: a clean, monochrome **silhouette of Napoleon
-  Bonaparte on a rearing war horse** (SVG, rendered to the PNG sizes the
-  manifest needs, including maskable and Apple touch icons).
+- The mark: a **silhouette of an officer in the uniform of the late 18th
+  century** (`web/public/logo.svg`, from a purchased vector image). It's a
+  mask, drawn in the text colour (`BrandMark`), its details cut through to
+  what's behind.
+- The app icon (`web/public/app-icon.svg`): the officer in white on a rounded
+  square, navy at the top fading to silver, rendered to the PNG sizes the
+  manifest needs. The maskable and Apple icons are the square without padding
+  (Android and iOS cut their own shape); the figure keeps to Android's safe
+  middle circle.
 - Accessibility target **WCAG 2.1 AA**: Mantine's accessible components,
   `jsx-a11y` linting, and keyboard/screen-reader checks on key flows.
 - English only, no i18n library. Dates and times use `Intl` in the user's
@@ -1093,7 +1101,8 @@ web/
   state from `navigator.onLine` at start-up. Pages render data through a
   shared `QueryState` component, which shows saved data even when a refetch
   fails, and "not available offline" when there's nothing saved.
-- Manifest: name **WWG Campaigner**, short name **WWG**, navy theme colour,
+- Manifest: name **Wasatch Wargamers**, short name **Wargamers** (launchers
+  truncate longer labels), navy theme colour,
   standalone display.
 - A small, dismissible install hint. iOS has no install prompt, so there it
   explains Share → Add to Home Screen.

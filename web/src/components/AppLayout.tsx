@@ -71,13 +71,13 @@ export function AppLayout() {
           <UnstyledButton
             component={Link}
             to="/"
-            aria-label="WWG Campaigner, start page"
+            aria-label="Wasatch Wargamers, start page"
             className={classes.brand}
           >
             <Group gap="xs">
-              <BrandMark size={32} />
+              <BrandMark size={40} />
               <Text fw={700} size="lg">
-                WWG Campaigner
+                Wasatch Wargamers
               </Text>
             </Group>
           </UnstyledButton>

@@ -8,9 +8,17 @@ export default defineConfig({
   headLinkOptions: { preset: "2023" },
   preset: {
     ...minimal2023Preset,
-    // Padding around the artwork is filled with the icon's own navy, not white.
-    maskable: { ...minimal2023Preset.maskable, resizeOptions: { background: navy } },
-    apple: { ...minimal2023Preset.apple, resizeOptions: { background: navy } },
+    // Full colour: the default (quality 60) reduces the icons to a palette, which bands the
+    // gradient.
+    png: { compressionLevel: 9, palette: false },
+    // The rounded square fills these: Android and iOS cut their own shape from it (the figure
+    // keeps to Android's safe middle circle). The corners it leaves are the icon's navy, not white.
+    maskable: {
+      ...minimal2023Preset.maskable,
+      padding: 0,
+      resizeOptions: { background: navy },
+    },
+    apple: { ...minimal2023Preset.apple, padding: 0, resizeOptions: { background: navy } },
   },
   images: ["public/app-icon.svg"],
 });

@@ -2,7 +2,7 @@ import { Box, Divider, Group, Stack, Title } from "@mantine/core";
 import { useContext, useEffect, useRef, type ReactNode } from "react";
 import { CompactPageContext } from "@/components/page-context";
 
-const appName = "WWG Campaigner";
+const appName = "Wasatch Wargamers";
 
 // The first page load keeps the browser's normal focus; later navigations move it.
 let hasNavigated = false;

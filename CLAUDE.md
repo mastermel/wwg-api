@@ -1,7 +1,8 @@
 # wwg
 
 The Wasatch Wargamers Campaign App: a .NET 10 REST API (`api/`) and a React + TypeScript
-front-end, WWG Campaigner (`web/`), in one repo. The front-end calls the API through an SDK
+front-end (`web/`), in one repo. The app is called **Wasatch Wargamers** wherever people see
+it; `wwg-campaigner` stays in code. The front-end calls the API through an SDK
 generated from the API's OpenAPI document.
 
 - **[DESIGN.md](DESIGN.md)** is the source of truth: architecture, domain model, permissions,

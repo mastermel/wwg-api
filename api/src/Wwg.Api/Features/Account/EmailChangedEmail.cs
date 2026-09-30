@@ -18,10 +18,10 @@ internal static class EmailChangedEmail
         return new EmailMessage(
             ToAddress: oldEmail,
             ToName: $"{user.FirstName} {user.LastName}",
-            Subject: "Your WWG Campaigner email was changed",
+            Subject: "Your Wasatch Wargamers email was changed",
             HtmlBody: $"""
             <p>Hi {name},</p>
-            <p>The email for your WWG Campaigner account was just changed to
+            <p>The email for your Wasatch Wargamers account was just changed to
             <strong>{encodedNew}</strong>. You'll sign in with the new address from now on.</p>
             <p>If you didn't do this, someone else may have your password: contact a club Admin
             straight away.</p>
@@ -29,7 +29,7 @@ internal static class EmailChangedEmail
             TextBody: $"""
             Hi {user.FirstName},
 
-            The email for your WWG Campaigner account was just changed to {newEmail}.
+            The email for your Wasatch Wargamers account was just changed to {newEmail}.
             You'll sign in with the new address from now on.
 
             If you didn't do this, someone else may have your password: contact a club Admin

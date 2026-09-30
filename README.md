@@ -13,7 +13,7 @@ the API's OpenAPI document.
 - **API (`api/`):** .NET 10 / ASP.NET Core Minimal APIs, EF Core with SQLite,
   ASP.NET Core Identity (bearer tokens), OpenAPI + Swagger UI, xUnit
   integration tests with a fresh SQLite database per test
-- **Web (`web/`, WWG Campaigner):** React + TypeScript SPA built with Vite,
+- **Web (`web/`, the Wasatch Wargamers app):** React + TypeScript SPA built with Vite,
   Mantine, TanStack Router and Query, and an Orval-generated API client;
   installable as a PWA
 - **End-to-end tests (`e2e/`):** Playwright, in Chromium and iPhone WebKit,
@@ -73,7 +73,7 @@ for the sign-in cookie. Backups, restoring and rolling back are in
 - `api/`: .NET solution (`Wwg.slnx`) and its shared build config
   - `src/Wwg.Api/`: the ASP.NET Core API
   - `tests/Wwg.Api.IntegrationTests/`: endpoint-level integration tests
-- `web/`: WWG Campaigner, the React front-end
+- `web/`: the Wasatch Wargamers app, the React front-end
 - `e2e/`: Playwright end-to-end tests and the stack they run against
 - `scripts/`: developer scripts (`dev.sh`)
 - `docs/`: the decision log, the development guide and operations

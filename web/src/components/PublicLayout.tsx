@@ -13,7 +13,7 @@ export function PublicLayout() {
         <Stack align="center" gap={4} className={classes.brand} pt="md">
           <BrandMark size={96} />
           <Title order={2} component="p" c="inherit">
-            WWG Campaigner
+            Wasatch Wargamers
           </Title>
           <Text size="sm" className={classes.tagline}>
             Campaigns for the Wasatch Wargamers

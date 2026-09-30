@@ -1,6 +1,6 @@
 # web/
 
-WWG Campaigner: React + TypeScript SPA built with Vite. Full design: DESIGN.md §3.12.
+The Wasatch Wargamers app (`wwg-campaigner` in code): React + TypeScript SPA built with Vite. Full design: DESIGN.md §3.12.
 
 ## Commands (from web/)
 

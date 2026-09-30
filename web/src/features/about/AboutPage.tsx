@@ -14,7 +14,7 @@ const statusColors: Record<HealthStatus, string> = {
 
 export function AboutPage() {
   return (
-    <Page title="About" summary="WWG Campaigner is the Wasatch Wargamers campaign app.">
+    <Page title="About" summary="The Wasatch Wargamers campaign app.">
       <Box maw={720}>
         <Section title="This version" description="Useful when reporting a problem.">
           <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="lg">

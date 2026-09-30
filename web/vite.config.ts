@@ -29,8 +29,9 @@ export default defineConfig({
       injectRegister: false,
       pwaAssets: { config: true },
       manifest: {
-        name: "WWG Campaigner",
-        short_name: "WWG",
+        name: "Wasatch Wargamers",
+        // The home-screen label: the full name is longer than launchers show.
+        short_name: "Wargamers",
         description: "The Wasatch Wargamers campaign app.",
         theme_color: "#1c3f7a",
         background_color: "#1c3f7a",

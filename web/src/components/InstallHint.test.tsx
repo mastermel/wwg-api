@@ -33,7 +33,7 @@ describe("InstallHint", () => {
 
     renderHint();
 
-    expect(screen.queryByText("Install WWG Campaigner")).not.toBeInTheDocument();
+    expect(screen.queryByText("Install Wasatch Wargamers")).not.toBeInTheDocument();
   });
 
   it("offers Chrome's install prompt once the browser allows it", async () => {
@@ -65,7 +65,7 @@ describe("InstallHint", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Not now" }));
 
-    expect(screen.queryByText("Install WWG Campaigner")).not.toBeInTheDocument();
+    expect(screen.queryByText("Install Wasatch Wargamers")).not.toBeInTheDocument();
     expect(localStorage.getItem("wwg:install-hint-dismissed")).toBe("true");
   });
 
@@ -78,6 +78,6 @@ describe("InstallHint", () => {
 
     renderHint();
 
-    expect(screen.queryByText("Install WWG Campaigner")).not.toBeInTheDocument();
+    expect(screen.queryByText("Install Wasatch Wargamers")).not.toBeInTheDocument();
   });
 });

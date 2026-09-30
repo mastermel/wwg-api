@@ -27,7 +27,7 @@ export function UpdatePrompt() {
       role="status"
       style={{ position: "fixed", insetInlineEnd: 16, bottom: 80, zIndex: 300, maxWidth: 360 }}
     >
-      A new version of WWG Campaigner is ready.
+      A new version of Wasatch Wargamers is ready.
       <Group mt="xs">
         <Button
           size="xs"
