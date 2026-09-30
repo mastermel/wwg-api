@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw";
 import { useImperativeHandle, type Ref } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { CampaignMapResponse, CampaignResponse, PlaceResult } from "@/api/generated/model";
-import { renderApp } from "@/test/render";
+import { expectNoAxeViolations, renderApp } from "@/test/render";
 import { server } from "@/test/server";
 
 // MapLibre needs WebGL, which jsdom lacks. The stand-in map is "looking at" Leipzig, and records
@@ -186,5 +186,90 @@ describe("map settings", () => {
     expect(
       within(screen.getByRole("main")).getAllByRole("link", { name: "Map settings" }),
     ).toHaveLength(2);
+  });
+});
+
+describe("the movement table", () => {
+  /** The table, the rules' until saved; records what's sent. */
+  function serveTable() {
+    let own: { class: string; ground: string; hexes: number }[] = [];
+    const sent: unknown[] = [];
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/movement`, () =>
+        HttpResponse.json({ rates: own, rules: own.length === 0 }),
+      ),
+      http.put(`*/api/campaigns/${campaignId}/movement`, async ({ request }) => {
+        const body = (await request.json()) as { rates: typeof own };
+        sent.push(body);
+        own = body.rates;
+        return HttpResponse.json({ rates: own, rules: false });
+      }),
+      http.delete(`*/api/campaigns/${campaignId}/movement`, () => {
+        sent.push("reset");
+        own = [];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    return sent;
+  }
+
+  it("shows the rule book's table, and lets the Umpire change a rate", async () => {
+    serve("Umpire");
+    const sent = serveTable();
+    const user = userEvent.setup();
+    const { container } = await renderApp(`/campaigns/${campaignId}/map/settings`);
+
+    const table = within(await screen.findByRole("region", { name: "Movement" }));
+    expect(await table.findByText("The rule book's")).toBeInTheDocument();
+    const cell = table.getByRole("textbox", { name: "Infantry and foot artillery on high hills" });
+    expect(cell).toHaveValue("0.5");
+    expect(
+      table.getByRole("textbox", { name: "Supply trains and siege artillery on mountains" }),
+    ).toHaveValue("0");
+    await expectNoAxeViolations(container);
+    await user.clear(cell);
+    await user.type(cell, "1");
+    await user.click(table.getByRole("button", { name: "Save movement table" }));
+
+    expect(await screen.findByText("Saved the movement table.")).toBeInTheDocument();
+    const rates = (sent[0] as { rates: { class: string; ground: string; hexes: number }[] }).rates;
+    expect(rates).toHaveLength(30);
+    expect(rates).toContainEqual({ class: "Infantry", ground: "HighHill", hexes: 1 });
+    expect(rates).toContainEqual({ class: "Slow", ground: "Flat", hexes: 1 });
+    expect(await table.findByRole("button", { name: "Use the rule book's" })).toBeInTheDocument();
+  });
+
+  it("puts the rule book's table back, once confirmed", async () => {
+    serve("Umpire");
+    const sent = serveTable();
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+    const table = within(await screen.findByRole("region", { name: "Movement" }));
+    await user.click(await table.findByRole("button", { name: "Save movement table" }));
+    await user.click(await table.findByRole("button", { name: "Use the rule book's" }));
+
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Use the rule book's",
+      }),
+    );
+
+    expect(await screen.findByText("Back to the rule book's movement table.")).toBeInTheDocument();
+    expect(sent.at(-1)).toBe("reset");
+  });
+
+  it("waits for every rate before saving", async () => {
+    serve("Umpire");
+    serveTable();
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+    const table = within(await screen.findByRole("region", { name: "Movement" }));
+
+    await user.clear(
+      await table.findByRole("textbox", { name: "Cavalry and horse artillery on flat" }),
+    );
+
+    expect(table.getByText("Give every one a number.")).toBeInTheDocument();
+    expect(table.getByRole("button", { name: "Save movement table" })).toBeDisabled();
   });
 });

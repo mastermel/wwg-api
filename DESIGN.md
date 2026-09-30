@@ -2408,9 +2408,10 @@ build on positions.
       mountains). Water, a river along the edge without a bridge, and a 0 in the table close the
       step; the Umpire may take it anyway (decision 0011). `Movement.cs` and `movement.ts` are
       tested against `testdata/movement.json`.
-    - **44b. Costed movement in the browser:** `movement.ts` costs steps the same way from the
-      grid's terrain and the table, so the reachable hexes and paths match the API; the Map
-      settings page edits the table (and puts it back to the rules').
+    - ✅ **44b. Costed movement in the browser:** `movement.ts` costs steps the same way from the
+      grid's terrain and the table, so the reachable hexes and paths match the API (the Umpire's
+      unlimited reach crosses closed steps only as a last resort, and says so); the Map settings
+      page edits the table (and puts it back to the rules').
     - **44c. Hexes that take more than a turn:** `UnitOrder.Progress` (0–1), part of the way into
       the path's last hex when it costs more than a whole turn (only such a hex is entered
       part-way); the unit stays in the hex before it until it's through, carrying its progress to

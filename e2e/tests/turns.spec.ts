@@ -205,7 +205,7 @@ test("the Umpire moves a unit past its limit, holds another, and submits for the
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // A third of the map east of the Guard: several 2 km hexes, more than its two a turn.
   await clickMapPart(page, 0.35, 0);
-  await expect(page.getByText(/That's past its 2 hexes a turn\./)).toBeVisible();
+  await expect(page.getByText(/That's further than it can go in a turn\./)).toBeVisible();
   await page.getByRole("button", { name: "Move anyway" }).click();
   await expect(page.getByText("Imperial Guard will move.")).toBeVisible();
 

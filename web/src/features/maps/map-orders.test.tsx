@@ -258,7 +258,9 @@ describe("a commander's turn", () => {
     await user.click(screen.getByRole("button", { name: "Click the map" }));
 
     expect(
-      await screen.findByText("That's further than Imperial Guard can move in a turn (2 hexes)."),
+      await screen.findByText(
+        "Imperial Guard can't get there this turn: it's too far, or the way is closed.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancel" }));

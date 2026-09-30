@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useListArmies } from "@/api/generated/endpoints/armies/armies";
 import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
 import { useGetCampaignGrid, useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
+import { useGetMovementTable } from "@/api/generated/endpoints/turns/turns";
 import {
   useListPositions,
   useListTurns,
@@ -35,7 +36,8 @@ import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import type { Point } from "@/features/maps/geo";
 import { hexGrid, hexKey, type Hex } from "@/features/maps/hex-grid";
-import { flatRate, pathTo, reach } from "@/features/maps/movement";
+import { classOf, pathTo, ratesOf, reach, stepCost } from "@/features/maps/movement";
+import { indexTerrain } from "@/features/maps/terrain";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
 import { PastTurnPanel } from "@/features/maps/PastTurnPanel";
@@ -228,17 +230,41 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const turnOf = (armyId: string) => openTurns.find((c) => c.army.id === armyId)?.turn;
   const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
   const terrain = useGetCampaignGrid(campaignId, live);
-  // While moving: the hexes the unit can reach this turn, and (for the Umpire, who can go past
-  // that after a warning; decision 0011) anywhere in the grid.
+  const movementTable = useGetMovementTable(campaignId, live);
+  const costs = useMemo(
+    () => ({ rates: ratesOf(movementTable.data), terrain: indexTerrain(terrain.data) }),
+    [movementTable.data, terrain.data],
+  );
+  // While moving: the hexes the unit can reach this turn by the terrain and the campaign's
+  // table, and (for the Umpire, who can go past that after a warning, closed steps too; decision
+  // 0011) anywhere in the grid.
   const withinTurn = useMemo(
-    () => (moving ? reach(grid, moving.hex, moving.unit.type) : null),
-    [grid, moving],
+    () => (moving ? reach(grid, moving.hex, moving.unit.type, costs) : null),
+    [grid, moving, costs],
   );
   const reachable = useMemo(
-    () => (moving && manager ? reach(grid, moving.hex, moving.unit.type, Infinity) : withinTurn),
-    [grid, moving, manager, withinTurn],
+    () =>
+      moving && manager
+        ? reach(grid, moving.hex, moving.unit.type, { ...costs, budget: Infinity })
+        : withinTurn,
+    [grid, moving, manager, withinTurn, costs],
   );
   const targetPath = target && reachable ? pathTo(reachable, target) : null;
+  // Why the Umpire's move breaks the rules, if it crosses a closed step: the first one's reason.
+  const closedStep =
+    moving && targetPath
+      ? targetPath
+          .map((hex, i) =>
+            stepCost(
+              costs.rates,
+              costs.terrain,
+              classOf(moving.unit.type),
+              i === 0 ? moving.hex : (targetPath[i - 1] ?? hex),
+              hex,
+            ),
+          )
+          .find((step) => step.closedBecause !== null)?.closedBecause
+      : undefined;
   const pastTurn = target !== null && !withinTurn?.has(hexKey(target));
   const lineOf = (from: Hex, path: readonly Hex[]) =>
     [from, ...path].map((hex): [number, number] => {
@@ -289,7 +315,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
       : hexKey(hex) === hexKey(moving.hex)
         ? `${moving.unit.name} is there already: choose another hex, or Hold.`
         : !reachable?.has(hexKey(hex))
-          ? `That's further than ${moving.unit.name} can move in a turn (${hexes(flatRate(moving.unit.type))}).`
+          ? `${moving.unit.name} can't get there this turn: it's too far, or the way is closed.`
           : null;
     if (problem) {
       notifications.show({ color: "red", message: problem });
@@ -388,7 +414,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                   {target && targetPath ? (
                     <>
                       Move <strong>{moving.unit.name}</strong> {hexes(targetPath.length)} to here?
-                      {pastTurn && ` That's past its ${hexes(flatRate(moving.unit.type))} a turn.`}
+                      {pastTurn &&
+                        (closedStep
+                          ? ` It can't go that way (${closedStep}), but you may take it there.`
+                          : " That's further than it can go in a turn.")}
                     </>
                   ) : (
                     <>

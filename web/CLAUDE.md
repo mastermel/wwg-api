@@ -80,8 +80,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   The hex grid (decision 0014) is `hex-grid.ts`: its arithmetic matches the API's `HexGrid.cs`,
   and both are tested against `testdata/hex-grid.json` (from an independent Python reference;
   the Dockerfile copies it into the web build). `HexGridLayer` draws it, and nothing past
-  `maxDrawnHexes`. Movement is `movement.ts` (classes, the rules' rates, `reach` and `pathTo`),
-  mirroring the API's `Movement.cs`. Terrain (decisions 0014, 0016) is `terrain.ts` (labels,
+  `maxDrawnHexes`. Movement is `movement.ts` (classes, the rule book's table, `stepCost` from the terrain and
+  the campaign's table, `reach` and `pathTo`), mirroring the API's `Movement.cs`; both are
+  tested against `testdata/movement.json`. Terrain (decisions 0014, 0016) is `terrain.ts` (labels,
   and where each of a hex's six sides is stored: `storedEdge`, `flowFor`), drawn by
   `TerrainLayer` and edited on `TerrainPage`. Inference (`inference/`) reads the map's tiles in
   the browser: `tiles.ts` fetches and decodes them (browser only), `sources.ts` and `infer.ts`

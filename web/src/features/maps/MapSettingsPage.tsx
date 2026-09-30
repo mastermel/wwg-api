@@ -40,6 +40,7 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import { HexGridLayer } from "@/features/maps/HexGridLayer";
 import { hexCount, maxDrawnHexes } from "@/features/maps/hex-grid";
+import { MovementTableSection } from "@/features/maps/MovementTableSection";
 import { PlaceSearch } from "@/features/maps/PlaceSearch";
 import {
   distanceUnitLabels,
@@ -105,11 +106,14 @@ export function MapSettingsPage({ campaignId }: { campaignId: string }) {
               The map is on the campaign&apos;s Map page.
             </Alert>
           ) : (
-            <SettingsFormView
-              campaignId={campaignId}
-              settings={settings}
-              started={turns.data?.stage === "Running"}
-            />
+            <Stack gap="xl">
+              <SettingsFormView
+                campaignId={campaignId}
+                settings={settings}
+                started={turns.data?.stage === "Running"}
+              />
+              <MovementTableSection campaignId={campaignId} />
+            </Stack>
           )
         }
       </QueryState>
