@@ -1200,6 +1200,9 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   units in it; choosing one selects it. The unit list beside the map selects
   units too (and flies the map to them), which is also the way in for keyboard
   and screen-reader users.
+- **Touch screens:** one finger scrolls the page past the map; two pan and zoom
+  it (MapLibre's cooperative gestures, which show a hint). Taps still place and
+  move units. With a mouse the map pans with a drag and zooms with the wheel.
 - **Online only:** offline, the map page says it needs a connection; nothing
   about the map is saved for offline use (`persist: false`).
 

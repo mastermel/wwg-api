@@ -125,3 +125,16 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
   await expect(other.page.getByRole("heading", { level: 2, name: "Turn 1" })).toBeVisible();
   await expect(other.page.getByRole("button", { name: /Imperial Guard/ })).toHaveCount(0);
 });
+
+test("on a phone, one finger scrolls the page past the map", async ({ signUp, isMobile }) => {
+  test.skip(!isMobile, "Two-finger panning is for touch screens only.");
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Ligny 1815");
+  const campaignId = new URL(umpire.page.url()).pathname.split("/").at(-1) ?? "";
+  await (await apiAs(umpire.page)).put(`/api/campaigns/${campaignId}/map`, waterlooMap);
+
+  await umpire.page.goto(`/campaigns/${campaignId}/map`);
+
+  // The map leaves one-finger swipes to the page (it scrolls), and pans with two.
+  await expect(umpire.page.locator(".maplibregl-canvas")).toHaveCSS("touch-action", "pan-x pan-y");
+});

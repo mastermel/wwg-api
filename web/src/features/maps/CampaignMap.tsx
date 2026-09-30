@@ -2,6 +2,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "@/features/maps/maplibre-worker";
 
 import { useComputedColorScheme } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { useMemo, type ReactNode } from "react";
 import MapGL, { AttributionControl, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import type { CampaignMapResponse, MapBounds } from "@/api/generated/model";
@@ -39,6 +40,10 @@ export function CampaignMap({
   children,
 }: CampaignMapProps) {
   const scheme = useComputedColorScheme("light");
+  // On a touch screen one finger scrolls the page past the map, and two move it (MapLibre shows
+  // a hint); taps still reach it. Not with a mouse, where the wheel would then need Ctrl to zoom.
+  // Read at once, not after mounting: MapLibre only takes the setting when the map is made.
+  const touch = useMediaQuery("(pointer: coarse)", undefined, { getInitialValueInEffect: false });
   const { layers, labelLanguage, distanceUnit } = settings;
   const mapStyle = useMemo(
     () =>
@@ -59,6 +64,7 @@ export function CampaignMap({
         initialViewState={{ bounds: toLngLatBounds(bounds) }}
         maxBounds={free ? undefined : toLngLatBounds(bounds)}
         attributionControl={false}
+        cooperativeGestures={touch}
         dragRotate={false}
         touchPitch={false}
         pitchWithRotate={false}
