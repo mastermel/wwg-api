@@ -1514,10 +1514,11 @@ HexCell (only hexes with data)        Q / R          int (the hex; replaces
               HighHill | Mountain |   Progress       0–1: part of the way into
               Water                                  the path's last hex, for a
   Forest      bool                                   hex that takes more than a
-  Settlement  None | SmallCity |                     turn (step 44)
-              LargeCity | WalledCity
-              | Fortress              MovementRate (step 44; the rules' table
-  SetByUmpire bool (inference           by default)
+  SettlementSize None | Town | City                  turn (step 44)
+  Walled / Fortress  bool
+  Capital     None | Minor | Capital  MovementRate (step 44; the rules' table
+  Name        string? (≤100)            by default)
+  SetByUmpire bool (inference
               leaves it alone)          CampaignId, MovementClass, Ground
                                         (GoodRoad | PoorRoad | Flat | LowHill
 HexEdge (the edge on a hex's N, NE      | HighHill | Mountain), Hexes (per
@@ -1525,9 +1526,25 @@ or SE side; the others belong to        turn; 0 = can't)
 its neighbours)
   CampaignId, Q, R, Side  (N | NE | SE)
   Road        None | Poor | Good
-  River       bool
+  River       bool (along the edge:
+              only a bridge crosses it)
   Bridge      bool
+  Waterway    None | Out | In (a
+              navigable course across
+              the edge, flowing out of
+              (Q, R) or into it; boats)
   SetByUmpire bool
+
+HexDetail (a hex's actual terrain,     HexDetailReveal
+page 57; decision 0016)                  HexDetailId → HexDetail
+  CampaignId, Q, R  (unique)             ArmyId → Army (shown to)
+  Relief      Flat | Rolling | Hilly | HighHills
+  Scrub / Village / Woods / Forest / Farms / Fields / Streams  bool
+  Dominant    None | SmallCastle | WeakFarmhouse | StrongFarmhouse
+  Favorability  NotRolled | Favorable | Neutral | Unfavorable
+  ForArmyId   → Army? (who asked)
+  RedDie / WhiteDie / GreenDie  int? (as shaken; red after its modifier)
+  ShownToAll  bool
 ```
 
 - **The grid:** flat-topped hexes laid over the area in a local flat projection
@@ -1538,6 +1555,16 @@ its neighbours)
   arithmetic and are tested against the same figures.
 - A hex with no `HexCell` is Flat with nothing on it; an edge with no `HexEdge`
   has no road or river.
+- **Two levels of terrain** (decision 0016): the map terrain (`HexCell`, `HexEdge`) is the hex's
+  general character, which movement and visibility use; a `HexDetail` is what's actually there,
+  found by the Umpire's three dice when a player asks (the rules, p. 57), for the battle. Red
+  die: 1d6, +1 for low hills or forest, +2 for high hills or mountains (the larger), −1 on a flat
+  hex if the Umpire chooses, kept to 0–7; its row fills the relief and features (0 flat, scrub;
+  1 flat, village, woods; 2 flat, farms, streams; 3 flat, forest; 4 rolling, village, woods;
+  5 rolling, fields, farms, streams; 6 hilly, fields, farms, streams; 7 high hills, forest,
+  streams). White die: 1 small castle, 3 weak farmhouse, 5 strong farmhouse, else none. Green
+  die (only when both sides arrive together): 1 favourable, 6 unfavourable, else neutral. The
+  Umpire can change any of it; members see a detail once it's shown to their army or to all.
 - **Movement classes** (the rules' table, §E.1; hexes per turn):
 
   | Class | Types | Good road | Poor road | Flat | Low hill | High hill | Mountain |
@@ -1836,6 +1863,9 @@ each step)
 | GET | `/api/campaigns/{id}/grid` | The grid's cells and edges with data (every member): terrain, forest, settlements, roads, rivers, bridges (Phase 11) |
 | PUT | `/api/campaigns/{id}/grid` | Save inferred terrain for the whole grid `{ cells, edges }` (Umpire; 204; no area: 409); hexes and edges the Umpire set are kept |
 | PUT | `/api/campaigns/{id}/grid/cells/{q}/{r}` · `/edges/{q}/{r}/{side}` | The Umpire sets one hex or edge |
+| GET | `/api/campaigns/{id}/grid/details` | The hexes' actual terrain the caller may see (the Umpire: all; members: shown to their army or to all) (decision 0016) |
+| POST | `/api/campaigns/{id}/grid/details/{q}/{r}/roll` | The Umpire shakes the dice for a hex `{ forArmyId?, favorability, flatMinusOne }` (again: replaces it) |
+| PUT / DELETE | `/api/campaigns/{id}/grid/details/{q}/{r}` | The Umpire changes it `{ relief, features…, dominant, favorability, shownToArmyIds, shownToAll }` / forgets it |
 
 **Step 41: the library and army units** (decision 0015; the campaign's factions become sides:
 `/api/campaigns/{id}/sides`, `/api/sides/{id}`)
@@ -2335,15 +2365,27 @@ build on positions.
     an edge is stored on one hex's N, NE or SE side, and on the grid's border when either of its
     hexes is in the grid. A bridge needs a river. Changing the area or hex size while setting
     up clears the terrain, the Umpire's too (it belonged to the old hexes).
+    - **42b. Settlements in parts, and waterways** (decision 0016): `HexCell`'s settlement becomes
+      a size, Walled, Fortress, a capital status and a name (walled and capital need a town or
+      city); `HexEdge` gains `Waterway` (a navigable course across the edge, and which way it
+      flows). A migration, as nothing is stored yet beyond tests.
 43. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
     Mapterhorn elevation (roughly: under 50 m flat, under 150 m low hills, under 400 m high hills,
-    else mountains), forest from land cover (half the hex or more), water, cities and towns, and
-    roads (trunk and primary good, secondary poor) and rivers crossing each edge (a road and a
-    river on one edge make a bridge); the terrain layer on the map; the Umpire's editor (choose a
-    hex or edge and set it). End-to-end: infer, correct a hex.
+    else mountains), forest from land cover (half the hex or more), water, cities and towns (with
+    their names; capitals from the place data), roads (trunk and primary good, secondary poor)
+    crossing each edge, and rivers: a waterway where a navigable river's line crosses an edge
+    (flowing the way the line runs), and a river along the edges nearest its line (a road
+    crossing one makes a bridge); the terrain layer on the map; the Umpire's editor (choose a hex
+    or edge and set it). End-to-end: infer, correct a hex.
+    - **43b. A hex's actual terrain** (decision 0016): `HexDetail` and its reveals; the Umpire
+      rolls for a hex (the app shakes the rules' three dice, with the red die's modifier from the
+      map terrain), adjusts it, and shows it to armies or to all; members see what's been shown
+      to them, in the hex's panel on the map. End-to-end: roll, reveal to an army, a commander
+      sees it.
 44. **Costed movement:** terrain, roads, rivers and bridges in the costs, closed steps, and
     `Progress` for hexes that take more than a turn; the movement table per campaign (the rules'
-    by default), editable in the settings.
+    by default), editable in the settings. Boats (a unit type or a transport) follow waterways:
+    4 hexes downstream, 2 upstream, 3 on a lake (decision 0016).
 45. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
     ("Turn 7 · 17 June 1815, Afternoon"); the Morning and Afternoon modifiers by nation; night
     moves recorded.

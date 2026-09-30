@@ -22,7 +22,8 @@ they're played out in person.
   and orders are hexes, not points.
 - **Terrain per hex, inferred and then the Umpire's.** Each hex has a terrain (Flat, Low hill,
   High hill, Mountain, Water), a forest flag and a settlement (none, small city, large city,
-  walled city, fortress); each edge between hexes may carry a road (good or poor), a river and a
+  walled city, fortress; in parts from decision 0016, which also adds a hex's actual terrain and
+  waterways); each edge between hexes may carry a road (good or poor), a river and a
   bridge. The app infers these from the map data it already draws (Mapterhorn elevation for
   relief, OpenFreeMap's land cover, water, places, roads and rivers), in the Umpire's browser,
   and the Umpire corrects any of it. What the Umpire sets is kept when inference runs again.
