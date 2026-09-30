@@ -33,6 +33,14 @@ export const waterlooMap = {
   bounds: { west: 4.2, south: 50.6, east: 4.6, north: 50.8 },
   labelLanguage: "en",
   distanceUnit: "Kilometres",
-  layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
+  layers: {
+    roads: true,
+    places: true,
+    water: true,
+    forests: true,
+    hills: true,
+    contours: false,
+    grid: true,
+  },
   hexSize: 4828,
 };

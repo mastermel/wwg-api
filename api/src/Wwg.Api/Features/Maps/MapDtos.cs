@@ -23,13 +23,15 @@ public sealed record MapBounds(
 /// <param name="Forests">Woods and forests.</param>
 /// <param name="Hills">Hillshading.</param>
 /// <param name="Contours">Contour lines.</param>
+/// <param name="Grid">The hex grid (decision 0014).</param>
 public sealed record MapLayers(
     bool Roads,
     bool Places,
     bool Water,
     bool Forests,
     bool Hills,
-    bool Contours
+    bool Contours,
+    bool Grid
 );
 
 /// <summary>A campaign's map settings.</summary>

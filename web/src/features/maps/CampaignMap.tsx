@@ -8,6 +8,7 @@ import MapGL, { AttributionControl, NavigationControl, type MapRef } from "react
 import type { CampaignMapResponse, MapBounds } from "@/api/generated/model";
 import classes from "@/features/maps/CampaignMap.module.css";
 import { contourTiles } from "@/features/maps/contours";
+import { HexGridLayer } from "@/features/maps/HexGridLayer";
 import { attribution, buildMapStyle, toLngLatBounds } from "@/features/maps/map-style";
 
 interface CampaignMapProps {
@@ -76,6 +77,8 @@ export function CampaignMap({
       >
         <NavigationControl position="top-right" showCompass={false} />
         <AttributionControl position="bottom-right" customAttribution={attribution} compact />
+        {/* Under the units. The settings page draws its own, from the size being chosen. */}
+        {!free && layers.grid && <HexGridLayer bounds={bounds} size={settings.hexSize} />}
         {children}
       </MapGL>
     </div>

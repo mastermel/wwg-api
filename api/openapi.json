@@ -4054,7 +4054,8 @@
           "water",
           "forests",
           "hills",
-          "contours"
+          "contours",
+          "grid"
         ],
         "type": "object",
         "properties": {
@@ -4081,6 +4082,10 @@
           "contours": {
             "type": "boolean",
             "description": "Contour lines."
+          },
+          "grid": {
+            "type": "boolean",
+            "description": "The hex grid (decision 0014)."
           }
         },
         "description": "Which of the map's layers are shown."

@@ -21,7 +21,8 @@ internal static class CampaignMaps
         Water: true,
         Forests: true,
         Hills: true,
-        Contours: false
+        Contours: false,
+        Grid: true
     );
 
     /// <summary>The campaign's hex grid, or null while it has no area.</summary>

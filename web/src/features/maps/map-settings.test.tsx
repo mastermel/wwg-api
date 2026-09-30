@@ -32,7 +32,15 @@ const saved: CampaignMapResponse = {
   bounds: null,
   labelLanguage: "en",
   distanceUnit: "Kilometres",
-  layers: { roads: true, places: true, water: true, forests: true, hills: true, contours: false },
+  layers: {
+    roads: true,
+    places: true,
+    water: true,
+    forests: true,
+    hills: true,
+    contours: false,
+    grid: true,
+  },
   hexSize: 4828,
 };
 

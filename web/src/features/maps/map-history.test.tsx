@@ -100,6 +100,7 @@ function serveHistory() {
           forests: true,
           hills: true,
           contours: false,
+          grid: true,
         },
         hexSize: 4828,
       } satisfies CampaignMapResponse),

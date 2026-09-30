@@ -69,6 +69,7 @@ const layerSwitches: { key: keyof MapLayers; label: string }[] = [
   { key: "forests", label: "Forests" },
   { key: "hills", label: "Hills" },
   { key: "contours", label: "Contour lines" },
+  { key: "grid", label: "Hex grid" },
 ];
 
 /** The campaign's map settings (Umpire, Admin; DESIGN.md §3.13). */
@@ -239,7 +240,7 @@ function SettingsFormView({
                     mapRef={mapRef}
                   >
                     {bounds && <AreaOutline bounds={bounds} />}
-                    {bounds && hexDistance >= minHexDistance(distanceUnit) && (
+                    {bounds && layers.grid && hexDistance >= minHexDistance(distanceUnit) && (
                       <HexGridLayer bounds={bounds} size={toMetres(hexDistance, distanceUnit)} />
                     )}
                   </CampaignMap>

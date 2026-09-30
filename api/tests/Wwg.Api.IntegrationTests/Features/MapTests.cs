@@ -29,7 +29,8 @@ public sealed class MapTests : ApiTest
                 Water: true,
                 Forests: false,
                 Hills: true,
-                Contours: true
+                Contours: true,
+                Grid: false
             ),
             hexSize
         );
@@ -78,6 +79,7 @@ public sealed class MapTests : ApiTest
         Assert.Equal(("fr", DistanceUnit.Kilometres), (map?.LabelLanguage, map?.DistanceUnit));
         Assert.False(map?.Layers.Forests);
         Assert.True(map?.Layers.Contours);
+        Assert.False(map?.Layers.Grid);
         Assert.Equal(3000, map?.HexSize);
     }
 

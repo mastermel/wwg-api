@@ -2233,10 +2233,13 @@ build on positions.
       straight line. `HexGrid.cs` is tested through the endpoints against the same figures
       (placement centres, and re-snapping placements when the grid changes during setup).
     - A path is checked step by step (next to the last, inside the grid) before its cost.
-40. **The hex grid (UI):** the grid layer (on by default, switchable) and the hex size in the
+40. ✅ **The hex grid (UI):** the grid layer (on by default, switchable) and the hex size in the
     settings, previewed; placing and moving by hex; the hexes a unit can reach shaded, the
     cheapest path to the chosen one drawn, and its cost; stacks by hex; symbols and legend for
     the new types. End-to-end: set up with the grid, move a unit two hexes.
+    - Placing and moving by hex, the reachable hexes and the path came with step 39. The grid is a
+      map layer like the others (`MapLayers.Grid`, on by default and for existing maps), drawn
+      under the units on the map page; the settings preview draws the size being chosen.
 41. **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
     single-edge edits, keeping what the Umpire set when inference runs again.
 42. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from

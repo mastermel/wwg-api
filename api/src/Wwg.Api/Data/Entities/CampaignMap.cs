@@ -53,4 +53,6 @@ internal sealed class CampaignMap : Entity
     public bool ShowHills { get; set; }
 
     public bool ShowContours { get; set; }
+
+    public bool ShowGrid { get; set; } = true;
 }

@@ -156,14 +156,16 @@ internal static partial class MapEndpoints
             map.ShowWater,
             map.ShowForests,
             map.ShowHills,
-            map.ShowContours
+            map.ShowContours,
+            map.ShowGrid
         ) = (
             request.Layers.Roads,
             request.Layers.Places,
             request.Layers.Water,
             request.Layers.Forests,
             request.Layers.Hills,
-            request.Layers.Contours
+            request.Layers.Contours,
+            request.Layers.Grid
         );
     }
 
@@ -269,7 +271,8 @@ internal static partial class MapEndpoints
                 map.ShowWater,
                 map.ShowForests,
                 map.ShowHills,
-                map.ShowContours
+                map.ShowContours,
+                map.ShowGrid
             ),
             map.HexSize
         );

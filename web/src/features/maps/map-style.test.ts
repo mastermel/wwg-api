@@ -9,6 +9,7 @@ const all: MapLayers = {
   forests: true,
   hills: true,
   contours: true,
+  grid: true,
 };
 
 const layerIds = (layers: MapLayers, contourTiles?: string) =>

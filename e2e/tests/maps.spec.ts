@@ -27,6 +27,7 @@ test("the Umpire sets the map's area, and a Player sees the map inside it", asyn
   // that one takes its label.
   await page.getByRole("switch", { name: "Forests" }).click();
   await expect(page.getByRole("switch", { name: "Forests" })).not.toBeChecked();
+  await expect(page.getByRole("switch", { name: "Hex grid" })).toBeChecked();
   await page.getByText("Kilometres", { exact: true }).click();
   await expect(page.getByRole("radio", { name: "Kilometres" })).toBeChecked();
   // Big hexes for the big area the view gives: the grid is drawn over it.
