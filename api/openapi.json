@@ -1049,6 +1049,56 @@
         ]
       }
     },
+    "/api/admin/users/{id}/manager": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Makes a user a Manager, or not (decision 0015): they edit the library. It applies at once\n(the library's access rule reads the role from the database).",
+        "operationId": "SetManager",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetManagerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/admin/campaigns": {
       "get": {
         "tags": [
@@ -2862,6 +2912,381 @@
           }
         ]
       }
+    },
+    "/api/factions": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "The library's factions, sorted by name, with how many units each has.",
+        "operationId": "ListFactions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FactionSummary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "Adds a faction to the library (Manager or Admin).",
+        "operationId": "CreateFaction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveFactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/factions/{id}": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "A faction, with its units sorted by name.",
+        "operationId": "GetFaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "Renames a faction, or changes its flag (Manager or Admin).",
+        "operationId": "UpdateFaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveFactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactionResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "Deletes an empty faction (Manager or Admin). 409 while it has units.",
+        "operationId": "DeleteFaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/factions/{id}/units": {
+      "post": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "Adds a unit to a faction (Manager or Admin).",
+        "operationId": "CreateUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/units/{id}": {
+      "put": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "Changes a library unit (Manager or Admin). Campaigns it's already in keep their copies.",
+        "operationId": "UpdateUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Library"
+        ],
+        "summary": "Deletes a library unit (Manager or Admin).",
+        "operationId": "DeleteUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3818,7 +4243,7 @@
             "description": "The side's name, unique in the campaign."
           }
         },
-        "description": "Adds a side (a side) to the campaign."
+        "description": "Adds a side to the campaign."
       },
       "DistanceUnit": {
         "enum": [
@@ -3826,6 +4251,68 @@
           "Miles"
         ],
         "description": "How distances are shown (they're stored in metres)."
+      },
+      "FactionResponse": {
+        "required": [
+          "id",
+          "name",
+          "nation",
+          "units"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The faction's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "nation": {
+            "description": "Whose flag it shows (None: a plain one).",
+            "$ref": "#/components/schemas/Nation"
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitResponse"
+            },
+            "description": "Its units, sorted by name."
+          }
+        },
+        "description": "A faction in the library, with its units."
+      },
+      "FactionSummary": {
+        "required": [
+          "id",
+          "name",
+          "nation",
+          "unitCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The faction's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "nation": {
+            "description": "Whose flag it shows (None: a plain one).",
+            "$ref": "#/components/schemas/Nation"
+          },
+          "unitCount": {
+            "type": "integer",
+            "description": "How many units it has.",
+            "format": "int32"
+          }
+        },
+        "description": "A faction in the library, as the list shows it."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -4162,6 +4649,7 @@
           "firstName",
           "lastName",
           "isAdmin",
+          "isManager",
           "masquerade"
         ],
         "type": "object",
@@ -4186,6 +4674,10 @@
           "isAdmin": {
             "type": "boolean",
             "description": "Whether they're a site-wide Admin."
+          },
+          "isManager": {
+            "type": "boolean",
+            "description": "Whether they're a Manager: they edit the library (decision 0015)."
           },
           "masquerade": {
             "oneOf": [
@@ -4540,6 +5032,75 @@
         },
         "description": "Why the Umpire sends a turn back or reverts it: a note, and notes on units."
       },
+      "SaveFactionRequest": {
+        "required": [
+          "name",
+          "nation"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Its name (duplicates are allowed)."
+          },
+          "nation": {
+            "description": "Whose flag it shows (None: a plain one).",
+            "$ref": "#/components/schemas/Nation"
+          }
+        },
+        "description": "Adds a faction to the library, or changes one."
+      },
+      "SaveUnitRequest": {
+        "required": [
+          "name",
+          "type",
+          "fightingFactor",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string",
+            "description": "Its name (duplicates are allowed)."
+          },
+          "type": {
+            "description": "What kind of troops it is.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "fightingFactor": {
+            "maximum": 9,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Its Fighting Factor (FF).",
+            "format": "int32"
+          },
+          "points": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer",
+            "description": "What it's worth.",
+            "format": "int32"
+          }
+        },
+        "description": "Adds a unit to a faction in the library, or changes one."
+      },
+      "SetManagerRequest": {
+        "required": [
+          "manager"
+        ],
+        "type": "object",
+        "properties": {
+          "manager": {
+            "type": "boolean",
+            "description": "Whether they're a Manager."
+          }
+        },
+        "description": "Makes a user a Manager (decision 0015), or not."
+      },
       "SetUmpireRequest": {
         "required": [
           "userId"
@@ -4691,6 +5252,48 @@
           }
         },
         "description": "Where a unit is (or is ordered to be) after a turn."
+      },
+      "UnitResponse": {
+        "required": [
+          "id",
+          "factionId",
+          "name",
+          "type",
+          "fightingFactor",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The unit's ID.",
+            "format": "uuid"
+          },
+          "factionId": {
+            "type": "string",
+            "description": "Its faction.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "type": {
+            "description": "What kind of troops it is.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "fightingFactor": {
+            "type": "integer",
+            "description": "Its Fighting Factor (FF).",
+            "format": "int32"
+          },
+          "points": {
+            "type": "integer",
+            "description": "What it's worth.",
+            "format": "int32"
+          }
+        },
+        "description": "A unit in the library."
       },
       "UnitType": {
         "enum": [
@@ -4897,6 +5500,7 @@
           "firstName",
           "lastName",
           "isAdmin",
+          "isManager",
           "createdAt",
           "lockedOutUntil",
           "campaigns"
@@ -4923,6 +5527,10 @@
           "isAdmin": {
             "type": "boolean",
             "description": "Whether they're a site-wide Admin."
+          },
+          "isManager": {
+            "type": "boolean",
+            "description": "Whether they're a Manager: they edit the library (decision 0015)."
           },
           "createdAt": {
             "type": "string",
@@ -4954,6 +5562,7 @@
           "firstName",
           "lastName",
           "isAdmin",
+          "isManager",
           "createdAt"
         ],
         "type": "object",
@@ -4978,6 +5587,10 @@
           "isAdmin": {
             "type": "boolean",
             "description": "Whether they're a site-wide Admin."
+          },
+          "isManager": {
+            "type": "boolean",
+            "description": "Whether they're a Manager: they edit the library (decision 0015)."
           },
           "createdAt": {
             "type": "string",
@@ -5029,6 +5642,9 @@
     },
     {
       "name": "Armies"
+    },
+    {
+      "name": "Library"
     }
   ]
 }

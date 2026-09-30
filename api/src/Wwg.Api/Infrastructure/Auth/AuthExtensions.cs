@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
@@ -37,6 +38,7 @@ internal static class AuthExtensions
             );
 
         services.AddAuthorizationBuilder().AddAccessPolicies();
+        services.AddScoped<IAuthorizationHandler, LibraryEditorHandler>();
         services.AddScoped<TokenService>();
 
         AddPersistedDataProtectionKeys(services);

@@ -108,6 +108,7 @@ describe("set Umpire", () => {
     firstName: "Arthur",
     lastName: "Wellesley",
     isAdmin: false,
+    isManager: false,
     createdAt: "2026-09-01T12:00:00Z",
   };
 

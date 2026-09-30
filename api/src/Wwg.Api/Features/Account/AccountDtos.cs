@@ -9,6 +9,7 @@ namespace Wwg.Api.Features.Account;
 /// <param name="FirstName">First name.</param>
 /// <param name="LastName">Last name.</param>
 /// <param name="IsAdmin">Whether they're a site-wide Admin.</param>
+/// <param name="IsManager">Whether they're a Manager: they edit the library (decision 0015).</param>
 /// <param name="Masquerade">
 /// When an Admin is using the app as this user (decision 0012): who, and until when. Null otherwise.
 /// </param>
@@ -18,6 +19,7 @@ public sealed record MeResponse(
     string FirstName,
     string LastName,
     bool IsAdmin,
+    bool IsManager,
     MasqueradeInfo? Masquerade
 );
 

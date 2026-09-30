@@ -56,7 +56,9 @@ true, because the build launches the app to write the document.
   `[Trimmed]` properties and adds `minLength: 1` to `[Required]` strings (which reject empty
   strings), so the SDK's generated Zod schemas validate the same way the API does.
 - **Access rules:** sign-in is required by default, but every endpoint declares its rule:
-  `.AllowAnonymous()`, `.RequireSignedIn()`, `.AdminOnly()` (on the `/api/admin` group) or
+  `.AllowAnonymous()`, `.RequireSignedIn()`, `.AdminOnly()` (on the `/api/admin` group),
+  `.RequireLibraryEditor()` (Managers and Admins, decision 0015; the Manager role is read from
+  the database, so granting or removing it applies at once) or
   `.RequireCampaignAccess(CampaignAccess.Member | Commander | Umpire, routeId)`. `Commander`
   (the army's commander, the Umpire, Admins) needs an army or army-turn route; where the Umpire's
   rules differ (orders, decision 0011), the handler checks `CampaignContext().CanManage`.
@@ -117,8 +119,8 @@ true, because the build launches the app to write the document.
   copy of the migrated template), `Client`, fake `Clock` and `WithDbAsync` for direct DbContext
   access. Don't share state between tests.
 - Assert errors with `AssertProblemAsync(status)` / `AssertValidationProblemAsync(fields…)`.
-- Signed-in clients: `CreateUserClientAsync(email?)` and `CreateAdminClientAsync()` (bearer set,
-  refresh cookie in the client's jar). Test clients use https://localhost so Secure cookies work.
+- Signed-in clients: `CreateUserClientAsync(email?)`, `CreateManagerClientAsync(email?)` and
+  `CreateAdminClientAsync()` (bearer set, refresh cookie in the client's jar). Test clients use https://localhost so Secure cookies work.
 - `EndpointConventionTests` fail if an endpoint has no name or tag, or isn't under `/api`.
 - Setup goes through the shared helpers and scenario builders: `CreateCampaignScenarioAsync()`
   gives a campaign with an Admin, an Umpire, a Commander (a Player commanding the army "First

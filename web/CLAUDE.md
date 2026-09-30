@@ -83,6 +83,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   `maxDrawnHexes`. Movement is `movement.ts` (classes, the rules' rates, `reach` and `pathTo`),
   mirroring the API's `Movement.cs`. The Umpire's
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
+- The library (decision 0015) is `features/library`: every signed-in user views it; edits are
+  shown only to `canEditLibrary(user)` (Managers and Admins). `UnitFormModal` (`features/units`)
+  is shared by library units and the army's copies of them.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

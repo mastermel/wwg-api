@@ -29,6 +29,10 @@ internal static class AdminUserEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
         users
+            .MapPut("/{id:guid}/manager", SetManagerAsync)
+            .WithName("SetManager")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        users
             .MapDelete("/{id:guid}", DeleteUserAsync)
             .WithName("DeleteUser")
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -101,7 +105,8 @@ internal static class AdminUserEndpoints
         [Range(1, Paging.MaxPageSize)] int pageSize = Paging.DefaultPageSize
     )
     {
-        var adminRoleId = await AdminRoleIdAsync(db, cancellationToken);
+        var adminRoleId = await RoleIdAsync(db, Roles.Admin, cancellationToken);
+        var managerRoleId = await RoleIdAsync(db, Roles.Manager, cancellationToken);
         var query = db.Users.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -124,6 +129,7 @@ internal static class AdminUserEndpoints
                 u.FirstName,
                 u.LastName,
                 db.UserRoles.Any(r => r.UserId == u.Id && r.RoleId == adminRoleId),
+                db.UserRoles.Any(r => r.UserId == u.Id && r.RoleId == managerRoleId),
                 u.CreatedAt
             ))
             .ToPagedAsync(page, pageSize, cancellationToken);
@@ -138,7 +144,8 @@ internal static class AdminUserEndpoints
         CancellationToken cancellationToken
     )
     {
-        var adminRoleId = await AdminRoleIdAsync(db, cancellationToken);
+        var adminRoleId = await RoleIdAsync(db, Roles.Admin, cancellationToken);
+        var managerRoleId = await RoleIdAsync(db, Roles.Manager, cancellationToken);
         var now = timeProvider.GetUtcNow();
         var user = await db
             .Users.AsNoTracking()
@@ -152,6 +159,7 @@ internal static class AdminUserEndpoints
                 u.CreatedAt,
                 u.LockoutEnd,
                 IsAdmin = db.UserRoles.Any(r => r.UserId == u.Id && r.RoleId == adminRoleId),
+                IsManager = db.UserRoles.Any(r => r.UserId == u.Id && r.RoleId == managerRoleId),
                 Campaigns = db
                     .CampaignMembers.Where(m => m.UserId == u.Id)
                     .OrderBy(m => m.Campaign.Name)
@@ -170,6 +178,7 @@ internal static class AdminUserEndpoints
                     user.FirstName,
                     user.LastName,
                     user.IsAdmin,
+                    user.IsManager,
                     user.CreatedAt,
                     user.LockoutEnd > now ? user.LockoutEnd.Value.UtcDateTime : null,
                     user.Campaigns
@@ -214,12 +223,44 @@ internal static class AdminUserEndpoints
         return TypedResults.NoContent();
     }
 
-    private static Task<Guid> AdminRoleIdAsync(
+    /// <summary>
+    /// Makes a user a Manager, or not (decision 0015): they edit the library. It applies at once
+    /// (the library's access rule reads the role from the database).
+    /// </summary>
+    internal static async Task<Results<NoContent, ProblemHttpResult>> SetManagerAsync(
+        Guid id,
+        SetManagerRequest request,
+        UserManager<AppUser> userManager,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return TypedResults.Problem(statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var isManager = await userManager.IsInRoleAsync(user, Roles.Manager);
+        if (request.Manager && !isManager)
+        {
+            (await userManager.AddToRoleAsync(user, Roles.Manager)).ThrowIfFailed();
+        }
+        else if (!request.Manager && isManager)
+        {
+            (await userManager.RemoveFromRoleAsync(user, Roles.Manager)).ThrowIfFailed();
+        }
+
+        return TypedResults.NoContent();
+    }
+
+    private static Task<Guid> RoleIdAsync(
         WwgDbContext db,
+        string role,
         CancellationToken cancellationToken
     ) =>
         db
-            .Roles.Where(r => r.Name == Roles.Admin)
+            .Roles.Where(r => r.Name == role)
             .Select(r => r.Id)
             .SingleOrDefaultAsync(cancellationToken);
 }

@@ -18,6 +18,12 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Side> Sides => Set<Side>();
 
+    /// <summary>The library's factions (decision 0015).</summary>
+    public DbSet<Faction> Factions => Set<Faction>();
+
+    /// <summary>The library's units (decision 0015).</summary>
+    public DbSet<Unit> Units => Set<Unit>();
+
     public DbSet<CampaignMap> CampaignMaps => Set<CampaignMap>();
 
     public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();

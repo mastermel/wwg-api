@@ -33,8 +33,8 @@ public sealed class TurnActionTests : ApiTest
                 new CreateArmyUnitRequest(
                     "2nd Division",
                     UnitType.LightInfantry,
-                    ArmyUnit.MinFightingFactor,
-                    ArmyUnit.MinPoints
+                    UnitStats.MinFightingFactor,
+                    UnitStats.MinPoints
                 ),
                 Token
             );

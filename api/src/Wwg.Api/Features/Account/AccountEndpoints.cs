@@ -45,7 +45,9 @@ internal static class AccountEndpoints
     {
         cancellationToken.ThrowIfCancellationRequested();
         var user = await userManager.GetUserAsync(principal);
-        return user is null ? TypedResults.Unauthorized() : TypedResults.Ok(ToMe(user, principal));
+        return user is null
+            ? TypedResults.Unauthorized()
+            : TypedResults.Ok(await ToMeAsync(userManager, user, principal));
     }
 
     /// <summary>Updates the signed-in user's first and last name.</summary>
@@ -66,7 +68,7 @@ internal static class AccountEndpoints
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
         (await userManager.UpdateAsync(user)).ThrowIfFailed();
-        return TypedResults.Ok(ToMe(user, principal));
+        return TypedResults.Ok(await ToMeAsync(userManager, user, principal));
     }
 
     /// <summary>
@@ -247,13 +249,20 @@ internal static class AccountEndpoints
         );
     }
 
-    private static MeResponse ToMe(AppUser user, ClaimsPrincipal principal) =>
+    // Manager from the database, as the library's access rule reads it: granted or removed, it
+    // shows at once.
+    private static async Task<MeResponse> ToMeAsync(
+        UserManager<AppUser> userManager,
+        AppUser user,
+        ClaimsPrincipal principal
+    ) =>
         new(
             user.Id,
             user.Email ?? "",
             user.FirstName,
             user.LastName,
             principal.IsInRole(Roles.Admin),
+            await userManager.IsInRoleAsync(user, Roles.Manager),
             Masquerade.From(principal) is { } masquerade
                 ? new MasqueradeInfo(masquerade.AdminName, masquerade.Ends.UtcDateTime)
                 : null

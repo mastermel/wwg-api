@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Wwg.Api.Data.Entities;
 
 namespace Wwg.Api.Features.Admin;
@@ -8,6 +9,7 @@ namespace Wwg.Api.Features.Admin;
 /// <param name="FirstName">First name.</param>
 /// <param name="LastName">Last name.</param>
 /// <param name="IsAdmin">Whether they're a site-wide Admin.</param>
+/// <param name="IsManager">Whether they're a Manager: they edit the library (decision 0015).</param>
 /// <param name="CreatedAt">When they registered (UTC).</param>
 public sealed record UserSummary(
     Guid Id,
@@ -15,6 +17,7 @@ public sealed record UserSummary(
     string FirstName,
     string LastName,
     bool IsAdmin,
+    bool IsManager,
     DateTime CreatedAt
 );
 
@@ -24,6 +27,7 @@ public sealed record UserSummary(
 /// <param name="FirstName">First name.</param>
 /// <param name="LastName">Last name.</param>
 /// <param name="IsAdmin">Whether they're a site-wide Admin.</param>
+/// <param name="IsManager">Whether they're a Manager: they edit the library (decision 0015).</param>
 /// <param name="CreatedAt">When they registered (UTC).</param>
 /// <param name="LockedOutUntil">When a sign-in lockout ends (UTC), if they're locked out now.</param>
 /// <param name="Campaigns">The campaigns they're in, with their role, sorted by name.</param>
@@ -33,6 +37,7 @@ public sealed record UserDetails(
     string FirstName,
     string LastName,
     bool IsAdmin,
+    bool IsManager,
     DateTime CreatedAt,
     DateTime? LockedOutUntil,
     IReadOnlyList<UserCampaign> Campaigns
@@ -61,3 +66,7 @@ public sealed record AdminCampaignSummary(
 /// <summary>Makes a user the campaign's Umpire.</summary>
 /// <param name="UserId">The new Umpire: a Player in the campaign, or any other user.</param>
 public sealed record SetUmpireRequest(Guid UserId);
+
+/// <summary>Makes a user a Manager (decision 0015), or not.</summary>
+/// <param name="Manager">Whether they're a Manager.</param>
+public sealed record SetManagerRequest([property: JsonRequired] bool Manager);

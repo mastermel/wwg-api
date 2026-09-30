@@ -37,8 +37,8 @@ public sealed class UmpireOrderTests : ApiTest
                 ArmyId = scenario.ArmyId,
                 Name = "2nd Division",
                 Type = UnitType.LightInfantry,
-                FightingFactor = ArmyUnit.MinFightingFactor,
-                Points = ArmyUnit.MinPoints,
+                FightingFactor = UnitStats.MinFightingFactor,
+                Points = UnitStats.MinPoints,
             };
             db.ArmyUnits.Add(unit);
             db.UnitOrders.Add(

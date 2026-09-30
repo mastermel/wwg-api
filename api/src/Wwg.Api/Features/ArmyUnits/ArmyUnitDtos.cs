@@ -16,9 +16,9 @@ namespace Wwg.Api.Features.ArmyUnits;
 public sealed record CreateArmyUnitRequest(
     [property: Trimmed, Required, StringLength(100)] string Name,
     [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType Type,
-    [property: JsonRequired, Range(ArmyUnit.MinFightingFactor, ArmyUnit.MaxFightingFactor)]
+    [property: JsonRequired, Range(UnitStats.MinFightingFactor, UnitStats.MaxFightingFactor)]
         int FightingFactor,
-    [property: JsonRequired, Range(ArmyUnit.MinPoints, ArmyUnit.MaxPoints)] int Points
+    [property: JsonRequired, Range(UnitStats.MinPoints, UnitStats.MaxPoints)] int Points
 );
 
 /// <summary>Changes a unit.</summary>
@@ -29,9 +29,9 @@ public sealed record CreateArmyUnitRequest(
 public sealed record UpdateArmyUnitRequest(
     [property: Trimmed, Required, StringLength(100)] string Name,
     [property: JsonRequired, EnumDataType(typeof(UnitType))] UnitType Type,
-    [property: JsonRequired, Range(ArmyUnit.MinFightingFactor, ArmyUnit.MaxFightingFactor)]
+    [property: JsonRequired, Range(UnitStats.MinFightingFactor, UnitStats.MaxFightingFactor)]
         int FightingFactor,
-    [property: JsonRequired, Range(ArmyUnit.MinPoints, ArmyUnit.MaxPoints)] int Points
+    [property: JsonRequired, Range(UnitStats.MinPoints, UnitStats.MaxPoints)] int Points
 );
 
 /// <summary>A unit in an army.</summary>

@@ -13,6 +13,7 @@ const summary = (i: number): UserSummary => ({
   firstName: `First${String(i)}`,
   lastName: "Zed",
   isAdmin: false,
+  isManager: false,
   createdAt: "2026-09-01T12:00:00Z",
 });
 
@@ -143,6 +144,7 @@ describe("admin users", () => {
               firstName: "Mel",
               lastName: "Green",
               isAdmin: false,
+              isManager: false,
               masquerade: { adminName: "Ada Admin", endsAt: "2026-09-30T20:00:00Z" },
             })
           : undefined,
@@ -167,6 +169,33 @@ describe("admin users", () => {
     expect(await screen.findByText("Masquerade ended: you're yourself again.")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 1, name: "Users" })).toBeInTheDocument();
     expect(calls).toEqual([`start ${mel.id}`, "end"]);
+  });
+
+  it("makes a user a Manager, and shows it", async () => {
+    let mel = { ...summary(7), firstName: "Mel", lastName: "Green", email: "mel@example.com" };
+    mockUserList([mel]);
+    const bodies: unknown[] = [];
+    server.use(
+      http.get("*/api/admin/users/:id", () =>
+        HttpResponse.json({ ...mel, lockedOutUntil: null, campaigns: [] }),
+      ),
+      http.put("*/api/admin/users/:id/manager", async ({ request }) => {
+        const body = (await request.json()) as { manager: boolean };
+        bodies.push(body);
+        mel = { ...mel, isManager: body.manager };
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    await renderApp(`/admin/users/${mel.id}`, { user: testAdmin });
+
+    const manager = await screen.findByRole("switch", { name: "Manager" });
+    expect(manager).not.toBeChecked();
+    await user.click(manager);
+
+    expect(await screen.findByText("Mel is now a Manager.")).toBeInTheDocument();
+    expect(await screen.findByRole("switch", { name: "Manager" })).toBeChecked();
+    expect(bodies).toEqual([{ manager: true }]);
   });
 
   it("doesn't offer a masquerade as yourself", async () => {

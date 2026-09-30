@@ -61,11 +61,15 @@ internal static partial class AdminSync
         var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         var logger = services.GetRequiredService<ILogger<AdminOptions>>();
 
-        if (!await roles.RoleExistsAsync(Roles.Admin))
+        // Manager (decision 0015) is granted in the app, not by config, but the role must exist.
+        foreach (var role in new[] { Roles.Admin, Roles.Manager })
         {
-            await roles.CreateAsync(
-                new IdentityRole<Guid>(Roles.Admin) { Id = Guid.CreateVersion7() }
-            );
+            if (!await roles.RoleExistsAsync(role))
+            {
+                await roles.CreateAsync(
+                    new IdentityRole<Guid>(role) { Id = Guid.CreateVersion7() }
+                );
+            }
         }
 
         var listed = emails

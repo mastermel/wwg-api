@@ -5,11 +5,11 @@ import { Controller, useForm, type DefaultValues } from "react-hook-form";
 import { z } from "zod";
 import { UnitType } from "@/api/generated/model";
 import {
-  CreateArmyUnitBody,
-  createArmyUnitBodyFightingFactorMax,
-  createArmyUnitBodyPointsMax,
-  createArmyUnitBodyPointsMin,
-} from "@/api/generated/zod/army-units/army-units.zod";
+  CreateUnitBody,
+  createUnitBodyFightingFactorMax,
+  createUnitBodyPointsMax,
+  createUnitBodyPointsMin,
+} from "@/api/generated/zod/library/library.zod";
 import { unitTypeOptions } from "@/features/units/unit-types";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
@@ -18,20 +18,20 @@ import { useOnline } from "@/lib/use-online";
 const ffMin = 1;
 
 // The generated schema, with messages people can act on.
-const UnitForm = CreateArmyUnitBody.extend({
+const UnitForm = CreateUnitBody.extend({
   type: z.enum(Object.values(UnitType), { error: "Choose a type." }),
   fightingFactor: z
     .int({
-      error: `Enter an FF from ${String(ffMin)} to ${String(createArmyUnitBodyFightingFactorMax)}.`,
+      error: `Enter an FF from ${String(ffMin)} to ${String(createUnitBodyFightingFactorMax)}.`,
     })
     .min(ffMin)
-    .max(createArmyUnitBodyFightingFactorMax),
+    .max(createUnitBodyFightingFactorMax),
   points: z
     .int({
-      error: `Enter points from ${String(createArmyUnitBodyPointsMin)} to ${String(createArmyUnitBodyPointsMax)}.`,
+      error: `Enter points from ${String(createUnitBodyPointsMin)} to ${String(createUnitBodyPointsMax)}.`,
     })
-    .min(createArmyUnitBodyPointsMin)
-    .max(createArmyUnitBodyPointsMax),
+    .min(createUnitBodyPointsMin)
+    .max(createUnitBodyPointsMax),
 });
 
 export type UnitValues = z.infer<typeof UnitForm>;
@@ -49,7 +49,10 @@ interface UnitFormModalProps {
   onClose: () => void;
 }
 
-/** A unit's name, type, Fighting Factor and points, in a modal. Mount it only while open. */
+/**
+ * A unit's name, type, Fighting Factor and points (a library unit, or an army's copy of one), in a
+ * modal. Mount it only while open.
+ */
 export function UnitFormModal({
   title,
   submitLabel,
@@ -115,7 +118,7 @@ export function UnitFormModal({
                   label="Fighting Factor (FF)"
                   required
                   min={ffMin}
-                  max={createArmyUnitBodyFightingFactorMax}
+                  max={createUnitBodyFightingFactorMax}
                   allowDecimal={false}
                   allowNegative={false}
                   clampBehavior="strict"
@@ -137,8 +140,8 @@ export function UnitFormModal({
                 <NumberInput
                   label="Points"
                   required
-                  min={createArmyUnitBodyPointsMin}
-                  max={createArmyUnitBodyPointsMax}
+                  min={createUnitBodyPointsMin}
+                  max={createUnitBodyPointsMax}
                   allowDecimal={false}
                   allowNegative={false}
                   clampBehavior="strict"

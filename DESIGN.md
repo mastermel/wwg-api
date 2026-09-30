@@ -2306,13 +2306,14 @@ build on positions.
       renamed in place, so orders and notes keep their foreign keys), its routes
       `/api/army-units/{id}` and `/api/army-units/{id}/placement`. No change in behaviour; it
       frees `Unit` for the library.
-    - **41c. The library and Managers:** global `Faction` (name, nation) and `Unit` (faction,
+    - ✅ **41c. The library and Managers:** global `Faction` (name, nation) and `Unit` (faction,
       name, type, FF, points); `/api/factions`, `/api/factions/{id}`, `/api/factions/{id}/units`,
-      `/api/units/{id}`. The `Manager` role (`isManager` on `GET /api/me`; the Admin's user page
-      grants it, `PUT /api/admin/users/{id}/manager`); Managers and Admins edit, and a faction or
-      unit in use can't be deleted (409). The **Library** pages (every signed-in user; in the
-      navigation): factions, each with its units, and for Managers and Admins create, edit and
-      delete.
+      `/api/units/{id}`. The `Manager` role (`isManager` on `GET /api/me`, read from the database
+      like the library policy, so a change applies at once; the Admin's user page grants it,
+      `PUT /api/admin/users/{id}/manager`); Managers and Admins edit, and a faction with units
+      can't be deleted (409; a unit in a campaign, from 41d). The **Library** pages (`/library`,
+      `/library/{id}`; every signed-in user; in the navigation): factions, each with its units,
+      and for Managers and Admins create, edit and delete.
     - **41d. Army factions, and units from the library:** `ArmyFaction` (an army's selected
       factions, in **Edit army**; `UpdateArmy`'s `factionIds`); `ArmyUnit` gains `UnitId` (→ the
       library unit) and `CampaignId`, unique together. The migration puts a copy of each army unit

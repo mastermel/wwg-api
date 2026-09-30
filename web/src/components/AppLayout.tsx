@@ -10,6 +10,7 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import {
+  IconBooks,
   IconChevronDown,
   IconInfoCircle,
   IconLogout,
@@ -31,19 +32,20 @@ import { useSession, useSessionStore } from "@/features/auth/session-context";
 import { formatDateTime } from "@/lib/format";
 
 interface NavItem {
-  to: "/campaigns" | "/admin/campaigns" | "/admin/users" | "/about";
+  to: "/campaigns" | "/library" | "/admin/campaigns" | "/admin/users" | "/about";
   label: string;
   icon: Icon;
 }
 
 const campaigns: NavItem = { to: "/campaigns", label: "Campaigns", icon: IconSwords };
+const library: NavItem = { to: "/library", label: "Library", icon: IconBooks };
 const allCampaigns: NavItem = { to: "/admin/campaigns", label: "All campaigns", icon: IconMap };
 const users: NavItem = { to: "/admin/users", label: "Users", icon: IconUsers };
 const about: NavItem = { to: "/about", label: "About", icon: IconInfoCircle };
 
-const memberNavItems = [campaigns, about];
+const memberNavItems = [campaigns, library, about];
 // Admins also get the admin screens. (The API enforces access regardless.)
-const adminNavItems = [campaigns, allCampaigns, users, about];
+const adminNavItems = [campaigns, library, allCampaigns, users, about];
 const adminOnly = new Set<NavItem>([allCampaigns, users]);
 
 /**

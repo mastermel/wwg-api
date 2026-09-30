@@ -1,11 +1,28 @@
-import { Alert, Anchor, Badge, Button, Group, List, SimpleGrid, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Anchor,
+  Badge,
+  Button,
+  Group,
+  List,
+  SimpleGrid,
+  Stack,
+  Switch,
+  Text,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconMasksTheater, IconSwords, IconTrash } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useDeleteUser, useGetUser } from "@/api/generated/endpoints/admin/admin";
+import {
+  getGetUserQueryKey,
+  getListUsersQueryKey,
+  useDeleteUser,
+  useGetUser,
+  useSetManager,
+} from "@/api/generated/endpoints/admin/admin";
 import type { UserDetails } from "@/api/generated/model";
 import { BackLink } from "@/components/BackLink";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -49,6 +66,11 @@ export function AdminUserPage({ id }: { id: string }) {
             {user.data.isAdmin && (
               <Badge size="sm" variant="light">
                 Admin
+              </Badge>
+            )}
+            {user.data.isManager && (
+              <Badge size="sm" variant="light" color="gray">
+                Manager
               </Badge>
             )}
           </Group>
@@ -112,6 +134,7 @@ function UserDetailsView({ user }: { user: UserDetails }) {
           )}
         </Stack>
       </Section>
+      <ManagerSection user={user} />
       <UserCampaigns user={user} />
       <Section
         title="Masquerade"
@@ -180,6 +203,48 @@ function UserDetailsView({ user }: { user: UserDetails }) {
         This can&apos;t be undone.
       </ConfirmModal>
     </Stack>
+  );
+}
+
+/** Managers edit the library of factions and units (decision 0015); Admins make them. */
+function ManagerSection({ user }: { user: UserDetails }) {
+  const online = useOnline();
+  const queryClient = useQueryClient();
+  const setManager = useSetManager();
+
+  const change = async (manager: boolean) => {
+    try {
+      await setManager.mutateAsync({ id: user.id, data: { manager } });
+      notifications.show({
+        color: "green",
+        message: manager
+          ? `${user.firstName} is now a Manager.`
+          : `${user.firstName} is no longer a Manager.`,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(user.id) }),
+        queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() }),
+      ]);
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        message: errorMessage(error, "That couldn't be changed. Try again."),
+      });
+    }
+  };
+
+  return (
+    <Section
+      title="Library"
+      description="Managers add and edit the library's factions and units, as Admins can."
+    >
+      <Switch
+        label="Manager"
+        checked={user.isManager}
+        disabled={!online || setManager.isPending}
+        onChange={(event) => void change(event.currentTarget.checked)}
+      />
+    </Section>
   );
 }
 

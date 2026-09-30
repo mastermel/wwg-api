@@ -91,6 +91,11 @@ export function AdminUsersPage({ search, page }: { search: string; page: number 
                                 Admin
                               </Badge>
                             )}
+                            {user.isManager && (
+                              <Badge size="sm" variant="light" color="gray">
+                                Manager
+                              </Badge>
+                            )}
                           </Group>
                           <Text size="xs" c="dimmed" hiddenFrom="sm">
                             {user.email}

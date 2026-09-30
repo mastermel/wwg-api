@@ -240,8 +240,8 @@ public sealed class OrderTests : ApiTest
                 new CreateArmyUnitRequest(
                     "2nd Division",
                     UnitType.LineInfantry,
-                    ArmyUnit.MinFightingFactor,
-                    ArmyUnit.MinPoints
+                    UnitStats.MinFightingFactor,
+                    UnitStats.MinPoints
                 ),
                 TestContext.Current.CancellationToken
             );

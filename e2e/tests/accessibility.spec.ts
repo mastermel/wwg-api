@@ -64,6 +64,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["map (no area yet)", `${campaignUrl}/map`, "Map"],
         ["map settings", `${campaignUrl}/map/settings`, "Map settings"],
         ["new campaign", "/campaigns/new", "New campaign"],
+        ["library", "/library", "Library"],
         ["account", "/account", "Account"],
         ["about", "/about", "About"],
       ] as const) {

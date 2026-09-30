@@ -74,6 +74,23 @@ public abstract class ApiTest : IAsyncDisposable
     }
 
     /// <summary>
+    /// A signed-in Manager (decision 0015): registers, and is granted the role directly, as an
+    /// Admin would on the user's page. No sign-in again is needed: the role is read from the
+    /// database.
+    /// </summary>
+    protected async Task<HttpClient> CreateManagerClientAsync(string email = "manager@example.com")
+    {
+        var client = await CreateUserClientAsync(email);
+        await using var scope = App.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var user =
+            await users.FindByEmailAsync(email)
+            ?? throw new InvalidOperationException("The manager didn't register.");
+        (await users.AddToRoleAsync(user, Roles.Manager)).EnsureSucceeded();
+        return client;
+    }
+
+    /// <summary>
     /// A signed-in Admin. Registers, grants the role directly (what the startup sync does for a
     /// listed email), then signs in again so the token carries the role.
     /// </summary>
