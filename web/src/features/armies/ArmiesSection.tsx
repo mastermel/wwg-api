@@ -144,6 +144,7 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
             sideId: null,
             color: freeColor((armies.data ?? []).map((army) => army.color)),
             nation: "None",
+            factionIds: [],
           }}
           commanders={commanderOptions(members.data ?? [])}
           sides={sideOptions(sides.data)}

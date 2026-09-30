@@ -1,7 +1,7 @@
 import { Button, Grid, Group, Select, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconTrash, IconUser, IconUserMinus } from "@tabler/icons-react";
+import { IconBooks, IconEdit, IconTrash, IconUser, IconUserMinus } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -63,12 +63,20 @@ export function ArmyPage({ campaignId, armyId }: { campaignId: string; armyId: s
   );
 }
 
-/** The army's flag and side, and who commands it. */
+/** The army's flag and side, the factions it takes its units from, and who commands it. */
 function ArmySummaryLine({ army }: { army: ArmyResponse }) {
   const { user } = useSession();
   return (
     <Group gap="lg" wrap="wrap">
       <ArmyBadge army={army}>{army.side?.name ?? "Unassigned"}</ArmyBadge>
+      <Group gap={6} wrap="nowrap">
+        <IconBooks size={16} aria-hidden />
+        <Text span inherit>
+          {army.factions.length
+            ? `Units from ${army.factions.map((faction) => faction.name).join(", ")}`
+            : "No factions yet"}
+        </Text>
+      </Group>
       <Group gap={6} wrap="nowrap">
         <IconUser size={16} aria-hidden />
         <Text span inherit>
@@ -176,7 +184,7 @@ function CommanderControl({ army }: { army: ArmyResponse }) {
   );
 }
 
-/** Edit the army's name, side, colour and nation (Umpire or Admin): the page's action. */
+/** Edit the army's name, side, colour, nation and factions (Umpire or Admin): the page's action. */
 function EditArmyButton({ army }: { army: ArmyResponse }) {
   const online = useOnline();
   const queryClient = useQueryClient();
@@ -204,13 +212,14 @@ function EditArmyButton({ army }: { army: ArmyResponse }) {
             sideId: army.side?.id ?? null,
             color: army.color,
             nation: army.nation,
+            factionIds: army.factions.map((faction) => faction.id),
           }}
           sides={sideOptions(sides.data)}
           onClose={editModal.close}
-          onSubmit={async ({ name, sideId, color, nation }) => {
+          onSubmit={async ({ name, sideId, color, nation, factionIds }) => {
             const updated = await update.mutateAsync({
               id: army.id,
-              data: { name, sideId, color, nation },
+              data: { name, sideId, color, nation, factionIds },
             });
             queryClient.setQueryData(getGetArmyQueryKey(army.id), updated);
             notifications.show({ color: "green", message: `Saved ${updated.name}.` });

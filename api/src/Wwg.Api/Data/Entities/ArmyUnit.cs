@@ -33,12 +33,26 @@ internal static class UnitStats
         MaxPoints = 100;
 }
 
-/// <summary>A unit in an army. Every member sees it; where it is follows the visibility rule.</summary>
+/// <summary>
+/// A unit in an army: a copy of a library unit, taken when it joined the campaign (decision 0015),
+/// so what happens in the campaign changes only this. Every member sees it; where it is follows
+/// the visibility rule.
+/// </summary>
 internal sealed class ArmyUnit : Entity
 {
     public Guid ArmyId { get; set; }
 
     public Army Army { get; set; } = null!; // Set by EF Core when loaded.
+
+    /// <summary>The army's campaign, kept here so a library unit is in it at most once.</summary>
+    public Guid CampaignId { get; set; }
+
+    public Campaign Campaign { get; set; } = null!; // Set by EF Core when loaded.
+
+    /// <summary>The library unit it was copied from.</summary>
+    public Guid UnitId { get; set; }
+
+    public Unit Unit { get; set; } = null!; // Set by EF Core when loaded.
 
     public required string Name { get; set; }
 

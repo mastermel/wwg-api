@@ -18,5 +18,19 @@ internal sealed class ArmyUnitConfiguration : IEntityTypeConfiguration<ArmyUnit>
             .WithMany()
             .HasForeignKey(u => u.ArmyId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder
+            .HasOne(u => u.Campaign)
+            .WithMany()
+            .HasForeignKey(u => u.CampaignId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // A library unit in use can't be deleted (the handler says so first), and is in at most
+        // one army per campaign.
+        builder
+            .HasOne(u => u.Unit)
+            .WithMany()
+            .HasForeignKey(u => u.UnitId)
+            .OnDelete(DeleteBehavior.NoAction);
+        builder.HasIndex(u => new { u.CampaignId, u.UnitId }).IsUnique();
     }
 }

@@ -2314,11 +2314,14 @@ build on positions.
       can't be deleted (409; a unit in a campaign, from 41d). The **Library** pages (`/library`,
       `/library/{id}`; every signed-in user; in the navigation): factions, each with its units,
       and for Managers and Admins create, edit and delete.
-    - **41d. Army factions, and units from the library:** `ArmyFaction` (an army's selected
-      factions, in **Edit army**; `UpdateArmy`'s `factionIds`); `ArmyUnit` gains `UnitId` (→ the
-      library unit) and `CampaignId`, unique together. The migration puts a copy of each army unit
-      into the library in a faction per army nation ("Unsorted" for none), links them, and
-      selects that faction for the army.
+    - ✅ **41d. Army factions, and units from the library:** `ArmyFaction` (an army's selected
+      factions, in **New army** and **Edit army**; `factionIds` on `CreateArmy` and `UpdateArmy`,
+      where null leaves them as they are; `ArmyResponse.factions`); `ArmyUnit` gains `UnitId` (→
+      the library unit) and `CampaignId`, unique together (`ArmyUnitResponse` carries `unitId`
+      and its `factionId`). The migration puts a copy of each army unit into the library in a
+      faction per army nation ("Unsorted" for none; the library unit takes the army unit's ID),
+      links them, and selects that faction for the army; `ArmyUnits` is rebuilt for the foreign
+      keys (it has no triggers).
       `POST /api/armies/{id}/units { unitIds }` adds library units from the army's factions (409
       for one from another faction, or already in the campaign); `PUT` / `DELETE
       /api/army-units/{id}` edit the campaign's copy and remove it (setup only). Orders,

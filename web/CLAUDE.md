@@ -85,7 +85,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - The library (decision 0015) is `features/library`: every signed-in user views it; edits are
   shown only to `canEditLibrary(user)` (Managers and Admins). `UnitFormModal` (`features/units`)
-  is shared by library units and the army's copies of them.
+  is shared by library units and the army's copies of them. An army takes units only from its
+  factions (the army form's **Factions**), through `AddUnitsModal`; both fetch the library afresh
+  each time they open (`refetchOnMount: "always"`), as a Manager may have changed it.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

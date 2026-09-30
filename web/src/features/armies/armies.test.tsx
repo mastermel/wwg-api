@@ -46,6 +46,7 @@ const commander = (member: CampaignMemberResponse) => ({
 });
 
 /** An army's side, colour and nation: none, the given colour, a plain flag. */
+const factionId = "0192f5c1-0000-7000-8000-0000000fac01";
 const identity = (color: ArmyColor) => ({ side: null, color, nation: "None" as const });
 
 const armies: ArmySummary[] = [
@@ -60,6 +61,7 @@ const firstCorps: ArmyResponse = {
   campaignName: "The Peninsular War",
   name: "First Corps",
   commander: commander(me),
+  factions: [],
   units: [],
   createdAt: "2026-09-01T12:00:00Z",
   updatedAt: "2026-09-01T12:00:00Z",
@@ -152,6 +154,7 @@ describe("armies on the campaign page", () => {
         sideId: null,
         color: "Green",
         nation: "None",
+        factionIds: [],
       },
     ]);
   });
@@ -214,12 +217,15 @@ describe("army page", () => {
     expect(screen.queryByRole("button", { name: "Edit army" })).not.toBeInTheDocument();
   });
 
-  it("lets the Umpire change the army's side, colour and nation", async () => {
+  it("lets the Umpire change the army's side, colour, nation and factions", async () => {
     serveCampaign("Umpire");
     const bodies: unknown[] = [];
     server.use(
       http.get(`*/api/campaigns/${campaignId}/sides`, () =>
         HttpResponse.json([{ id: sideId, name: "Coalition", armyCount: 0 }]),
+      ),
+      http.get("*/api/factions", () =>
+        HttpResponse.json([{ id: factionId, name: "Prussian", nation: "Prussia", unitCount: 3 }]),
       ),
       http.put(`*/api/armies/${armyId}`, async ({ request }) => {
         const body = (await request.json()) as object;
@@ -238,10 +244,14 @@ describe("army page", () => {
     await user.click(await dialog.findByRole("option", { name: "Gold", hidden: true }));
     await user.click(dialog.getByRole("combobox", { name: "Nation" }));
     await user.click(await dialog.findByRole("option", { name: "Prussia", hidden: true }));
+    await user.click(dialog.getByRole("combobox", { name: "Factions" }));
+    await user.click(await dialog.findByRole("option", { name: "Prussian", hidden: true }));
     await user.click(dialog.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByText("Saved First Corps.")).toBeInTheDocument();
-    expect(bodies).toEqual([{ name: "First Corps", sideId, color: "Gold", nation: "Prussia" }]);
+    expect(bodies).toEqual([
+      { name: "First Corps", sideId, color: "Gold", nation: "Prussia", factionIds: [factionId] },
+    ]);
   });
 
   it("lets the Umpire change the commander", async () => {

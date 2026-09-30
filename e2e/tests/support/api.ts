@@ -1,11 +1,13 @@
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 /**
  * The API as the signed-in user of `page`: for setting things up that the test isn't about
  * (e2e/CLAUDE.md). Swaps the browser's refresh cookie for an access token, as the app does.
  */
-export async function apiAs(page: Page) {
-  const request = page.context().request;
+export const apiAs = (page: Page) => apiIn(page.context().request);
+
+/** The API as whoever `request`'s refresh cookie signs in. */
+export async function apiIn(request: APIRequestContext) {
   const refreshed = await request.post("/api/auth/refresh");
   if (!refreshed.ok()) throw new Error(`Refreshing failed: ${String(refreshed.status())}`);
   const { accessToken } = (await refreshed.json()) as { accessToken: string };

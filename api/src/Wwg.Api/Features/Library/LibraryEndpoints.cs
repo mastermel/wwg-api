@@ -119,7 +119,10 @@ internal static class LibraryEndpoints
         return TypedResults.Ok((await LoadAsync(db, id, cancellationToken))!); // Just saved.
     }
 
-    /// <summary>Deletes an empty faction (Manager or Admin). 409 while it has units.</summary>
+    /// <summary>
+    /// Deletes an empty faction (Manager or Admin). 409 while it has units, or an army takes units
+    /// from it.
+    /// </summary>
     internal static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteFactionAsync(
         Guid id,
         WwgDbContext db,
@@ -134,6 +137,11 @@ internal static class LibraryEndpoints
         if (await db.Units.AnyAsync(u => u.FactionId == id, cancellationToken))
         {
             return InUse("This faction has units: delete or move them first.");
+        }
+
+        if (await db.ArmyFactions.AnyAsync(f => f.FactionId == id, cancellationToken))
+        {
+            return InUse("A campaign's army takes its units from this faction.");
         }
 
         await db.Factions.Where(f => f.Id == id).ExecuteDeleteAsync(cancellationToken);
@@ -179,15 +187,22 @@ internal static class LibraryEndpoints
         return TypedResults.Ok(ToResponse(unit));
     }
 
-    /// <summary>Deletes a library unit (Manager or Admin).</summary>
-    internal static async Task<Results<NoContent, NotFound>> DeleteUnitAsync(
+    /// <summary>Deletes a library unit (Manager or Admin). 409 while it's in a campaign.</summary>
+    internal static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteUnitAsync(
         Guid id,
         WwgDbContext db,
         CancellationToken cancellationToken
-    ) =>
-        await db.Units.Where(u => u.Id == id).ExecuteDeleteAsync(cancellationToken) == 0
+    )
+    {
+        if (await db.ArmyUnits.AnyAsync(u => u.UnitId == id, cancellationToken))
+        {
+            return InUse("It's in a campaign's army.");
+        }
+
+        return await db.Units.Where(u => u.Id == id).ExecuteDeleteAsync(cancellationToken) == 0
             ? TypedResults.NotFound()
             : TypedResults.NoContent();
+    }
 
     private static void Apply(Unit unit, SaveUnitRequest request) =>
         (unit.Name, unit.Type, unit.FightingFactor, unit.Points) = (

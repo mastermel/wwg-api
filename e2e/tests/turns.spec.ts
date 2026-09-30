@@ -4,6 +4,7 @@ import { latestEmailText } from "./support/mailpit.ts";
 import { apiAs } from "./support/api.ts";
 import { clickMapPart } from "./support/map.ts";
 import { approveAndStartNext, holdAndSubmit, startedCampaign } from "./support/turns.ts";
+import { browserOf, libraryFaction } from "./support/library.ts";
 
 test("a commander moves one unit, holds another and submits the turn", async ({ signUp }) => {
   test.slow();
@@ -135,16 +136,17 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
   await approveAndStartNext(umpire, campaignId, armyId);
   // A second army joins, with a unit of its own on the map.
   const api = await apiAs(umpire.page);
+  const prussian = await libraryFaction(browserOf(umpire.page), "Prussian", "Prussia", [
+    { name: "1st Brigade", type: "LightInfantry", fightingFactor: 4, points: 20 },
+  ]);
   const prussians = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
     name: "Prussian I Corps",
     commanderMemberId: null,
     nation: "Prussia",
+    factionIds: [prussian.id],
   });
-  const brigade = await api.post<{ id: string }>(`/api/armies/${prussians.id}/units`, {
-    name: "1st Brigade",
-    type: "LightInfantry",
-    fightingFactor: 4,
-    points: 20,
+  const [brigade] = await api.post<{ id: string }[]>(`/api/armies/${prussians.id}/units`, {
+    unitIds: prussian.units.map((unit) => unit.id),
   });
   await api.put(`/api/army-units/${brigade.id}/placement`, { q: 2, r: 0 });
 

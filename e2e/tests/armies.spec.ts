@@ -1,4 +1,5 @@
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
+import { addFromLibrary, browserOf, chooseFaction, libraryFaction } from "./support/library.ts";
 import { expect, test, type User } from "./support/fixtures.ts";
 
 async function addArmy(umpire: User, name: string, commander?: User) {
@@ -35,27 +36,22 @@ test("every member sees every army and its units; only the Umpire changes them",
     umpire.page.getByRole("region", { name: "Members" }).getByRole("row", { name: /Arthur/ }),
   ).toContainText("First Corps");
 
-  // The Umpire adds units to First Corps.
+  // The Umpire has First Corps take units from a library faction, and adds two of them.
+  const faction = await libraryFaction(browserOf(umpire.page), "British", "Britain", [
+    { name: "1st Division", type: "LineInfantry", fightingFactor: 5, points: 30 },
+    { name: "Light Division", type: "LightInfantry", fightingFactor: 6, points: 25 },
+  ]);
   await umpire.page.getByRole("link", { name: "First Corps" }).click();
   const units = umpire.page.getByRole("region", { name: "Units" });
-  for (const unit of [
-    { name: "1st Division", type: "Line Infantry", ff: "5", points: "30" },
-    { name: "Light Division", type: "Light Infantry", ff: "6", points: "25" },
-  ]) {
-    await units.getByRole("button", { name: "Add unit" }).click();
-    const dialog = umpire.page.getByRole("dialog");
-    await dialog.getByRole("textbox", { name: "Name" }).fill(unit.name);
-    await dialog.getByRole("combobox", { name: "Type" }).click();
-    await dialog.getByRole("option", { name: unit.type }).click();
-    await dialog.getByRole("textbox", { name: "Fighting Factor (FF)" }).fill(unit.ff);
-    await dialog.getByRole("textbox", { name: "Points" }).fill(unit.points);
-    await dialog.getByRole("button", { name: "Add unit" }).click();
-    await expect(units.getByRole("row").filter({ hasText: unit.name })).toContainText(unit.type);
-  }
+  await chooseFaction(umpire.page, faction.name);
+  await addFromLibrary(umpire.page, ["1st Division", "Light Division"]);
+  await expect(units.getByRole("row").filter({ hasText: "1st Division" })).toContainText(
+    "Line Infantry",
+  );
   await expect(units.getByRole("rowheader", { name: "2 units" })).toBeVisible();
   await expect(units.getByRole("row", { name: /2 units/ })).toContainText("55");
 
-  // The Umpire edits one.
+  // The Umpire edits the campaign's copy of one.
   await units.getByRole("button", { name: "Edit Light Division" }).click();
   await umpire.page
     .getByRole("dialog")
@@ -99,26 +95,23 @@ test("every member sees every army and its units; only the Umpire changes them",
   ).toHaveCount(0);
 });
 
-test("the Umpire deletes a unit after confirming", async ({ signUp }) => {
+test("the Umpire removes a unit after confirming", async ({ signUp }) => {
   const umpire = await signUp("Ada");
+  const faction = await libraryFaction(browserOf(umpire.page), "Prussian", "Prussia", [
+    { name: "IV Corps", type: "LineInfantry" },
+  ]);
   await createCampaign(umpire.page, "The Hundred Days");
   await addArmy(umpire, "Prussian Army");
   await umpire.page.getByRole("link", { name: "Prussian Army" }).click();
   const units = umpire.page.getByRole("region", { name: "Units" });
-  await units.getByRole("button", { name: "Add unit" }).click();
-  const dialog = umpire.page.getByRole("dialog");
-  await dialog.getByRole("textbox", { name: "Name" }).fill("IV Corps");
-  await dialog.getByRole("combobox", { name: "Type" }).click();
-  await dialog.getByRole("option", { name: "Line Infantry" }).click();
-  await dialog.getByRole("textbox", { name: "Fighting Factor (FF)" }).fill("5");
-  await dialog.getByRole("textbox", { name: "Points" }).fill("20");
-  await dialog.getByRole("button", { name: "Add unit" }).click();
+  await chooseFaction(umpire.page, faction.name);
+  await addFromLibrary(umpire.page, ["IV Corps"]);
   await expect(units.getByRole("row", { name: /IV Corps/ })).toBeVisible();
 
-  await units.getByRole("button", { name: "Delete IV Corps" }).click();
-  await umpire.page.getByRole("dialog").getByRole("button", { name: "Delete unit" }).click();
+  await units.getByRole("button", { name: "Remove IV Corps" }).click();
+  await umpire.page.getByRole("dialog").getByRole("button", { name: "Remove unit" }).click();
 
-  await expect(umpire.page.getByText("Deleted IV Corps.")).toBeVisible();
+  await expect(umpire.page.getByText("Removed IV Corps.")).toBeVisible();
   await expect(units.getByText("No units yet")).toBeVisible();
 });
 

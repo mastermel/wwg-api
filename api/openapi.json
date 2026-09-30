@@ -128,8 +128,8 @@
         "tags": [
           "ArmyUnits"
         ],
-        "summary": "Adds a unit to the army (Umpire or Admin).",
-        "operationId": "CreateArmyUnit",
+        "summary": "Adds library units to the army (Umpire or Admin), each as the campaign's own copy. Only\nunits from the army's factions (409), and none already in the campaign (409).",
+        "operationId": "AddArmyUnits",
         "parameters": [
           {
             "name": "id",
@@ -145,19 +145,42 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateArmyUnitRequest"
+                "$ref": "#/components/schemas/AddArmyUnitsRequest"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Created",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ArmyUnitResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArmyUnitResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1936,7 +1959,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Adds an army, optionally with a commander and side (Umpire or Admin). A campaign has at\nmost 8 armies (409). Without a colour it gets the first one no other army has.",
+        "summary": "Adds an army, optionally with a commander, side and factions (Umpire or Admin). A campaign has at\nmost 8 armies (409). Without a colour it gets the first one no other army has.",
         "operationId": "CreateArmy",
         "parameters": [
           {
@@ -2038,7 +2061,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Changes an army's name, side, colour and nation (Umpire or Admin).",
+        "summary": "Changes an army's name, side, colour, nation and factions (Umpire or Admin). A faction the\narmy has units from can't be dropped (409).",
         "operationId": "UpdateArmy",
         "parameters": [
           {
@@ -2078,6 +2101,16 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -2218,7 +2251,7 @@
         "tags": [
           "ArmyUnits"
         ],
-        "summary": "Changes a unit's name, type, Fighting Factor and points (Umpire or Admin).",
+        "summary": "Changes the campaign's copy of a unit: name, type, Fighting Factor and points (Umpire or\nAdmin). The library unit stays as it is.",
         "operationId": "UpdateArmyUnit",
         "parameters": [
           {
@@ -2263,7 +2296,7 @@
         "tags": [
           "ArmyUnits"
         ],
-        "summary": "Deletes a unit (Umpire or Admin).",
+        "summary": "Removes a unit from the army (Umpire or Admin), while the campaign is setting up; the\nlibrary unit stays.",
         "operationId": "DeleteArmyUnit",
         "parameters": [
           {
@@ -3081,7 +3114,7 @@
         "tags": [
           "Library"
         ],
-        "summary": "Deletes an empty faction (Manager or Admin). 409 while it has units.",
+        "summary": "Deletes an empty faction (Manager or Admin). 409 while it has units, or an army takes units\nfrom it.",
         "operationId": "DeleteFaction",
         "parameters": [
           {
@@ -3243,7 +3276,7 @@
         "tags": [
           "Library"
         ],
-        "summary": "Deletes a library unit (Manager or Admin).",
+        "summary": "Deletes a library unit (Manager or Admin). 409 while it's in a campaign.",
         "operationId": "DeleteUnit",
         "parameters": [
           {
@@ -3291,6 +3324,25 @@
   },
   "components": {
     "schemas": {
+      "AddArmyUnitsRequest": {
+        "required": [
+          "unitIds"
+        ],
+        "type": "object",
+        "properties": {
+          "unitIds": {
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The library units: none already in the campaign."
+          }
+        },
+        "description": "Adds library units to an army, from the factions it takes units from."
+      },
       "AdminCampaignSummary": {
         "required": [
           "id",
@@ -3373,6 +3425,30 @@
         },
         "description": "The Player commanding an army."
       },
+      "ArmyFactionResponse": {
+        "required": [
+          "id",
+          "name",
+          "nation"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The faction's ID.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "nation": {
+            "description": "Whose flag it shows.",
+            "$ref": "#/components/schemas/Nation"
+          }
+        },
+        "description": "A library faction an army takes its units from."
+      },
       "ArmyResponse": {
         "required": [
           "id",
@@ -3383,6 +3459,7 @@
           "side",
           "color",
           "nation",
+          "factions",
           "units",
           "createdAt",
           "updatedAt"
@@ -3436,6 +3513,13 @@
           "nation": {
             "description": "The nation it fights for, drawn as its flag.",
             "$ref": "#/components/schemas/Nation"
+          },
+          "factions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArmyFactionResponse"
+            },
+            "description": "The library factions it takes its units from, sorted by name."
           },
           "units": {
             "type": "array",
@@ -3695,6 +3779,8 @@
         "required": [
           "id",
           "armyId",
+          "unitId",
+          "factionId",
           "name",
           "type",
           "fightingFactor",
@@ -3710,6 +3796,16 @@
           "armyId": {
             "type": "string",
             "description": "The army it's in.",
+            "format": "uuid"
+          },
+          "unitId": {
+            "type": "string",
+            "description": "The library unit it was copied from.",
+            "format": "uuid"
+          },
+          "factionId": {
+            "type": "string",
+            "description": "That library unit's faction.",
             "format": "uuid"
           },
           "name": {
@@ -3731,7 +3827,7 @@
             "format": "int32"
           }
         },
-        "description": "A unit in an army."
+        "description": "A unit in an army: the campaign's copy of a library unit."
       },
       "AssignCommanderRequest": {
         "required": [
@@ -4167,45 +4263,21 @@
                 "$ref": "#/components/schemas/Nation"
               }
             ]
+          },
+          "factionIds": {
+            "maxItems": 20,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The library factions it takes its units from, or null for none yet."
           }
         },
         "description": "Adds an army to the campaign (at most 8)."
-      },
-      "CreateArmyUnitRequest": {
-        "required": [
-          "name",
-          "type",
-          "fightingFactor",
-          "points"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string",
-            "description": "The unit's name."
-          },
-          "type": {
-            "description": "What kind of troops it is.",
-            "$ref": "#/components/schemas/UnitType"
-          },
-          "fightingFactor": {
-            "maximum": 9,
-            "minimum": 1,
-            "type": "integer",
-            "description": "Its Fighting Factor (\"FF\"), 1–9.",
-            "format": "int32"
-          },
-          "points": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer",
-            "description": "What it's worth, 0–100.",
-            "format": "int32"
-          }
-        },
-        "description": "Adds a unit to an army."
       },
       "CreateCampaignRequest": {
         "required": [
@@ -5342,9 +5414,21 @@
           "nation": {
             "description": "The nation it fights for, drawn as its flag.",
             "$ref": "#/components/schemas/Nation"
+          },
+          "factionIds": {
+            "maxItems": 20,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The library factions it takes its units from (one it has units from can't be dropped), or null\nto leave them as they are."
           }
         },
-        "description": "Changes an army's name, side, colour and nation."
+        "description": "Changes an army's name, side, colour, nation and factions."
       },
       "UpdateArmyUnitRequest": {
         "required": [
@@ -5380,7 +5464,7 @@
             "format": "int32"
           }
         },
-        "description": "Changes a unit."
+        "description": "Changes the campaign's copy of a unit (the library's stays as it is)."
       },
       "UpdateCampaignMapRequest": {
         "required": [

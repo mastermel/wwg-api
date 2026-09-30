@@ -1,5 +1,6 @@
 import { apiAs, waterlooMap } from "./api.ts";
 import { createCampaign, join, joinLink } from "./campaigns.ts";
+import { browserOf, libraryFaction } from "./library.ts";
 import type { User } from "./fixtures.ts";
 
 /**
@@ -14,7 +15,7 @@ export const startingPlaces = {
 /**
  * A campaign the Umpire has set up and started through the API (the tests aren't about that):
  * the map's area, a side, and the commander's army "Armée du Nord" with the Imperial Guard
- * and the Reserve Artillery placed apart, in hexes `hexSize` metres across (3 miles unless given;
+ * and the Reserve Artillery (from a library faction of its own) placed apart, in hexes `hexSize` metres across (3 miles unless given;
  * both units are line infantry and foot artillery, which move two hexes a turn). Turn 1 is open.
  * Leaves the Umpire on the campaign.
  */
@@ -35,23 +36,23 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
   const members = await api.get<{ id: string; firstName: string }[]>(
     `/api/campaigns/${campaignId}/members`,
   );
+  const faction = await libraryFaction(browserOf(umpire.page), "French", "France", [
+    { name: "Imperial Guard", type: "LineInfantry" },
+    { name: "Reserve Artillery", type: "FootArtillery" },
+  ]);
   const army = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
     name: "Armée du Nord",
     commanderMemberId: members.find((m) => m.firstName === commander.firstName)?.id ?? null,
     sideId: side.id,
     nation: "France",
+    factionIds: [faction.id],
   });
-  for (const [unitName, type] of [
-    ["Imperial Guard", "LineInfantry"],
-    ["Reserve Artillery", "FootArtillery"],
-  ] as const) {
-    const unit = await api.post<{ id: string }>(`/api/armies/${army.id}/units`, {
-      name: unitName,
-      type,
-      fightingFactor: 6,
-      points: 30,
-    });
-    await api.put(`/api/army-units/${unit.id}/placement`, startingPlaces[unitName]);
+  const units = await api.post<{ id: string; name: keyof typeof startingPlaces }[]>(
+    `/api/armies/${army.id}/units`,
+    { unitIds: faction.units.map((unit) => unit.id) },
+  );
+  for (const unit of units) {
+    await api.put(`/api/army-units/${unit.id}/placement`, startingPlaces[unit.name]);
   }
   await api.post(`/api/campaigns/${campaignId}/start`, null);
   return { campaignUrl, campaignId, armyId: army.id };

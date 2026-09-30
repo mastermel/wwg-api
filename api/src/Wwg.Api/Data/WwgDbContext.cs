@@ -24,6 +24,8 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
     /// <summary>The library's units (decision 0015).</summary>
     public DbSet<Unit> Units => Set<Unit>();
 
+    public DbSet<ArmyFaction> ArmyFactions => Set<ArmyFaction>();
+
     public DbSet<CampaignMap> CampaignMaps => Set<CampaignMap>();
 
     public DbSet<CampaignTurn> CampaignTurns => Set<CampaignTurn>();

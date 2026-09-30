@@ -6,7 +6,6 @@ using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Account;
 using Wwg.Api.Features.Armies;
-using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests;
@@ -27,21 +26,24 @@ public sealed class ConcurrencyTests : ApiTest
         );
 
     [Fact]
-    public async Task CreateUnit_ArmyDeletedBeforeTheSave_Returns409()
+    public async Task AddArmyUnits_ArmyDeletedBeforeTheSave_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
+        var unitId = await LibrarySteps.CreateUnitAsync(
+            scenario.As(Role.Admin),
+            scenario.FactionId,
+            "2nd Division"
+        );
         _interceptor.BeforeNext(
             sql => sql.Contains("INSERT INTO \"ArmyUnits\"", StringComparison.Ordinal),
             $"DELETE FROM \"Armies\" WHERE \"Id\" = '{Sql(scenario.ArmyId)}';"
         );
 
-        using var response = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest("2nd Division", UnitType.LightInfantry, 4, 10),
-                CancellationToken
-            );
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(Role.Umpire),
+            scenario.ArmyId,
+            unitId
+        );
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }

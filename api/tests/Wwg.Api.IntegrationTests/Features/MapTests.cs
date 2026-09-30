@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
-using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.IntegrationTests.Support;
@@ -288,16 +287,6 @@ public sealed class MapTests : ApiTest
         }
     }
 
-    private static async Task<Guid> AddUnitAsync(CampaignScenario scenario)
-    {
-        using var created = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest("Brigade", UnitType.LineInfantry, 3, 10),
-                CancellationToken
-            );
-        return (await created.Content.ReadAsAsync<ArmyUnitResponse>())?.Id
-            ?? throw new InvalidOperationException("No unit.");
-    }
+    private static Task<Guid> AddUnitAsync(CampaignScenario scenario) =>
+        LibrarySteps.AddUnitAsync(scenario, "Brigade", fightingFactor: 3, points: 10);
 }

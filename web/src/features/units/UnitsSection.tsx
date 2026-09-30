@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getGetArmyQueryKey } from "@/api/generated/endpoints/armies/armies";
 import {
-  useCreateArmyUnit,
   useDeleteArmyUnit,
   useUpdateArmyUnit,
 } from "@/api/generated/endpoints/army-units/army-units";
@@ -14,6 +13,7 @@ import type { ArmyResponse, ArmyUnitResponse } from "@/api/generated/model";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { EmptyState } from "@/components/EmptyState";
 import { Section } from "@/components/Section";
+import { AddUnitsModal } from "@/features/units/AddUnitsModal";
 import classes from "@/features/units/UnitsSection.module.css";
 import { UnitFormModal } from "@/features/units/UnitFormModal";
 import { unitTypeLabels } from "@/features/units/unit-types";
@@ -22,13 +22,12 @@ import { useOnline } from "@/lib/use-online";
 import { errorMessage } from "@/lib/errors";
 
 /**
- * The army's units. Only its commander, the Umpire and Admins get this far (the army page is
- * theirs); the Umpire (or an Admin) can add, edit and delete them.
+ * The army's units: the campaign's copies of library units. The Umpire (or an Admin) adds them
+ * from the army's factions, and edits and removes the copies.
  */
 export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: boolean }) {
   const online = useOnline();
   const queryClient = useQueryClient();
-  const create = useCreateArmyUnit();
   const update = useUpdateArmyUnit();
   const remove = useDeleteArmyUnit();
   const [adding, addModal] = useDisclosure(false);
@@ -40,12 +39,12 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
   const confirmDelete = async (unit: ArmyUnitResponse) => {
     try {
       await remove.mutateAsync({ id: unit.id });
-      notifications.show({ color: "green", message: `Deleted ${unit.name}.` });
+      notifications.show({ color: "green", message: `Removed ${unit.name}.` });
       await refresh();
     } catch (error) {
       notifications.show({
         color: "red",
-        message: errorMessage(error, "The unit couldn't be deleted. Try again."),
+        message: errorMessage(error, "The unit couldn't be removed. Try again."),
       });
     }
     deleting.close();
@@ -54,7 +53,11 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
   return (
     <Section
       title="Units"
-      description={manager ? "Name, type, Fighting Factor (FF) and points." : undefined}
+      description={
+        manager
+          ? "From the library. Editing one here changes this campaign's copy only."
+          : undefined
+      }
       flush
       actions={
         manager && (
@@ -64,14 +67,16 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
             onClick={addModal.open}
             disabled={!online}
           >
-            Add unit
+            Add units
           </Button>
         )
       }
     >
       {army.units.length === 0 ? (
         <EmptyState icon={IconShield} title="No units yet">
-          {manager ? "Add one with Add unit." : "The Umpire hasn't added any yet."}
+          {manager
+            ? "Choose them from the library with Add units."
+            : "The Umpire hasn't added any yet."}
         </EmptyState>
       ) : (
         <Table horizontalSpacing="lg" highlightOnHover>
@@ -119,7 +124,7 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
                       <ActionIcon
                         variant="subtle"
                         color="red"
-                        aria-label={`Delete ${unit.name}`}
+                        aria-label={`Remove ${unit.name}`}
                         onClick={() => {
                           deleting.open(unit);
                         }}
@@ -148,18 +153,7 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
           </Table.Tfoot>
         </Table>
       )}
-      {adding && (
-        <UnitFormModal
-          title="Add unit"
-          submitLabel="Add unit"
-          onClose={addModal.close}
-          onSubmit={async (values) => {
-            const unit = await create.mutateAsync({ id: army.id, data: values });
-            notifications.show({ color: "green", message: `Added ${unit.name}.` });
-            await refresh();
-          }}
-        />
-      )}
+      {adding && <AddUnitsModal army={army} onClose={addModal.close} />}
       {editing && (
         <UnitFormModal
           title="Edit unit"
@@ -178,14 +172,15 @@ export function UnitsSection({ army, manager }: { army: ArmyResponse; manager: b
       <ConfirmModal
         opened={deleting.opened}
         onClose={deleting.close}
-        title="Delete this unit?"
-        confirmLabel="Delete unit"
+        title="Remove this unit?"
+        confirmLabel="Remove unit"
         onConfirm={() => {
           if (deleting.target) void confirmDelete(deleting.target);
         }}
         loading={remove.isPending}
       >
-        {deleting.target?.name} will be removed from {army.name}. This can&apos;t be undone.
+        {deleting.target?.name} will be removed from {army.name}, and any changes made to it here
+        lost. The library keeps its own.
       </ConfirmModal>
     </Section>
   );

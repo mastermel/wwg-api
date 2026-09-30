@@ -1,8 +1,6 @@
 using System.Net;
-using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
-using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.IntegrationTests.Support;
@@ -233,22 +231,10 @@ public sealed class OrderTests : ApiTest
     public async Task GiveOrder_UnitNotYetPlaced_Returns409()
     {
         using var scenario = await StartedAsync();
-        using var created = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest(
-                    "2nd Division",
-                    UnitType.LineInfantry,
-                    UnitStats.MinFightingFactor,
-                    UnitStats.MinPoints
-                ),
-                TestContext.Current.CancellationToken
-            );
-        var unit = await created.Content.ReadAsAsync<ArmyUnitResponse>();
+        var unit = await LibrarySteps.AddUnitAsync(scenario, "2nd Division");
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
-        using var response = await TurnSteps.OrderAsync(scenario, turn.Id, Hold, unit?.Id);
+        using var response = await TurnSteps.OrderAsync(scenario, turn.Id, Hold, unit);
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }

@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
-using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.IntegrationTests.Support;
@@ -210,13 +209,7 @@ public sealed class TurnTests : ApiTest
                 CancellationToken
             );
         var reserveId = (await reserve.Content.ReadAsAsync<ArmyResponse>())!.Id;
-        using var unit = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
-                CancellationToken
-            );
+        await LibrarySteps.AddUnitAsync(scenario, "Guard", armyId: reserveId);
 
         using var response = await TurnSteps.StartAsync(scenario);
 
@@ -255,14 +248,7 @@ public sealed class TurnTests : ApiTest
     {
         using var scenario = await ReadyAsync();
         using var started = await TurnSteps.StartAsync(scenario);
-        using var created = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest("Hussars", UnitType.LightCavalry, 4, 15),
-                CancellationToken
-            );
-        var hussars = (await created.Content.ReadAsAsync<ArmyUnitResponse>())!.Id;
+        var hussars = await LibrarySteps.AddUnitAsync(scenario, "Hussars", UnitType.LightCavalry);
 
         using var response = await TurnSteps.PlaceAsync(scenario, hussars, new Hex(2, -1));
 
@@ -436,14 +422,7 @@ public sealed class TurnTests : ApiTest
                 CancellationToken
             );
         var reserveId = (await reserve.Content.ReadAsAsync<ArmyResponse>())!.Id;
-        using var unit = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{reserveId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest("Guard", UnitType.LineInfantry, 6, 30),
-                CancellationToken
-            );
-        var guard = (await unit.Content.ReadAsAsync<ArmyUnitResponse>())!.Id;
+        var guard = await LibrarySteps.AddUnitAsync(scenario, "Guard", armyId: reserveId);
 
         using var placed = await TurnSteps.PlaceAsync(scenario, guard, new Hex(-2, 2));
 

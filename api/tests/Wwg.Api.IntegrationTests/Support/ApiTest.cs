@@ -123,8 +123,8 @@ public abstract class ApiTest : IAsyncDisposable
 
     /// <summary>
     /// A campaign created by its Umpire through the API, with two Players who joined with the join
-    /// link: one commands the army "First Corps" (in the side "Coalition", with one unit,
-    /// "1st Division"), the other
+    /// link: one commands the army "First Corps" (in the side "Coalition", taking units from the
+    /// library's "French", with one unit, "1st Division"), the other
     /// commands nothing. Plus an Admin and a
     /// signed-in outsider.
     /// </summary>
@@ -157,17 +157,12 @@ public abstract class ApiTest : IAsyncDisposable
             new CreateSideRequest("Coalition"),
             f => f.Id
         );
-        var armyId = await PostForIdAsync<ArmyResponse>(
+        var (factionId, armyId, unitId) = await FirstArmyAsync(
+            admin,
             umpire,
-            $"/api/campaigns/{campaignId}/armies",
-            new CreateArmyRequest("First Corps", memberIds["COMMANDER@EXAMPLE.COM"], sideId),
-            a => a.Id
-        );
-        var unitId = await PostForIdAsync<ArmyUnitResponse>(
-            umpire,
-            $"/api/armies/{armyId}/units",
-            new CreateArmyUnitRequest("1st Division", UnitType.LineInfantry, 5, 20),
-            u => u.Id
+            campaignId,
+            memberIds["COMMANDER@EXAMPLE.COM"],
+            sideId
         );
 
         return new CampaignScenario(
@@ -177,6 +172,7 @@ public abstract class ApiTest : IAsyncDisposable
             memberIds["PLAYER@EXAMPLE.COM"],
             sideId,
             armyId,
+            factionId,
             unitId,
             new Dictionary<Role, HttpClient>
             {
@@ -187,6 +183,40 @@ public abstract class ApiTest : IAsyncDisposable
                 [Role.NonMember] = outsider,
             }
         );
+    }
+
+    /// <summary>
+    /// The army "First Corps", taking units from the library's "French" (made by the Admin), with
+    /// its unit "1st Division".
+    /// </summary>
+    private static async Task<(Guid FactionId, Guid ArmyId, Guid UnitId)> FirstArmyAsync(
+        HttpClient admin,
+        HttpClient umpire,
+        Guid campaignId,
+        Guid commanderMemberId,
+        Guid sideId
+    )
+    {
+        var factionId = await LibrarySteps.CreateFactionAsync(admin);
+        var libraryUnitId = await LibrarySteps.CreateUnitAsync(admin, factionId, "1st Division");
+        var armyId = await PostForIdAsync<ArmyResponse>(
+            umpire,
+            $"/api/campaigns/{campaignId}/armies",
+            new CreateArmyRequest(
+                "First Corps",
+                commanderMemberId,
+                sideId,
+                FactionIds: [factionId]
+            ),
+            a => a.Id
+        );
+        var unitId = await PostForIdAsync<List<ArmyUnitResponse>>(
+            umpire,
+            $"/api/armies/{armyId}/units",
+            new AddArmyUnitsRequest([libraryUnitId]),
+            units => units[0].Id
+        );
+        return (factionId, armyId, unitId);
     }
 
     /// <summary>The campaign's membership IDs, by the member's normalized (upper-case) email.</summary>

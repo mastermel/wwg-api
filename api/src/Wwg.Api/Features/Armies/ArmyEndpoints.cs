@@ -31,7 +31,8 @@ internal static class ArmyEndpoints
             .RequireCampaignAccess(CampaignAccess.Member, CampaignRouteId.Army);
         army.MapPut("", UpdateArmyAsync)
             .WithName("UpdateArmy")
-            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army);
+            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         army.MapDelete("", DeleteArmyAsync)
             .WithName("DeleteArmy")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army);
@@ -81,7 +82,7 @@ internal static class ArmyEndpoints
     }
 
     /// <summary>
-    /// Adds an army, optionally with a commander and side (Umpire or Admin). A campaign has at
+    /// Adds an army, optionally with a commander, side and factions (Umpire or Admin). A campaign has at
     /// most 8 armies (409). Without a colour it gets the first one no other army has.
     /// </summary>
     internal static async Task<
@@ -102,9 +103,16 @@ internal static class ArmyEndpoints
             return TooManyArmies();
         }
 
-        if (await InvalidSideAsync(db, id, request.SideId, cancellationToken) is { } badSide)
+        var factionIds = request.FactionIds?.Distinct().ToList() ?? [];
+        if (
+            (
+                await InvalidSideAsync(db, id, request.SideId, cancellationToken)
+                ?? await InvalidFactionsAsync(db, factionIds, cancellationToken)
+            ) is
+            { } invalidChoice
+        )
         {
-            return badSide;
+            return invalidChoice;
         }
 
         if (request.CommanderMemberId is { } memberId)
@@ -130,16 +138,11 @@ internal static class ArmyEndpoints
             }
         }
 
-        var army = new Army
-        {
-            CampaignId = id,
-            Name = request.Name,
-            CommanderId = request.CommanderMemberId,
-            SideId = request.SideId,
-            Color = request.Color ?? FreeColor(colors),
-            Nation = request.Nation ?? Nation.None,
-        };
+        var army = NewArmy(id, request, colors);
         db.Armies.Add(army);
+        db.ArmyFactions.AddRange(
+            factionIds.Select(f => new ArmyFaction { ArmyId = army.Id, FactionId = f })
+        );
         await TurnRules.JoinTurnsAsync(db, army, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -159,8 +162,13 @@ internal static class ArmyEndpoints
         CancellationToken cancellationToken
     ) => TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
 
-    /// <summary>Changes an army's name, side, colour and nation (Umpire or Admin).</summary>
-    internal static async Task<Results<Ok<ArmyResponse>, ValidationProblem>> UpdateArmyAsync(
+    /// <summary>
+    /// Changes an army's name, side, colour, nation and factions (Umpire or Admin). A faction the
+    /// army has units from can't be dropped (409).
+    /// </summary>
+    internal static async Task<
+        Results<Ok<ArmyResponse>, ValidationProblem, ProblemHttpResult>
+    > UpdateArmyAsync(
         Guid id,
         UpdateArmyRequest request,
         WwgDbContext db,
@@ -174,6 +182,42 @@ internal static class ArmyEndpoints
         )
         {
             return badSide;
+        }
+
+        if (request.FactionIds is { } requested)
+        {
+            var factionIds = requested.Distinct().ToList();
+            if (await InvalidFactionsAsync(db, factionIds, cancellationToken) is { } badFactions)
+            {
+                return badFactions;
+            }
+
+            var chosen = await db
+                .ArmyFactions.Where(f => f.ArmyId == id)
+                .ToListAsync(cancellationToken);
+            var dropped = chosen.Where(f => !factionIds.Contains(f.FactionId)).ToList();
+            var droppedIds = dropped.Select(f => f.FactionId).ToList();
+            var inUse = await db
+                .ArmyUnits.Where(u => u.ArmyId == id && droppedIds.Contains(u.Unit.FactionId))
+                .Select(u => u.Unit.Faction.Name)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            if (inUse.Count > 0)
+            {
+                return TypedResults.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Faction in use",
+                    detail: $"{army.Name} has units from {string.Join(", ", inUse)}: "
+                        + "remove them first."
+                );
+            }
+
+            db.ArmyFactions.RemoveRange(dropped);
+            db.ArmyFactions.AddRange(
+                factionIds
+                    .Where(f => !chosen.Exists(c => c.FactionId == f))
+                    .Select(f => new ArmyFaction { ArmyId = id, FactionId = f })
+            );
         }
 
         army.Name = request.Name;
@@ -204,12 +248,44 @@ internal static class ArmyEndpoints
                 }
             );
 
+    /// <summary>A validation problem on <c>factionIds</c> unless each is a library faction.</summary>
+    private static async Task<ValidationProblem?> InvalidFactionsAsync(
+        WwgDbContext db,
+        List<Guid> factionIds,
+        CancellationToken cancellationToken
+    ) =>
+        factionIds.Count == 0
+        || await db.Factions.CountAsync(f => factionIds.Contains(f.Id), cancellationToken)
+            == factionIds.Count
+            ? null
+            : TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["factionIds"] = ["There's no such faction in the library."],
+                }
+            );
+
     private static ProblemHttpResult TooManyArmies() =>
         TypedResults.Problem(
             statusCode: StatusCodes.Status409Conflict,
             title: "Too many armies",
             detail: $"A campaign has at most {Army.MaxPerCampaign} armies."
         );
+
+    private static Army NewArmy(
+        Guid campaignId,
+        CreateArmyRequest request,
+        List<ArmyColor> colors
+    ) =>
+        new()
+        {
+            CampaignId = campaignId,
+            Name = request.Name,
+            CommanderId = request.CommanderMemberId,
+            SideId = request.SideId,
+            Color = request.Color ?? FreeColor(colors),
+            Nation = request.Nation ?? Nation.None,
+        };
 
     /// <summary>The first colour no army has, or else the least used.</summary>
     private static ArmyColor FreeColor(List<ArmyColor> taken) =>
@@ -326,12 +402,23 @@ internal static class ArmyEndpoints
                 a.Side == null ? null : new ArmySide(a.Side.Id, a.Side.Name),
                 a.Color,
                 a.Nation,
+                db.ArmyFactions.Where(f => f.ArmyId == a.Id)
+                    .OrderBy(f => f.Faction.Name)
+                    .ThenBy(f => f.FactionId)
+                    .Select(f => new ArmyFactionResponse(
+                        f.FactionId,
+                        f.Faction.Name,
+                        f.Faction.Nation
+                    ))
+                    .ToList(),
                 db.ArmyUnits.Where(u => u.ArmyId == a.Id)
                     .OrderBy(u => u.Name)
                     .ThenBy(u => u.Id)
                     .Select(u => new ArmyUnitResponse(
                         u.Id,
                         u.ArmyId,
+                        u.UnitId,
+                        u.Unit.FactionId,
                         u.Name,
                         u.Type,
                         u.FightingFactor,

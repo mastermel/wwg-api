@@ -1,5 +1,7 @@
 import { admin } from "./support/accounts.ts";
 import { scan } from "./support/axe.ts";
+import { createCampaign } from "./support/campaigns.ts";
+import { addFromLibrary, browserOf, chooseFaction, libraryFaction } from "./support/library.ts";
 import { expect, test } from "./support/fixtures.ts";
 
 test("an Admin makes a Manager, who builds the library that everyone sees", async ({
@@ -58,4 +60,40 @@ test("an Admin makes a Manager, who builds the library that everyone sees", asyn
   await expect(player.page.getByRole("region", { name: "Units" })).toContainText("Imperial Guard");
   await expect(player.page.getByRole("button", { name: "Add unit" })).toHaveCount(0);
   await expect(player.page.getByRole("button", { name: "Edit faction" })).toHaveCount(0);
+});
+
+test("an Umpire takes a library unit into two campaigns, but only once into each", async ({
+  signUp,
+}) => {
+  test.slow();
+  const umpire = await signUp("Uma");
+  const page = umpire.page;
+  const faction = await libraryFaction(browserOf(page), "French", "France", [
+    { name: "Imperial Guard", type: "LineInfantry" },
+  ]);
+
+  for (const campaign of ["Austerlitz 1805", "Jena 1806"]) {
+    await createCampaign(page, campaign);
+    const campaignUrl = page.url();
+    for (const army of ["Grande Armée", "Reserve"]) {
+      await page.goto(campaignUrl);
+      await page.getByRole("button", { name: "New army" }).click();
+      await page.getByRole("dialog").getByRole("textbox", { name: "Name" }).fill(army);
+      await page.getByRole("dialog").getByRole("button", { name: "Add army" }).click();
+      await page.getByRole("link", { name: army }).click();
+      await chooseFaction(page, faction.name);
+    }
+
+    // The Reserve's page: the Guard joins it, and the Grande Armée can't have it too.
+    await addFromLibrary(page, ["Imperial Guard"]);
+    await expect(page.getByRole("region", { name: "Units" })).toContainText("Imperial Guard");
+    await page.goto(campaignUrl);
+    await page.getByRole("link", { name: "Grande Armée" }).click();
+    await page.getByRole("button", { name: "Add units" }).click();
+    const picker = page.getByRole("dialog", { name: "Add units" });
+    await expect(picker.getByRole("checkbox", { name: "Imperial Guard" })).toBeDisabled();
+    await expect(picker).toContainText("In Reserve");
+    await picker.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
 });

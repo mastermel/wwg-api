@@ -217,6 +217,121 @@ public sealed class LibraryTests : ApiTest
         await response.AssertValidationProblemAsync("fightingFactor");
     }
 
+    /// <summary>Any body, e.g. JSON the typed request can't express.</summary>
+    private static Task<HttpResponseMessage> PostUnitAsync(
+        HttpClient client,
+        Guid factionId,
+        object body
+    ) =>
+        client.PostAsJsonAsync(
+            new Uri($"/api/factions/{factionId}/units", UriKind.Relative),
+            body,
+            TestJson.Options,
+            CancellationToken
+        );
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(9, 100)]
+    public async Task CreateUnit_AtTheLimits_IsAccepted(int fightingFactor, int points)
+    {
+        using var manager = await CreateManagerClientAsync();
+        var faction = await CreateFactionAsync(manager);
+
+        await CreateUnitAsync(
+            manager,
+            faction.Id,
+            Guard with
+            {
+                FightingFactor = fightingFactor,
+                Points = points,
+            }
+        );
+    }
+
+    [Theory]
+    [InlineData(0, 10, "fightingFactor")]
+    [InlineData(10, 10, "fightingFactor")]
+    [InlineData(5, -1, "points")]
+    [InlineData(5, 101, "points")]
+    public async Task CreateUnit_OutOfRange_IsAValidationError(
+        int fightingFactor,
+        int points,
+        string field
+    )
+    {
+        using var manager = await CreateManagerClientAsync();
+        var faction = await CreateFactionAsync(manager);
+
+        using var response = await PostUnitAsync(
+            manager,
+            faction.Id,
+            Guard with
+            {
+                FightingFactor = fightingFactor,
+                Points = points,
+            }
+        );
+
+        await response.AssertValidationProblemAsync(field);
+    }
+
+    [Fact]
+    public async Task CreateUnit_UndefinedTypeNumber_IsAValidationError()
+    {
+        using var manager = await CreateManagerClientAsync();
+        var faction = await CreateFactionAsync(manager);
+
+        using var response = await PostUnitAsync(
+            manager,
+            faction.Id,
+            new
+            {
+                name = "Guard",
+                type = 99,
+                fightingFactor = 5,
+                points = 10,
+            }
+        );
+
+        await response.AssertValidationProblemAsync("type");
+    }
+
+    [Theory]
+    [InlineData("type")]
+    [InlineData("fightingFactor")]
+    [InlineData("points")]
+    public async Task CreateUnit_MissingField_Returns400(string missing)
+    {
+        using var manager = await CreateManagerClientAsync();
+        var faction = await CreateFactionAsync(manager);
+        var body = new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["name"] = "Guard",
+            ["type"] = "Partisans",
+            ["fightingFactor"] = 5,
+            ["points"] = 10,
+        };
+        body.Remove(missing);
+
+        using var response = await PostUnitAsync(manager, faction.Id, body);
+
+        await response.AssertProblemAsync(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task CreateUnit_BlankName_IsAValidationError(string name)
+    {
+        using var manager = await CreateManagerClientAsync();
+        var faction = await CreateFactionAsync(manager);
+
+        using var response = await PostUnitAsync(manager, faction.Id, Guard with { Name = name });
+
+        await response.AssertValidationProblemAsync("name");
+    }
+
     [Fact]
     public async Task DeleteUnit_ByAPlayer_Returns403()
     {

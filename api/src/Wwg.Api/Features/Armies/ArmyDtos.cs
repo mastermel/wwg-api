@@ -12,27 +12,47 @@ namespace Wwg.Api.Features.Armies;
 /// <param name="SideId">Its side, or null for none yet ("Unassigned").</param>
 /// <param name="Color">Its colour, or null for the first one no other army has.</param>
 /// <param name="Nation">The nation it fights for (its flag), or null for none (a plain flag).</param>
+/// <param name="FactionIds">The library factions it takes its units from, or null for none yet.</param>
 public sealed record CreateArmyRequest(
     [property: Trimmed, Required, StringLength(100)] string Name,
     Guid? CommanderMemberId,
     Guid? SideId = null,
     [property: EnumDataType(typeof(ArmyColor))] ArmyColor? Color = null,
-    [property: EnumDataType(typeof(Nation))] Nation? Nation = null
+    [property: EnumDataType(typeof(Nation))] Nation? Nation = null,
+    [property: MaxLength(ArmyRules.MaxFactions)] IReadOnlyList<Guid>? FactionIds = null
 );
 
 // Colour and nation are [JsonRequired]: left out, they'd quietly read as Red and None.
 
-/// <summary>Changes an army's name, side, colour and nation.</summary>
+/// <summary>Changes an army's name, side, colour, nation and factions.</summary>
 /// <param name="Name">The army's name.</param>
 /// <param name="SideId">Its side, or null for none ("Unassigned").</param>
 /// <param name="Color">Its colour. Two armies can share one.</param>
 /// <param name="Nation">The nation it fights for, drawn as its flag.</param>
+/// <param name="FactionIds">
+/// The library factions it takes its units from (one it has units from can't be dropped), or null
+/// to leave them as they are.
+/// </param>
 public sealed record UpdateArmyRequest(
     [property: Trimmed, Required, StringLength(100)] string Name,
     Guid? SideId,
     [property: JsonRequired, EnumDataType(typeof(ArmyColor))] ArmyColor Color,
-    [property: JsonRequired, EnumDataType(typeof(Nation))] Nation Nation
+    [property: JsonRequired, EnumDataType(typeof(Nation))] Nation Nation,
+    [property: MaxLength(ArmyRules.MaxFactions)] IReadOnlyList<Guid>? FactionIds = null
 );
+
+/// <summary>The limits on an army's choices.</summary>
+internal static class ArmyRules
+{
+    /// <summary>The most library factions one army takes units from.</summary>
+    public const int MaxFactions = 20;
+}
+
+/// <summary>A library faction an army takes its units from.</summary>
+/// <param name="Id">The faction's ID.</param>
+/// <param name="Name">Its name.</param>
+/// <param name="Nation">Whose flag it shows.</param>
+public sealed record ArmyFactionResponse(Guid Id, string Name, Nation Nation);
 
 /// <summary>The side an army is in.</summary>
 /// <param name="Id">The side's ID.</param>
@@ -75,6 +95,7 @@ public sealed record ArmySummary(
 /// <param name="Side">Its side, or null if it has none yet.</param>
 /// <param name="Color">Its colour.</param>
 /// <param name="Nation">The nation it fights for, drawn as its flag.</param>
+/// <param name="Factions">The library factions it takes its units from, sorted by name.</param>
 /// <param name="Units">Its units, sorted by name.</param>
 /// <param name="CreatedAt">When it was created (UTC).</param>
 /// <param name="UpdatedAt">When it last changed (UTC).</param>
@@ -87,6 +108,7 @@ public sealed record ArmyResponse(
     ArmySide? Side,
     ArmyColor Color,
     Nation Nation,
+    IReadOnlyList<ArmyFactionResponse> Factions,
     IReadOnlyList<ArmyUnitResponse> Units,
     DateTime CreatedAt,
     DateTime UpdatedAt

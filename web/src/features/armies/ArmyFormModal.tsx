@@ -1,8 +1,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Alert, Box, Button, Group, Modal, Select, Stack, TextInput } from "@mantine/core";
+import {
+  Alert,
+  Box,
+  Button,
+  Group,
+  Modal,
+  MultiSelect,
+  Select,
+  Stack,
+  TextInput,
+} from "@mantine/core";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import type { z } from "zod";
+import { z } from "zod";
+import { useListFactions } from "@/api/generated/endpoints/library/library";
 import type { ArmyColor } from "@/api/generated/model";
 import { CreateArmyBody, UpdateArmyBody } from "@/api/generated/zod/armies/armies.zod";
 import { armyColors, armyColorVar } from "@/features/armies/identity/army-colors";
@@ -11,9 +22,11 @@ import { nationOptions } from "@/features/armies/identity/nations";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
-// Everything an army is; the commander only when it's created (the army page changes it).
+// Everything an army is; the commander only when it's created (the army page changes it). The
+// form always sends its factions (the API also takes null, for "leave them").
 const ArmyForm = UpdateArmyBody.extend({
   commanderMemberId: CreateArmyBody.shape.commanderMemberId,
+  factionIds: z.array(z.uuid()),
 });
 
 export type ArmyValues = z.infer<typeof ArmyForm>;
@@ -36,7 +49,8 @@ interface ArmyFormModalProps {
 }
 
 /**
- * An army's name, side, colour and nation (and, when creating, its commander), in a modal.
+ * An army's name, side, colour, nation and library factions (and, when creating, its commander),
+ * in a modal.
  * Mount it only while open.
  */
 export function ArmyFormModal({
@@ -53,6 +67,8 @@ export function ArmyFormModal({
   const form = useForm<ArmyValues>({ resolver: zodResolver(ArmyForm), defaultValues });
   const { errors, isSubmitting } = form.formState;
   const color = useWatch({ control: form.control, name: "color" });
+  // A Manager may have added one since: the library is fetched afresh each time the form opens.
+  const factions = useListFactions({ query: { refetchOnMount: "always" } });
 
   const submit = form.handleSubmit(async (values) => {
     setFormError(null);
@@ -67,6 +83,7 @@ export function ArmyFormModal({
           "sideId",
           "color",
           "nation",
+          "factionIds",
         ]),
       );
     }
@@ -174,6 +191,24 @@ export function ArmyFormModal({
                   </Group>
                 )}
                 error={errors.nation?.message}
+                comboboxProps={{ withinPortal: false }}
+              />
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="factionIds"
+            render={({ field }) => (
+              <MultiSelect
+                label="Factions"
+                description="The library factions it takes its units from. One it has units from stays."
+                placeholder={field.value.length ? undefined : "None yet"}
+                data={(factions.data ?? []).map((f) => ({ value: f.id, label: f.name }))}
+                value={field.value}
+                onChange={field.onChange}
+                searchable
+                nothingFoundMessage="No such faction"
+                error={errors.factionIds?.message}
                 comboboxProps={{ withinPortal: false }}
               />
             )}

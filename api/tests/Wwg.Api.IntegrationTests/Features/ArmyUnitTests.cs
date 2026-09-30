@@ -4,31 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.ArmyUnits;
+using Wwg.Api.Features.Campaigns;
+using Wwg.Api.Features.Library;
 using Wwg.Api.IntegrationTests.Support;
 
 namespace Wwg.Api.IntegrationTests.Features;
 
 public sealed class ArmyUnitTests : ApiTest
 {
-    private static Task<HttpResponseMessage> CreateAsync(
-        CampaignScenario scenario,
-        string name,
-        UnitType type = UnitType.LineInfantry,
-        int fightingFactor = 5,
-        int points = 10
-    ) => PostAsync(scenario, new CreateArmyUnitRequest(name, type, fightingFactor, points));
-
-    /// <summary>Any body, e.g. JSON the typed request can't express.</summary>
-    private static Task<HttpResponseMessage> PostAsync(CampaignScenario scenario, object body) =>
-        scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                body,
-                TestJson.Options,
-                TestContext.Current.CancellationToken
-            );
-
     private static async Task<List<string>> UnitNamesAsync(CampaignScenario scenario)
     {
         var army = await scenario
@@ -37,26 +20,65 @@ public sealed class ArmyUnitTests : ApiTest
         return [.. army!.Units.Select(u => u.Name)];
     }
 
+    /// <summary>A library unit in the scenario's faction (which its army takes units from).</summary>
+    private static Task<Guid> LibraryUnitAsync(
+        CampaignScenario scenario,
+        string name,
+        UnitType type = UnitType.LineInfantry,
+        int fightingFactor = 5,
+        int points = 10,
+        Guid? factionId = null
+    ) =>
+        LibrarySteps.CreateUnitAsync(
+            scenario.As(Role.Admin),
+            factionId ?? scenario.FactionId,
+            name,
+            type,
+            fightingFactor,
+            points
+        );
+
+    /// <summary>A second army in the scenario's campaign, taking units from its faction.</summary>
+    private static async Task<Guid> SecondArmyAsync(CampaignScenario scenario)
+    {
+        using var response = await scenario
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
+                new CreateArmyRequest("Reserve", null, FactionIds: [scenario.FactionId]),
+                TestContext.Current.CancellationToken
+            );
+        return (await response.Content.ReadAsAsync<ArmyResponse>())?.Id
+            ?? throw new InvalidOperationException("No army.");
+    }
+
     [Fact]
-    public async Task CreateUnit_Valid_AddsItToTheArmy()
+    public async Task AddUnits_FromTheArmysFaction_AddsCopiesOfThem()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-
-        using var response = await CreateAsync(
+        var libraryUnit = await LibraryUnitAsync(
             scenario,
-            "  Light Division ",
+            "Light Division",
             UnitType.LightInfantry,
             fightingFactor: 6,
             points: 35
         );
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var unit = await response.Content.ReadAsAsync<ArmyUnitResponse>();
-        Assert.Equal($"/api/army-units/{unit?.Id}", response.Headers.Location?.ToString());
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(Role.Umpire),
+            scenario.ArmyId,
+            libraryUnit
+        );
+
+        var added = await response.Content.ReadAsAsync<List<ArmyUnitResponse>>();
+        var unit = Assert.Single(added!);
+        Assert.NotEqual(libraryUnit, unit.Id);
         Assert.Equal(
             new ArmyUnitResponse(
-                unit!.Id,
+                unit.Id,
                 scenario.ArmyId,
+                libraryUnit,
+                scenario.FactionId,
                 "Light Division",
                 UnitType.LightInfantry,
                 6,
@@ -66,104 +88,147 @@ public sealed class ArmyUnitTests : ApiTest
         );
     }
 
-    [Theory]
-    [InlineData(1, 0)]
-    [InlineData(9, 100)]
-    public async Task CreateUnit_AtTheLimits_IsAccepted(int fightingFactor, int points)
+    [Fact]
+    public async Task AddUnits_Several_AddsThemAllSortedByName()
     {
         using var scenario = await CreateCampaignScenarioAsync();
+        var guard = await LibraryUnitAsync(scenario, "Guard");
+        var artillery = await LibraryUnitAsync(scenario, "artillery");
 
-        using var response = await CreateAsync(
-            scenario,
-            "Guard",
-            fightingFactor: fightingFactor,
-            points: points
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(Role.Umpire),
+            scenario.ArmyId,
+            guard,
+            artillery,
+            guard
         );
 
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-    }
-
-    [Theory]
-    [InlineData(0, 10, "fightingFactor")]
-    [InlineData(10, 10, "fightingFactor")]
-    [InlineData(5, -1, "points")]
-    [InlineData(5, 101, "points")]
-    public async Task CreateUnit_OutOfRange_IsAValidationError(
-        int fightingFactor,
-        int points,
-        string field
-    )
-    {
-        using var scenario = await CreateCampaignScenarioAsync();
-
-        using var response = await CreateAsync(
-            scenario,
-            "Guard",
-            fightingFactor: fightingFactor,
-            points: points
-        );
-
-        await response.AssertValidationProblemAsync(field);
+        var added = await response.Content.ReadAsAsync<List<ArmyUnitResponse>>();
+        Assert.Equal(["artillery", "Guard"], added!.Select(u => u.Name).ToList());
     }
 
     [Fact]
-    public async Task CreateUnit_UndefinedTypeNumber_IsAValidationError()
+    public async Task AddUnits_FromAFactionTheArmyHasntChosen_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
+        var british = await LibrarySteps.CreateFactionAsync(
+            scenario.As(Role.Admin),
+            "British",
+            Nation.Britain
+        );
+        var rifles = await LibraryUnitAsync(scenario, "95th Rifles", factionId: british);
 
-        using var response = await PostAsync(
-            scenario,
-            new
-            {
-                name = "Guard",
-                type = 99,
-                fightingFactor = 5,
-                points = 10,
-            }
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(Role.Umpire),
+            scenario.ArmyId,
+            rifles
         );
 
-        await response.AssertValidationProblemAsync("type");
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
+        Assert.Equal(["1st Division"], await UnitNamesAsync(scenario));
     }
 
-    [Theory]
-    [InlineData("type")]
-    [InlineData("fightingFactor")]
-    [InlineData("points")]
-    public async Task CreateUnit_MissingField_Returns400(string missing)
+    [Fact]
+    public async Task AddUnits_AlreadyInAnotherArmyOfTheCampaign_Returns409()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        var body = new Dictionary<string, object>(StringComparer.Ordinal)
-        {
-            ["name"] = "Guard",
-            ["type"] = "Partisans",
-            ["fightingFactor"] = 5,
-            ["points"] = 10,
-        };
-        body.Remove(missing);
+        var reserve = await SecondArmyAsync(scenario);
+        var firstDivision = (
+            await scenario
+                .As(Role.Umpire)
+                .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}")
+        )!
+            .Units[0]
+            .UnitId;
 
-        using var response = await PostAsync(scenario, body);
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(Role.Umpire),
+            reserve,
+            firstDivision
+        );
 
-        await response.AssertProblemAsync(HttpStatusCode.BadRequest);
+        await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
 
-    [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    public async Task CreateUnit_BlankName_IsAValidationError(string name)
+    [Fact]
+    public async Task AddUnits_AlreadyInAnotherCampaign_IsAllowed()
+    {
+        using var first = await CreateCampaignScenarioAsync();
+        var guard = await LibraryUnitAsync(first, "Guard");
+        using var added = await LibrarySteps.AddAsync(first.As(Role.Umpire), first.ArmyId, guard);
+        added.EnsureSuccessStatusCode();
+        using var campaign = await first
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri("/api/campaigns", UriKind.Relative),
+                new CreateCampaignRequest("The Hundred Days", null),
+                CancellationToken
+            );
+        var campaignId = (await campaign.Content.ReadAsAsync<CampaignResponse>())!.Id;
+        using var army = await first
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri($"/api/campaigns/{campaignId}/armies", UriKind.Relative),
+                new CreateArmyRequest("Armée du Nord", null, FactionIds: [first.FactionId]),
+                CancellationToken
+            );
+        var armyId = (await army.Content.ReadAsAsync<ArmyResponse>())!.Id;
+
+        using var response = await LibrarySteps.AddAsync(first.As(Role.Umpire), armyId, guard);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AddUnits_UnknownUnit_IsAValidationError()
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var response = await CreateAsync(scenario, name);
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(Role.Umpire),
+            scenario.ArmyId,
+            Guid.CreateVersion7()
+        );
 
-        await response.AssertValidationProblemAsync("name");
+        await response.AssertValidationProblemAsync("unitIds");
+    }
+
+    [Fact]
+    public async Task AddUnits_None_IsAValidationError()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var response = await LibrarySteps.AddAsync(scenario.As(Role.Umpire), scenario.ArmyId);
+
+        await response.AssertValidationProblemAsync("unitIds");
+    }
+
+    [Fact]
+    public async Task UpdateLibraryUnit_AfterItJoined_LeavesTheCampaignsCopy()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        var army = await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}");
+
+        using var response = await scenario
+            .As(Role.Admin)
+            .PutAsJsonAsync(
+                new Uri($"/api/units/{army!.Units[0].UnitId}", UriKind.Relative),
+                new SaveUnitRequest("Old Guard", UnitType.LineInfantry, 9, 80),
+                CancellationToken
+            );
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(["1st Division"], await UnitNamesAsync(scenario));
     }
 
     [Fact]
     public async Task GetArmy_ListsItsUnitsByNameIgnoringCase()
     {
         using var scenario = await CreateCampaignScenarioAsync();
-        (await CreateAsync(scenario, "cavalry brigade")).Dispose();
-        (await CreateAsync(scenario, "Artillery")).Dispose();
+        await LibrarySteps.AddUnitAsync(scenario, "cavalry brigade");
+        await LibrarySteps.AddUnitAsync(scenario, "Artillery");
 
         Assert.Equal(
             ["1st Division", "Artillery", "cavalry brigade"],
@@ -184,9 +249,18 @@ public sealed class ArmyUnitTests : ApiTest
                 CancellationToken
             );
 
+        var libraryUnit = (
+            await scenario
+                .As(Role.Umpire)
+                .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}")
+        )!
+            .Units[0]
+            .UnitId;
         var expected = new ArmyUnitResponse(
             scenario.UnitId,
             scenario.ArmyId,
+            libraryUnit,
+            scenario.FactionId,
             "Horse Guards",
             UnitType.HeavyCavalry,
             8,
@@ -197,6 +271,11 @@ public sealed class ArmyUnitTests : ApiTest
             .As(Role.Commander)
             .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}");
         Assert.Equal(expected, Assert.Single(army!.Units));
+        // The library's stays as it was.
+        var faction = await scenario
+            .As(Role.Commander)
+            .GetAsAsync<FactionResponse>($"/api/factions/{scenario.FactionId}");
+        Assert.Equal("1st Division", Assert.Single(faction!.Units).Name);
     }
 
     [Fact]
@@ -229,6 +308,7 @@ public sealed class ArmyUnitTests : ApiTest
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(await UnitNamesAsync(scenario));
+        Assert.Equal(1, await WithDbAsync(db => db.Units.CountAsync(CancellationToken)));
     }
 
     [Fact]

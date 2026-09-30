@@ -26,6 +26,11 @@ public sealed class UmpireOrderTests : ApiTest
     /// <summary>A second unit in the scenario's army, placed at the start (before turn 1 opens).</summary>
     private async Task<Guid> AddPlacedUnitAsync(CampaignScenario scenario)
     {
+        var libraryUnit = await LibrarySteps.CreateUnitAsync(
+            scenario.As(Role.Admin),
+            scenario.FactionId,
+            "2nd Division"
+        );
         return await WithDbAsync(async db =>
         {
             var setup = await db
@@ -35,6 +40,8 @@ public sealed class UmpireOrderTests : ApiTest
             var unit = new ArmyUnit
             {
                 ArmyId = scenario.ArmyId,
+                CampaignId = scenario.CampaignId,
+                UnitId = libraryUnit,
                 Name = "2nd Division",
                 Type = UnitType.LightInfantry,
                 FightingFactor = UnitStats.MinFightingFactor,

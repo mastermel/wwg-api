@@ -15,6 +15,8 @@ const placed = (id: string, longitude: number, latitude = 0): PlacedUnit => ({
   unit: {
     id,
     armyId: "a",
+    unitId: "l",
+    factionId: "f",
     name: id,
     type: "LineInfantry",
     fightingFactor: 5,

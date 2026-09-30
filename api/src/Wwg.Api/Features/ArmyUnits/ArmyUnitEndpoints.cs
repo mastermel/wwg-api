@@ -18,10 +18,12 @@ internal static class ArmyUnitEndpoints
             .WithName("ListCampaignUnits")
             .WithTags("ArmyUnits")
             .RequireCampaignAccess(CampaignAccess.Member);
-        app.MapPost("/api/armies/{id:guid}/units", CreateArmyUnitAsync)
-            .WithName("CreateArmyUnit")
+        // A campaign only chooses from the library (decision 0015).
+        app.MapPost("/api/armies/{id:guid}/units", AddArmyUnitsAsync)
+            .WithName("AddArmyUnits")
             .WithTags("ArmyUnits")
-            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army);
+            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         var unit = app.MapGroup("/api/army-units/{id:guid}").WithTags("ArmyUnits");
         unit.MapPut("", UpdateArmyUnitAsync)
@@ -53,6 +55,8 @@ internal static class ArmyUnitEndpoints
             .Select(u => new ArmyUnitResponse(
                 u.Id,
                 u.ArmyId,
+                u.UnitId,
+                u.Unit.FactionId,
                 u.Name,
                 u.Type,
                 u.FightingFactor,
@@ -62,28 +66,112 @@ internal static class ArmyUnitEndpoints
         return TypedResults.Ok(units);
     }
 
-    /// <summary>Adds a unit to the army (Umpire or Admin).</summary>
-    internal static async Task<Created<ArmyUnitResponse>> CreateArmyUnitAsync(
+    /// <summary>
+    /// Adds library units to the army (Umpire or Admin), each as the campaign's own copy. Only
+    /// units from the army's factions (409), and none already in the campaign (409).
+    /// </summary>
+    internal static async Task<
+        Results<Ok<List<ArmyUnitResponse>>, ValidationProblem, ProblemHttpResult>
+    > AddArmyUnitsAsync(
         Guid id,
-        CreateArmyUnitRequest request,
+        AddArmyUnitsRequest request,
         WwgDbContext db,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
-        var unit = new ArmyUnit
+        var campaignId = httpContext.CampaignContext().CampaignId;
+        var ids = request.UnitIds.Distinct().ToList();
+        var units = await db
+            .Units.AsNoTracking()
+            .Where(u => ids.Contains(u.Id))
+            .ToListAsync(cancellationToken);
+        if (units.Count != ids.Count)
         {
-            ArmyId = id,
-            Name = request.Name,
-            Type = request.Type,
-            FightingFactor = request.FightingFactor,
-            Points = request.Points,
-        };
-        db.ArmyUnits.Add(unit);
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["unitIds"] = ["There's no such unit in the library."],
+                }
+            );
+        }
+
+        if (await RefusedAsync(db, id, campaignId, units, cancellationToken) is { } refused)
+        {
+            return refused;
+        }
+
+        var added = units
+            .Select(u => new ArmyUnit
+            {
+                ArmyId = id,
+                CampaignId = campaignId,
+                UnitId = u.Id,
+                Name = u.Name,
+                Type = u.Type,
+                FightingFactor = u.FightingFactor,
+                Points = u.Points,
+            })
+            .ToList();
+        db.ArmyUnits.AddRange(added);
         await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Created($"/api/army-units/{unit.Id}", ToResponse(unit));
+
+        var factionOf = units.ToDictionary(u => u.Id, u => u.FactionId);
+        return TypedResults.Ok(
+            added
+                .OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(u => u.Id)
+                .Select(u => ToResponse(u, factionOf[u.UnitId]))
+                .ToList()
+        );
     }
 
-    /// <summary>Changes a unit's name, type, Fighting Factor and points (Umpire or Admin).</summary>
+    /// <summary>
+    /// 409 unless every unit is from the army's factions, and none is in the campaign already.
+    /// </summary>
+    private static async Task<ProblemHttpResult?> RefusedAsync(
+        WwgDbContext db,
+        Guid armyId,
+        Guid campaignId,
+        List<Unit> units,
+        CancellationToken cancellationToken
+    )
+    {
+        var factions = await db
+            .ArmyFactions.Where(f => f.ArmyId == armyId)
+            .Select(f => f.FactionId)
+            .ToListAsync(cancellationToken);
+        var outside = units
+            .Where(u => !factions.Contains(u.FactionId))
+            .Select(u => u.Name)
+            .ToList();
+        if (outside.Count > 0)
+        {
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Not from the army's factions",
+                detail: $"Choose the army's factions first: {string.Join(", ", outside)}."
+            );
+        }
+
+        var ids = units.Select(u => u.Id).ToList();
+        var taken = await db
+            .ArmyUnits.Where(u => u.CampaignId == campaignId && ids.Contains(u.UnitId))
+            .Select(u => u.Name)
+            .ToListAsync(cancellationToken);
+        return taken.Count == 0
+            ? null
+            : TypedResults.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Already in the campaign",
+                detail: $"Already in this campaign: {string.Join(", ", taken)}."
+            );
+    }
+
+    /// <summary>
+    /// Changes the campaign's copy of a unit: name, type, Fighting Factor and points (Umpire or
+    /// Admin). The library unit stays as it is.
+    /// </summary>
     internal static async Task<Ok<ArmyUnitResponse>> UpdateArmyUnitAsync(
         Guid id,
         UpdateArmyUnitRequest request,
@@ -91,16 +179,22 @@ internal static class ArmyUnitEndpoints
         CancellationToken cancellationToken
     )
     {
-        var unit = await db.ArmyUnits.Where(u => u.Id == id).SingleOrGoneAsync(cancellationToken);
+        var unit = await db
+            .ArmyUnits.Include(u => u.Unit)
+            .Where(u => u.Id == id)
+            .SingleOrGoneAsync(cancellationToken);
         unit.Name = request.Name;
         unit.Type = request.Type;
         unit.FightingFactor = request.FightingFactor;
         unit.Points = request.Points;
         await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Ok(ToResponse(unit));
+        return TypedResults.Ok(ToResponse(unit, unit.Unit.FactionId));
     }
 
-    /// <summary>Deletes a unit (Umpire or Admin).</summary>
+    /// <summary>
+    /// Removes a unit from the army (Umpire or Admin), while the campaign is setting up; the
+    /// library unit stays.
+    /// </summary>
     internal static async Task<Results<NoContent, ProblemHttpResult>> DeleteArmyUnitAsync(
         Guid id,
         WwgDbContext db,
@@ -125,6 +219,15 @@ internal static class ArmyUnitEndpoints
         return TypedResults.NoContent();
     }
 
-    private static ArmyUnitResponse ToResponse(ArmyUnit unit) =>
-        new(unit.Id, unit.ArmyId, unit.Name, unit.Type, unit.FightingFactor, unit.Points);
+    private static ArmyUnitResponse ToResponse(ArmyUnit unit, Guid factionId) =>
+        new(
+            unit.Id,
+            unit.ArmyId,
+            unit.UnitId,
+            factionId,
+            unit.Name,
+            unit.Type,
+            unit.FightingFactor,
+            unit.Points
+        );
 }

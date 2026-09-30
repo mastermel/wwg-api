@@ -29,3 +29,23 @@ internal sealed class UnitConfiguration : IEntityTypeConfiguration<Unit>
             .OnDelete(DeleteBehavior.NoAction);
     }
 }
+
+internal sealed class ArmyFactionConfiguration : IEntityTypeConfiguration<ArmyFaction>
+{
+    public void Configure(EntityTypeBuilder<ArmyFaction> builder)
+    {
+        builder.HasIndex(a => new { a.ArmyId, a.FactionId }).IsUnique();
+        // Deleting an army drops its choices; a chosen faction can't be deleted (the handler says
+        // so first).
+        builder
+            .HasOne(a => a.Army)
+            .WithMany()
+            .HasForeignKey(a => a.ArmyId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder
+            .HasOne(a => a.Faction)
+            .WithMany()
+            .HasForeignKey(a => a.FactionId)
+            .OnDelete(DeleteBehavior.NoAction);
+    }
+}

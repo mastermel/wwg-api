@@ -124,7 +124,8 @@ true, because the build launches the app to write the document.
 - `EndpointConventionTests` fail if an endpoint has no name or tag, or isn't under `/api`.
 - Setup goes through the shared helpers and scenario builders: `CreateCampaignScenarioAsync()`
   gives a campaign with an Admin, an Umpire, a Commander (a Player commanding the army "First
-  Corps"), a Player with no army and an outsider; `scenario.As(role)` is that user's client. Permission tests are theories over the roles, one row per §5.2 cell.
+  Corps", taking units from the library's "French", `FactionId`), a Player with no army and an
+  outsider; army units come from the library, so add one with `LibrarySteps.AddUnitAsync`; `scenario.As(role)` is that user's client. Permission tests are theories over the roles, one row per §5.2 cell.
 - Read JSON with `ReadAsAsync<T>()` / `GetAsAsync<T>(path)` (`TestJson`: string enums).
 - A test that truly needs a banned API uses `#pragma warning disable RS0030` with a comment.
 - Extra test services (an EF interceptor, say) go in `App.TestServices` in the test class's

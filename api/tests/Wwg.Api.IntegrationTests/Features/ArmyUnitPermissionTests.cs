@@ -37,22 +37,25 @@ public sealed class ArmyUnitPermissionTests : ApiTest
     }
 
     [Theory]
-    [InlineData(Role.Admin, HttpStatusCode.Created)]
-    [InlineData(Role.Umpire, HttpStatusCode.Created)]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
     [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
     [InlineData(Role.Player, HttpStatusCode.Forbidden)]
     [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
-    public async Task CreateUnit_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
+    public async Task AddUnits_ByRole_ReturnsExpectedStatus(Role role, HttpStatusCode expected)
     {
         using var scenario = await CreateCampaignScenarioAsync();
+        var unitId = await LibrarySteps.CreateUnitAsync(
+            scenario.As(Role.Admin),
+            scenario.FactionId,
+            "2nd Division"
+        );
 
-        using var response = await scenario
-            .As(role)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest("2nd Division", UnitType.LightInfantry, 4, 15),
-                CancellationToken
-            );
+        using var response = await LibrarySteps.AddAsync(
+            scenario.As(role),
+            scenario.ArmyId,
+            unitId
+        );
 
         Assert.Equal(expected, response.StatusCode);
     }

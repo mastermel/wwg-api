@@ -49,8 +49,11 @@ npm run lint && npm run typecheck && npm run format:check
   (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.
   `startedCampaign(umpire, commander, name, hexSize?)` (tests/support/turns.ts) is a campaign
   at turn 1, with the commander's army and two units placed in hexes (both move two a turn).
-  Pass small hexes when a test needs several in view on a phone. `holdAndSubmit` and `approveAndStartNext` move a turn on
-  through the API.
+  Pass small hexes when a test needs several in view on a phone. Army units come from the
+  library: `libraryFaction(browserOf(page), name, nation, units)` (tests/support/library.ts)
+  makes a faction of the test's own (a stamped name: every run shares the library) as the
+  Admin; `chooseFaction` and `addFromLibrary` do the Umpire's side in the UI. `holdAndSubmit`
+  and `approveAndStartNext` move a turn on through the API.
 - `scan(page, label)` (tests/support/axe.ts) is axe's violations, for pages that need data only a
   flow sets up; the rest belong in `accessibility.spec.ts`.
 - Offline: `waitForServiceWorker` and `waitUntilSaved` (tests/support/offline.ts) before going

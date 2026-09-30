@@ -16,7 +16,7 @@ public enum Role
 
 /// <summary>
 /// A campaign with an Umpire, two Players (one commanding the army "First Corps", in the side
-/// "Coalition", which has the unit "1st Division"), an Admin and a
+/// "Coalition", which has the unit "1st Division" from the library's faction "French"), an Admin and a
 /// signed-in outsider, each with their own client. Permission tests pick a client by <see cref="Role"/>.
 /// </summary>
 internal sealed class CampaignScenario(
@@ -26,6 +26,7 @@ internal sealed class CampaignScenario(
     Guid playerMemberId,
     Guid sideId,
     Guid armyId,
+    Guid factionId,
     Guid unitId,
     IReadOnlyDictionary<Role, HttpClient> clients
 ) : IDisposable
@@ -47,7 +48,10 @@ internal sealed class CampaignScenario(
     /// <summary>The army "First Corps", commanded by the <see cref="Role.Commander"/>.</summary>
     public Guid ArmyId { get; } = armyId;
 
-    /// <summary>The unit "1st Division", in <see cref="ArmyId"/>.</summary>
+    /// <summary>The library faction "French", which <see cref="ArmyId"/> takes its units from.</summary>
+    public Guid FactionId { get; } = factionId;
+
+    /// <summary>The unit "1st Division", in <see cref="ArmyId"/> (a copy of one in the library).</summary>
     public Guid UnitId { get; } = unitId;
 
     public HttpClient As(Role role) => clients[role];

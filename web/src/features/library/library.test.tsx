@@ -124,6 +124,21 @@ describe("the library", () => {
     expect(calls).toEqual(["add Old Guard"]);
   });
 
+  it("asks for the type and FF before sending", async () => {
+    const calls = serveLibrary([]);
+    const user = userEvent.setup();
+    await renderApp(`/library/${factionId}`, { user: manager });
+
+    await user.click(await screen.findByRole("button", { name: "Add unit" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByRole("textbox", { name: "Name" }), "Guard");
+    await user.click(dialog.getByRole("button", { name: "Add unit" }));
+
+    expect(await dialog.findByText("Choose a type.")).toBeInTheDocument();
+    expect(dialog.getByText("Enter an FF from 1 to 9.")).toBeInTheDocument();
+    expect(calls).toEqual([]);
+  });
+
   it("lets a Manager delete a unit, once confirmed, and only an empty faction", async () => {
     const calls = serveLibrary();
     const user = userEvent.setup();

@@ -1,6 +1,7 @@
 import { apiAs, waterlooMap } from "./support/api.ts";
 import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
+import { browserOf, libraryFaction } from "./support/library.ts";
 import { clickMapCentre } from "./support/map.ts";
 import { expect, test } from "./support/fixtures.ts";
 
@@ -64,7 +65,7 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
   await join(commander.page, link, "Waterloo 1815");
   await join(other.page, link, "Waterloo 1815");
 
-  // Set up through the API: the map's area, a side, and Bob's army with two units.
+  // Set up through the API: the map's area, a side, and Bob's army with two library units.
   const api = await apiAs(umpire.page);
   await api.put(`/api/campaigns/${campaignId}/map`, waterlooMap);
   const side = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/sides`, {
@@ -74,18 +75,20 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
     `/api/campaigns/${campaignId}/members`,
   );
   const bob = members.find((m) => m.firstName === "Bob");
+  const faction = await libraryFaction(browserOf(umpire.page), "French", "France", [
+    { name: "Imperial Guard", type: "LineInfantry" },
+    { name: "Reserve Artillery", type: "FootArtillery" },
+  ]);
   const army = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
     name: "Armée du Nord",
     commanderMemberId: bob?.id ?? null,
     sideId: side.id,
     nation: "France",
+    factionIds: [faction.id],
   });
-  for (const [name, type] of [
-    ["Imperial Guard", "LineInfantry"],
-    ["Reserve Artillery", "FootArtillery"],
-  ]) {
-    await api.post(`/api/armies/${army.id}/units`, { name, type, fightingFactor: 6, points: 30 });
-  }
+  await api.post(`/api/armies/${army.id}/units`, {
+    unitIds: faction.units.map((unit) => unit.id),
+  });
 
   // The Umpire places one unit on the map, and the other on top of it.
   const page = umpire.page;

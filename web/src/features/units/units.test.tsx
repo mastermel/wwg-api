@@ -2,13 +2,48 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import type { ArmyResponse, CampaignResponse, ArmyUnitResponse } from "@/api/generated/model";
+import type {
+  ArmyResponse,
+  ArmyUnitResponse,
+  CampaignResponse,
+  FactionResponse,
+  UnitResponse,
+} from "@/api/generated/model";
 import { expectNoAxeViolations, renderApp } from "@/test/render";
 import { server } from "@/test/server";
 import { testUser } from "@/test/session";
 
 const campaignId = "0192f5c1-0000-7000-8000-00000000c001";
 const armyId = "0192f5c1-0000-7000-8000-00000000a001";
+const factionId = "0192f5c1-0000-7000-8000-0000000fac01";
+
+/** The French faction's units in the library; "1st Division" is the army's first unit's. */
+const library: UnitResponse[] = [
+  {
+    id: "0192f5c1-0000-7000-8000-00000000b001",
+    factionId,
+    name: "1st Division",
+    type: "LineInfantry",
+    fightingFactor: 5,
+    points: 20,
+  },
+  {
+    id: "0192f5c1-0000-7000-8000-00000000b002",
+    factionId,
+    name: "Light Division",
+    type: "LightInfantry",
+    fightingFactor: 6,
+    points: 35,
+  },
+  {
+    id: "0192f5c1-0000-7000-8000-00000000b003",
+    factionId,
+    name: "Hussars",
+    type: "LightCavalry",
+    fightingFactor: 4,
+    points: 15,
+  },
+];
 
 const unit = (
   id: string,
@@ -19,6 +54,8 @@ const unit = (
 ): ArmyUnitResponse => ({
   id: `0192f5c1-0000-7000-8000-00000000e00${id}`,
   armyId,
+  unitId: `0192f5c1-0000-7000-8000-00000000b00${id}`,
+  factionId,
   name,
   type,
   fightingFactor,
@@ -26,7 +63,11 @@ const unit = (
 });
 
 /** Serves a campaign and its army, with units that change as the test adds and removes them. */
-function serveArmy(myRole: CampaignResponse["myRole"], initial: ArmyUnitResponse[]) {
+function serveArmy(
+  myRole: CampaignResponse["myRole"],
+  initial: ArmyUnitResponse[],
+  factions: ArmyResponse["factions"] = [{ id: factionId, name: "French", nation: "France" }],
+) {
   let units = initial;
   const requests: { method: string; path: string; body: unknown }[] = [];
   const army = (): ArmyResponse => ({
@@ -43,6 +84,7 @@ function serveArmy(myRole: CampaignResponse["myRole"], initial: ArmyUnitResponse
       firstName: "Mel",
       lastName: "Green",
     },
+    factions,
     units,
     createdAt: "2026-09-01T12:00:00Z",
     updatedAt: "2026-09-01T12:00:00Z",
@@ -61,16 +103,28 @@ function serveArmy(myRole: CampaignResponse["myRole"], initial: ArmyUnitResponse
       } satisfies CampaignResponse),
     ),
     http.get(`*/api/armies/${armyId}`, () => HttpResponse.json(army())),
+    http.get(`*/api/factions/${factionId}`, () =>
+      HttpResponse.json({
+        id: factionId,
+        name: "French",
+        nation: "France",
+        units: library,
+      } satisfies FactionResponse),
+    ),
+    http.get(`*/api/campaigns/${campaignId}/units`, () => HttpResponse.json(units)),
     http.post(`*/api/armies/${armyId}/units`, async ({ request }) => {
-      const body = (await request.json()) as Omit<ArmyUnitResponse, "id" | "armyId">;
+      const body = (await request.json()) as { unitIds: string[] };
       requests.push({ method: "POST", path: "units", body });
-      const added: ArmyUnitResponse = {
-        ...body,
-        id: unit(String(units.length + 1), "").id,
-        armyId,
-      };
-      units = [...units, added];
-      return HttpResponse.json(added, { status: 201 });
+      const added = library
+        .filter((u) => body.unitIds.includes(u.id))
+        .map((u, i): ArmyUnitResponse => ({
+          ...u,
+          id: unit(String(units.length + i + 1), "").id,
+          armyId,
+          unitId: u.id,
+        }));
+      units = [...units, ...added];
+      return HttpResponse.json(added);
     }),
     http.put("*/api/army-units/:id", async ({ params, request }) => {
       const body = (await request.json()) as Omit<ArmyUnitResponse, "id" | "armyId">;
@@ -121,57 +175,53 @@ describe("units", () => {
     expect(section.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("lets the Umpire add a unit", async () => {
-    const requests = serveArmy("Umpire", []);
+  it("lets the Umpire add units from the army's factions, not those already in", async () => {
+    const requests = serveArmy("Umpire", [unit("1", "1st Division")]);
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
-    const section = await unitsSection();
-    expect(section.getByText("No units yet")).toBeInTheDocument();
+    expect(await screen.findByText("Units from French")).toBeInTheDocument();
 
-    await user.click(section.getByRole("button", { name: "Add unit" }));
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByRole("textbox", { name: "Name" }), "  Light Division ");
-    await user.click(dialog.getByRole("combobox", { name: "Type" }));
-    await user.click(await dialog.findByRole("option", { name: "Light Infantry", hidden: true }));
-    await user.type(dialog.getByRole("textbox", { name: "Fighting Factor (FF)" }), "6");
-    await user.clear(dialog.getByRole("textbox", { name: "Points" }));
-    await user.type(dialog.getByRole("textbox", { name: "Points" }), "35");
-    await user.click(dialog.getByRole("button", { name: "Add unit" }));
+    await user.click((await unitsSection()).getByRole("button", { name: "Add units" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Add units" }));
+    expect(await dialog.findByRole("group", { name: "French" })).toBeInTheDocument();
+    expect(dialog.getByRole("checkbox", { name: "1st Division" })).toBeDisabled();
+    expect(dialog.getByText("In First Corps")).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Add units" })).toBeDisabled();
+    await user.click(dialog.getByRole("checkbox", { name: "Light Division" }));
+    await user.click(dialog.getByRole("checkbox", { name: "Hussars" }));
+    await user.click(dialog.getByRole("button", { name: "Add 2 units" }));
 
-    expect(await screen.findByText("Added Light Division.")).toBeInTheDocument();
+    expect(await screen.findByText("Added 2 units.")).toBeInTheDocument();
     expect(requests).toEqual([
-      {
-        method: "POST",
-        path: "units",
-        body: { name: "Light Division", type: "LightInfantry", fightingFactor: 6, points: 35 },
-      },
+      { method: "POST", path: "units", body: { unitIds: [library[1]?.id, library[2]?.id] } },
     ]);
-    expect(await section.findByText("Light Division")).toBeInTheDocument();
+    expect(await (await unitsSection()).findByText("Light Division")).toBeInTheDocument();
   });
 
-  it("asks for the type and FF before sending", async () => {
-    const requests = serveArmy("Umpire", []);
+  it("asks the Umpire to choose the army's factions first", async () => {
+    serveArmy("Umpire", [], []);
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
+    expect(await screen.findByText("No factions yet")).toBeInTheDocument();
 
-    await user.click((await unitsSection()).getByRole("button", { name: "Add unit" }));
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByRole("textbox", { name: "Name" }), "Guard");
-    await user.click(dialog.getByRole("button", { name: "Add unit" }));
+    await user.click((await unitsSection()).getByRole("button", { name: "Add units" }));
 
-    expect(await dialog.findByText("Choose a type.")).toBeInTheDocument();
-    expect(dialog.getByText("Enter an FF from 1 to 9.")).toBeInTheDocument();
-    expect(requests).toEqual([]);
+    expect(
+      await within(await screen.findByRole("dialog")).findByText(
+        /choose them with Edit army first/,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("won't take an FF over 9", async () => {
-    serveArmy("Umpire", []);
+    serveArmy("Umpire", [unit("1", "1st Division")]);
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
 
-    await user.click((await unitsSection()).getByRole("button", { name: "Add unit" }));
+    await user.click((await unitsSection()).getByRole("button", { name: "Edit 1st Division" }));
     const dialog = within(await screen.findByRole("dialog"));
     const ff = dialog.getByRole("textbox", { name: "Fighting Factor (FF)" });
+    await user.clear(ff);
     // The "2" would make 12: it isn't taken.
     await user.type(ff, "12");
 
@@ -207,18 +257,19 @@ describe("units", () => {
     });
     expect(await screen.findByText("Saved 1st Division.")).toBeInTheDocument();
   });
-  it("lets the Umpire delete a unit after confirming", async () => {
+
+  it("lets the Umpire remove a unit after confirming", async () => {
     const requests = serveArmy("Umpire", [unit("1", "1st Division")]);
     const user = userEvent.setup();
     await renderApp(`/campaigns/${campaignId}/armies/${armyId}`);
     const section = await unitsSection();
 
-    await user.click(section.getByRole("button", { name: "Delete 1st Division" }));
+    await user.click(section.getByRole("button", { name: "Remove 1st Division" }));
     await user.click(
-      within(await screen.findByRole("dialog")).getByRole("button", { name: "Delete unit" }),
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Remove unit" }),
     );
 
-    expect(await screen.findByText("Deleted 1st Division.")).toBeInTheDocument();
+    expect(await screen.findByText("Removed 1st Division.")).toBeInTheDocument();
     expect(await section.findByText("No units yet")).toBeInTheDocument();
     expect(requests.map((r) => r.method)).toEqual(["DELETE"]);
   });

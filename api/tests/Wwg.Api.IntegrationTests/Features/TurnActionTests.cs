@@ -1,7 +1,5 @@
 using System.Net;
-using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
-using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.IntegrationTests.Support;
@@ -26,20 +24,7 @@ public sealed class TurnActionTests : ApiTest
     /// <summary>Adds a unit to the scenario's army (the Umpire), placed at the start if wanted.</summary>
     private static async Task<Guid> AddUnitAsync(CampaignScenario scenario, bool place)
     {
-        using var created = await scenario
-            .As(Role.Umpire)
-            .PostAsJsonAsync(
-                new Uri($"/api/armies/{scenario.ArmyId}/units", UriKind.Relative),
-                new CreateArmyUnitRequest(
-                    "2nd Division",
-                    UnitType.LightInfantry,
-                    UnitStats.MinFightingFactor,
-                    UnitStats.MinPoints
-                ),
-                Token
-            );
-        var unit = await created.Content.ReadAsAsync<ArmyUnitResponse>();
-        var id = unit?.Id ?? throw new InvalidOperationException("No unit.");
+        var id = await LibrarySteps.AddUnitAsync(scenario, "2nd Division", UnitType.LightInfantry);
         if (place)
         {
             using var placed = await TurnSteps.PlaceAsync(scenario, id);
