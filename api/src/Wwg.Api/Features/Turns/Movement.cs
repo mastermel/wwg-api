@@ -24,7 +24,7 @@ public enum MovementClass
 
 /// <summary>
 /// How far units move in a turn (DESIGN.md §5.2, Phase 11): a turn's budget is 1, and entering a
-/// hex costs 1 ÷ the class's rate there, in hexes per turn. Until terrain exists (step 41) every
+/// hex costs 1 ÷ the class's rate there, in hexes per turn. Until terrain exists (step 42) every
 /// hex is flat ground, with no roads or rivers.
 /// </summary>
 internal static class Movement

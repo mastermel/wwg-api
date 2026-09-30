@@ -1,7 +1,7 @@
 # wwg — Design & Implementation Plan
 
 > **Status:** Phases 1–10 (steps 1–38) are done; Phase 10 was Admins masquerading.
-> Next: Phase 11, the hex grid and the rules' movement (steps 39–50).
+> Next: Phase 11, step 41: factions and units shared by every campaign (then steps 42–51).
 > **Last updated:** 2026-09-30
 >
 > This document describes the design **as it currently stands**. The reasons
@@ -28,7 +28,8 @@ Units of the Army they command. A site-wide **Admin** can see and edit
 everything, and manage user accounts.
 
 Since Phase 8 (§7), each campaign has a **map** of its area, and progresses in
-**turns**. Armies belong to **factions**. In each turn, every army's commander
+**turns**. Armies are on **sides**, and take their units from the club's shared **library**
+of factions and units (decision [0015](docs/decisions/0015-global-factions-and-units.md)). In each turn, every army's commander
 gives each unit an order (Move or Hold) on the map and submits the turn; the
 Umpire approves it, and opens the next turn once every army has moved
 (decisions [0009](docs/decisions/0009-campaign-map-stack.md) and
@@ -1243,8 +1244,10 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   hex size (while setting up; from Phase 11). Phase 11 adds the terrain editor
   (the inferred terrain of each hex, which the Umpire can change) and the
   movement table.
+- `/library` (step 41; everyone signed in, in the navigation): the club's factions and their
+  units; Umpires and Admins create, edit and delete them. An army's **Add units** picks from it.
 - The campaign page gains a **Factions** section (the Umpire creates, renames
-  and deletes them); the army page's **Edit army** covers name, faction, colour (with
+  and deletes them; from step 41, **Sides**); the army page's **Edit army** covers name, faction (side), colour (with
   swatches; a new army is offered the first free one) and nation (with its flag).
 - **`ArmyBadge`**, the army's flag in its colour beside its name, everywhere an
   army is named: the armies list, the army page, the members list, the admin
@@ -1510,9 +1513,9 @@ HexCell (only hexes with data)        Q / R          int (the hex; replaces
               HighHill | Mountain |   Progress       0–1: part of the way into
               Water                                  the path's last hex, for a
   Forest      bool                                   hex that takes more than a
-  Settlement  None | SmallCity |                     turn (step 43)
+  Settlement  None | SmallCity |                     turn (step 44)
               LargeCity | WalledCity
-              | Fortress              MovementRate (step 43; the rules' table
+              | Fortress              MovementRate (step 44; the rules' table
   SetByUmpire bool (inference           by default)
               leaves it alone)          CampaignId, MovementClass, Ground
                                         (GoodRoad | PoorRoad | Flat | LowHill
@@ -1543,6 +1546,28 @@ its neighbours)
   | Light cavalry | Light cavalry, Scouts | 6 | 5 | 4 | 3 | 2 | 1 |
   | Cavalry | Medium cavalry, Heavy cavalry, Horse artillery | 5 | 4 | 3 | 2 | 1 | – |
   | Slow | Supply train, Siege artillery | 3 | 2 | 1 | ½ | – | – |
+
+**Step 41** (decision 0015) makes factions and units the club's, shared by every campaign:
+
+```
+Faction (global: a collection)   Unit (global)                ArmyUnit (a unit in a campaign)
+  Id        Guid                   Id           Guid            Id           Guid
+  Name      string (≤100)          FactionId    → Faction       CampaignId   → Campaign
+  Nation    Nation (its flag;      Name         string (≤100)   ArmyId       → Army
+            None = plain)          Type         (as before)     UnitId       → Unit (the library
+  CreatedAt / UpdatedAt            FightingFactor / Points                    unit it came from)
+                                   CreatedAt / UpdatedAt        Name, Type, FightingFactor,
+Side (was the campaign's                                          Points (copied when it joins;
+Faction; unchanged)                                               the campaign's from then on)
+  CampaignId, Name                                              CreatedAt / UpdatedAt
+Army.SideId (was FactionId)
+```
+
+- `ArmyUnit (CampaignId, UnitId)` is unique: a library unit is in one army per campaign, but can
+  be in several campaigns. Orders, turn notes, positions and the visibility rule refer to army
+  units (`UnitOrder.UnitId` and `UnitNote.UnitId` point at `ArmyUnits`).
+- A `Unit` with army units, or a `Faction` with units, can't be deleted (**NO ACTION**; 409
+  first). Deleting a campaign deletes its army units, never library units.
 
 **Rules enforced in the database:**
 
@@ -1607,6 +1632,10 @@ its neighbours)
     change ever made to a Completed turn. A new
     army gets a Completed turn for the last closed campaign turn to hold its
     placements, and a Draft for the open one.
+- **Step 41** (decision 0015): adding a library unit copies its name, type, FF and points into
+  the army unit; editing either afterwards changes only that one. An army unit can be removed
+  (and a library unit's use in the campaign ended) only while setting up. Anyone who is the
+  Umpire of a campaign, or an Admin, manages the library.
 - **Phase 11** (decision 0014):
   - A turn gives each unit a budget of one turn's movement. Entering a hex costs
     1 ÷ the class's rate: the road's, when the step crosses an edge with a road
@@ -1615,7 +1644,7 @@ its neighbours)
     river edge without a bridge, into water, or into terrain the class can't
     cross is closed. A path may end part-way into a hex that costs more than
     what's left, and goes on into it next turn (`Progress`). Until terrain
-    exists (step 41) every hex is Flat, and until step 43 roads and rivers
+    exists (step 42) every hex is Flat, and until step 44 roads and rivers
     don't count.
   - Time of day: turn *n* (from 1) falls in `FirstTurnPart` + *n* − 1, cycling
     Morning (06–14), Afternoon (14–22), Night (22–06), from `StartDate`. Every
@@ -1624,7 +1653,7 @@ its neighbours)
     Holland; not Westphalia, Saxony, Spain, Portugal, Naples or Denmark) moves
     one hex further (each rate + 1). Afternoon: Russian and Austrian line
     infantry and foot artillery one hex less (each rate − 1, not below ½). Night
-    moves are recorded for forced marches (step 46).
+    moves are recorded for forced marches (step 47).
   - The Umpire's moves (decision 0011) may exceed the budget, after a warning,
     but not leave the grid or cross a closed step.
   - Placing a unit puts it in a hex. Positions from before the grid were
@@ -1666,6 +1695,12 @@ New rows:
 |---|:-:|:-:|:-:|:-:|:-:|
 | List factions; see each army's faction, colour, nation | ✅ | ✅ | ✅ | ✅ | 404 |
 | Create / rename / delete faction; set an army's faction, colour, nation | ✅ | ✅ | 403 | 403 | 404 |
+| Step 41: list / create / rename / delete sides (the campaign's; as factions above) | ✅ | ✅ | 403 | 403 | 404 |
+| Step 41: add library units to an army, create one for it, edit or remove an army unit | ✅ | ✅ | 403 | 403 | 404 |
+
+The library (step 41) isn't a campaign's: browsing it is for everyone signed in, and creating,
+editing and deleting factions and units is for Admins and anyone who is the Umpire of a campaign
+(403 for others).
 | View the map settings (bounds, layers, language, limits) | ✅ | ✅ | ✅ | ✅ | 404 |
 | Edit the map settings; search for places | ✅ | ✅ | 403 | 403 | 404 |
 | View turn progress (numbers, statuses, counts) | ✅ | ✅ | ✅ | ✅ | 404 |
@@ -1795,6 +1830,20 @@ each step)
 | GET | `/api/campaigns/{id}/grid` | The grid's cells and edges with data (every member): terrain, forest, settlements, roads, rivers, bridges (Phase 11) |
 | PUT | `/api/campaigns/{id}/grid` | Save inferred terrain for the whole grid (Umpire); hexes and edges the Umpire set are kept |
 | PUT | `/api/campaigns/{id}/grid/cells/{q}/{r}` · `/edges/{q}/{r}/{side}` | The Umpire sets one hex or edge |
+
+**Step 41: the library and army units** (decision 0015; the campaign's factions become sides:
+`/api/campaigns/{id}/sides`, `/api/sides/{id}`)
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET / POST | `/api/factions` | The library's factions (with how many units) / create one `{ name, nation }` |
+| GET / PUT / DELETE | `/api/factions/{id}` | A faction with its units / rename / delete (in use: 409) |
+| POST | `/api/factions/{id}/units` | Create a library unit `{ name, type, fightingFactor, points }` |
+| PUT / DELETE | `/api/units/{id}` | Edit / delete a library unit (in a campaign: 409) |
+| POST | `/api/armies/{id}/units` | Add library units `{ unitIds }` (one already in the campaign: 409) |
+| POST | `/api/armies/{id}/units/new` | Create a library unit `{ factionId, name, type, fightingFactor, points }` and add it |
+| PUT / DELETE | `/api/army-units/{id}` | Edit the campaign's copy / remove it from the army (setup only) |
+| PUT / DELETE | `/api/army-units/{id}/placement` | Replaces `/api/units/{id}/placement` |
 
 Status changes that aren't allowed now (submitting a Submitted turn, reverting
 in a closed turn) are **409**s, as is losing a race for the same change; a Move
@@ -2222,7 +2271,7 @@ build on positions.
     unit types by the rules' movement classes (migration: HeavyInfantry → LineInfantry,
     Skirmishers → LightInfantry); orders and placements in hexes (`Q`, `R`, `Path`), existing
     positions converted once at start-up; a Move's path checked against the rules' flat rates
-    (every hex Flat until step 41); the movement limits go. `GET /positions` gives each unit's
+    (every hex Flat until step 42); the movement limits go. `GET /positions` gives each unit's
     hex and its centre.
     - Done with the web side it needs (the contract changed under it): placing by hex, and
       moving by hex with the reachable hexes shaded and the cheapest path drawn (`movement.ts`
@@ -2240,33 +2289,55 @@ build on positions.
     - Placing and moving by hex, the reachable hexes and the path came with step 39. The grid is a
       map layer like the others (`MapLayers.Grid`, on by default and for existing maps), drawn
       under the units on the map page; the settings preview draws the size being chosen.
-41. **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
+41. **Factions and units for every campaign** (decision
+    [0015](docs/decisions/0015-global-factions-and-units.md)); three commits:
+    - **41a. Sides:** Phase 8's campaign factions become sides: `Faction` → `Side`,
+      `Army.FactionId` → `SideId` (renamed in place: `ALTER TABLE … RENAME`, no rebuild of
+      `Armies`, whose triggers stay), `/api/campaigns/{id}/sides` and `/api/sides/{id}`, the
+      campaign page's **Sides** section, "Put X on a side". No change in behaviour.
+    - **41b. The library:** global `Faction` (name, nation) and `Unit` (faction, name, type, FF,
+      points); `/api/factions`, `/api/factions/{id}`, `/api/factions/{id}/units`,
+      `/api/units/{id}`; managers are Umpires of any campaign and Admins, and a faction or unit
+      in use can't be deleted (409). A **Library** page (every signed-in user; in the navigation):
+      factions, each with its units, and for managers create, edit and delete.
+    - **41c. Army units:** the old `Unit` becomes `ArmyUnit` (`ArmyId`, `UnitId` → the library
+      unit, `CampaignId`, and its own name, type, FF and points), unique per campaign and library
+      unit. The migration renames `Units` to `ArmyUnits` in place (orders, notes and their
+      foreign keys follow the rename) and puts a copy of each into the library, in a faction per
+      army nation ("Unsorted" for none). `POST /api/armies/{id}/units { unitIds }` adds library
+      units (409 for one already in the campaign), `POST /api/armies/{id}/units/new` creates one
+      in a faction and adds it, `PUT` / `DELETE /api/army-units/{id}` edit the campaign's copy and
+      remove it (setup only). Orders, positions, notes and placement use army-unit IDs
+      (`/api/army-units/{id}/placement`). The army page's **Add units**: choose a faction, tick
+      units (those already in the campaign show which army has them), or **New unit**.
+      End-to-end: set up a campaign from the library, add a unit to a second campaign.
+42. **Terrain (API):** `HexCell` and `HexEdge`, `GET` / `PUT /grid` and the single-hex and
     single-edge edits, keeping what the Umpire set when inference runs again.
-42. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
+43. **Terrain (UI):** inference in the Umpire's browser from the tiles the map uses: relief from
     Mapterhorn elevation (roughly: under 50 m flat, under 150 m low hills, under 400 m high hills,
     else mountains), forest from land cover (half the hex or more), water, cities and towns, and
     roads (trunk and primary good, secondary poor) and rivers crossing each edge (a road and a
     river on one edge make a bridge); the terrain layer on the map; the Umpire's editor (choose a
     hex or edge and set it). End-to-end: infer, correct a hex.
-43. **Costed movement:** terrain, roads, rivers and bridges in the costs, closed steps, and
+44. **Costed movement:** terrain, roads, rivers and bridges in the costs, closed steps, and
     `Progress` for hexes that take more than a turn; the movement table per campaign (the rules'
     by default), editable in the settings.
-44. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
+45. **Time of day:** the campaign's start date and first turn's time of day; every turn labelled
     ("Turn 7 · 17 June 1815, Afternoon"); the Morning and Afternoon modifiers by nation; night
     moves recorded.
-45. **Contact and concentration:** the Umpire is shown where opposing armies share a hex after a
+46. **Contact and concentration:** the Umpire is shown where opposing armies share a hex after a
     turn (battles themselves happen at the table), and warned of hexes over the concentration
     limits (200 points of infantry or 160 of cavalry; double in large and walled cities and
     fortresses; allowed for the three turns either side of a battle).
-46. **Forced marches and attrition:** a force-march order (+1 hex a day turn, or moving by
+47. **Forced marches and attrition:** a force-march order (+1 hex a day turn, or moving by
     night), consecutive turns and rest tracked, and attrition by the rules' FF scale applied to
     units' points (points then change over time, with a history per turn).
-47. **Supply:** depots per side, supply lines along roads and rivers, cut by 5 or more enemy
+48. **Supply:** depots per side, supply lines along roads and rivers, cut by 5 or more enemy
     points in a hex on them, six turns' grace, then attrition; the exempt units.
-48. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants
+49. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants
     planned in §5.2), general reports rather than detail, screening by light troops, scouting
     parties' rolls, spies.
-49. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
+50. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
     last army to occupy it, and a campaign scoreboard.
-50. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
+51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.

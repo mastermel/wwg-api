@@ -55,3 +55,4 @@ A reversal gets a new entry.
 | [0012](0012-admin-masquerade.md) | Admins masquerade as other users | 2026-09-30 |
 | [0013](0013-wasatch-wargamers-branding.md) | The app is called Wasatch Wargamers, with a new mark | 2026-09-30 |
 | [0014](0014-hex-grid-movement.md) | A hex grid, terrain and the rules' movement replace free movement | 2026-09-30 |
+| [0015](0015-global-factions-and-units.md) | Factions and units are the club's, shared by every campaign | 2026-09-30 |
