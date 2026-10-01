@@ -2527,9 +2527,21 @@ build on positions.
       mark on units out of supply on the map, their supply in the unit drawer, and the turn panel's
       **Supply** warnings (units the orders leave out of supply, intermediate depots cut off), for
       the army's commander and the Umpire.
-49. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants
-    planned in §5.2), general reports rather than detail, screening by light troops, scouting
-    parties' rolls, spies.
+49. **Sightings and intelligence** (decision 0020), in parts:
+    - **49a. Sight (API):** what each army's units can see where a turn leaves them, by the map's
+      terrain in elevation steps (flat 1, low hill 2, high hill 3, mountain 4; hills block the view
+      beyond unless the observer stands higher): the other side's hexes in sight, per observing
+      army, with possible screens flagged.
+    - **49b. Sightings:** starting the next turn lists each army's sightings (one per enemy hex),
+      prefilled (the hex or roughly where, army and nation, unit types, exact or rough strength);
+      the Umpire changes, skips or adds them; each shows to its army for that turn only, on the
+      map and in a list, and past turns' stay in the turn history.
+    - **49c. Couriers (API):** a commander sends an ally a report (their units' snapshot, chosen
+      sightings with their turns, a note ≤ 1,000 characters); its courier rides as light cavalry
+      from the sender's nearest unit towards the recipient's, turn by turn (within two turns'
+      ride, next turn); the Umpire sees couriers, is warned of enemy in their hex, and can stop one.
+    - **49d. Intelligence in the app:** sending a report, the Intelligence list of reports
+      received (viewable on the map), and the Umpire's couriers.
 50. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
     last army to occupy it, and a campaign scoreboard.
 51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and

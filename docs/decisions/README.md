@@ -60,3 +60,4 @@ A reversal gets a new entry.
 | [0017](0017-two-sides-contact-and-concentration.md) | Two sides a campaign, contact between them, and concentration by side | 2026-10-01 |
 | [0018](0018-forced-marches-and-attrition.md) | Forced marches, attrition, and each unit's points history | 2026-10-01 |
 | [0019](0019-supply-by-army.md) | Supply: each army's depots, routes by road and waterway, living off the land | 2026-10-01 |
+| [0020](0020-sightings-and-couriers.md) | Sightings the Umpire shapes, and intelligence by courier between allies | 2026-10-01 |
