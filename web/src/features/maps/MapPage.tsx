@@ -16,6 +16,7 @@ import { useListArmies } from "@/api/generated/endpoints/armies/armies";
 import {
   useGetCampaign,
   useGetCampaignCalendar,
+  useGetCampaignConcentration,
 } from "@/api/generated/endpoints/campaigns/campaigns";
 import { useGetCampaignGrid, useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
 import { useGetMovementTable } from "@/api/generated/endpoints/turns/turns";
@@ -37,6 +38,7 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { CampaignMap } from "@/features/maps/CampaignMap";
+import { afterOrders, hexWarnings } from "@/features/maps/contact";
 import type { Point } from "@/features/maps/geo";
 import { hexGrid, hexKey, type Hex } from "@/features/maps/hex-grid";
 import {
@@ -57,6 +59,7 @@ import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
 import { HexDetailsList } from "@/features/maps/HexDetailsList";
+import { HexWarningsLayer } from "@/features/maps/HexWarningsLayer";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
@@ -247,6 +250,9 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const terrain = useGetCampaignGrid(campaignId, live);
   const movementTable = useGetMovementTable(campaignId, live);
   const calendar = useGetCampaignCalendar(campaignId, live);
+  const concentration = useGetCampaignConcentration(campaignId, {
+    query: { meta: { persist: false }, enabled: manager },
+  });
   const costs = useMemo(
     () => ({ rates: ratesOf(movementTable.data), terrain: indexTerrain(terrain.data) }),
     [movementTable.data, terrain.data],
@@ -278,6 +284,24 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         ? reach(grid, moving.hex, moving.unit.type, { ...costs, budget: Infinity })
         : withinTurn,
     [grid, moving, manager, withinTurn, costs],
+  );
+  // Contact and concentration, for the Umpire (step 46): in the open turn from the orders as
+  // given, on a past one from where the units ended up.
+  const warnings = useMemo(
+    () =>
+      manager && !setup && concentration.data
+        ? hexWarnings(
+            past !== null
+              ? onMap
+              : afterOrders(
+                  onMap,
+                  openTurns.flatMap(({ turn }) => turn?.orders ?? []),
+                ),
+            concentration.data,
+            costs.terrain,
+          )
+        : [],
+    [manager, setup, concentration.data, past, onMap, openTurns, costs.terrain],
   );
   const targetPath = target && reachable ? pathTo(reachable, target) : null;
   // Part of the way into it, when it takes more than a turn (the commander's moves only).
@@ -499,6 +523,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               {settings.layers.grid && terrain.data && (
                 <TerrainLayer grid={grid} terrain={terrain.data} />
               )}
+              <HexWarningsLayer grid={grid} warnings={warnings} />
               <OrderOverlay
                 moves={moves}
                 reachable={
@@ -541,6 +566,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 armyTurns={openTurns}
                 units={units.data ?? []}
                 openTurn={turns.data.openTurn}
+                warnings={warnings}
+                terrain={costs.terrain}
                 onBack={() => {
                   setViewing(null);
                 }}
@@ -563,6 +590,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 armyTurns={openTurns}
                 units={units.data ?? []}
                 review={review}
+                warnings={warnings}
+                terrain={costs.terrain}
               />
             ) : !setup && commanded.length > 0 && openTurn ? (
               <TurnPanel

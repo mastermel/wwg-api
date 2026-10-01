@@ -118,6 +118,46 @@ test("the Umpire sends a turn back, approves it resubmitted, and starts the next
   );
 });
 
+test("the Umpire is warned where the orders bring the two sides together", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  const commander = await signUp("Bob");
+  const { campaignUrl, campaignId, armyId } = await startedCampaign(umpire, commander, "Ligny");
+  // The other side's brigade waits next to the Guard, which Bob orders into its hex.
+  const api = await apiAs(umpire.page);
+  const prussian = await libraryFaction(browserOf(umpire.page), "Prussian", "Prussia", [
+    { name: "1st Brigade", type: "LightInfantry", fightingFactor: 4, points: 20 },
+  ]);
+  const sides = await api.get<{ id: string }[]>(`/api/campaigns/${campaignId}/sides`);
+  await api.put(`/api/sides/${sides[1].id}`, { name: "Coalition" });
+  const prussians = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
+    name: "Prussian I Corps",
+    commanderMemberId: null,
+    sideId: sides[1].id,
+    nation: "Prussia",
+    factionIds: [prussian.id],
+  });
+  const [brigade] = await api.post<{ id: string }[]>(`/api/armies/${prussians.id}/units`, {
+    unitIds: prussian.units.map((unit) => unit.id),
+  });
+  await api.put(`/api/army-units/${brigade.id}/placement`, { q: 1, r: 0 });
+  await holdAndSubmit(commander, campaignId, armyId, { "Imperial Guard": [{ q: 1, r: 0 }] });
+
+  await umpire.page.goto(`${campaignUrl}/map`);
+  const warnings = umpire.page
+    .getByRole("region", { name: "Turn 1" })
+    .getByRole("list", { name: "Contact and concentration" });
+  await expect(warnings).toContainText("Hex (1, 0): Contact: Coalition and French Empire.");
+  expect(await scan(umpire.page, "map, contact")).toEqual([]);
+  // The warning's colours, in the dark scheme too (accessibility.spec.ts can't reach a running map).
+  await umpire.page.emulateMedia({ colorScheme: "dark" });
+  expect(await scan(umpire.page, "map, contact, dark")).toEqual([]);
+
+  // Bob, a commander, isn't told where the other side is.
+  await commander.page.goto(`${campaignUrl}/map`);
+  await expect(commander.page.getByRole("region", { name: "Turn 1" })).toBeVisible();
+  await expect(commander.page.getByText("Contact and concentration")).toHaveCount(0);
+});
+
 test("a commander steps back through the turns; the Umpire picks out an army", async ({
   signUp,
 }) => {

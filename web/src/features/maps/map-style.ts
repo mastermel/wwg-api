@@ -25,7 +25,8 @@ export const attribution =
  * The terrain layer's tints (decision 0014): hexes are washed over the map at 45%, so the base
  * map still reads through; hills darken with height. Towns and cities are drawn in the label
  * colour (9.5:1 or more, as labels), fortresses in a red that's 4.5:1 or more against land in
- * each scheme.
+ * each scheme. Hexes to warn of (contact and concentration, step 46) are outlined in the
+ * fortress red too: 4.5:1 or more against land, forest and water in each scheme.
  */
 function terrainLight() {
   return {
@@ -35,6 +36,7 @@ function terrainLight() {
     waterHex: "#8fbbe0",
     forestHex: "#6f9f5c",
     fortress: "#a3261f",
+    warning: "#a3261f",
   } as const;
 }
 
@@ -46,6 +48,7 @@ function terrainDark() {
     waterHex: "#2f5a80",
     forestHex: "#3f6b3a",
     fortress: "#ff7b6e",
+    warning: "#ff7b6e",
   } as const;
 }
 

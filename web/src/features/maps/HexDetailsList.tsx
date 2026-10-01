@@ -2,12 +2,9 @@ import { List, Text } from "@mantine/core";
 import { useListHexDetails } from "@/api/generated/endpoints/maps/maps";
 import { Section } from "@/components/Section";
 import { describeDetail } from "@/features/maps/hex-detail";
+import { hexName } from "@/features/maps/hex-grid";
 
 const live = { query: { meta: { persist: false } } } as const;
-
-/** "Hex (3, −2)". */
-const hexName = ({ q, r }: { q: number; r: number }) =>
-  `Hex (${String(q)}, ${String(r)})`.replace(/-/g, "−");
 
 /**
  * The hexes' actual terrain the viewer may see (decision 0016): what the Umpire's dice found and

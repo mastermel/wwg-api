@@ -232,3 +232,53 @@ describe("the turn list", () => {
     expect(army).toHaveAttribute("aria-pressed", "false");
   });
 });
+
+describe("contact and concentration on a past turn", () => {
+  it("warns the Umpire of a hex over a limit, from where the units ended up", async () => {
+    serveHistory();
+    server.use(
+      // After turn 1 the guard was at (0, 0); now, nowhere on the map.
+      http.get(`*/api/campaigns/${campaignId}/positions`, ({ request }) =>
+        HttpResponse.json(
+          new URL(request.url).searchParams.get("turn") === "1"
+            ? [
+                {
+                  unitId: guardId,
+                  armyId: nord.id,
+                  turn: 1,
+                  status: "Completed",
+                  kind: "Hold",
+                  latitude: 50.7,
+                  longitude: 4.4,
+                  byUmpire: false,
+                  progress: null,
+                  q: 0,
+                  r: 0,
+                  path: [],
+                },
+              ]
+            : [],
+        ),
+      ),
+      http.get(`*/api/campaigns/${campaignId}/concentration`, () =>
+        HttpResponse.json({
+          infantryTypes: ["LineInfantry"],
+          cavalryTypes: [],
+          infantryLimit: 20,
+          cavalryLimit: 160,
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    await openMap();
+    expect(
+      screen.queryByRole("list", { name: "Contact and concentration" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: /^Turn 1:/ }));
+
+    const warnings = await screen.findByRole("list", { name: "Contact and concentration" });
+    expect(warnings).toHaveTextContent("Hex (0, 0): Coalition has 30 points of infantry, over 20.");
+    expect(screen.getByText("Where the units ended up.")).toBeInTheDocument();
+  });
+});

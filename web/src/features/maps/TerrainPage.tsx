@@ -45,7 +45,7 @@ import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { CampaignMap } from "@/features/maps/CampaignMap";
-import { hexGrid, hexKey, type Hex, type HexGrid } from "@/features/maps/hex-grid";
+import { hexGrid, hexKey, hexName, type Hex, type HexGrid } from "@/features/maps/hex-grid";
 import { mapPalettes } from "@/features/maps/map-style";
 import {
   capitalLabels,
@@ -76,7 +76,6 @@ const options = <T extends string>(labels: Record<T, string>) =>
   (Object.keys(labels) as T[]).map((value) => ({ value, label: labels[value] }));
 
 /** "Hex (3, −2)": a hex's coordinates, as the Umpire sees them. */
-const hexName = ({ q, r }: Hex) => `Hex (${String(q)}, ${String(r)})`.replace(/-/g, "−");
 
 /** The Umpire's terrain editor (decisions 0014 and 0016): a hex's ground and settlement, and its edges. */
 export function TerrainPage({ campaignId }: { campaignId: string }) {

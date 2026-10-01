@@ -2454,10 +2454,13 @@ build on positions.
       usual types, `Concentration` in the API, `concentration.ts` in the app), `InfantryLimit`
       and `CavalryLimit`; `GET` (every member) / `PUT` (the Umpire)
       `/api/campaigns/{id}/concentration`.
-    - **46c. Contact and concentration:** for the Umpire, the hexes holding units of both sides
+    - ✅ **46c. Contact and concentration:** for the Umpire, the hexes holding units of both sides
       (contact), and each side's hexes over a limit (its counted points of those types; doubled in
-      a large city or a fortress); in the open turn from the orders as given, on past turns from
-      where the units ended up. Shown on the map and in the review panel, as warnings.
+      a City or a fortress, not a walled town); in the open turn from the orders as given (every
+      army's, whatever their status), on past turns from where the units ended up. Outlined on the
+      map in the fortress red, and listed in words in the turn panel ("Hex (1, 0): Contact:
+      Coalition and French Empire."), as warnings. Worked out in the app (`contact.ts`) from what
+      the Umpire's map already loads; commanders aren't shown them.
     - **46d. Battle records (later):** the Umpire records a battle: its hex and turn, the units
       involved, and their points afterwards (which the units then have). Concentration within
       three turns of a battle in that hex is then allowed, as the rules say.

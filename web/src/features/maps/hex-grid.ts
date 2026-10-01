@@ -42,6 +42,9 @@ export const hexDistance = (a: Hex, b: Hex) =>
 /** A hex as a string, for keys and sets. */
 export const hexKey = ({ q, r }: Hex) => `${String(q)},${String(r)}`;
 
+/** A hex in words, for people: "Hex (3, −2)". */
+export const hexName = ({ q, r }: Hex) => `Hex (${String(q)}, ${String(r)})`.replace(/-/g, "−");
+
 export interface HexGrid {
   /** The hex a point falls in (whether or not it's in the grid). */
   hexAt: (point: Point) => Hex;

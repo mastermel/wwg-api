@@ -11,6 +11,9 @@ import type {
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
+import type { HexWarning } from "@/features/maps/contact";
+import { HexWarningsList } from "@/features/maps/HexWarningsList";
+import type { TerrainIndex } from "@/features/maps/terrain";
 import { ReviewModal } from "@/features/maps/ReviewModal";
 import type { OpenArmyTurn } from "@/features/maps/use-orders";
 import type { useReview } from "@/features/maps/use-review";
@@ -31,6 +34,9 @@ interface ReviewPanelProps {
   armyTurns: readonly OpenArmyTurn[];
   units: readonly ArmyUnitResponse[];
   review: ReturnType<typeof useReview>;
+  /** Contact and concentration, by the orders as given (step 46). */
+  warnings: readonly HexWarning[];
+  terrain: TerrainIndex;
 }
 
 /**
@@ -38,7 +44,15 @@ interface ReviewPanelProps {
  * for it while it's a Draft (decision 0011), Approve or Send back once it's submitted, Reopen
  * once it's approved; and Start turn N+1 once every army's turn is approved.
  */
-export function ReviewPanel({ open, problems, armyTurns, units, review }: ReviewPanelProps) {
+export function ReviewPanel({
+  open,
+  problems,
+  armyTurns,
+  units,
+  review,
+  warnings,
+  terrain,
+}: ReviewPanelProps) {
   const online = useOnline();
   const [reviewing, setReviewing] = useState<{
     kind: "send-back" | "revert";
@@ -72,6 +86,7 @@ export function ReviewPanel({ open, problems, armyTurns, units, review }: Review
             />
           ) : null,
         )}
+        <HexWarningsList warnings={warnings} terrain={terrain} from="orders" />
         {problems.length > 0 && (
           <Alert role="status" color="gray" title={`Before turn ${String(next)} can start`}>
             <List size="sm" spacing={2}>

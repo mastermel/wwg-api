@@ -277,3 +277,91 @@ describe("the Umpire's turn", () => {
     expect(requests).toEqual([{ url: `/api/army-turns/${waiting.id}/submit`, body: null }]);
   });
 });
+
+describe("contact and concentration in the Umpire's turn", () => {
+  const french = {
+    ...prussians,
+    side: { id: "0192f5c1-0000-7000-8000-00000000f002", name: "French Empire" },
+  };
+  const lancersId = "0192f5c1-0000-7000-8000-00000000b002";
+  const at = (unitId: string, armyId: string, q: number, r: number) => ({
+    unitId,
+    armyId,
+    turn: 0,
+    status: "Completed" as const,
+    kind: "Move" as const,
+    latitude: 50.7,
+    longitude: 4.4,
+    byUmpire: true,
+    progress: null,
+    q,
+    r,
+    path: [],
+  });
+
+  /** The guard (Coalition) at (0, 0), French lancers (220 points of cavalry) at (1, 0). */
+  function serveContact(guardOrder: ArmyTurnDetails["orders"]) {
+    serveUmpire(armyTurn(nord, { orders: guardOrder }), armyTurn(french, {}), []);
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/armies`, () => HttpResponse.json([nord, french])),
+      http.get(`*/api/campaigns/${campaignId}/units`, () =>
+        HttpResponse.json([
+          {
+            id: guardId,
+            armyId: nord.id,
+            name: "Imperial Guard",
+            type: "LineInfantry",
+            fightingFactor: 6,
+            points: 30,
+          },
+          {
+            id: lancersId,
+            armyId: french.id,
+            name: "Lancers",
+            type: "HeavyCavalry",
+            fightingFactor: 5,
+            points: 220,
+          },
+        ]),
+      ),
+      http.get(`*/api/campaigns/${campaignId}/positions`, () =>
+        HttpResponse.json([at(guardId, nord.id, 0, 0), at(lancersId, french.id, 1, 0)]),
+      ),
+      http.get(`*/api/campaigns/${campaignId}/concentration`, () =>
+        HttpResponse.json({
+          infantryTypes: ["LineInfantry"],
+          cavalryTypes: ["HeavyCavalry"],
+          infantryLimit: 200,
+          cavalryLimit: 160,
+        }),
+      ),
+    );
+  }
+
+  it("warns of a side over a limit where the units are", async () => {
+    serveContact([]);
+
+    await openMap();
+
+    const warnings = await screen.findByRole("list", { name: "Contact and concentration" });
+    expect(warnings).toHaveTextContent(
+      "Hex (1, 0): French Empire has 220 points of cavalry, over 160.",
+    );
+    expect(warnings).not.toHaveTextContent("Contact:");
+    await expectNoAxeViolations(document.body);
+  });
+
+  it("warns of contact where the orders as given take a unit", async () => {
+    serveContact([{ ...at(guardId, nord.id, 1, 0), turn: 1, status: "Draft", byUmpire: false }]);
+
+    await openMap();
+
+    const warnings = await screen.findByRole("list", { name: "Contact and concentration" });
+    expect(warnings).toHaveTextContent(
+      "Hex (1, 0): Contact: Coalition and French Empire. French Empire has 220 points of cavalry, over 160.",
+    );
+    expect(
+      screen.getByText("Where the units will be, by the orders as given."),
+    ).toBeInTheDocument();
+  });
+});
