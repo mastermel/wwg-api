@@ -2465,9 +2465,18 @@ build on positions.
       involved, and their points afterwards (which the units then have). Concentration within
       three turns of a battle in that hex is then allowed, as the rules say.
     - Later, for consideration: units whose paths cross during a turn (meeting mid-move).
-47. **Forced marches and attrition:** a force-march order (+1 hex a day turn, or moving by
-    night), consecutive turns and rest tracked, and attrition by the rules' FF scale applied to
-    units' points (points then change over time, with a history per turn).
+47. **Forced marches and attrition** (decision 0018), in parts:
+    - **47a. Marches (API):** `UnitOrder.ForceMarch` (a flat hex's worth further, in a Morning or
+      an Afternoon turn only); each unit's march count worked out from its orders turn by turn
+      (moves in a row, the first forced march at the third move or the second force-march order,
+      each Hold working one turn off), shown to its army's commander and the Umpire.
+    - **47b. Attrition (API):** the attrition the open turn's orders cost (FF scale × ×1, ×2, ×4…
+      × points ÷ 50, fractions carried per unit), for the Umpire; starting the next turn takes the
+      Umpire's confirmed loss for each unit that owes one, and applies it. Each unit's points
+      history (attrition, and the Umpire's edits), for every member.
+    - **47c. In the app:** "Force march" when moving (the reach goes a hex further), each unit's
+      march count and what its next move would cost, the Umpire's attrition list (each loss
+      editable) on starting the next turn, and the points history in the unit drawer.
 48. **Supply:** depots per side, supply lines along roads and rivers, cut by 5 or more enemy
     points in a hex on them, six turns' grace, then attrition; the exempt units.
 49. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants

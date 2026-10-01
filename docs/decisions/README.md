@@ -58,3 +58,4 @@ A reversal gets a new entry.
 | [0015](0015-global-factions-and-units.md) | Factions and units are the club's, shared by every campaign | 2026-09-30 |
 | [0016](0016-hex-terrain-in-detail.md) | A hex's map terrain, its settlement in parts, its actual terrain, and river courses | 2026-09-30 |
 | [0017](0017-two-sides-contact-and-concentration.md) | Two sides a campaign, contact between them, and concentration by side | 2026-10-01 |
+| [0018](0018-forced-marches-and-attrition.md) | Forced marches, attrition, and each unit's points history | 2026-10-01 |
