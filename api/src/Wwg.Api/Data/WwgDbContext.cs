@@ -60,6 +60,10 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<IntelReport> IntelReports => Set<IntelReport>();
 
+    public DbSet<Holding> Holdings => Set<Holding>();
+
+    public DbSet<HoldingChange> HoldingChanges => Set<HoldingChange>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

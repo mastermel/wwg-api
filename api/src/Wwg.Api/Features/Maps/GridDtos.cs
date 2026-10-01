@@ -14,12 +14,16 @@ namespace Wwg.Api.Features.Maps;
 /// <param name="Fortress">A fortress, in the town or city or on its own.</param>
 /// <param name="Capital">Whether the town or city is a capital (only with one).</param>
 /// <param name="Name">Its name, if given (only with a town, city or fortress).</param>
+/// <param name="VictoryPoints">
+/// What the Umpire made it worth (step 50, decision 0021); null for the rules' value.
+/// </param>
 public sealed record HexSettlement(
     [property: JsonRequired, EnumDataType(typeof(SettlementSize))] SettlementSize Size,
     [property: JsonRequired] bool Walled,
     [property: JsonRequired] bool Fortress,
     [property: JsonRequired, EnumDataType(typeof(CapitalStatus))] CapitalStatus Capital,
-    [property: Trimmed, StringLength(100)] string? Name = null
+    [property: Trimmed, StringLength(100)] string? Name = null,
+    [property: Range(0, 1000)] int? VictoryPoints = null
 )
 {
     /// <summary>Nothing there.</summary>
@@ -39,7 +43,34 @@ public sealed record HexSettlement(
         Size == SettlementSize.None && (Walled || Capital != CapitalStatus.None)
             ? "Only a town or city can be walled or a capital."
         : !IsAny && !string.IsNullOrEmpty(Name) ? "Only a town, city or fortress has a name."
+        : !IsAny && VictoryPoints is not null ? "Only a town, city or fortress is worth points."
         : null;
+
+    /// <summary>
+    /// What holding it is worth (the rules, §C.3(b); decision 0021): the Umpire's value, or the
+    /// highest of a town 10, a city 25, walled 35, a fortress 50, and 25 more for a capital or 10
+    /// for a minor capital. Nothing there, nothing.
+    /// </summary>
+    [JsonIgnore]
+    public int Value =>
+        VictoryPoints
+        ?? (
+            !IsAny
+                ? 0
+                : new[]
+                {
+                    Size == SettlementSize.Town ? 10 : 0,
+                    Size == SettlementSize.City ? 25 : 0,
+                    Walled ? 35 : 0,
+                    Fortress ? 50 : 0,
+                }.Max()
+                    + Capital switch
+                    {
+                        CapitalStatus.Capital => 25,
+                        CapitalStatus.Minor => 10,
+                        _ => 0,
+                    }
+        );
 }
 
 /// <summary>A hex with terrain on it.</summary>

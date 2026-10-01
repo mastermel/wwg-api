@@ -90,6 +90,9 @@ internal sealed class HexCell : Entity
     /// <summary>The town, city or fortress's name, if given.</summary>
     public string? Name { get; set; }
 
+    /// <summary>What the Umpire made its settlement worth (decision 0021); null for the rules'.</summary>
+    public int? VictoryPoints { get; set; }
+
     /// <summary>Set by the Umpire: inference leaves it alone.</summary>
     public bool SetByUmpire { get; set; }
 }

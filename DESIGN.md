@@ -2560,13 +2560,16 @@ build on positions.
       units shown on the map on request, faded: `SnapshotMarkers`) and sent, and the Umpire's
       **Couriers** panel (where each is, flagged among the enemy, stopping one).
 50. **Towns and victory points** (decision 0021), in parts:
-    - **50a. Values and holders (API):** each settlement's value (the highest of town 10, city 25,
+    - ✅ **50a. Values and holders (API):** each settlement's value (the highest of town 10, city 25,
       walled 35, fortress 50, plus 25 or 10 for a capital or minor capital; the Umpire's own where
       set) and its holder (an army, or no one; the Umpire sets who starts with it); as each turn
-      closes, an army alone in the hex takes it, with the change kept per turn.
-    - **50b. The scoreboard (API):** each side's total for every member, with its armies' parts;
+      closes, an army alone in the hex takes it, with the change kept per turn (`HexSettlement.Value`
+      and its `VictoryPoints` override; `Holding`, `HoldingChange`; `PUT
+      /api/campaigns/{id}/holdings/{q}/{r}`; `Holdings.CloseTurnAsync`).
+    - ✅ **50b. The scoreboard (API):** each side's total for every member, with its armies' parts;
       the settlements and their holders for their own side and the Umpire; the history of totals
-      per turn, and the changes a side made or suffered.
+      per turn, and the changes a side made or suffered (`GET /api/campaigns/{id}/scoreboard`,
+      `Scoreboard`; sides by name, as the sides list).
     - **50c. In the app:** the value and starting holder in the terrain editor; the scoreboard on
       the campaign and map pages, with its history; a flag in the holder's colour by each
       settlement on the map, and the holder and value in the hex card.

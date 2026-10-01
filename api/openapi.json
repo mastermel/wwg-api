@@ -794,6 +794,111 @@
         ]
       }
     },
+    "/api/campaigns/{id}/holdings/{q}/{r}": {
+      "put": {
+        "tags": [
+          "Victory"
+        ],
+        "summary": "Sets who holds the settlement in hex (q, r), an army or no one (Umpire or Admin): who starts\nwith it, or a correction. 404 where there's no settlement worth anything.",
+        "operationId": "SetHolding",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "q",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "r",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetHoldingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/scoreboard": {
+      "get": {
+        "tags": [
+          "Victory"
+        ],
+        "summary": "The victory points (every member): every side's total, with its armies' parts, and after\nevery turn; the settlements their own side holds, and the changes it made or suffered. The\nUmpire's and Admins', everything.",
+        "operationId": "GetScoreboard",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScoreboardResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -5068,6 +5173,26 @@
         },
         "description": "An army's details, with its units."
       },
+      "ArmyScoreResponse": {
+        "required": [
+          "armyId",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "armyId": {
+            "type": "string",
+            "description": "The army.",
+            "format": "uuid"
+          },
+          "points": {
+            "type": "integer",
+            "description": "What the settlements it holds are worth.",
+            "format": "int32"
+          }
+        },
+        "description": "An army's part of its side's total."
+      },
       "ArmySide": {
         "required": [
           "id",
@@ -6747,9 +6872,82 @@
               "string"
             ],
             "description": "Its name, if given (only with a town, city or fortress)."
+          },
+          "victoryPoints": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "What the Umpire made it worth (step 50, decision 0021); null for the rules' value.",
+            "format": "int32"
           }
         },
         "description": "A hex's town, city or fortress (decision 0016)."
+      },
+      "HoldingChangeResponse": {
+        "required": [
+          "turn",
+          "q",
+          "r",
+          "name",
+          "value",
+          "fromArmyId",
+          "toArmyId",
+          "byUmpire"
+        ],
+        "type": "object",
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "description": "The turn it happened in (0: set up before the start).",
+            "format": "int32"
+          },
+          "q": {
+            "type": "integer",
+            "description": "Its hex (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "Its hex (axial r).",
+            "format": "int32"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its name, if it has one."
+          },
+          "value": {
+            "type": "integer",
+            "description": "What it's worth.",
+            "format": "int32"
+          },
+          "fromArmyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who held it before, if anyone.",
+            "format": "uuid"
+          },
+          "toArmyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who holds it after, if anyone.",
+            "format": "uuid"
+          },
+          "byUmpire": {
+            "type": "boolean",
+            "description": "Set by the Umpire rather than taken."
+          }
+        },
+        "description": "A settlement changing hands."
       },
       "HttpValidationProblemDetails": {
         "type": "object",
@@ -7836,6 +8034,46 @@
         },
         "description": "Adds a unit to a faction in the library, or changes one."
       },
+      "ScoreboardResponse": {
+        "required": [
+          "sides",
+          "settlements",
+          "turns",
+          "changes"
+        ],
+        "type": "object",
+        "properties": {
+          "sides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SideScoreResponse"
+            },
+            "description": "Each side's total, with its armies' parts."
+          },
+          "settlements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SettlementScoreResponse"
+            },
+            "description": "The settlements the viewer may know the holder of."
+          },
+          "turns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TurnScoreResponse"
+            },
+            "description": "Each side's total after every turn."
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HoldingChangeResponse"
+            },
+            "description": "The changes the viewer may know of, oldest first."
+          }
+        },
+        "description": "The campaign's victory points (decision 0021), as the viewer may see them: every side's total;\ntheir own side's settlements and the changes it made or suffered (the Umpire's, all)."
+      },
       "SendReportRequest": {
         "required": [
           "toArmyId",
@@ -7870,6 +8108,23 @@
         },
         "description": "A commander's report to an ally (decision 0020), carried by courier."
       },
+      "SetHoldingRequest": {
+        "required": [
+          "armyId"
+        ],
+        "type": "object",
+        "properties": {
+          "armyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The army that holds it, or null for no one.",
+            "format": "uuid"
+          }
+        },
+        "description": "The Umpire sets who holds a settlement (decision 0021)."
+      },
       "SetManagerRequest": {
         "required": [
           "manager"
@@ -7882,6 +8137,61 @@
           }
         },
         "description": "Makes a user a Manager (decision 0015), or not."
+      },
+      "SettlementScoreResponse": {
+        "required": [
+          "q",
+          "r",
+          "latitude",
+          "longitude",
+          "name",
+          "value",
+          "armyId"
+        ],
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "integer",
+            "description": "Its hex (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "Its hex (axial r).",
+            "format": "int32"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "The hex's centre.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "The hex's centre.",
+            "format": "double"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its name, if it has one."
+          },
+          "value": {
+            "type": "integer",
+            "description": "What holding it is worth.",
+            "format": "int32"
+          },
+          "armyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who holds it; null for no one.",
+            "format": "uuid"
+          }
+        },
+        "description": "A settlement, its worth, and who holds it."
       },
       "SettlementSize": {
         "enum": [
@@ -7929,6 +8239,59 @@
           }
         },
         "description": "A side in the campaign. Every member sees them all."
+      },
+      "SideScoreResponse": {
+        "required": [
+          "sideId",
+          "name",
+          "points",
+          "armies"
+        ],
+        "type": "object",
+        "properties": {
+          "sideId": {
+            "type": "string",
+            "description": "The side.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "points": {
+            "type": "integer",
+            "description": "What its armies' settlements are worth.",
+            "format": "int32"
+          },
+          "armies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArmyScoreResponse"
+            },
+            "description": "Each of its armies' parts."
+          }
+        },
+        "description": "A side's total, and its armies' parts."
+      },
+      "SideTotalResponse": {
+        "required": [
+          "sideId",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "sideId": {
+            "type": "string",
+            "description": "The side.",
+            "format": "uuid"
+          },
+          "points": {
+            "type": "integer",
+            "description": "Its total.",
+            "format": "int32"
+          }
+        },
+        "description": "A side's total, at some turn."
       },
       "SightedUnitResponse": {
         "required": [
@@ -8329,6 +8692,28 @@
           "Afternoon",
           "Night"
         ]
+      },
+      "TurnScoreResponse": {
+        "required": [
+          "turn",
+          "sides"
+        ],
+        "type": "object",
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "description": "The turn.",
+            "format": "int32"
+          },
+          "sides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SideTotalResponse"
+            },
+            "description": "Each side's total then."
+          }
+        },
+        "description": "Each side's total after a turn."
       },
       "UnitMarchResponse": {
         "required": [
@@ -9161,6 +9546,9 @@
     },
     {
       "name": "Intelligence"
+    },
+    {
+      "name": "Victory"
     },
     {
       "name": "Account"

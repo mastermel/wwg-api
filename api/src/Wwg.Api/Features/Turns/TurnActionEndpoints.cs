@@ -6,6 +6,7 @@ using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Intelligence;
 using Wwg.Api.Features.Sightings;
 using Wwg.Api.Features.Supply;
+using Wwg.Api.Features.Victory;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 using Wwg.Api.Infrastructure.Email;
@@ -318,6 +319,8 @@ internal static class TurnActionEndpoints
         await SupplyData.CloseTurnAsync(db, campaignId, cancellationToken);
         // Couriers (decision 0020) ride a turn on, and some arrive.
         await Couriers.RideAsync(db, campaignId, closing + 1, cancellationToken);
+        // Towns and victory points (decision 0021): settlements change hands.
+        await Holdings.CloseTurnAsync(db, campaignId, closing, cancellationToken);
         return null;
     }
 

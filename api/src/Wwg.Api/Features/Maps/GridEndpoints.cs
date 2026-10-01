@@ -53,7 +53,14 @@ internal static class GridEndpoints
                 c.R,
                 c.Terrain,
                 c.Forest,
-                new HexSettlement(c.SettlementSize, c.Walled, c.Fortress, c.Capital, c.Name),
+                new HexSettlement(
+                    c.SettlementSize,
+                    c.Walled,
+                    c.Fortress,
+                    c.Capital,
+                    c.Name,
+                    c.VictoryPoints
+                ),
                 c.SetByUmpire
             ))
             .ToListAsync(cancellationToken);
@@ -341,7 +348,8 @@ internal static class GridEndpoints
             cell.Walled,
             cell.Fortress,
             cell.Capital,
-            cell.Name
+            cell.Name,
+            cell.VictoryPoints
         ) = (
             terrain,
             forest,
@@ -349,11 +357,19 @@ internal static class GridEndpoints
             settlement.Walled,
             settlement.Fortress,
             settlement.Capital,
-            string.IsNullOrWhiteSpace(settlement.Name) ? null : settlement.Name
+            string.IsNullOrWhiteSpace(settlement.Name) ? null : settlement.Name,
+            settlement.VictoryPoints
         );
 
-    private static HexSettlement SettlementOf(HexCell cell) =>
-        new(cell.SettlementSize, cell.Walled, cell.Fortress, cell.Capital, cell.Name);
+    internal static HexSettlement SettlementOf(HexCell cell) =>
+        new(
+            cell.SettlementSize,
+            cell.Walled,
+            cell.Fortress,
+            cell.Capital,
+            cell.Name,
+            cell.VictoryPoints
+        );
 
     private const string BridgeNeedsARiver = "A bridge needs a river to cross.";
 

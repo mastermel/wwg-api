@@ -13,6 +13,7 @@ using Wwg.Api.Features.Sides;
 using Wwg.Api.Features.Sightings;
 using Wwg.Api.Features.Supply;
 using Wwg.Api.Features.Turns;
+using Wwg.Api.Features.Victory;
 
 namespace Wwg.Api.Features;
 
@@ -44,6 +45,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapSupplySettingsEndpoints()
             .MapSightingEndpoints()
             .MapIntelEndpoints()
+            .MapVictoryEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
     }

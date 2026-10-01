@@ -95,3 +95,52 @@ internal sealed class IntelReportConfiguration : IEntityTypeConfiguration<IntelR
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class HoldingConfiguration : IEntityTypeConfiguration<Holding>
+{
+    public void Configure(EntityTypeBuilder<Holding> builder)
+    {
+        builder
+            .HasIndex(h => new
+            {
+                h.CampaignId,
+                h.Q,
+                h.R,
+            })
+            .IsUnique();
+        builder
+            .HasOne(h => h.Campaign)
+            .WithMany()
+            .HasForeignKey(h => h.CampaignId)
+            .OnDelete(DeleteBehavior.Cascade);
+        // An army that goes leaves what it held to no one.
+        builder
+            .HasOne(h => h.Army)
+            .WithMany()
+            .HasForeignKey(h => h.ArmyId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
+}
+
+internal sealed class HoldingChangeConfiguration : IEntityTypeConfiguration<HoldingChange>
+{
+    public void Configure(EntityTypeBuilder<HoldingChange> builder)
+    {
+        builder.HasIndex(c => new { c.CampaignId, c.Turn });
+        builder
+            .HasOne(c => c.Campaign)
+            .WithMany()
+            .HasForeignKey(c => c.CampaignId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder
+            .HasOne(c => c.FromArmy)
+            .WithMany()
+            .HasForeignKey(c => c.FromArmyId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder
+            .HasOne(c => c.ToArmy)
+            .WithMany()
+            .HasForeignKey(c => c.ToArmyId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
+}
