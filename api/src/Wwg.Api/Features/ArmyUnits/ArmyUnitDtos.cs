@@ -48,3 +48,21 @@ public sealed record ArmyUnitResponse(
     int FightingFactor,
     int Points
 );
+
+/// <summary>A change to a unit's points (decision 0018).</summary>
+/// <param name="Turn">The turn it belongs to: the one attrition closed, or the one open at an edit.</param>
+/// <param name="Change">Points gained (or, below 0, lost).</param>
+/// <param name="PointsAfter">What its points came to.</param>
+/// <param name="Reason">Attrition, or the Umpire's edit.</param>
+/// <param name="Note">What it was for ("Forced march, ×2"), if anything.</param>
+/// <param name="ByName">Who made it; null if their account has since been deleted.</param>
+/// <param name="At">When (UTC).</param>
+public sealed record PointsChangeResponse(
+    int Turn,
+    int Change,
+    int PointsAfter,
+    PointsChangeReason Reason,
+    string? Note,
+    string? ByName,
+    DateTime At
+);

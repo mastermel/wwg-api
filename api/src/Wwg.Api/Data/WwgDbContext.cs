@@ -52,6 +52,8 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<UnitNote> UnitNotes => Set<UnitNote>();
 
+    public DbSet<PointsChange> PointsChanges => Set<PointsChange>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

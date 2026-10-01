@@ -128,3 +128,24 @@ internal sealed class UnitNoteConfiguration : IEntityTypeConfiguration<UnitNote>
             .OnDelete(DeleteBehavior.NoAction);
     }
 }
+
+internal sealed class PointsChangeConfiguration : IEntityTypeConfiguration<PointsChange>
+{
+    public void Configure(EntityTypeBuilder<PointsChange> builder)
+    {
+        builder.Property(c => c.Reason).HasMaxLength(16);
+        builder.Property(c => c.Note).HasMaxLength(200);
+        builder
+            .HasOne(c => c.ArmyUnit)
+            .WithMany()
+            .HasForeignKey(c => c.ArmyUnitId)
+            .OnDelete(DeleteBehavior.Cascade);
+        // Deleting a user keeps what they did, without them.
+        builder
+            .HasOne(c => c.ByUser)
+            .WithMany()
+            .HasForeignKey(c => c.ByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasIndex(c => new { c.ArmyUnitId, c.Turn });
+    }
+}

@@ -343,13 +343,13 @@
         ]
       }
     },
-    "/api/campaigns/{id}/turns": {
-      "post": {
+    "/api/campaigns/{id}/attrition": {
+      "get": {
         "tags": [
           "Turns"
         ],
-        "summary": "Starts the next turn (Umpire or Admin), once every army's turn in the open one is Completed\nand every unit is on the map: the open turn closes and the next opens, a Draft for every\narmy. Every commander is emailed.",
-        "operationId": "StartNextTurn",
+        "summary": "The attrition the open turn's orders cost, for each unit that owes any (Umpire or Admin):\nwhat starting the next turn asks them to confirm.",
+        "operationId": "ListAttritionDue",
         "parameters": [
           {
             "name": "id",
@@ -367,7 +367,73 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AttritionDueResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/turns": {
+      "post": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Starts the next turn (Umpire or Admin), once every army's turn in the open one is Completed\nand every unit is on the map: the open turn closes and the next opens, a Draft for every\narmy. The attrition the closing turn cost is applied as the Umpire confirms it: a loss for\neach unit that owes one (decision 0018). Every commander is emailed.",
+        "operationId": "StartNextTurn",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StartNextTurnRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/CampaignTurnsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -2269,6 +2335,46 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/army-units/{id}/points": {
+      "get": {
+        "tags": [
+          "ArmyUnits"
+        ],
+        "summary": "The unit's points history once the campaign started, oldest first (every member, as they\nsee its points): each change, its turn, and why.",
+        "operationId": "ListPointsHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PointsChangeResponse"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -4674,6 +4780,83 @@
         },
         "description": "Gives an army a commander."
       },
+      "AttritionDueResponse": {
+        "required": [
+          "unitId",
+          "armyId",
+          "name",
+          "fightingFactor",
+          "points",
+          "forcedMarchTurns",
+          "multiplier",
+          "loss"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "armyId": {
+            "type": "string",
+            "description": "Its army.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "fightingFactor": {
+            "type": "integer",
+            "description": "Its Fighting Factor, which sets the rules' scale.",
+            "format": "int32"
+          },
+          "points": {
+            "type": "integer",
+            "description": "Its points now.",
+            "format": "int32"
+          },
+          "forcedMarchTurns": {
+            "type": "integer",
+            "description": "Its turns of forced march, this one included.",
+            "format": "int32"
+          },
+          "multiplier": {
+            "type": "integer",
+            "description": "This turn's multiple of the scale: 1, 2, 4…",
+            "format": "int32"
+          },
+          "loss": {
+            "type": "integer",
+            "description": "The whole points it loses (what it carries of a point adds in).",
+            "format": "int32"
+          }
+        },
+        "description": "A unit's attrition for the open turn's orders, for the Umpire to confirm (decision 0018)."
+      },
+      "AttritionLossRequest": {
+        "required": [
+          "unitId",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "points": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer",
+            "description": "The points it loses (0 for none).",
+            "format": "int32"
+          }
+        },
+        "description": "The Umpire's confirmed attrition for one unit."
+      },
       "CampaignCalendarResponse": {
         "required": [
           "startDate",
@@ -6371,6 +6554,66 @@
         },
         "description": "Where the Umpire places a unit: a hex in the campaign's grid."
       },
+      "PointsChangeReason": {
+        "enum": [
+          "Attrition",
+          "Edited"
+        ],
+        "description": "Why a unit's points changed (decision 0018)."
+      },
+      "PointsChangeResponse": {
+        "required": [
+          "turn",
+          "change",
+          "pointsAfter",
+          "reason",
+          "note",
+          "byName",
+          "at"
+        ],
+        "type": "object",
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "description": "The turn it belongs to: the one attrition closed, or the one open at an edit.",
+            "format": "int32"
+          },
+          "change": {
+            "type": "integer",
+            "description": "Points gained (or, below 0, lost).",
+            "format": "int32"
+          },
+          "pointsAfter": {
+            "type": "integer",
+            "description": "What its points came to.",
+            "format": "int32"
+          },
+          "reason": {
+            "description": "Attrition, or the Umpire's edit.",
+            "$ref": "#/components/schemas/PointsChangeReason"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What it was for (\"Forced march, ×2\"), if anything."
+          },
+          "byName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who made it; null if their account has since been deleted."
+          },
+          "at": {
+            "type": "string",
+            "description": "When (UTC).",
+            "format": "date-time"
+          }
+        },
+        "description": "A change to a unit's points (decision 0018)."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -6705,6 +6948,26 @@
           }
         },
         "description": "A side in the campaign. Every member sees them all."
+      },
+      "StartNextTurnRequest": {
+        "required": [
+          "attrition"
+        ],
+        "type": "object",
+        "properties": {
+          "attrition": {
+            "maxItems": 1000,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AttritionLossRequest"
+            },
+            "description": "The attrition the closing turn cost, as the Umpire confirmed it: a loss for each unit that owes\none (see the attrition list), and no other."
+          }
+        },
+        "description": "Starting the next turn."
       },
       "Terrain": {
         "enum": [

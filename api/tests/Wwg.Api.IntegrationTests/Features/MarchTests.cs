@@ -12,8 +12,7 @@ public sealed class MarchTests : ApiTest
     /// <summary>East from the start, inside the Waterloo grid: flat, half a turn a hex for infantry.</summary>
     private static readonly Hex[] East = [new(1, 0), new(2, -1), new(3, -1)];
 
-    private static GiveOrderRequest ForceMarch(params Hex[] path) =>
-        new(OrderKind.Move, path, ForceMarch: true);
+    private static GiveOrderRequest ForceMarch(params Hex[] path) => TurnSteps.ForceMarch(path);
 
     /// <summary>Started, turn 1 a Morning, and no nation marching further or less.</summary>
     private async Task<CampaignScenario> StartedAsync()
@@ -34,56 +33,6 @@ public sealed class MarchTests : ApiTest
                 .GetAsAsync<List<UnitMarchResponse>>($"/api/armies/{scenario.ArmyId}/marches")
         )!.Single(m => m.UnitId == scenario.UnitId);
 
-    /// <summary>
-    /// Plays turns through, one order each, back and forth between the start and the hex east of
-    /// it ("move"), or holding ("hold"), or force marching ("force").
-    /// </summary>
-    private static async Task PlayAsync(CampaignScenario scenario, params string[] orders)
-    {
-        foreach (var kind in orders)
-        {
-            var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
-            var at =
-                turn.Orders.Count > 0
-                    ? new Hex(turn.Orders[0].Q, turn.Orders[0].R)
-                    : await HereAsync(scenario);
-            var there = at == TurnSteps.Start ? East[0] : TurnSteps.Start;
-            var order = kind switch
-            {
-                "hold" => TurnSteps.Hold,
-                "force" => ForceMarch(there),
-                _ => TurnSteps.Move(there),
-            };
-            using var given = await TurnSteps.OrderAsync(scenario, turn.Id, order);
-            given.EnsureSuccessStatusCode();
-            using var submitted = await TurnSteps.ActAsync(
-                scenario,
-                turn.Id,
-                "submit",
-                Role.Commander
-            );
-            submitted.EnsureSuccessStatusCode();
-            using var approved = await TurnSteps.ActAsync(
-                scenario,
-                turn.Id,
-                "approve",
-                Role.Umpire
-            );
-            approved.EnsureSuccessStatusCode();
-            using var next = await TurnSteps.StartNextTurnAsync(scenario);
-            next.EnsureSuccessStatusCode();
-        }
-    }
-
-    private static async Task<Hex> HereAsync(CampaignScenario scenario)
-    {
-        var positions = await scenario
-            .As(Role.Umpire)
-            .GetAsAsync<List<UnitPosition>>($"/api/campaigns/{scenario.CampaignId}/positions");
-        var here = positions!.Single(p => p.UnitId == scenario.UnitId);
-        return new Hex(here.Q, here.R);
-    }
-
     [Fact]
     public async Task ListMarches_NothingPlayed_IsRested()
     {
@@ -99,9 +48,9 @@ public sealed class MarchTests : ApiTest
     {
         using var scenario = await StartedAsync();
 
-        await PlayAsync(scenario, "move", "move");
+        await TurnSteps.PlayAsync(scenario, "move", "move");
         var two = await MarchAsync(scenario);
-        await PlayAsync(scenario, "move");
+        await TurnSteps.PlayAsync(scenario, "move");
         var three = await MarchAsync(scenario);
 
         Assert.Equal((2, 0, 0), (two.MovesInRow, two.ForcedMarchTurns, two.MoveCosts));
@@ -114,9 +63,9 @@ public sealed class MarchTests : ApiTest
     {
         using var scenario = await StartedAsync();
 
-        await PlayAsync(scenario, "move", "move", "move", "move");
+        await TurnSteps.PlayAsync(scenario, "move", "move", "move", "move");
         var four = await MarchAsync(scenario);
-        await PlayAsync(scenario, "move");
+        await TurnSteps.PlayAsync(scenario, "move");
         var five = await MarchAsync(scenario);
 
         Assert.Equal((2, 2), (four.ForcedMarchTurns, four.MoveCosts));
@@ -129,9 +78,9 @@ public sealed class MarchTests : ApiTest
         using var scenario = await StartedAsync();
 
         // Turns 1 and 2: Morning and Afternoon.
-        await PlayAsync(scenario, "force");
+        await TurnSteps.PlayAsync(scenario, "force");
         var one = await MarchAsync(scenario);
-        await PlayAsync(scenario, "force");
+        await TurnSteps.PlayAsync(scenario, "force");
         var two = await MarchAsync(scenario);
 
         Assert.Equal((1, 1, 0), (one.MovesInRow, one.ForceMarchesInRow, one.ForcedMarchTurns));
@@ -143,11 +92,11 @@ public sealed class MarchTests : ApiTest
     public async Task ListMarches_AHold_RestsOneTurnOff()
     {
         using var scenario = await StartedAsync();
-        await PlayAsync(scenario, "move", "move", "move", "move");
+        await TurnSteps.PlayAsync(scenario, "move", "move", "move", "move");
 
-        await PlayAsync(scenario, "hold");
+        await TurnSteps.PlayAsync(scenario, "hold");
         var rested = await MarchAsync(scenario);
-        await PlayAsync(scenario, "hold");
+        await TurnSteps.PlayAsync(scenario, "hold");
         var fully = await MarchAsync(scenario);
 
         // Rested one of two: moving now carries the run on, at normal attrition.
@@ -160,7 +109,7 @@ public sealed class MarchTests : ApiTest
     {
         using var scenario = await StartedAsync();
 
-        await PlayAsync(scenario, "move", "move", "hold", "move");
+        await TurnSteps.PlayAsync(scenario, "move", "move", "hold", "move");
 
         Assert.Equal(
             (1, 0),
@@ -172,7 +121,7 @@ public sealed class MarchTests : ApiTest
     public async Task ListMarches_TheOrderAsGiven_SaysWhatItCosts()
     {
         using var scenario = await StartedAsync();
-        await PlayAsync(scenario, "move", "move", "move", "move");
+        await TurnSteps.PlayAsync(scenario, "move", "move", "move", "move");
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
 
         using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Move(East[0]));

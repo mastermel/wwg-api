@@ -22,6 +22,10 @@ internal static class TurnSteps
 
     public static readonly GiveOrderRequest Hold = new(OrderKind.Hold, null);
 
+    /// <summary>A force march along these hexes (decision 0018).</summary>
+    public static GiveOrderRequest ForceMarch(params Hex[] path) =>
+        new(OrderKind.Move, path, ForceMarch: true);
+
     /// <summary>Sets the map's area (and its hex size: 3 miles unless given).</summary>
     public static async Task SetAreaAsync(
         CampaignScenario scenario,
@@ -180,13 +184,68 @@ internal static class TurnSteps
 
     public static Task<HttpResponseMessage> StartNextTurnAsync(
         CampaignScenario scenario,
-        Role role = Role.Umpire
+        Role role = Role.Umpire,
+        StartNextTurnRequest? request = null
     ) =>
         scenario
             .As(role)
-            .PostAsync(
+            .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/turns", UriKind.Relative),
-                null,
+                request,
                 CancellationToken
             );
+
+    /// <summary>The attrition the open turn's orders cost, as the Umpire sees it.</summary>
+    public static async Task<List<AttritionDueResponse>> AttritionDueAsync(
+        CampaignScenario scenario
+    ) =>
+        await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<List<AttritionDueResponse>>(
+                $"/api/campaigns/{scenario.CampaignId}/attrition"
+            )
+        ?? [];
+
+    /// <summary>
+    /// Plays turns through, one order each for the scenario's unit, back and forth between
+    /// <see cref="Start"/> and the hex east of it ("move"), or holding ("hold"), or force marching
+    /// ("force"); each submitted, approved, and the next turn started with the attrition due
+    /// confirmed as it stands.
+    /// </summary>
+    public static async Task PlayAsync(CampaignScenario scenario, params string[] orders)
+    {
+        foreach (var kind in orders)
+        {
+            var turn = await OpenArmyTurnAsync(scenario);
+            var there = await HereAsync(scenario) == Start ? new Hex(1, 0) : Start;
+            var order = kind switch
+            {
+                "hold" => Hold,
+                "force" => ForceMarch(there),
+                _ => Move(there),
+            };
+            using var given = await OrderAsync(scenario, turn.Id, order);
+            given.EnsureSuccessStatusCode();
+            using var submitted = await ActAsync(scenario, turn.Id, "submit", Role.Commander);
+            submitted.EnsureSuccessStatusCode();
+            using var approved = await ActAsync(scenario, turn.Id, "approve", Role.Umpire);
+            approved.EnsureSuccessStatusCode();
+            var due = await AttritionDueAsync(scenario);
+            using var next = await StartNextTurnAsync(
+                scenario,
+                request: new([.. due.Select(d => new AttritionLossRequest(d.UnitId, d.Loss))])
+            );
+            next.EnsureSuccessStatusCode();
+        }
+    }
+
+    /// <summary>Where the scenario's unit is now.</summary>
+    public static async Task<Hex> HereAsync(CampaignScenario scenario)
+    {
+        var positions = await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<List<UnitPosition>>($"/api/campaigns/{scenario.CampaignId}/positions");
+        var here = positions!.Single(p => p.UnitId == scenario.UnitId);
+        return new Hex(here.Q, here.R);
+    }
 }

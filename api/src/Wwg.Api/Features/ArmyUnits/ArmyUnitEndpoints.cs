@@ -30,6 +30,9 @@ internal static class ArmyUnitEndpoints
         unit.MapPut("", UpdateArmyUnitAsync)
             .WithName("UpdateArmyUnit")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.ArmyUnit);
+        unit.MapGet("/points", ListPointsHistoryAsync)
+            .WithName("ListPointsHistory")
+            .RequireCampaignAccess(CampaignAccess.Member, CampaignRouteId.ArmyUnit);
         unit.MapDelete("", DeleteArmyUnitAsync)
             .WithName("DeleteArmyUnit")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.ArmyUnit);
@@ -170,10 +173,28 @@ internal static class ArmyUnitEndpoints
         Guid id,
         UpdateArmyUnitRequest request,
         WwgDbContext db,
+        HttpContext httpContext,
         CancellationToken cancellationToken
     )
     {
         var unit = await db.ArmyUnits.Where(u => u.Id == id).SingleOrGoneAsync(cancellationToken);
+        // Once the campaign has started, a change to its points goes in its history (decision 0018).
+        var open = await TurnRules.OpenTurnAsync(db, unit.CampaignId, cancellationToken);
+        if (open is { Number: > 0 } && request.Points != unit.Points)
+        {
+            db.PointsChanges.Add(
+                new PointsChange
+                {
+                    ArmyUnitId = id,
+                    Turn = open.Number,
+                    Change = request.Points - unit.Points,
+                    PointsAfter = request.Points,
+                    Reason = PointsChangeReason.Edited,
+                    ByUserId = httpContext.User.GetUserId(),
+                }
+            );
+        }
+
         unit.Name = request.Name;
         unit.Type = request.Type;
         unit.FightingFactor = request.FightingFactor;
@@ -187,6 +208,33 @@ internal static class ArmyUnitEndpoints
                 .SingleAsync(cancellationToken)
         );
     }
+
+    /// <summary>
+    /// The unit's points history once the campaign started, oldest first (every member, as they
+    /// see its points): each change, its turn, and why.
+    /// </summary>
+    internal static async Task<Ok<List<PointsChangeResponse>>> ListPointsHistoryAsync(
+        Guid id,
+        WwgDbContext db,
+        CancellationToken cancellationToken
+    ) =>
+        TypedResults.Ok(
+            await db
+                .PointsChanges.AsNoTracking()
+                .Where(c => c.ArmyUnitId == id)
+                .OrderBy(c => c.CreatedAt)
+                .ThenBy(c => c.Id)
+                .Select(c => new PointsChangeResponse(
+                    c.Turn,
+                    c.Change,
+                    c.PointsAfter,
+                    c.Reason,
+                    c.Note,
+                    c.ByUser == null ? null : c.ByUser.FirstName + " " + c.ByUser.LastName,
+                    c.CreatedAt
+                ))
+                .ToListAsync(cancellationToken)
+        );
 
     /// <summary>
     /// Removes a unit from the army (Umpire or Admin), while the campaign is setting up; the

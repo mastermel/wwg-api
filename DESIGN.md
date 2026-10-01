@@ -1853,7 +1853,7 @@ each step)
 | GET | `/api/campaigns/{id}/places?search=` | Place search for the bounds (Umpire; server-side geocoder, rate-limited) |
 | GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts; for the Umpire, what stops the start or the next turn |
 | POST | `/api/campaigns/{id}/start` | Start the campaign (close turn 0, open turn 1) |
-| POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander) |
+| POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander); from step 47b, with the Umpire's confirmed attrition |
 | GET | `/api/campaigns/{id}/positions?turn=` | Units' positions, as the caller may see them: now (the default), after a closed turn, or ordered in the open one |
 | GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
 | PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, path? }` (Move: the hexes it passes through, in order) / undo it |
@@ -2472,10 +2472,12 @@ build on positions.
       turn (`Marches`, `MarchState`: moves in a row, the first forced march at the third move or
       the second force-march order, each Hold working one turn off), and what moving this turn
       would cost (`GET /api/armies/{id}/marches`: its commander, the Umpire, Admins).
-    - **47b. Attrition (API):** the attrition the open turn's orders cost (FF scale × ×1, ×2, ×4…
-      × points ÷ 50, fractions carried per unit), for the Umpire; starting the next turn takes the
-      Umpire's confirmed loss for each unit that owes one, and applies it. Each unit's points
-      history (attrition, and the Umpire's edits), for every member.
+    - ✅ **47b. Attrition (API):** the attrition the open turn's orders cost (FF scale × ×1, ×2,
+      ×4… × points ÷ 50, `ArmyUnit.AttritionCarry` holding the fraction; `Attrition`), for the
+      Umpire (`GET /api/campaigns/{id}/attrition`); `StartNextTurn` takes `{ attrition: [{ unitId,
+      points }] }`, a loss for each unit that owes one and no other (400 otherwise), and applies
+      it. Each unit's points history (`PointsChange`: attrition, and the Umpire's edits once the
+      campaign has started), for every member (`GET /api/army-units/{id}/points`).
     - **47c. In the app:** "Force march" when moving (the reach goes a hex further), each unit's
       march count and what its next move would cost, the Umpire's attrition list (each loss
       editable) on starting the next turn, and the points history in the unit drawer.

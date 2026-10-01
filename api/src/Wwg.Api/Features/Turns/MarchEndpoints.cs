@@ -4,7 +4,7 @@ using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Turns;
 
-/// <summary>Each unit's forced marches (step 47, decision 0018).</summary>
+/// <summary>Each unit's forced marches, and the attrition they cost (step 47, decision 0018).</summary>
 internal static class MarchEndpoints
 {
     public static IEndpointRouteBuilder MapMarchEndpoints(this IEndpointRouteBuilder app)
@@ -13,8 +13,22 @@ internal static class MarchEndpoints
             .WithName("ListMarches")
             .WithTags("Turns")
             .RequireCampaignAccess(CampaignAccess.Commander, CampaignRouteId.Army);
+        app.MapGet("/api/campaigns/{id:guid}/attrition", ListAttritionDueAsync)
+            .WithName("ListAttritionDue")
+            .WithTags("Turns")
+            .RequireCampaignAccess(CampaignAccess.Umpire);
         return app;
     }
+
+    /// <summary>
+    /// The attrition the open turn's orders cost, for each unit that owes any (Umpire or Admin):
+    /// what starting the next turn asks them to confirm.
+    /// </summary>
+    internal static async Task<Ok<List<AttritionDueResponse>>> ListAttritionDueAsync(
+        Guid id,
+        WwgDbContext db,
+        CancellationToken cancellationToken
+    ) => TypedResults.Ok(await Attrition.DueAsync(db, id, cancellationToken));
 
     /// <summary>
     /// Each of the army's units' forced marches as the open turn began, and the attrition moving

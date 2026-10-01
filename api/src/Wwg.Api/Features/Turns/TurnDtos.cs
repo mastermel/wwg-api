@@ -176,3 +176,40 @@ public sealed record UnitMarchResponse(
     int ForceMarchCosts,
     int OrderCosts
 );
+
+/// <summary>A unit's attrition for the open turn's orders, for the Umpire to confirm (decision 0018).</summary>
+/// <param name="UnitId">The unit.</param>
+/// <param name="ArmyId">Its army.</param>
+/// <param name="Name">Its name.</param>
+/// <param name="FightingFactor">Its Fighting Factor, which sets the rules' scale.</param>
+/// <param name="Points">Its points now.</param>
+/// <param name="ForcedMarchTurns">Its turns of forced march, this one included.</param>
+/// <param name="Multiplier">This turn's multiple of the scale: 1, 2, 4…</param>
+/// <param name="Loss">The whole points it loses (what it carries of a point adds in).</param>
+public sealed record AttritionDueResponse(
+    Guid UnitId,
+    Guid ArmyId,
+    string Name,
+    int FightingFactor,
+    int Points,
+    int ForcedMarchTurns,
+    int Multiplier,
+    int Loss
+);
+
+/// <summary>The Umpire's confirmed attrition for one unit.</summary>
+/// <param name="UnitId">The unit.</param>
+/// <param name="Points">The points it loses (0 for none).</param>
+public sealed record AttritionLossRequest(
+    [property: JsonRequired] Guid UnitId,
+    [property: JsonRequired, Range(0, UnitStats.MaxPoints)] int Points
+);
+
+/// <summary>Starting the next turn.</summary>
+/// <param name="Attrition">
+/// The attrition the closing turn cost, as the Umpire confirmed it: a loss for each unit that owes
+/// one (see the attrition list), and no other.
+/// </param>
+public sealed record StartNextTurnRequest(
+    [property: MaxLength(1000)] IReadOnlyList<AttritionLossRequest>? Attrition
+);

@@ -209,12 +209,14 @@ internal static class TurnActionEndpoints
     /// <summary>
     /// Starts the next turn (Umpire or Admin), once every army's turn in the open one is Completed
     /// and every unit is on the map: the open turn closes and the next opens, a Draft for every
-    /// army. Every commander is emailed.
+    /// army. The attrition the closing turn cost is applied as the Umpire confirms it: a loss for
+    /// each unit that owes one (decision 0018). Every commander is emailed.
     /// </summary>
     internal static async Task<
-        Results<Ok<CampaignTurnsResponse>, ProblemHttpResult>
+        Results<Ok<CampaignTurnsResponse>, ValidationProblem, ProblemHttpResult>
     > StartNextTurnAsync(
         Guid id,
+        StartNextTurnRequest? request,
         WwgDbContext db,
         TimeProvider time,
         IEmailQueue emails,
@@ -233,6 +235,24 @@ internal static class TurnActionEndpoints
         if (problems.Count > 0)
         {
             return Conflict("Not ready for the next turn", string.Join(" ", problems));
+        }
+
+        var attrition = await Attrition.ApplyAsync(
+            db,
+            id,
+            open.Number,
+            request?.Attrition ?? [],
+            httpContext.User.GetUserId(),
+            cancellationToken
+        );
+        if (attrition is not null)
+        {
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["attrition"] = [attrition],
+                }
+            );
         }
 
         var now = time.GetUtcNow().UtcDateTime;
