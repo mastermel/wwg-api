@@ -22,7 +22,8 @@ interface AppProvidersProps {
 /** Everything the app (and component tests) render inside: theme, notifications, API cache. */
 export function AppProviders({ queryClient, persistOptions, children }: AppProvidersProps) {
   return (
-    // Light or dark follows the operating system; there's no in-app toggle.
+    // Light or dark follows the operating system, unless the user chose one in the account menu
+    // (Mantine remembers it in localStorage).
     <MantineProvider
       theme={theme}
       cssVariablesResolver={cssVariablesResolver}

@@ -27,6 +27,7 @@ import classes from "@/components/AppLayout.module.css";
 import { BrandMark } from "@/components/BrandMark";
 import { InstallHint } from "@/components/InstallHint";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { ThemeMenuItems } from "@/components/ThemeMenuItems";
 import { useMasqueradeSession } from "@/features/admin/use-masquerade-session";
 import { useSession, useSessionStore } from "@/features/auth/session-context";
 import { formatDateTime } from "@/lib/format";
@@ -121,6 +122,9 @@ export function AppLayout() {
                 >
                   Account
                 </Menu.Item>
+                <Menu.Divider />
+                <ThemeMenuItems />
+                <Menu.Divider />
                 <Menu.Item
                   leftSection={<IconLogout size={16} aria-hidden />}
                   onClick={() => void session.signOut()}
