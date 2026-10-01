@@ -24,7 +24,10 @@ export async function startedCampaign(
   commander: User,
   name: string,
   hexSize = 4828,
-  options: { enemyAt?: { q: number; r: number } } = {},
+  options: {
+    enemyAt?: { q: number; r: number };
+    ally?: { commander: User; at: { q: number; r: number } };
+  } = {},
 ) {
   await createCampaign(umpire.page, name);
   const campaignUrl = umpire.page.url();
@@ -87,8 +90,32 @@ export async function startedCampaign(
     await api.put(`/api/army-units/${brigade.id}/placement`, options.enemyAt);
     enemyArmyId = enemy.id;
   }
+  // An allied army of the same side, with its own commander, from the start.
+  let allyArmyId: string | null = null;
+  if (options.ally) {
+    await join(options.ally.commander.page, await joinLink(umpire.page), name);
+    const everyone = await api.get<{ id: string; firstName: string }[]>(
+      `/api/campaigns/${campaignId}/members`,
+    );
+    const wing = await libraryFaction(browserOf(umpire.page), "Grouchy", "France", [
+      { name: "IV Corps", type: "LineInfantry", fightingFactor: 5, points: 40 },
+    ]);
+    const ally = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
+      name: "Grouchy's Wing",
+      commanderMemberId:
+        everyone.find((m) => m.firstName === options.ally?.commander.firstName)?.id ?? null,
+      sideId: side.id,
+      nation: "France",
+      factionIds: [wing.id],
+    });
+    const [corps] = await api.post<{ id: string }[]>(`/api/armies/${ally.id}/units`, {
+      unitIds: wing.units.map((unit) => unit.id),
+    });
+    await api.put(`/api/army-units/${corps.id}/placement`, options.ally.at);
+    allyArmyId = ally.id;
+  }
   await api.post(`/api/campaigns/${campaignId}/start`, null);
-  return { campaignUrl, campaignId, armyId: army.id, enemyArmyId };
+  return { campaignUrl, campaignId, armyId: army.id, enemyArmyId, allyArmyId };
 }
 
 /**

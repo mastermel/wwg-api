@@ -479,6 +479,85 @@ describe("a commander's turn", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps reports from allies, shows one on the map, and sends one by courier", async () => {
+    const requests = serveCommander(draft());
+    const allyId = "0192f5c1-0000-7000-8000-00000000a002";
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/armies`, () =>
+        HttpResponse.json([
+          army,
+          { ...army, id: allyId, name: "Grouchy's Wing", commander: null, color: "Green" },
+        ]),
+      ),
+      http.get(`*/api/campaigns/${campaignId}/reports`, () =>
+        HttpResponse.json([
+          {
+            id: "0192f5c1-0000-7000-8000-00000000f101",
+            fromArmyId: allyId,
+            toArmyId: armyId,
+            sentTurn: 1,
+            arrivedTurn: 1,
+            status: "Arrived",
+            note: "We hold Wavre.",
+            snapshot: [
+              {
+                name: "IV Corps",
+                type: "LineInfantry",
+                q: 2,
+                r: 0,
+                latitude: 50.7,
+                longitude: 4.5,
+                points: 40,
+              },
+            ],
+            sightingCount: 2,
+          },
+        ]),
+      ),
+      http.post(`*/api/armies/${armyId}/reports`, async ({ request }) => {
+        requests.push({
+          method: "POST",
+          url: new URL(request.url).pathname,
+          body: await request.json(),
+        });
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    const received = await screen.findByRole("list", { name: "Reports received" });
+    expect(received).toHaveTextContent("From Grouchy's Wing, sent turn 1, arrived turn 1.");
+    expect(received).toHaveTextContent("“We hold Wavre.”");
+    expect(received).toHaveTextContent("2 sightings, on their turns.");
+    const show = within(received).getByRole("button", { name: "Show their 1 unit" });
+    await user.click(show);
+    expect(within(received).getByRole("button", { name: "Hide their units" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Send a report" }));
+    const dialog = await screen.findByRole("dialog", { name: "Send a report" });
+    await user.click(within(dialog).getByRole("checkbox", { name: /Our sightings/ }));
+    await user.type(within(dialog).getByRole("textbox", { name: "Note" }), "Come to Ligny.");
+    await user.click(within(dialog).getByRole("button", { name: "Send by courier" }));
+
+    expect(
+      await screen.findByText("Sent a report to Grouchy's Wing by courier."),
+    ).toBeInTheDocument();
+    expect(requests.at(-1)).toEqual({
+      method: "POST",
+      url: `/api/armies/${armyId}/reports`,
+      body: {
+        toArmyId: allyId,
+        includesSnapshot: true,
+        includesSightings: false,
+        note: "Come to Ligny.",
+      },
+    });
+  });
+
   it("takes an order back", async () => {
     const requests = serveCommander(draft({ orders: [hold] }));
     const user = userEvent.setup();

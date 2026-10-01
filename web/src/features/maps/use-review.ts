@@ -40,7 +40,7 @@ export function useReview(campaignId: string) {
       queryClient.invalidateQueries({
         predicate: (query) =>
           typeof query.queryKey[0] === "string" &&
-          /^\/api\/(armies\/[^/]+\/(turns|marches)|army-units\/[^/]+\/points|campaigns\/[^/]+\/sightings)$/.test(
+          /^\/api\/(armies\/[^/]+\/(turns|marches)|army-units\/[^/]+\/points|campaigns\/[^/]+\/(sightings|reports|couriers))$/.test(
             query.queryKey[0],
           ),
       }),

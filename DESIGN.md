@@ -2550,8 +2550,10 @@ build on positions.
       table; `Couriers.RideAsync` as each turn closes; `POST /api/armies/{id}/reports`, `GET
       /api/campaigns/{id}/reports` (a sender isn't told whether it arrived), `GET
       /api/campaigns/{id}/couriers` and `POST /api/reports/{id}/stop` for the Umpire).
-    - **49d. Intelligence in the app:** sending a report, the Intelligence list of reports
-      received (viewable on the map), and the Umpire's couriers.
+    - ✅ **49d. Intelligence in the app:** sending a report (`SendReportModal`: to an ally, our
+      units, our sightings, a note), the **Intelligence** panel of reports received (each one's
+      units shown on the map on request, faded: `SnapshotMarkers`) and sent, and the Umpire's
+      **Couriers** panel (where each is, flagged among the enemy, stopping one).
 50. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
     last army to occupy it, and a campaign scoreboard.
 51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and

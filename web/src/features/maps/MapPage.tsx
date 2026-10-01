@@ -32,6 +32,10 @@ import {
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
 import { useListCampaignUnits } from "@/api/generated/endpoints/army-units/army-units";
+import {
+  useListCouriers,
+  useListReports,
+} from "@/api/generated/endpoints/intelligence/intelligence";
 import { useListSightings } from "@/api/generated/endpoints/sightings/sightings";
 import {
   useGetSupply,
@@ -88,7 +92,10 @@ import { MapLegend } from "@/features/maps/MapLegend";
 import { describeHex } from "@/features/maps/hex-info";
 import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
 import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
+import { CouriersPanel } from "@/features/maps/CouriersPanel";
+import { IntelligencePanel } from "@/features/maps/IntelligencePanel";
 import { SightingMarkers } from "@/features/maps/SightingMarkers";
+import { SnapshotMarkers } from "@/features/maps/SnapshotMarkers";
 import { sightingsFor } from "@/features/maps/sightings";
 import { SightingsPanel } from "@/features/maps/SightingsPanel";
 import { HexWarningsLayer } from "@/features/maps/HexWarningsLayer";
@@ -294,6 +301,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     () => new Set((sightings.data ?? []).map((s) => s.turn)),
     [sightings.data],
   );
+  // Intelligence between allies (step 49d): the viewer's reports, and the Umpire's couriers.
+  const running = turns.data?.stage === "Running";
+  const reports = useListReports(campaignId, {
+    query: { meta: { persist: false }, enabled: running },
+  });
+  const couriers = useListCouriers(campaignId, {
+    query: { meta: { persist: false }, enabled: running && manager },
+  });
+  const [shownReport, setShownReport] = useState<string | null>(null);
   const outOfSupply = useMemo(
     () =>
       new Set(
@@ -774,6 +790,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
               <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
               <SightingMarkers sightings={drawnSightings} armies={armies.data ?? []} />
+              <SnapshotMarkers
+                report={reports.data?.find((r) => r.id === shownReport)}
+                armies={armies.data ?? []}
+              />
               {shownHex && hexInfo && (
                 <HexInfoPopup
                   at={grid.centre(shownHex)}
@@ -913,6 +933,23 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             onEdit={setDepotForm}
             onRemove={setRemovingDepot}
           />
+          {running && !manager && myArmies.length > 0 && (
+            <IntelligencePanel
+              campaignId={campaignId}
+              reports={reports.data ?? []}
+              mine={myArmies}
+              armies={armies.data ?? []}
+              shown={shownReport}
+              onShow={setShownReport}
+            />
+          )}
+          {manager && (
+            <CouriersPanel
+              campaignId={campaignId}
+              couriers={couriers.data ?? []}
+              armies={armies.data ?? []}
+            />
+          )}
           <SightingsPanel
             sightings={sightings.data ?? []}
             armies={armies.data ?? []}

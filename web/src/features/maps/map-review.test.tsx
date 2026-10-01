@@ -330,6 +330,56 @@ describe("the Umpire's turn", () => {
   });
 });
 
+describe("the Umpire's couriers", () => {
+  it("lists each on its way, flagged among the enemy, and stops one", async () => {
+    serveUmpire(approved, waiting, []);
+    const stopped: string[] = [];
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/couriers`, () =>
+        HttpResponse.json([
+          {
+            reportId: "0192f5c1-0000-7000-8000-00000000f101",
+            fromArmyId: nord.id,
+            toArmyId: prussians.id,
+            sentTurn: 1,
+            q: 1,
+            r: 0,
+            latitude: 50.7,
+            longitude: 4.5,
+            arrivesNext: false,
+            amongTheEnemy: true,
+          },
+        ]),
+      ),
+      http.post("*/api/reports/:id/stop", ({ params }) => {
+        stopped.push(String(params.id));
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    const couriers = await screen.findByRole("list", { name: "Couriers" });
+    expect(couriers).toHaveTextContent(
+      "Armée du Nord to Prussian I Corps, sent turn 1: Hex (1, 0).",
+    );
+    expect(couriers).toHaveTextContent("Among the enemy");
+    await user.click(
+      within(couriers).getByRole("button", {
+        name: "Stop the courier from Armée du Nord to Prussian I Corps",
+      }),
+    );
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Stop it" }),
+    );
+
+    expect(
+      await screen.findByText("Stopped the courier from Armée du Nord to Prussian I Corps."),
+    ).toBeInTheDocument();
+    expect(stopped).toEqual(["0192f5c1-0000-7000-8000-00000000f101"]);
+  });
+});
+
 describe("sightings when starting the next turn", () => {
   it("prefills each army's sighting, for the Umpire to shape, and sends what they chose", async () => {
     const requests = serveUmpire(approved, armyTurn(prussians, { status: "Completed" }), []);

@@ -121,6 +121,12 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   legend is `MapLegend`. The theme choice is `ThemeMenuItems` (Mantine keeps it in localStorage;
   `public/color-scheme.js` reads it before the first paint): a Menu item stays a `menuitem`, so
   the chosen one is marked with `aria-current`.
+- Sightings and intelligence (step 49, decision 0020): the Umpire shapes sightings in
+  `StartTurnModal` (`SightingsFields`, `sighting-entries.ts`); commanders see them in
+  `SightingsPanel` and on the map (`SightingMarkers`, the turn shown and 3 before, faded:
+  `sightingsFor`), and the turn list marks their turns. Reports are `IntelligencePanel` and
+  `SendReportModal`, a received one's units `SnapshotMarkers`; the Umpire's couriers are
+  `CouriersPanel`.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and
