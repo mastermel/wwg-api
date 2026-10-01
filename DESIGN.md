@@ -1229,10 +1229,13 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   (**Draw the area**: drag it, or tap one corner and then the opposite one, as
   on a phone), or saves the view as it is (**Use this view**); while the grid's
   shown, the Hex grid section counts the hexes the area and hex size give, as
-  they change. Everyone's map opens framed on it and is held
-  inside it (MapLibre's `maxBounds`): nothing outside it can be seen, so on a
-  screen of another shape zooming out stops once the area fills it one way, and
-  the rest is a pan away. Zooming in is unlimited. Place search (our API, §5.3)
+  they change. Everyone's map opens on it (a computer's on the whole area; a
+  phone's filled by it, the rest a pan away) and is held around it (MapLibre's
+  `maxBounds`: the area and a margin, widened to the map's shape, so zooming out
+  shows all of it at any size or shape). The world outside is faded, and the
+  playable area outlined along the grid's outer hexes (its rectangle without a
+  grid); the game map is only ever drawn inside it. The Map and Terrain pages
+  take the screen's whole width. Zooming in is unlimited. Place search (our API, §5.3)
   helps the Umpire find the area; the settings page previews layers and the
   label language as they change.
 - **The hex grid** (decision 0014, Phase 11): flat-topped hexes (3 miles

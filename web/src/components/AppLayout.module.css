@@ -65,6 +65,11 @@
   max-width: 1080px;
 }
 
+/* A page that needs the room (the map) takes the whole width. */
+.content:has([data-page-wide]) {
+  max-width: none;
+}
+
 .footer {
   background-color: var(--mantine-color-body);
   border-top: 1px solid var(--mantine-color-default-border);

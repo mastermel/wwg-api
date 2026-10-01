@@ -3,7 +3,7 @@ import "@/features/maps/maplibre-worker";
 
 import { useComputedColorScheme } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { LngLatBounds } from "maplibre-gl";
 import MapGL, { AttributionControl, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import type { CampaignMapResponse, MapBounds } from "@/api/generated/model";
@@ -11,6 +11,8 @@ import classes from "@/features/maps/CampaignMap.module.css";
 import { contourTiles } from "@/features/maps/contours";
 import { HexGridLayer } from "@/features/maps/HexGridLayer";
 import { attribution, buildMapStyle, toLngLatBounds } from "@/features/maps/map-style";
+import { fillingView, viewLimits } from "@/features/maps/playable-area";
+import { PlayableAreaLayer } from "@/features/maps/PlayableAreaLayer";
 
 export interface MapPointer {
   kind: "down" | "move" | "up";
@@ -22,7 +24,7 @@ export interface MapPointer {
 
 interface CampaignMapProps {
   settings: CampaignMapResponse;
-  /** Where the map opens; also the area it's held inside, unless `free`. */
+  /** Where the map opens; also the area it's held around, unless `free`. */
   bounds: MapBounds;
   /** Let the map go anywhere (the Umpire setting the area). */
   free?: boolean;
@@ -50,8 +52,9 @@ interface CampaignMapProps {
 
 /**
  * A campaign's map (DESIGN.md §3.13): our style from its settings, in the current colour
- * scheme, held inside its bounds (MapLibre's maxBounds: nothing outside them can be seen, and
- * zooming out stops there); zooming in is unlimited.
+ * scheme, opening on its bounds (on a phone, filled by them) and held around them (MapLibre's maxBounds: the area and a
+ * margin, widened to the map's shape, so zooming out shows all of it at any size); the world
+ * outside is faded, and the area outlined. Zooming in is unlimited.
  */
 export function CampaignMap({
   settings,
@@ -72,6 +75,9 @@ export function CampaignMap({
   // a hint); taps still reach it. Not with a mouse, where the wheel would then need Ctrl to zoom.
   // Read at once, not after mounting: MapLibre only takes the setting when the map is made.
   const touch = useMediaQuery("(pointer: coarse)", undefined, { getInitialValueInEffect: false });
+  // A phone opens with the area filling the map (a pan or a pinch from the rest of it), a
+  // computer on the whole of it.
+  const phone = useMediaQuery("(max-width: 48em)", undefined, { getInitialValueInEffect: false });
   const { layers, labelLanguage, distanceUnit } = settings;
   const mapStyle = useMemo(
     () =>
@@ -83,6 +89,19 @@ export function CampaignMap({
       }),
     [layers, labelLanguage, scheme, distanceUnit],
   );
+  // The map's width over its height, once it's laid out, and as it changes (full screen).
+  const [aspect, setAspect] = useState<number | null>(null);
+  const measure = (map: { getContainer: () => HTMLElement }) => {
+    const { clientWidth, clientHeight } = map.getContainer();
+    if (clientWidth > 0 && clientHeight > 0) setAspect(clientWidth / clientHeight);
+  };
+  const limits = useMemo(
+    () =>
+      free || aspect === null
+        ? undefined
+        : toLngLatBounds(viewLimits(bounds, aspect, settings.hexSize)),
+    [free, aspect, bounds, settings.hexSize],
+  );
 
   return (
     <div className={classes.map}>
@@ -90,7 +109,7 @@ export function CampaignMap({
         ref={mapRef}
         mapStyle={mapStyle}
         initialViewState={{ bounds: toLngLatBounds(bounds) }}
-        maxBounds={free ? undefined : toLngLatBounds(bounds)}
+        maxBounds={limits}
         attributionControl={false}
         cooperativeGestures={touch}
         dragRotate={false}
@@ -112,12 +131,28 @@ export function CampaignMap({
         onClick={(event) =>
           onMapClick?.({ longitude: event.lngLat.lng, latitude: event.lngLat.lat })
         }
-        onLoad={(event) => onViewChange?.(viewOf(event.target))}
+        onLoad={(event) => {
+          measure(event.target);
+          const { clientWidth, clientHeight } = event.target.getContainer();
+          if (!free && phone && clientWidth > 0 && clientHeight > 0) {
+            event.target.fitBounds(
+              toLngLatBounds(fillingView(bounds, clientWidth / clientHeight)),
+              { duration: 0, padding: 0 },
+            );
+          }
+          onViewChange?.(viewOf(event.target));
+        }}
+        onResize={(event) => {
+          measure(event.target);
+        }}
         onMove={(event) => onViewChange?.(viewOf(event.target))}
         style={{ width: "100%", height: "100%" }}
       >
         <NavigationControl position="top-right" showCompass={false} />
         <AttributionControl position="bottom-right" customAttribution={attribution} compact />
+        {!free && (
+          <PlayableAreaLayer bounds={bounds} hexSize={layers.grid ? settings.hexSize : null} />
+        )}
         {/* Under the units. The settings page draws its own, from the size being chosen. */}
         {!free && layers.grid && (
           <HexGridLayer bounds={bounds} size={settings.hexSize} visible={grid ?? true} />

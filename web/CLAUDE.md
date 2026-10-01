@@ -41,7 +41,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   wins over a failed refetch). Wrap each page in `Page`, which sets the title and focus.
 - Admin screens live under `routes/_app/admin/` (the layout gives non-admins the not-found page).
   Lists keep their search and page in the URL (`validateSearch`), so they can be shared.
-- Page layout: `Page` takes `back` (a `BackLink`), `summary` and `actions`; its content is
+- Page layout: `Page` takes `back` (a `BackLink`), `summary`, `actions` and `wide` (the
+  screen's whole width, for the map pages; others keep a readable width); its content is
   `Section`s (a titled panel; `flush` for a table, `tone="danger"` for deleting and leaving,
   which go last). Empty lists use `EmptyState`. Don't hand-roll headings and panels.
 - Colours come from the theme's variables (`--app-canvas`, `--app-header`, Mantine's); a new
@@ -72,6 +73,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   stand-in can't draw its children (markers need a real map), so marker behaviour is e2e's.
   Stacking (`stacks.ts`) is a pure function, tested alone.
   Import it only through `CampaignMap`, which sets MapLibre's worker URL (`maplibre-worker.ts`).
+  How far the view may go, and the playable area's outline, are `playable-area.ts`
+  (`viewLimits`, `playableOutline`), drawn by `PlayableAreaLayer`.
   Distances and the range circle come from `geo.ts` (haversine, the same Earth radius as the
   API's `Geo.cs`); orders in words from `orders.ts`. Ghost moves and the range are
   `OrderOverlay`, inside the map: sight only, as the turn panel lists the same orders.

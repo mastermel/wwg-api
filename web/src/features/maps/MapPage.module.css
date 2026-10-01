@@ -29,3 +29,9 @@
     columns: 3;
   }
 }
+
+@media (min-width: 120em) {
+  .panels {
+    columns: 4;
+  }
+}

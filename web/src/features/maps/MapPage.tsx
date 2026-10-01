@@ -159,6 +159,7 @@ export function MapPage({ campaignId }: { campaignId: string }) {
 
   return (
     <Page
+      wide
       title="Map"
       actions={
         manager && (

@@ -15,6 +15,8 @@ interface PageProps {
   summary?: ReactNode;
   /** The page's own actions, beside the title (below it on phones). */
   actions?: ReactNode;
+  /** Use the screen's whole width (the map), not the width that keeps lines readable. */
+  wide?: boolean;
   children?: ReactNode;
 }
 
@@ -23,7 +25,7 @@ interface PageProps {
  * moves focus to the page's single h1, so screen readers announce the new page (WCAG 2.4.2, 2.4.3).
  * The header (back link, title, summary, actions) is divided from the page's sections.
  */
-export function Page({ title, back, summary, actions, children }: PageProps) {
+export function Page({ title, back, summary, actions, wide = false, children }: PageProps) {
   const heading = useRef<HTMLHeadingElement>(null);
   const compact = useContext(CompactPageContext);
 
@@ -57,7 +59,7 @@ export function Page({ title, back, summary, actions, children }: PageProps) {
   }
 
   return (
-    <Stack gap="xl">
+    <Stack gap="xl" data-page-wide={wide || undefined}>
       <Stack gap="xs" component="header">
         {back}
         <Group justify="space-between" align="flex-end" gap="md">

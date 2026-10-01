@@ -90,6 +90,7 @@ export function TerrainPage({ campaignId }: { campaignId: string }) {
 
   return (
     <Page
+      wide
       title="Terrain"
       summary="Each hex's ground and settlement, and the roads and rivers between them."
       back={
@@ -170,7 +171,7 @@ function TerrainEditor({ campaignId, settings, bounds, terrain, details }: Terra
 
   return (
     <Grid gap="xl">
-      <Grid.Col span={{ base: 12, md: 8 }}>
+      <Grid.Col span={{ base: 12, md: 8, xl: 9 }}>
         <Box h="calc(100dvh - 15rem)" mih={360}>
           <CampaignMap settings={settings} bounds={bounds} cursor="crosshair" onMapClick={choose}>
             <TerrainLayer grid={grid} terrain={terrain} />
@@ -178,7 +179,7 @@ function TerrainEditor({ campaignId, settings, bounds, terrain, details }: Terra
           </CampaignMap>
         </Box>
       </Grid.Col>
-      <Grid.Col span={{ base: 12, md: 4 }}>
+      <Grid.Col span={{ base: 12, md: 4, xl: 3 }}>
         <Stack gap="xl">
           {chosen ? (
             <Stack gap="xl">
