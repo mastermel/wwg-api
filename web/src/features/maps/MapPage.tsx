@@ -37,7 +37,7 @@ import {
   useListReports,
 } from "@/api/generated/endpoints/intelligence/intelligence";
 import { useListSightings } from "@/api/generated/endpoints/sightings/sightings";
-import { useGetScoreboard } from "@/api/generated/endpoints/victory/victory";
+import { useGetScoreboard, useGetVictorySettings } from "@/api/generated/endpoints/victory/victory";
 import {
   useGetSupply,
   useGetSupplySettings,
@@ -316,6 +316,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const [shownReport, setShownReport] = useState<string | null>(null);
   // Victory points (step 50): the totals, and the holders the viewer may know.
   const scoreboard = useGetScoreboard(campaignId, live);
+  const victorySettings = useGetVictorySettings(campaignId, live);
   const outOfSupply = useMemo(
     () =>
       new Set(
@@ -463,9 +464,18 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             depots.data ?? [],
             armies.data ?? [],
             scoreboard.data?.settlements,
+            victorySettings.data?.mode,
           )
         : null,
-    [shownHex, costs.terrain, hexDetails.data, depots.data, armies.data, scoreboard.data],
+    [
+      shownHex,
+      costs.terrain,
+      hexDetails.data,
+      depots.data,
+      armies.data,
+      scoreboard.data,
+      victorySettings.data,
+    ],
   );
   const hoverAt = (point: Point | null) => {
     const hex = point && idle ? grid.hexAt(point) : null;

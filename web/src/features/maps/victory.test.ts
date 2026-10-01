@@ -28,4 +28,9 @@ describe("settlementValue", () => {
     expect(settlementValue(place({ size: "City", victoryPoints: 0 }))).toBe(0);
     expect(settlementValue(place({ size: "City", victoryPoints: null }))).toBe(25);
   });
+
+  it("is nothing without the Umpire's value, where only those they give points count", () => {
+    expect(settlementValue(place({ size: "City", victoryPoints: null }), "Chosen")).toBe(0);
+    expect(settlementValue(place({ size: "Town", victoryPoints: 30 }), "Chosen")).toBe(30);
+  });
 });

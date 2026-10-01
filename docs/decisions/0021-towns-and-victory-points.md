@@ -18,6 +18,10 @@ what at the start, or who knows the score.
 - **A settlement's value** is the highest of what applies (a town 10, a city 25, walled 35, a
   fortress 50), plus 25 for a capital or 10 for a minor capital. The Umpire can set another value
   for any settlement (0 for one that doesn't count), in the terrain editor.
+- **Which settlements count** is the Umpire's choice for the campaign: **every settlement, by the
+  rules** (the default, above), or **only those they give points**, for a scenario with a few
+  objectives: a settlement is then worth nothing unless the Umpire sets its value. Values the
+  Umpire set are kept when the choice changes, and the totals follow at once.
 - **Settlements are held by armies** (the rules' "last occupying troops"), and totalled by side.
   The Umpire gives each its **starting holder** (an army, or no one) in the terrain editor.
 - **Taking one:** as each turn closes, an army whose units are the only ones in a settlement's hex
@@ -32,5 +36,5 @@ what at the start, or who knows the score.
 
 ## Consequences
 
-- New: a value override on a hex's settlement, each settlement's holder, and a history of changes.
+- New: a value override on a hex's settlement, the campaign's choice of which count, each settlement's holder, and a history of changes.
 - Starting the next turn moves holdings after attrition, sightings, supply and couriers.

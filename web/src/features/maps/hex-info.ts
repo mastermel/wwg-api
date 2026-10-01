@@ -3,6 +3,7 @@ import type {
   DepotResponse,
   HexDetailResponse,
   SettlementScoreResponse,
+  VictoryPointsMode,
 } from "@/api/generated/model";
 import { describeDetail } from "@/features/maps/hex-detail";
 import { settlementValue, victoryPoints } from "@/features/maps/victory";
@@ -46,6 +47,8 @@ export function describeHex(
   armies: readonly ArmySummary[],
   /** The settlements whose holders the viewer may know (step 50). */
   holdings: readonly SettlementScoreResponse[] = [],
+  /** Which settlements are worth victory points. */
+  mode: VictoryPointsMode = "Rules",
 ): HexInfo {
   const cell = terrain.cell(hex);
   const ground = terrainLabels[cell?.terrain ?? "Flat"];
@@ -54,7 +57,7 @@ export function describeHex(
 
   const settlement = cell && describeSettlement(cell.settlement);
   if (settlement) lines.push(`${settlement}.`);
-  const worth = cell ? settlementValue(cell.settlement) : 0;
+  const worth = cell ? settlementValue(cell.settlement, mode) : 0;
   if (worth > 0) {
     const holding = holdings.find((h) => hexKey(h) === hexKey(hex));
     const holder = holding?.armyId && armies.find((a) => a.id === holding.armyId)?.name;

@@ -24,6 +24,7 @@ internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
         builder.PrimitiveCollection(c => c.CavalryLimitTypes).ElementType().HasConversion<string>();
         builder.PrimitiveCollection(c => c.SupplyExemptTypes).ElementType().HasConversion<string>();
         builder.PrimitiveCollection(c => c.OffTheLandNations).ElementType().HasConversion<string>();
+        builder.Property(c => c.VictoryPoints).HasMaxLength(16);
 
         // Deleting a campaign deletes its members (and its armies: see ArmyConfiguration).
         builder

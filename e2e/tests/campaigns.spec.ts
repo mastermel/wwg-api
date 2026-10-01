@@ -137,3 +137,25 @@ test("the Umpire sets the supply reach, kept for next time", async ({ signUp, is
   await page.reload();
   await expect(supply.getByRole("textbox", { name: /Supply reach/ })).toHaveValue("2");
 });
+
+test("the Umpire counts only the settlements they give points, kept for next time", async ({
+  signUp,
+  isMobile,
+}) => {
+  test.skip(isMobile, desktopOnly);
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Waterloo 1815");
+  const page = umpire.page;
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+
+  const victory = page.getByRole("region", { name: "Victory points" });
+  await expect(
+    victory.getByRole("radio", { name: /Every settlement, by the rules/ }),
+  ).toBeChecked();
+  await victory.getByRole("radio", { name: /Only those I give points/ }).check();
+  await victory.getByRole("button", { name: "Save victory points" }).click();
+  await expect(page.getByText("Saved the victory points settings.")).toBeVisible();
+
+  await page.reload();
+  await expect(victory.getByRole("radio", { name: /Only those I give points/ })).toBeChecked();
+});

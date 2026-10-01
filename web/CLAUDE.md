@@ -128,7 +128,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   `SendReportModal`, a received one's units `SnapshotMarkers`; the Umpire's couriers are
   `CouriersPanel`.
 - Towns and victory points (step 50, decision 0021): a settlement's value is `victory.ts`
-  (`settlementValue`, mirroring the API's `HexSettlement.Value`); the scoreboard is the API's,
+  (`settlementValue`, by the campaign's mode, mirroring the API's `HexSettlement.ValueIn`; the
+  mode is `VictorySection` on the edit page); the scoreboard is the API's,
   shown by `ScoreboardPanel` (map and campaign pages) and `HoldingFlags`; the Umpire sets the
   value and holder in the terrain editor (`HolderField`).
 - Queries that must not be saved for offline use (live status, admin data such as the user list)

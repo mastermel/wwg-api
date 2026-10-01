@@ -4385,6 +4385,88 @@
         ]
       }
     },
+    "/api/campaigns/{id}/victory-settings": {
+      "get": {
+        "tags": [
+          "Victory"
+        ],
+        "summary": "Which settlements are worth victory points (every member): every town, city and fortress by\nthe rules' table, or only those the Umpire gives points.",
+        "operationId": "GetVictorySettings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VictorySettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Victory"
+        ],
+        "summary": "Changes which settlements are worth victory points (Umpire or Admin). Points the Umpire set\nstay, either way; the totals follow at once.",
+        "operationId": "UpdateVictorySettings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVictorySettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VictorySettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/army-turns/{id}/submit": {
       "post": {
         "tags": [
@@ -9374,6 +9456,19 @@
         },
         "description": "Updates the signed-in user's name."
       },
+      "UpdateVictorySettingsRequest": {
+        "required": [
+          "mode"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "description": "Every settlement by the rules' table, or only those the Umpire gives points.",
+            "$ref": "#/components/schemas/VictoryPointsMode"
+          }
+        },
+        "description": "The Umpire sets which settlements are worth victory points."
+      },
       "UserCampaign": {
         "required": [
           "id",
@@ -9504,6 +9599,26 @@
           }
         },
         "description": "A user in the admin user list."
+      },
+      "VictoryPointsMode": {
+        "enum": [
+          "Rules",
+          "Chosen"
+        ],
+        "description": "Which settlements are worth victory points (decision 0021)."
+      },
+      "VictorySettingsResponse": {
+        "required": [
+          "mode"
+        ],
+        "type": "object",
+        "properties": {
+          "mode": {
+            "description": "Every settlement by the rules' table, or only those the Umpire gives points.",
+            "$ref": "#/components/schemas/VictoryPointsMode"
+          }
+        },
+        "description": "A campaign's victory points settings (decision 0021)."
       },
       "Waterway": {
         "enum": [

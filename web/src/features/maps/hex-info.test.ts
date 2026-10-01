@@ -111,6 +111,9 @@ describe("describeHex", () => {
     expect(describeHex(centre, terrain, [], [], [nord], [holding]).lines).toContain(
       "Worth 25 points; held by Armée du Nord.",
     );
+    expect(describeHex(centre, terrain, [], [], [nord], [], "Chosen").lines).not.toContainEqual(
+      expect.stringMatching(/^Worth/),
+    );
   });
 
   it("adds the actual terrain the viewer was shown, and the depots they may see", () => {

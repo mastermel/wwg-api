@@ -23,6 +23,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { Layer, Source } from "react-map-gl/maplibre";
 import type { z } from "zod";
 import { useGetCampaign } from "@/api/generated/endpoints/campaigns/campaigns";
+import { useGetVictorySettings } from "@/api/generated/endpoints/victory/victory";
 import {
   getGetCampaignGridQueryKey,
   useGetCampaignGrid,
@@ -270,6 +271,7 @@ function HexForm({
   const update = useUpdateHexCell();
   const [formError, setFormError] = useState<string | null>(null);
   const cell = index.cell(hex);
+  const mode = useGetVictorySettings(campaignId).data?.mode ?? "Rules";
   const form = useForm<HexValues>({
     resolver: zodResolver(UpdateHexCellBody),
     defaultValues: {
@@ -444,8 +446,12 @@ function HexForm({
             render={({ field }) => (
               <NumberInput
                 label="Victory points"
-                description={`What holding it is worth. Leave it empty for the rules' ${String(rules)}; 0 if it doesn't count.`}
-                placeholder={String(rules)}
+                description={
+                  mode === "Chosen"
+                    ? "What holding it is worth. Only the settlements you give points count."
+                    : `What holding it is worth. Leave it empty for the rules' ${String(rules)}; 0 if it doesn't count.`
+                }
+                placeholder={mode === "Chosen" ? "0" : String(rules)}
                 min={0}
                 max={1000}
                 allowDecimal={false}
@@ -470,7 +476,7 @@ function HexForm({
           </Group>
         </Stack>
       </form>
-      {cell && settlementValue(cell.settlement) > 0 && (
+      {cell && settlementValue(cell.settlement, mode) > 0 && (
         <Stack mt="md">
           <HolderField campaignId={campaignId} hex={hex} />
         </Stack>

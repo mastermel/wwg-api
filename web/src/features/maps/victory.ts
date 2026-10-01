@@ -1,4 +1,4 @@
-import type { HexSettlement } from "@/api/generated/model";
+import type { HexSettlement, VictoryPointsMode } from "@/api/generated/model";
 
 /**
  * Towns and victory points (step 50, decision 0021), in the app. The value mirrors the API's
@@ -18,9 +18,12 @@ export function rulesValue(settlement: HexSettlement) {
   return base + capital;
 }
 
-/** What it's worth in this campaign: the Umpire's value, or the rules'. */
-export const settlementValue = (settlement: HexSettlement) =>
-  settlement.victoryPoints ?? rulesValue(settlement);
+/**
+ * What it's worth in this campaign: the Umpire's value, or else the rules' (or, where only the
+ * settlements the Umpire gives points count, nothing).
+ */
+export const settlementValue = (settlement: HexSettlement, mode: VictoryPointsMode = "Rules") =>
+  settlement.victoryPoints ?? (mode === "Chosen" ? 0 : rulesValue(settlement));
 
 /** "1 point", "10 points". */
 export const victoryPoints = (n: number) => `${String(n)} ${n === 1 ? "point" : "points"}`;

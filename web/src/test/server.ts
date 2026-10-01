@@ -31,6 +31,7 @@ const defaults = [
   http.get("*/api/campaigns/:id/turns", () =>
     HttpResponse.json({ stage: "Setup", openTurn: 0, turns: [], startProblems: [] }),
   ),
+  http.get("*/api/campaigns/:id/victory-settings", () => HttpResponse.json({ mode: "Rules" })),
   http.get("*/api/campaigns/:id/join-code", () =>
     HttpResponse.json({ joinCode: "test-join-code" }),
   ),

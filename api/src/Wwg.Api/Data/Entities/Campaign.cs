@@ -55,6 +55,19 @@ internal sealed class Campaign : Entity
 
     /// <summary>The nations whose units may live off the land; null: France.</summary>
     public List<Nation>? OffTheLandNations { get; set; }
+
+    /// <summary>Which settlements are worth victory points (step 50, decision 0021).</summary>
+    public VictoryPointsMode VictoryPoints { get; set; }
+}
+
+/// <summary>Which settlements are worth victory points (decision 0021).</summary>
+public enum VictoryPointsMode
+{
+    /// <summary>Every town, city and fortress, by the rules' table, unless the Umpire sets its value.</summary>
+    Rules,
+
+    /// <summary>Only those the Umpire gives points; every other is worth nothing.</summary>
+    Chosen,
 }
 
 /// <summary>The rules' supply (Campaign, §G), until the Umpire changes it (decision 0019).</summary>

@@ -46,6 +46,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapSightingEndpoints()
             .MapIntelEndpoints()
             .MapVictoryEndpoints()
+            .MapVictorySettingsEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
     }

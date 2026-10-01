@@ -2574,5 +2574,9 @@ build on positions.
       the campaign and map pages, with its history; a flag in the holder's colour by each
       settlement on the map, and the holder and value in the hex card (`victory.ts`, mirroring the
       API's value; `HolderField`, `ScoreboardPanel`, `HoldingFlags`).
+    - ✅ **50d. Which settlements count:** a campaign setting, on the edit page: every settlement
+      by the rules (the default), or only those the Umpire gives points, the rest worth nothing
+      (`Campaign.VictoryPoints`, `VictoryPointsMode`, `HexSettlement.ValueIn`; `GET` / `PUT
+      /api/campaigns/{id}/victory-settings`; `VictorySection`).
 51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.

@@ -46,6 +46,10 @@ public sealed record HexSettlement(
         : !IsAny && VictoryPoints is not null ? "Only a town, city or fortress is worth points."
         : null;
 
+    /// <summary>What holding it is worth in a campaign that counts settlements this way.</summary>
+    public int ValueIn(VictoryPointsMode mode) =>
+        mode == VictoryPointsMode.Chosen ? VictoryPoints ?? 0 : Value;
+
     /// <summary>
     /// What holding it is worth (the rules, §C.3(b); decision 0021): the Umpire's value, or the
     /// highest of a town 10, a city 25, walled 35, a fortress 50, and 25 more for a capital or 10

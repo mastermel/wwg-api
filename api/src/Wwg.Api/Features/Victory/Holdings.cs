@@ -17,8 +17,13 @@ internal static class Holdings
         WwgDbContext db,
         Guid campaignId,
         CancellationToken cancellationToken
-    ) =>
-        (
+    )
+    {
+        var mode = await db
+            .Campaigns.Where(c => c.Id == campaignId)
+            .Select(c => c.VictoryPoints)
+            .SingleAsync(cancellationToken);
+        return (
             await db
                 .HexCells.AsNoTracking()
                 .Where(c =>
@@ -30,10 +35,11 @@ internal static class Holdings
             .Select(c => new Settlement(
                 new Hex(c.Q, c.R),
                 c.Name,
-                GridEndpoints.SettlementOf(c).Value
+                GridEndpoints.SettlementOf(c).ValueIn(mode)
             ))
             .Where(s => s.Value > 0)
             .ToDictionary(s => s.At);
+    }
 
     /// <summary>
     /// Settlements change hands as a turn closes (not saved): an army whose side alone has units in

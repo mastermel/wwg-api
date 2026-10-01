@@ -309,6 +309,85 @@ public sealed class VictoryTests : ApiTest
         Assert.Equal(expected, held.StatusCode);
     }
 
+    private static Task<HttpResponseMessage> SetModeAsync(
+        CampaignScenario scenario,
+        VictoryPointsMode mode,
+        Role role = Role.Umpire
+    ) =>
+        scenario
+            .As(role)
+            .PutAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/victory-settings", UriKind.Relative),
+                new UpdateVictorySettingsRequest(mode),
+                Token
+            );
+
+    [Fact]
+    public async Task GetVictorySettings_ANewCampaign_CountsEverySettlementByTheRules()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        var settings = await scenario
+            .As(Role.Commander)
+            .GetAsAsync<VictorySettingsResponse>(
+                $"/api/campaigns/{scenario.CampaignId}/victory-settings"
+            );
+
+        Assert.Equal(VictoryPointsMode.Rules, settings!.Mode);
+    }
+
+    [Fact]
+    public async Task UpdateVictorySettings_Chosen_CountsOnlyTheSettlementsGivenPoints()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.SetAreaAsync(scenario);
+        using var wavre = await SettleAsync(scenario, Wavre, Town("Wavre", 30));
+        using var ligny = await SettleAsync(scenario, new Hex(1, 0), Town("Ligny"));
+
+        using var set = await SetModeAsync(scenario, VictoryPointsMode.Chosen);
+
+        Assert.Equal(
+            VictoryPointsMode.Chosen,
+            (await set.Content.ReadAsAsync<VictorySettingsResponse>())!.Mode
+        );
+        Assert.Equal(
+            [("Wavre", 30)],
+            (await ScoreAsync(scenario)).Settlements.Select(s => (s.Name, s.Value))
+        );
+    }
+
+    [Fact]
+    public async Task UpdateVictorySettings_BackToTheRules_CountsEverySettlementAgain()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.SetAreaAsync(scenario);
+        using var wavre = await SettleAsync(scenario, Wavre, Town("Wavre", 30));
+        using var ligny = await SettleAsync(scenario, new Hex(1, 0), Town("Ligny"));
+        using var chosen = await SetModeAsync(scenario, VictoryPointsMode.Chosen);
+
+        using var rules = await SetModeAsync(scenario, VictoryPointsMode.Rules);
+
+        Assert.Equal(
+            [("Ligny", 10), ("Wavre", 30)],
+            (await ScoreAsync(scenario)).Settlements.Select(s => (s.Name, s.Value)).Order()
+        );
+    }
+
+    [Theory]
+    [InlineData(Role.Admin, HttpStatusCode.OK)]
+    [InlineData(Role.Umpire, HttpStatusCode.OK)]
+    [InlineData(Role.Commander, HttpStatusCode.Forbidden)]
+    [InlineData(Role.Player, HttpStatusCode.Forbidden)]
+    [InlineData(Role.NonMember, HttpStatusCode.NotFound)]
+    public async Task UpdateVictorySettings_ByRole_TheUmpire(Role role, HttpStatusCode expected)
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+
+        using var set = await SetModeAsync(scenario, VictoryPointsMode.Chosen, role);
+
+        Assert.Equal(expected, set.StatusCode);
+    }
+
     [Fact]
     public async Task GetScoreboard_ByANonMember_Returns404()
     {
