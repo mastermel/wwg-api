@@ -81,23 +81,7 @@ internal static class OrderEndpoints
                         :
                         [
                             .. orders[t.Id]
-                                .Select(o =>
-                                    Positions.Of(
-                                        grid,
-                                        new OrderRow(
-                                            o.UnitId,
-                                            id,
-                                            t.Number,
-                                            t.Status,
-                                            o.Kind,
-                                            o.Q,
-                                            o.R,
-                                            o.Path,
-                                            o.ByUmpire,
-                                            o.Progress
-                                        )
-                                    )
-                                ),
+                                .Select(o => Positions.Of(grid, o.Row(id, t.Number, t.Status))),
                         ],
                     [.. history[t.Id]]
                 ))
@@ -125,7 +109,8 @@ internal static class OrderEndpoints
                     o.R,
                     o.Path,
                     o.ByUmpire,
-                    o.Progress
+                    o.Progress,
+                    o.ForceMarch
                 ))
                 .ToListAsync(cancellationToken)
         ).ToLookup(o => o.ArmyTurnId);
@@ -138,8 +123,13 @@ internal static class OrderEndpoints
         int R,
         List<Hex> Path,
         bool ByUmpire,
-        double? Progress
-    );
+        double? Progress,
+        bool ForceMarch
+    )
+    {
+        public OrderRow Row(Guid armyId, int turn, ArmyTurnStatus status) =>
+            new(UnitId, armyId, turn, status, Kind, Q, R, Path, ByUmpire, Progress, ForceMarch);
+    }
 
     /// <summary>What happened to an army's turns (submitted, sent back...), by army turn.</summary>
     private static async Task<ILookup<Guid, ArmyTurnEventDto>> HistoryAsync(
@@ -212,38 +202,38 @@ internal static class OrderEndpoints
 
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
-        var path = request.Kind == OrderKind.Hold ? [] : request.Path ?? [];
-        var plan = await PlanAsync(
-            db,
-            new MoveRequest(
-                grid,
-                unit.CampaignId,
-                unit.Type,
-                unit.Nation,
-                turn.Number,
-                state,
-                request.Kind,
-                path,
-                byUmpire
-            ),
-            cancellationToken
-        );
+        var move = MoveFor(grid, unit, turn.Number, state, request, byUmpire);
+        if (move.ForceMarch && await ForceMarchProblemAsync(db, move, cancellationToken) is { } why)
+        {
+            return Invalid("forceMarch", why);
+        }
+
+        var plan = await PlanAsync(db, move, cancellationToken);
         if (plan.Problem is { } problem)
         {
             return Invalid("path", problem);
         }
 
-        var saved = await StageOrderAsync(
-            db,
-            grid,
-            turn,
-            unitId,
-            new StagedOrder(request.Kind, plan.At, path, plan.Progress, byUmpire)
+        var staged = new StagedOrder(
+            move.Kind,
+            plan.At,
+            move.Path,
+            plan.Progress,
+            byUmpire,
+            move.ForceMarch
         );
+        var saved = await StageOrderAsync(db, grid, turn, unitId, staged);
         if (byUmpire)
         {
-            var text = request.Kind == OrderKind.Hold ? "Set to hold." : "Set to move.";
-            await RecordEditAsync(db, time, httpContext, id, unitId, text, cancellationToken);
+            await RecordEditAsync(
+                db,
+                time,
+                httpContext,
+                id,
+                unitId,
+                EditNote(move),
+                cancellationToken
+            );
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -296,7 +286,8 @@ internal static class OrderEndpoints
         Hex At,
         IReadOnlyList<Hex> Path,
         double? Progress,
-        bool ByUmpire
+        bool ByUmpire,
+        bool ForceMarch
     );
 
     private static async Task<UnitPosition> StageOrderAsync(
@@ -319,6 +310,7 @@ internal static class OrderEndpoints
             staged.Progress,
             staged.ByUmpire
         );
+        order.ForceMarch = staged.ForceMarch;
         return Positions.Of(
             grid,
             new OrderRow(
@@ -331,7 +323,8 @@ internal static class OrderEndpoints
                 staged.At.R,
                 order.Path,
                 staged.ByUmpire,
-                staged.Progress
+                staged.Progress,
+                staged.ForceMarch
             )
         );
     }
@@ -429,7 +422,8 @@ internal static class OrderEndpoints
         UnitState State,
         OrderKind Kind,
         IReadOnlyList<Hex> Path,
-        bool ByUmpire
+        bool ByUmpire,
+        bool ForceMarch
     );
 
     /// <summary>
@@ -473,6 +467,33 @@ internal static class OrderEndpoints
             );
     }
 
+    private static MoveRequest MoveFor(
+        HexGrid grid,
+        OrderedUnit unit,
+        int turn,
+        UnitState state,
+        GiveOrderRequest request,
+        bool byUmpire
+    ) =>
+        new(
+            grid,
+            unit.CampaignId,
+            unit.Type,
+            unit.Nation,
+            turn,
+            state,
+            request.Kind,
+            request.Kind == OrderKind.Hold ? [] : request.Path ?? [],
+            byUmpire,
+            request.ForceMarch && request.Kind == OrderKind.Move
+        );
+
+    /// <summary>The Umpire's change to an order, in the turn's history.</summary>
+    private static string EditNote(MoveRequest move) =>
+        move.Kind == OrderKind.Hold ? "Set to hold."
+        : move.ForceMarch ? "Set to force march."
+        : "Set to move.";
+
     /// <summary>The unit being ordered: its type, campaign, and the nation it marches as.</summary>
     private sealed record OrderedUnit(UnitType Type, Guid CampaignId, Nation Nation);
 
@@ -506,7 +527,33 @@ internal static class OrderEndpoints
     {
         var calendar = await CalendarEndpoints.LoadAsync(db, move.CampaignId, cancellationToken);
         var part = TurnParts.Of(calendar.FirstTurnPart, calendar.StartDate, move.Turn)?.Part;
-        return Movement.BudgetFor(table, Movement.ClassOf(move.Type), move.Nation, part, calendar);
+        var movementClass = Movement.ClassOf(move.Type);
+        var budget = Movement.BudgetFor(table, movementClass, move.Nation, part, calendar);
+        // A force march goes a flat hex's worth further (decision 0018).
+        return move.ForceMarch ? budget + (1 / table.Rate(movementClass, Ground.Flat)) : budget;
+    }
+
+    /// <summary>
+    /// Why the unit can't force march this turn, or null if it can: only by day (by night, moving
+    /// counts towards a forced march anyway), and only a class that moves over flat ground.
+    /// </summary>
+    private static async Task<string?> ForceMarchProblemAsync(
+        WwgDbContext db,
+        MoveRequest unit,
+        CancellationToken cancellationToken
+    )
+    {
+        var calendar = await CalendarEndpoints.LoadAsync(db, unit.CampaignId, cancellationToken);
+        var part = TurnParts.Of(calendar.FirstTurnPart, calendar.StartDate, unit.Turn)?.Part;
+        if (part == TurnPart.Night)
+        {
+            return "Force march by day only: by night, moving counts towards a forced march anyway.";
+        }
+
+        var table = await MovementTable.LoadAsync(db, unit.CampaignId, cancellationToken);
+        return table.Rate(Movement.ClassOf(unit.Type), Ground.Flat) > 0
+            ? null
+            : "This unit can't force march: it doesn't move over land.";
     }
 
     /// <summary>What a move is checked against: the grid, the campaign's table and the terrain.</summary>

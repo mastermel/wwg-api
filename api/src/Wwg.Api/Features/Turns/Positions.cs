@@ -14,7 +14,8 @@ internal sealed record OrderRow(
     int R,
     List<Hex> Path,
     bool ByUmpire,
-    double? Progress = null
+    double? Progress = null,
+    bool ForceMarch = false
 );
 
 internal static class Positions
@@ -35,7 +36,8 @@ internal static class Positions
             longitude,
             row.Path,
             row.ByUmpire,
-            row.Progress
+            row.Progress,
+            row.ForceMarch
         );
     }
 }

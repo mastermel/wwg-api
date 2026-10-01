@@ -66,6 +66,7 @@ public sealed record CampaignTurnsResponse(
 /// Part of the way (0–1) into the path's last hex, which takes more than a turn: the unit is still
 /// in Q, R. Null when it got where it was going.
 /// </param>
+/// <param name="ForceMarch">Whether the move is a force march (decision 0018).</param>
 public sealed record UnitPosition(
     Guid UnitId,
     Guid ArmyId,
@@ -78,7 +79,8 @@ public sealed record UnitPosition(
     double Longitude,
     IReadOnlyList<Hex> Path,
     bool ByUmpire,
-    double? Progress
+    double? Progress,
+    bool ForceMarch
 );
 
 /// <summary>Where the Umpire places a unit: a hex in the campaign's grid.</summary>
@@ -95,9 +97,14 @@ public sealed record PlaceUnitRequest(
 /// A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it
 /// ends. Adjacent, inside the grid, and within what the unit can move in a turn.
 /// </param>
+/// <param name="ForceMarch">
+/// A Move by force march (decision 0018): a flat hex's worth further, in a Morning or Afternoon
+/// turn only.
+/// </param>
 public sealed record GiveOrderRequest(
     [property: JsonRequired, EnumDataType(typeof(OrderKind))] OrderKind Kind,
-    [property: MaxLength(Movement.MaxSteps)] IReadOnlyList<Hex>? Path
+    [property: MaxLength(Movement.MaxSteps)] IReadOnlyList<Hex>? Path,
+    bool ForceMarch = false
 );
 
 /// <summary>The Umpire's note on one unit's order.</summary>
@@ -148,4 +155,24 @@ public sealed record ArmyTurnDetails(
 public sealed record ReviewTurnRequest(
     [property: Trimmed, StringLength(2000)] string? Note,
     [property: MaxLength(100)] IReadOnlyList<UnitNoteDto>? UnitNotes
+);
+
+/// <summary>A unit's forced marches as the open turn began (decision 0018).</summary>
+/// <param name="UnitId">The unit.</param>
+/// <param name="MovesInRow">Moving turns in its run, before its first forced march is made.</param>
+/// <param name="ForceMarchesInRow">Of those, force-march orders.</param>
+/// <param name="ForcedMarchTurns">Turns of forced march it has still to rest off (a Hold each).</param>
+/// <param name="MoveCosts">
+/// The attrition moving this turn would cost, as a multiple of the rules' scale (0: none).
+/// </param>
+/// <param name="ForceMarchCosts">The same for a force march.</param>
+/// <param name="OrderCosts">The same for its order this turn as given (0 with none: a rest).</param>
+public sealed record UnitMarchResponse(
+    Guid UnitId,
+    int MovesInRow,
+    int ForceMarchesInRow,
+    int ForcedMarchTurns,
+    int MoveCosts,
+    int ForceMarchCosts,
+    int OrderCosts
 );

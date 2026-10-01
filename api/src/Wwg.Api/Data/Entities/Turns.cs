@@ -94,6 +94,12 @@ internal sealed class UnitOrder : Entity
 
     /// <summary>Set by the Umpire (or an Admin) on the commander's behalf (decision 0011).</summary>
     public bool ByUmpire { get; set; }
+
+    /// <summary>
+    /// A force march (decision 0018): a Move a flat hex's worth further, in a day turn. It counts
+    /// towards the unit's forced marches, as moving turns in a row do.
+    /// </summary>
+    public bool ForceMarch { get; set; }
 }
 
 /// <summary>What happened to an army's turn.</summary>

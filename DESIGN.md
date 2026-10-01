@@ -2466,10 +2466,12 @@ build on positions.
       three turns of a battle in that hex is then allowed, as the rules say.
     - Later, for consideration: units whose paths cross during a turn (meeting mid-move).
 47. **Forced marches and attrition** (decision 0018), in parts:
-    - **47a. Marches (API):** `UnitOrder.ForceMarch` (a flat hex's worth further, in a Morning or
-      an Afternoon turn only); each unit's march count worked out from its orders turn by turn
-      (moves in a row, the first forced march at the third move or the second force-march order,
-      each Hold working one turn off), shown to its army's commander and the Umpire.
+    - ✅ **47a. Marches (API):** `UnitOrder.ForceMarch` (`forceMarch` on `GiveOrder`: a flat hex's
+      worth of the unit's class further, in a Morning or an Afternoon turn only; 400 by night or
+      for a class with no flat rate); each unit's march count worked out from its orders turn by
+      turn (`Marches`, `MarchState`: moves in a row, the first forced march at the third move or
+      the second force-march order, each Hold working one turn off), and what moving this turn
+      would cost (`GET /api/armies/{id}/marches`: its commander, the Umpire, Admins).
     - **47b. Attrition (API):** the attrition the open turn's orders cost (FF scale × ×1, ×2, ×4…
       × points ÷ 50, fractions carried per unit), for the Umpire; starting the next turn takes the
       Umpire's confirmed loss for each unit that owes one, and applies it. Each unit's points

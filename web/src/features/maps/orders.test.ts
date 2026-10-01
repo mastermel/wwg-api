@@ -16,6 +16,7 @@ const order = (kind: UnitPosition["kind"], path: UnitPosition["path"] = []): Uni
   path,
   byUmpire: false,
   progress: null,
+  forceMarch: false,
 });
 
 describe("describeOrder", () => {

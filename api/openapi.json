@@ -303,6 +303,46 @@
         ]
       }
     },
+    "/api/armies/{id}/marches": {
+      "get": {
+        "tags": [
+          "Turns"
+        ],
+        "summary": "Each of the army's units' forced marches as the open turn began, and the attrition moving\nthis turn would cost, as a multiple of the rules' scale (its commander, the Umpire and\nAdmins: they follow its moves).",
+        "operationId": "ListMarches",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitMarchResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -5361,6 +5401,11 @@
               "$ref": "#/components/schemas/Hex"
             },
             "description": "A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it\nends. Adjacent, inside the grid, and within what the unit can move in a turn."
+          },
+          "forceMarch": {
+            "type": "boolean",
+            "description": "A Move by force march (decision 0018): a flat hex's worth further, in a Morning or Afternoon\nturn only.",
+            "default": false
           }
         },
         "description": "A unit's order for the turn."
@@ -6697,6 +6742,56 @@
           "Night"
         ]
       },
+      "UnitMarchResponse": {
+        "required": [
+          "unitId",
+          "movesInRow",
+          "forceMarchesInRow",
+          "forcedMarchTurns",
+          "moveCosts",
+          "forceMarchCosts",
+          "orderCosts"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "movesInRow": {
+            "type": "integer",
+            "description": "Moving turns in its run, before its first forced march is made.",
+            "format": "int32"
+          },
+          "forceMarchesInRow": {
+            "type": "integer",
+            "description": "Of those, force-march orders.",
+            "format": "int32"
+          },
+          "forcedMarchTurns": {
+            "type": "integer",
+            "description": "Turns of forced march it has still to rest off (a Hold each).",
+            "format": "int32"
+          },
+          "moveCosts": {
+            "type": "integer",
+            "description": "The attrition moving this turn would cost, as a multiple of the rules' scale (0: none).",
+            "format": "int32"
+          },
+          "forceMarchCosts": {
+            "type": "integer",
+            "description": "The same for a force march.",
+            "format": "int32"
+          },
+          "orderCosts": {
+            "type": "integer",
+            "description": "The same for its order this turn as given (0 with none: a rest).",
+            "format": "int32"
+          }
+        },
+        "description": "A unit's forced marches as the open turn began (decision 0018)."
+      },
       "UnitNoteDto": {
         "required": [
           "unitId",
@@ -6731,7 +6826,8 @@
           "longitude",
           "path",
           "byUmpire",
-          "progress"
+          "progress",
+          "forceMarch"
         ],
         "type": "object",
         "properties": {
@@ -6796,6 +6892,10 @@
             ],
             "description": "Part of the way (0–1) into the path's last hex, which takes more than a turn: the unit is still\nin Q, R. Null when it got where it was going.",
             "format": "double"
+          },
+          "forceMarch": {
+            "type": "boolean",
+            "description": "Whether the move is a force march (decision 0018)."
           }
         },
         "description": "Where a unit is (or is ordered to be) after a turn."
