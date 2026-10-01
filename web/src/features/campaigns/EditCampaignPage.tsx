@@ -14,6 +14,7 @@ import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { CalendarSection } from "@/features/campaigns/CalendarSection";
+import { ConcentrationSection } from "@/features/campaigns/ConcentrationSection";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { CampaignForm } from "@/features/campaigns/CampaignForm";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
@@ -68,6 +69,7 @@ export function EditCampaignPage({ id }: { id: string }) {
                 />
               </Section>
               <CalendarSection campaignId={id} />
+              <ConcentrationSection campaignId={id} />
             </Stack>
           )
         }

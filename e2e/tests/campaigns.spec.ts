@@ -1,5 +1,6 @@
 import { scan } from "./support/axe.ts";
 import { createCampaign } from "./support/campaigns.ts";
+import { chooseFromList } from "./support/library.ts";
 import { expect, test } from "./support/fixtures.ts";
 import { waitForServiceWorker, waitUntilSaved } from "./support/offline.ts";
 
@@ -82,4 +83,34 @@ test("the Umpire sets the calendar, and the turns are labelled with their days",
   await page.reload();
   await expect(calendar.getByLabel(/The first turn's day/)).toHaveValue("1815-06-18");
   await expect(calendar.getByRole("radio", { name: "Afternoon (14:00–22:00)" })).toBeChecked();
+});
+
+test("the Umpire sets the concentration limits, and which unit types count", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Waterloo 1815");
+  const page = umpire.page;
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+
+  const concentration = page.getByRole("region", { name: "Concentration" });
+  await expect(concentration).toContainText("Supply Train, Siege Artillery, Boat.");
+  await concentration.getByRole("textbox", { name: /Cavalry limit/ }).fill("120");
+  // Supply trains count as infantry here; then they're no longer free.
+  await chooseFromList(
+    concentration.getByRole("combobox", { name: "Counted as infantry" }),
+    "Supply Train",
+  );
+  await page.keyboard.press("Escape");
+  await expect(concentration).toContainText(
+    "Free (counted towards neither): Siege Artillery, Boat.",
+  );
+  await concentration.getByRole("button", { name: "Save concentration" }).click();
+  await expect(page.getByText("Saved the concentration settings.")).toBeVisible();
+  expect(await scan(page, "edit campaign, concentration")).toEqual([]);
+
+  // Kept: it comes back as it was left.
+  await page.reload();
+  await expect(concentration.getByRole("textbox", { name: /Cavalry limit/ })).toHaveValue("120");
+  await expect(concentration).toContainText(
+    "Free (counted towards neither): Siege Artillery, Boat.",
+  );
 });

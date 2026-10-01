@@ -17,6 +17,11 @@ internal sealed class CampaignConfiguration : IEntityTypeConfiguration<Campaign>
         // Lists of nations, as JSON arrays of their names (like every enum here, by name).
         builder.PrimitiveCollection(c => c.MorningNations).ElementType().HasConversion<string>();
         builder.PrimitiveCollection(c => c.AfternoonNations).ElementType().HasConversion<string>();
+        builder
+            .PrimitiveCollection(c => c.InfantryLimitTypes)
+            .ElementType()
+            .HasConversion<string>();
+        builder.PrimitiveCollection(c => c.CavalryLimitTypes).ElementType().HasConversion<string>();
 
         // Deleting a campaign deletes its members (and its armies: see ArmyConfiguration).
         builder

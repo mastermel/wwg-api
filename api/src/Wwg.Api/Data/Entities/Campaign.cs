@@ -28,6 +28,52 @@ internal sealed class Campaign : Entity
 
     /// <summary>Whose infantry move a flat hex less each Afternoon; null: Russia and Austria.</summary>
     public List<Nation>? AfternoonNations { get; set; }
+
+    /// <summary>
+    /// The unit types counted towards a hex's infantry limit (step 46, decision 0017); null: the
+    /// usual ones (<see cref="Concentration.InfantryTypes"/>).
+    /// </summary>
+    public List<UnitType>? InfantryLimitTypes { get; set; }
+
+    /// <summary>The unit types counted towards the cavalry limit; null: the usual ones.</summary>
+    public List<UnitType>? CavalryLimitTypes { get; set; }
+
+    /// <summary>The most points of infantry a side may have in a hex (the rules: 200).</summary>
+    public int InfantryLimit { get; set; } = Concentration.InfantryLimit;
+
+    /// <summary>The most points of cavalry a side may have in a hex (the rules: 160).</summary>
+    public int CavalryLimit { get; set; } = Concentration.CavalryLimit;
+}
+
+/// <summary>
+/// The rules' concentration limits (Campaign, §H) and the unit types counted towards them, until
+/// the Umpire changes them; the types not counted are free.
+/// </summary>
+internal static class Concentration
+{
+    public const int InfantryLimit = 200,
+        CavalryLimit = 160;
+
+    /// <summary>The highest limit the Umpire can set.</summary>
+    public const int MaxLimit = 10_000;
+
+    public static readonly IReadOnlyList<UnitType> InfantryTypes =
+    [
+        UnitType.LineInfantry,
+        UnitType.LightInfantry,
+        UnitType.Engineers,
+        UnitType.Partisans,
+        UnitType.FootArtillery,
+    ];
+
+    public static readonly IReadOnlyList<UnitType> CavalryTypes =
+    [
+        UnitType.LightCavalry,
+        UnitType.MediumCavalry,
+        UnitType.HeavyCavalry,
+        UnitType.Scouts,
+        UnitType.HorseArtillery,
+    ];
 }
 
 /// <summary>A turn's time of day (the rules, §D.1): 8 hours each, three to a day.</summary>

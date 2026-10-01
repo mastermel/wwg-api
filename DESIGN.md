@@ -2447,9 +2447,13 @@ build on positions.
       required; the army forms choose it). The migration keeps a campaign's first two sides by
       name, merges any others into the second, makes any missing, and puts armies on none on the
       first.
-    - **46b. Concentration settings:** on the campaign's edit page, the unit types that count
-      towards the infantry limit and those towards the cavalry limit (the rest are free), and the
-      two limits (200 and 160 by default).
+    - ✅ **46b. Concentration settings:** on the campaign's edit page (**Concentration**), the
+      unit types that count towards the infantry limit and those towards the cavalry limit (the
+      rest are free; a type counts towards one at most), and the two limits (200 and 160 by
+      default, 1 to 10,000). `Campaign.InfantryLimitTypes` and `CavalryLimitTypes` (null: the
+      usual types, `Concentration` in the API, `concentration.ts` in the app), `InfantryLimit`
+      and `CavalryLimit`; `GET` (every member) / `PUT` (the Umpire)
+      `/api/campaigns/{id}/concentration`.
     - **46c. Contact and concentration:** for the Umpire, the hexes holding units of both sides
       (contact), and each side's hexes over a limit (its counted points of those types; doubled in
       a large city or a fortress); in the open turn from the orders as given, on past turns from

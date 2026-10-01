@@ -3011,6 +3011,98 @@
         ]
       }
     },
+    "/api/campaigns/{id}/concentration": {
+      "get": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "The campaign's concentration settings (every member): the most points of infantry and of\ncavalry a side may have in a hex, and the unit types counted towards each.",
+        "operationId": "GetCampaignConcentration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignConcentrationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Campaigns"
+        ],
+        "summary": "Changes the campaign's concentration settings (Umpire or Admin). A unit type counts towards\none limit at most; types in neither are free.",
+        "operationId": "UpdateCampaignConcentration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignConcentrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignConcentrationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/positions": {
       "get": {
         "tags": [
@@ -4584,6 +4676,42 @@
           }
         },
         "description": "A campaign's calendar (step 45): when its turns fall, and whose infantry march faster or slower."
+      },
+      "CampaignConcentrationResponse": {
+        "required": [
+          "infantryTypes",
+          "cavalryTypes",
+          "infantryLimit",
+          "cavalryLimit"
+        ],
+        "type": "object",
+        "properties": {
+          "infantryTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "The unit types counted towards the infantry limit."
+          },
+          "cavalryTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "The unit types counted towards the cavalry limit."
+          },
+          "infantryLimit": {
+            "type": "integer",
+            "description": "The most points of infantry a side may have in a hex.",
+            "format": "int32"
+          },
+          "cavalryLimit": {
+            "type": "integer",
+            "description": "The most points of cavalry a side may have in a hex.",
+            "format": "int32"
+          }
+        },
+        "description": "A campaign's concentration settings (step 46, decision 0017): the most points of infantry and\nof cavalry a side may have in a hex, and the unit types counted towards each (the rest are free)."
       },
       "CampaignGridResponse": {
         "required": [
@@ -6850,6 +6978,48 @@
           }
         },
         "description": "The Umpire sets the campaign's calendar."
+      },
+      "UpdateCampaignConcentrationRequest": {
+        "required": [
+          "infantryTypes",
+          "cavalryTypes",
+          "infantryLimit",
+          "cavalryLimit"
+        ],
+        "type": "object",
+        "properties": {
+          "infantryTypes": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "The unit types counted towards the infantry limit."
+          },
+          "cavalryTypes": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "The unit types counted towards the cavalry limit (none in both)."
+          },
+          "infantryLimit": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer",
+            "description": "The most points of infantry a side may have in a hex.",
+            "format": "int32"
+          },
+          "cavalryLimit": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer",
+            "description": "The most points of cavalry a side may have in a hex.",
+            "format": "int32"
+          }
+        },
+        "description": "The Umpire sets the campaign's concentration settings."
       },
       "UpdateCampaignMapRequest": {
         "required": [
