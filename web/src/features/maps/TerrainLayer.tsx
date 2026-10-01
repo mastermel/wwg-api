@@ -6,10 +6,30 @@ import type { HexGrid } from "@/features/maps/hex-grid";
 import { mapPalettes } from "@/features/maps/map-style";
 import { acrossStored, sideCorners, type Side } from "@/features/maps/terrain";
 
+/** The parts of the terrain a viewer shows (the Map page's Layers panel). */
+export interface TerrainParts {
+  terrain: boolean;
+  roads: boolean;
+  rivers: boolean;
+  towns: boolean;
+  bridges: boolean;
+}
+
+const everyPart: TerrainParts = {
+  terrain: true,
+  roads: true,
+  rivers: true,
+  towns: true,
+  bridges: true,
+};
+
 interface TerrainLayerProps {
   grid: HexGrid;
   terrain: CampaignGridResponse;
+  show?: TerrainParts;
 }
+
+const visibility = (shown: boolean) => ({ visibility: shown ? "visible" : "none" }) as const;
 
 type Feature = GeoJSON.Feature;
 
@@ -27,7 +47,7 @@ const asSide = (side: string) => side as Side;
  * hex to hex, bridges where a road crosses a river, and towns, cities and fortresses at the
  * hexes' centres, with their names.
  */
-export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
+export function TerrainLayer({ grid, terrain, show = everyPart }: TerrainLayerProps) {
   const p = mapPalettes[useComputedColorScheme("light")];
   const data = useMemo(() => {
     const hexes = terrain.cells.map((cell): Feature => ({
@@ -101,6 +121,7 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
       <Source id="terrain-hexes" type="geojson" data={data.hexes}>
         <Layer
           id="terrain-ground"
+          layout={visibility(show.terrain)}
           type="fill"
           filter={["!=", ["get", "terrain"], "Flat"]}
           paint={{
@@ -120,6 +141,7 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
         />
         <Layer
           id="terrain-forest"
+          layout={visibility(show.terrain)}
           type="fill"
           filter={["==", ["get", "forest"], true]}
           paint={{ "fill-color": p.forestHex, "fill-opacity": 0.35 }}
@@ -130,11 +152,12 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
           id="terrain-rivers"
           type="line"
           filter={["==", ["get", "kind"], "river"]}
-          layout={{ "line-cap": "round" }}
+          layout={{ ...visibility(show.rivers), "line-cap": "round" }}
           paint={{ "line-color": p.river, "line-width": 4 }}
         />
         <Layer
           id="terrain-waterways"
+          layout={visibility(show.rivers)}
           type="line"
           filter={["==", ["get", "kind"], "waterway"]}
           paint={{ "line-color": p.river, "line-width": 2, "line-dasharray": [1, 1] }}
@@ -143,11 +166,12 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
           id="terrain-good-roads"
           type="line"
           filter={["all", ["==", ["get", "kind"], "road"], ["==", ["get", "road"], "Good"]]}
-          layout={{ "line-cap": "round" }}
+          layout={{ ...visibility(show.roads), "line-cap": "round" }}
           paint={{ "line-color": p.road, "line-width": 3 }}
         />
         <Layer
           id="terrain-poor-roads"
+          layout={visibility(show.roads)}
           type="line"
           filter={["all", ["==", ["get", "kind"], "road"], ["==", ["get", "road"], "Poor"]]}
           paint={{ "line-color": p.road, "line-width": 2, "line-dasharray": [3, 2] }}
@@ -157,6 +181,7 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
         <Layer
           id="terrain-bridges"
           type="circle"
+          layout={visibility(show.bridges)}
           paint={{
             "circle-radius": 4,
             "circle-color": p.road,
@@ -169,6 +194,7 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
         <Layer
           id="terrain-places"
           type="circle"
+          layout={visibility(show.towns)}
           paint={{
             "circle-radius": ["match", ["get", "size"], "City", 7, 5],
             "circle-color": [
@@ -185,6 +211,7 @@ export function TerrainLayer({ grid, terrain }: TerrainLayerProps) {
           id="terrain-place-names"
           type="symbol"
           layout={{
+            ...visibility(show.towns),
             "text-field": ["get", "name"],
             "text-font": ["Noto Sans Regular"],
             "text-size": 12,

@@ -1200,6 +1200,14 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
 
   Never shown, as anachronisms: railways, motorways, modern borders,
   buildings, points of interest and built-up areas.
+- **Map layers, for each viewer** (the Map page's **Map layers** button, over the map's top-left
+  corner; a popover, or on a phone a sheet from the bottom): every member shows or hides the
+  **Real map**'s layers (roads, place names, water, forests, hills, contours) and the **Game
+  map**'s (grid, terrain, roads, rivers & waterways, towns & cities, bridges; for the Umpire,
+  contact & concentration), of those the campaign's settings show: what the Umpire switches off
+  isn't offered. Remembered on that device, per campaign (`localStorage`); "Show everything
+  again" puts them back. The game map is drawn only once the view's longest side spans 20 hexes
+  or fewer. Units, the reach while moving and ghost moves are always drawn.
 - **Place names** in the language the Umpire chooses (the tiles carry
   `name:en`, `name:de`, `name:fr`…, falling back to the local name). Names are
   modern ones.

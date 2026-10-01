@@ -181,3 +181,39 @@ test("on a phone, one finger scrolls the page past the map", async ({ signUp, is
   // The map leaves one-finger swipes to the page (it scrolls), and pans with two.
   await expect(umpire.page.locator(".maplibregl-canvas")).toHaveCSS("touch-action", "pan-x pan-y");
 });
+
+test("a Player hides map layers, and the map remembers it", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  const player = await signUp("Bob");
+  await createCampaign(umpire.page, "Ligny");
+  const campaignUrl = umpire.page.url();
+  const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
+  await join(player.page, await joinLink(umpire.page), "Ligny");
+  // The Umpire leaves contours off: they're not on offer.
+  await (await apiAs(umpire.page)).put(`/api/campaigns/${campaignId}/map`, waterlooMap);
+
+  const page = player.page;
+  await page.goto(`${campaignUrl}/map`);
+  await page.getByRole("button", { name: "Map layers" }).click();
+  const real = page.getByRole("group", { name: "Real map" });
+  await expect(real.getByRole("switch", { name: "Forests" })).toBeChecked();
+  await expect(real.getByRole("switch", { name: "Contours" })).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Game map" })).toBeVisible();
+  expect(await scan(page, "map, layers")).toEqual([]);
+  await real.getByRole("switch", { name: "Forests" }).click();
+  await expect(real.getByRole("switch", { name: "Forests" })).not.toBeChecked();
+
+  await page.reload();
+  // The reload keeps the page's scroll, which can leave the button under the header.
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
+  await page.getByRole("button", { name: "Map layers" }).click();
+  await expect(
+    page.getByRole("group", { name: "Real map" }).getByRole("switch", { name: "Forests" }),
+  ).not.toBeChecked();
+  await page.getByRole("button", { name: "Show everything again" }).click();
+  await expect(
+    page.getByRole("group", { name: "Real map" }).getByRole("switch", { name: "Forests" }),
+  ).toBeChecked();
+});

@@ -62,6 +62,14 @@ import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
 import { HexDetailsList } from "@/features/maps/HexDetailsList";
 import { HexWarningsLayer } from "@/features/maps/HexWarningsLayer";
+import {
+  gameMaxHexesAcross,
+  hexesAcross,
+  shownRealLayers,
+  useHiddenLayers,
+  type GameLayer,
+} from "@/features/maps/map-layers";
+import { MapLayersControl } from "@/features/maps/MapLayersControl";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { TurnPanel } from "@/features/maps/TurnPanel";
 import type { PlacedUnit } from "@/features/maps/stacks";
@@ -251,6 +259,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const openTurn = turns.data?.turns.find((t) => t.closedAt === null);
   const turnOf = (armyId: string) => openTurns.find((c) => c.army.id === armyId)?.turn;
   const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
+  // What the viewer shows on the map (its Layers panel): of what the campaign's settings show,
+  // the real map's layers as they choose; the game map's too, once close enough to read it.
+  const layers = useHiddenLayers(campaignId);
+  // The map opens on the campaign's area: start from that, so a small area's game map is drawn
+  // from the first frame (WebKit can miss layers first shown just after the map loads).
+  const [zoomedIn, setZoomedIn] = useState(
+    () => hexesAcross(bounds, settings.hexSize) <= gameMaxHexesAcross,
+  );
+  const shownSettings = useMemo(
+    () => ({ ...settings, layers: shownRealLayers(settings.layers, layers.hidden) }),
+    [settings, layers.hidden],
+  );
+  const showGame = (key: GameLayer) =>
+    settings.layers.grid && zoomedIn && !layers.hidden.game.includes(key);
   const terrain = useGetCampaignGrid(campaignId, live);
   const movementTable = useGetMovementTable(campaignId, live);
   const calendar = useGetCampaignCalendar(campaignId, live);
@@ -541,19 +563,42 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             </Alert>
           )}
           {/* The map takes the rest of the screen, and at least enough to be useful. */}
-          <Box h="calc(100dvh - 15rem)" mih={360}>
+          <Box h="calc(100dvh - 15rem)" mih={360} pos="relative">
+            <Box pos="absolute" top={10} left={10} style={{ zIndex: 2 }}>
+              <MapLayersControl
+                campaign={settings.layers}
+                layers={layers}
+                zoomedIn={zoomedIn}
+                warnings={manager}
+              />
+            </Box>
             <CampaignMap
-              settings={settings}
+              settings={shownSettings}
+              grid={showGame("grid")}
+              onViewChange={(view) => {
+                setZoomedIn(hexesAcross(view, settings.hexSize) <= gameMaxHexesAcross);
+              }}
               bounds={bounds}
               cursor={placingUnit || moving ? "crosshair" : undefined}
               onMapClick={
                 placingUnit ? (point) => void placeAt(point) : moving ? chooseTarget : undefined
               }
             >
+              {/* Mounted from the start and hidden by zoom: added later, WebKit can miss them. */}
               {settings.layers.grid && terrain.data && (
-                <TerrainLayer grid={grid} terrain={terrain.data} />
+                <TerrainLayer
+                  grid={grid}
+                  terrain={terrain.data}
+                  show={{
+                    terrain: showGame("terrain"),
+                    roads: showGame("roads"),
+                    rivers: showGame("rivers"),
+                    towns: showGame("towns"),
+                    bridges: showGame("bridges"),
+                  }}
+                />
               )}
-              <HexWarningsLayer grid={grid} warnings={warnings} />
+              <HexWarningsLayer grid={grid} warnings={warnings} visible={showGame("warnings")} />
               <OrderOverlay
                 moves={moves}
                 reachable={

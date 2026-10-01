@@ -9,6 +9,8 @@ interface HexGridLayerProps {
   bounds: MapBounds;
   /** Hexes' size across the flats, in metres. */
   size: number;
+  /** Whether it's shown; hidden rather than removed, so showing it again is immediate. */
+  visible?: boolean;
 }
 
 // MapLibre's 512-pixel tiles: metres per pixel at zoom 0 on the equator.
@@ -21,7 +23,7 @@ const minPixels = 12;
  * CampaignMap. It appears from the zoom where a hex is about 12 px across. Nothing is drawn for
  * a grid of more than `maxDrawnHexes`: check `hexCount` first to say so.
  */
-export function HexGridLayer({ bounds, size }: HexGridLayerProps) {
+export function HexGridLayer({ bounds, size, visible = true }: HexGridLayerProps) {
   const ink = mapPalettes[useComputedColorScheme("light")].label;
   const outlines = useMemo(() => {
     if (hexCount(bounds, size) > maxDrawnHexes)
@@ -51,6 +53,7 @@ export function HexGridLayer({ bounds, size }: HexGridLayerProps) {
         id="hex-grid"
         type="line"
         minzoom={minzoom}
+        layout={{ visibility: visible ? "visible" : "none" }}
         paint={{ "line-color": ink, "line-opacity": 0.35, "line-width": 1 }}
       />
     </Source>

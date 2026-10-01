@@ -102,6 +102,11 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   per hex and side, by the campaign's concentration settings (`features/campaigns/concentration.ts`
   has the usual ones); `afterOrders` for the open turn. The Umpire's only: `HexWarningsList` in
   the turn panels, `HexWarningsLayer` on the map. Name a hex with `hexName` (`hex-grid.ts`).
+- The Map page's layers (`map-layers.ts`, `MapLayersControl`): each viewer hides what the
+  campaign's map settings show (`useHiddenLayers`, in `localStorage`); the game map shows once the
+  view spans `gameMaxHexesAcross` hexes or fewer (`CampaignMap`'s `onViewChange`). Game layers stay
+  mounted and are hidden with `visibility`: WebKit can miss layers first added just after the map
+  loads, so `zoomedIn` starts from the area's own size.
 - Forced marches (step 47, decision 0018) are `features/maps/marches.ts` (the force march's extra
   reach, when it's allowed, the count and costs in words; the count itself is the API's
   `ListMarches`); the Umpire confirms attrition in `StartTurnModal`; a unit's points history is

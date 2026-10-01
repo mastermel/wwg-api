@@ -14,16 +14,35 @@ vi.mock("@/features/maps/CampaignMap", () => ({
   CampaignMap: ({
     bounds,
     settings,
+    grid,
     onMapClick,
+    onViewChange,
   }: {
     bounds: CampaignMapResponse["bounds"];
     settings: CampaignMapResponse;
+    grid?: boolean;
     onMapClick?: (point: { longitude: number; latitude: number }) => void;
+    onViewChange?: (view: CampaignMapResponse["bounds"]) => void;
   }) => (
     <div role="application" aria-label="Campaign map">
       {JSON.stringify({ bounds, language: settings.labelLanguage })}
+      <p>
+        Drawn:{" "}
+        {Object.entries(settings.layers)
+          .filter(([key, on]) => on && key !== "grid")
+          .map(([key]) => key)
+          .join(", ")}
+        ; grid {grid ? "on" : "off"}
+      </p>
       <button type="button" onClick={() => onMapClick?.({ longitude: 4.4, latitude: 50.7 })}>
         Click the map
+      </button>
+      {/* About 7 km across: 7 hexes of 1 km. */}
+      <button
+        type="button"
+        onClick={() => onViewChange?.({ west: 4.4, south: 50.68, east: 4.5, north: 50.72 })}
+      >
+        Zoom in
       </button>
     </div>
   ),
@@ -295,5 +314,69 @@ describe("the map page", () => {
       expect(await screen.findByRole("heading", { level: 2, name: "Turn 1" })).toBeInTheDocument();
       expect(screen.getByText("1 of 2 armies have submitted this turn.")).toBeInTheDocument();
     });
+  });
+});
+
+describe("the map's layers", () => {
+  const waterloo = { west: 4.2, south: 50.55, east: 4.7, north: 50.8 };
+
+  it("offers what the campaign shows, and hides what the viewer turns off", async () => {
+    localStorage.clear();
+    serveCampaign("Player", settings(waterloo));
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    await user.click(await screen.findByRole("button", { name: "Map layers" }));
+    const real = await screen.findByRole("group", { name: "Real map", hidden: true });
+    // Contours are off in the campaign's settings: not offered.
+    expect(
+      within(real).queryByRole("switch", { name: "Contours", hidden: true }),
+    ).not.toBeInTheDocument();
+    await user.click(within(real).getByRole("switch", { name: "Forests", hidden: true }));
+
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent(
+      "Drawn: roads, places, water, hills; grid on",
+    );
+    expect(JSON.parse(localStorage.getItem(`wwg:map-layers:${campaignId}`) ?? "{}")).toEqual({
+      real: ["forests"],
+      game: [],
+    });
+  });
+
+  it("draws the game map only once zoomed in to 20 hexes or fewer", async () => {
+    localStorage.clear();
+    // 1 km hexes: about 35 across the area, as the map opens.
+    serveCampaign("Player", { ...settings(waterloo), hexSize: 1000 });
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    await user.click(await screen.findByRole("button", { name: "Map layers" }));
+    const game = await screen.findByRole("group", { name: "Game map", hidden: true });
+    expect(within(game).getByText(/Zoom in to see it/)).toBeInTheDocument();
+    // A Player has no warnings to show.
+    expect(
+      within(game).queryByRole("switch", { name: "Contact & concentration", hidden: true }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent("grid on");
+    expect(within(game).queryByText(/Zoom in to see it/)).not.toBeInTheDocument();
+    await user.click(within(game).getByRole("switch", { name: "Grid", hidden: true }));
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent("grid off");
+  });
+
+  it("offers no game map when the campaign's settings turn it off", async () => {
+    localStorage.clear();
+    const off = settings(waterloo);
+    serveCampaign("Umpire", { ...off, layers: { ...off.layers, grid: false } });
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    await user.click(await screen.findByRole("button", { name: "Map layers" }));
+
+    expect(
+      await screen.findByRole("group", { name: "Real map", hidden: true }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Game map", hidden: true })).not.toBeInTheDocument();
   });
 });

@@ -12,9 +12,12 @@ import { mapPalettes } from "@/features/maps/map-style";
 export function HexWarningsLayer({
   grid,
   warnings,
+  visible = true,
 }: {
   grid: HexGrid;
   warnings: readonly HexWarning[];
+  /** Whether they're shown; hidden rather than removed, so showing them again is immediate. */
+  visible?: boolean;
 }) {
   const { warning } = mapPalettes[useComputedColorScheme("light")];
   const hexes: FeatureCollection<Polygon> = {
@@ -33,11 +36,13 @@ export function HexWarningsLayer({
       <Layer
         id="hex-warnings-fill"
         type="fill"
+        layout={{ visibility: visible ? "visible" : "none" }}
         paint={{ "fill-color": warning, "fill-opacity": 0.15 }}
       />
       <Layer
         id="hex-warnings-edge"
         type="line"
+        layout={{ visibility: visible ? "visible" : "none" }}
         paint={{ "line-color": warning, "line-width": 3 }}
       />
     </Source>

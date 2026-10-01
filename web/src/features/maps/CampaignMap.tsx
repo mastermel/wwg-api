@@ -4,6 +4,7 @@ import "@/features/maps/maplibre-worker";
 import { useComputedColorScheme } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useMemo, type ReactNode } from "react";
+import type { LngLatBounds } from "maplibre-gl";
 import MapGL, { AttributionControl, NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import type { CampaignMapResponse, MapBounds } from "@/api/generated/model";
 import classes from "@/features/maps/CampaignMap.module.css";
@@ -38,6 +39,10 @@ interface CampaignMapProps {
    * in pixels on the map: for drawing on it.
    */
   onPointer?: (event: MapPointer) => void;
+  /** The area in view, once the map loads and as it moves (the Map page's game map, by zoom). */
+  onViewChange?: (view: MapBounds) => void;
+  /** Whether to show the hex grid, where the settings draw it (shown unless given). */
+  grid?: boolean;
   children?: ReactNode;
 }
 
@@ -55,6 +60,8 @@ export function CampaignMap({
   cursor,
   dragPan = true,
   onPointer,
+  onViewChange,
+  grid,
   children,
 }: CampaignMapProps) {
   const scheme = useComputedColorScheme("light");
@@ -92,16 +99,31 @@ export function CampaignMap({
         onClick={(event) =>
           onMapClick?.({ longitude: event.lngLat.lng, latitude: event.lngLat.lat })
         }
+        onLoad={(event) => onViewChange?.(viewOf(event.target))}
+        onMove={(event) => onViewChange?.(viewOf(event.target))}
         style={{ width: "100%", height: "100%" }}
       >
         <NavigationControl position="top-right" showCompass={false} />
         <AttributionControl position="bottom-right" customAttribution={attribution} compact />
         {/* Under the units. The settings page draws its own, from the size being chosen. */}
-        {!free && layers.grid && <HexGridLayer bounds={bounds} size={settings.hexSize} />}
+        {!free && layers.grid && (
+          <HexGridLayer bounds={bounds} size={settings.hexSize} visible={grid ?? true} />
+        )}
         {children}
       </MapGL>
     </div>
   );
+}
+
+/** The area a map shows. */
+function viewOf(map: { getBounds: () => LngLatBounds }): MapBounds {
+  const view = map.getBounds();
+  return {
+    west: view.getWest(),
+    south: view.getSouth(),
+    east: view.getEast(),
+    north: view.getNorth(),
+  };
 }
 
 /** MapLibre's mouse and touch events, as one kind of pointer. */
