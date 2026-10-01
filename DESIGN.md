@@ -2559,7 +2559,16 @@ build on positions.
       units, our sightings, a note), the **Intelligence** panel of reports received (each one's
       units shown on the map on request, faded: `SnapshotMarkers`) and sent, and the Umpire's
       **Couriers** panel (where each is, flagged among the enemy, stopping one).
-50. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
-    last army to occupy it, and a campaign scoreboard.
+50. **Towns and victory points** (decision 0021), in parts:
+    - **50a. Values and holders (API):** each settlement's value (the highest of town 10, city 25,
+      walled 35, fortress 50, plus 25 or 10 for a capital or minor capital; the Umpire's own where
+      set) and its holder (an army, or no one; the Umpire sets who starts with it); as each turn
+      closes, an army alone in the hex takes it, with the change kept per turn.
+    - **50b. The scoreboard (API):** each side's total for every member, with its armies' parts;
+      the settlements and their holders for their own side and the Umpire; the history of totals
+      per turn, and the changes a side made or suffered.
+    - **50c. In the app:** the value and starting holder in the terrain editor; the scoreboard on
+      the campaign and map pages, with its history; a flag in the holder's colour by each
+      settlement on the map, and the holder and value in the hex card.
 51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.
