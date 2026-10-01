@@ -3,6 +3,7 @@ using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
+using Wwg.Api.Features.Turns;
 
 namespace Wwg.Api.Features.Supply;
 
@@ -45,7 +46,24 @@ internal static class SupplyData
         var supplyDepots = depots
             .Select(d => new SupplyDepot(d.Id, d.ArmyId, new Hex(d.Q, d.R), d.Kind, d.CutOffTurns))
             .ToList();
-        var (now, next) = await PositionsAsync(db, campaignId, units, cancellationToken);
+        var (nowPlaces, nextPlaces) = await Whereabouts.LoadAsync(
+            db,
+            campaignId,
+            cancellationToken
+        );
+        static List<SupplyUnit> ForSupply(List<UnitPlace> places) =>
+            [
+                .. places.Select(p => new SupplyUnit(
+                    p.UnitId,
+                    p.ArmyId,
+                    p.SideId,
+                    p.At,
+                    p.Type,
+                    p.Points,
+                    p.LivesOffTheLand
+                )),
+            ];
+        var (now, next) = (ForSupply(nowPlaces), ForSupply(nextPlaces));
         var (nowSupply, connectedNow) = SupplyLines.Of(map, now, supplyDepots);
         var (nextSupply, connectedNext) = SupplyLines.Of(map, next, supplyDepots);
         return new(
@@ -65,15 +83,6 @@ internal static class SupplyData
         UnitType Type,
         int Points,
         int UnsuppliedTurns
-    );
-
-    private sealed record OrderRow(
-        Guid UnitId,
-        int Number,
-        bool Closed,
-        int Q,
-        int R,
-        bool LivesOffTheLand
     );
 
     /// <summary>The campaign's routes, its armies' sides, and its supply settings.</summary>
@@ -97,56 +106,6 @@ internal static class SupplyData
             armySides,
             campaign.SupplyReach,
             [.. SupplySettingsEndpoints.ExemptTypes(campaign)]
-        );
-    }
-
-    /// <summary>
-    /// The units where they ended the last closed turn (now), and where their open turn's orders
-    /// as given leave them (next); a unit not yet placed is in neither.
-    /// </summary>
-    private static async Task<(List<SupplyUnit> Now, List<SupplyUnit> Next)> PositionsAsync(
-        WwgDbContext db,
-        Guid campaignId,
-        List<UnitRow> units,
-        CancellationToken cancellationToken
-    )
-    {
-        var orders = await db
-            .UnitOrders.AsNoTracking()
-            .Where(o => o.ArmyUnit.CampaignId == campaignId)
-            .Select(o => new OrderRow(
-                o.UnitId,
-                o.ArmyTurn.CampaignTurn.Number,
-                o.ArmyTurn.CampaignTurn.ClosedAt != null,
-                o.Q,
-                o.R,
-                o.LivesOffTheLand
-            ))
-            .ToListAsync(cancellationToken);
-        var latest = orders
-            .Where(o => o.Closed)
-            .GroupBy(o => o.UnitId)
-            .ToDictionary(g => g.Key, g => g.MaxBy(o => o.Number));
-        var open = orders.Where(o => !o.Closed).ToDictionary(o => o.UnitId);
-        List<SupplyUnit> At(Func<UnitRow, OrderRow?> orderOf) =>
-            [
-                .. units
-                    .Select(u => (Unit: u, Order: orderOf(u)))
-                    .Where(x => x.Order is not null)
-                    .Select(x => new SupplyUnit(
-                        x.Unit.Id,
-                        x.Unit.ArmyId,
-                        x.Unit.SideId,
-                        // Not null: filtered just above.
-                        new Hex(x.Order!.Q, x.Order.R),
-                        x.Unit.Type,
-                        x.Unit.Points,
-                        x.Order.LivesOffTheLand
-                    )),
-            ];
-        return (
-            At(u => latest.GetValueOrDefault(u.Id)),
-            At(u => open.GetValueOrDefault(u.Id) ?? latest.GetValueOrDefault(u.Id))
         );
     }
 

@@ -527,6 +527,46 @@
         ]
       }
     },
+    "/api/campaigns/{id}/sightings/due": {
+      "get": {
+        "tags": [
+          "Sightings"
+        ],
+        "summary": "The sightings the open turn's orders give (Umpire or Admin): for each army, each hex of the\nother side's units its units would see where the orders leave them, by the map's terrain.\nWhat starting the next turn asks the Umpire to shape.",
+        "operationId": "ListSightingsDue",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SightingDueResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -7471,6 +7511,86 @@
         },
         "description": "A side in the campaign. Every member sees them all."
       },
+      "SightedUnitResponse": {
+        "required": [
+          "unitId",
+          "armyId",
+          "name",
+          "type",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "armyId": {
+            "type": "string",
+            "description": "Its army.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "type": {
+            "description": "Its type.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "points": {
+            "type": "integer",
+            "description": "Its points.",
+            "format": "int32"
+          }
+        },
+        "description": "A unit in a hex another army can see (decision 0020), for the Umpire."
+      },
+      "SightingDueResponse": {
+        "required": [
+          "observingArmyId",
+          "q",
+          "r",
+          "whereabouts",
+          "screened",
+          "units"
+        ],
+        "type": "object",
+        "properties": {
+          "observingArmyId": {
+            "type": "string",
+            "description": "The army that sees it.",
+            "format": "uuid"
+          },
+          "q": {
+            "type": "integer",
+            "description": "The hex (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex (axial r).",
+            "format": "int32"
+          },
+          "whereabouts": {
+            "type": "string",
+            "description": "Where it is, roughly, from the army's nearest unit."
+          },
+          "screened": {
+            "type": "boolean",
+            "description": "The observed side's light troops stand in the way: perhaps a screen."
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SightedUnitResponse"
+            },
+            "description": "The other side's units there."
+          }
+        },
+        "description": "A sighting the closing turn gives (decision 0020): another side's hex an army can see, for the\nUmpire to shape when starting the next turn."
+      },
       "StartNextTurnRequest": {
         "required": [
           "attrition"
@@ -8362,6 +8482,9 @@
     },
     {
       "name": "Supply"
+    },
+    {
+      "name": "Sightings"
     },
     {
       "name": "Account"

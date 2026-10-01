@@ -2528,10 +2528,12 @@ build on positions.
       **Supply** warnings (units the orders leave out of supply, intermediate depots cut off), for
       the army's commander and the Umpire.
 49. **Sightings and intelligence** (decision 0020), in parts:
-    - **49a. Sight (API):** what each army's units can see where a turn leaves them, by the map's
+    - ✅ **49a. Sight (API):** what each army's units can see where a turn leaves them, by the map's
       terrain in elevation steps (flat 1, low hill 2, high hill 3, mountain 4; hills block the view
       beyond unless the observer stands higher): the other side's hexes in sight, per observing
-      army, with possible screens flagged.
+      army, with possible screens flagged (`Sight`; `GET /api/campaigns/{id}/sightings/due`, the
+      Umpire's, where the open turn's orders as given leave the units; `Whereabouts` loads them, for
+      supply too).
     - **49b. Sightings:** starting the next turn lists each army's sightings (one per enemy hex),
       prefilled (the hex or roughly where, army and nation, unit types, exact or rough strength);
       the Umpire changes, skips or adds them. Each belongs to its turn and is kept: drawn in full on
