@@ -55,3 +55,22 @@ internal sealed class DepotConfiguration : IEntityTypeConfiguration<Depot>
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class SightingConfiguration : IEntityTypeConfiguration<Sighting>
+{
+    public void Configure(EntityTypeBuilder<Sighting> builder)
+    {
+        builder.Property(s => s.Whereabouts).HasMaxLength(200);
+        builder.Property(s => s.Strength).HasMaxLength(16);
+        builder.Property(s => s.Size).HasMaxLength(16);
+        builder.PrimitiveCollection(s => s.ArmyIds);
+        builder.PrimitiveCollection(s => s.UnitTypes).ElementType().HasConversion<string>();
+        // Deleting an army deletes what it saw.
+        builder
+            .HasOne(s => s.ObservingArmy)
+            .WithMany()
+            .HasForeignKey(s => s.ObservingArmyId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(s => new { s.ObservingArmyId, s.Turn });
+    }
+}

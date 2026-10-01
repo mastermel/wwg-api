@@ -56,6 +56,8 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Depot> Depots => Set<Depot>();
 
+    public DbSet<Sighting> Sightings => Set<Sighting>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

@@ -444,6 +444,41 @@ describe("a commander's turn", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows what was seen of the enemy this turn, and marks the turn", async () => {
+    serveCommander(draft());
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/sightings`, () =>
+        HttpResponse.json([
+          {
+            id: "0192f5c1-0000-7000-8000-00000000e101",
+            observingArmyId: armyId,
+            turn: 1,
+            q: null,
+            r: null,
+            latitude: null,
+            longitude: null,
+            whereabouts: "1 hex south-east of Imperial Guard",
+            armyIds: null,
+            unitTypes: ["LightCavalry"],
+            strength: "Hidden",
+            size: null,
+            points: null,
+            byUmpire: false,
+            sharedByArmyId: null,
+          },
+        ]),
+      ),
+    );
+    await openMap();
+
+    expect(await screen.findByRole("list", { name: "Sightings" })).toHaveTextContent(
+      "1 hex south-east of Imperial Guard: Enemy troops: 1 light cavalry.",
+    );
+    expect(
+      screen.getByRole("button", { name: /^Turn 1 \(open\):.*, enemy sighted$/ }),
+    ).toBeInTheDocument();
+  });
+
   it("takes an order back", async () => {
     const requests = serveCommander(draft({ orders: [hold] }));
     const user = userEvent.setup();

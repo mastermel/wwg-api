@@ -226,6 +226,11 @@ public sealed record AttritionLossRequest(
 /// The attrition the closing turn cost, as the Umpire confirmed it: a loss for each unit that owes
 /// one (see the attrition list), and no other.
 /// </param>
+/// <param name="Sightings">
+/// The sightings for the turn starting, as the Umpire shaped them (see the sightings due), and any
+/// they added; those left out aren't seen (decision 0020).
+/// </param>
 public sealed record StartNextTurnRequest(
-    [property: MaxLength(1000)] IReadOnlyList<AttritionLossRequest>? Attrition
+    [property: MaxLength(1000)] IReadOnlyList<AttritionLossRequest>? Attrition,
+    [property: MaxLength(1000)] IReadOnlyList<Sightings.SightingRequest>? Sightings = null
 );

@@ -53,8 +53,11 @@ npm run lint && npm run typecheck && npm run format:check
   place search here (it calls a service over the internet).
 - Setup the test isn't about (a map's area, armies, units) goes through the API: `apiAs(page)`
   (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.
-  `startedCampaign(umpire, commander, name, hexSize?)` (tests/support/turns.ts) is a campaign
-  at turn 1, with the commander's army and two units placed in hexes (both move two a turn).
+  `startedCampaign(umpire, commander, name, hexSize?, { enemyAt? })` (tests/support/turns.ts) is a
+  campaign at turn 1, with the commander's army and two units placed in hexes (both move two a
+  turn), and with `enemyAt`, a commanderless Prussian army of the other side with one unit there
+  (armies get turns only as they open, so it's made before the start); `holdForArmy` plays its
+  turn as the Umpire.
   Pass small hexes when a test needs several in view on a phone. Army units come from the
   library: `libraryFaction(browserOf(page), name, nation, units)` (tests/support/library.ts)
   makes a faction of the test's own (a stamped name: every run shares the library) as the

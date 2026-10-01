@@ -32,6 +32,7 @@ import {
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
 import { useListCampaignUnits } from "@/api/generated/endpoints/army-units/army-units";
+import { useListSightings } from "@/api/generated/endpoints/sightings/sightings";
 import {
   useGetSupply,
   useGetSupplySettings,
@@ -87,6 +88,9 @@ import { MapLegend } from "@/features/maps/MapLegend";
 import { describeHex } from "@/features/maps/hex-info";
 import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
 import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
+import { SightingMarkers } from "@/features/maps/SightingMarkers";
+import { sightingsFor } from "@/features/maps/sightings";
+import { SightingsPanel } from "@/features/maps/SightingsPanel";
 import { HexWarningsLayer } from "@/features/maps/HexWarningsLayer";
 import {
   gameMaxHexesAcross,
@@ -276,6 +280,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const supply = useGetSupply(campaignId, {
     query: { meta: { persist: false }, enabled: turns.data?.stage === "Running" },
   });
+  // Sightings (step 49b): the viewer's armies' (the Umpire's, every army's), every turn's.
+  const sightings = useListSightings(campaignId, {
+    query: { meta: { persist: false }, enabled: turns.data?.stage === "Running" },
+  });
+  const viewingTurn = past ?? turns.data?.openTurn ?? 0;
+  const drawnSightings = useMemo(
+    // The Umpire sees the units themselves; a commander, what was seen of them.
+    () => (manager ? [] : sightingsFor(sightings.data ?? [], viewingTurn)),
+    [manager, sightings.data, viewingTurn],
+  );
+  const sightedTurns = useMemo(
+    () => new Set((sightings.data ?? []).map((s) => s.turn)),
+    [sightings.data],
+  );
   const outOfSupply = useMemo(
     () =>
       new Set(
@@ -372,21 +390,21 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   );
   // Contact and concentration, for the Umpire (step 46): in the open turn from the orders as
   // given, on a past one from where the units ended up.
+  // Where the open turn's orders as given leave the units (the Umpire's warnings and sightings).
+  const afterTheOrders = useMemo(
+    () =>
+      afterOrders(
+        onMap,
+        openTurns.flatMap(({ turn }) => turn?.orders ?? []),
+      ),
+    [onMap, openTurns],
+  );
   const warnings = useMemo(
     () =>
       manager && !setup && concentration.data
-        ? hexWarnings(
-            past !== null
-              ? onMap
-              : afterOrders(
-                  onMap,
-                  openTurns.flatMap(({ turn }) => turn?.orders ?? []),
-                ),
-            concentration.data,
-            costs.terrain,
-          )
+        ? hexWarnings(past !== null ? onMap : afterTheOrders, concentration.data, costs.terrain)
         : [],
-    [manager, setup, concentration.data, past, onMap, openTurns, costs.terrain],
+    [manager, setup, concentration.data, past, onMap, afterTheOrders, costs.terrain],
   );
   // Depots with the other side's units in their hex: the Umpire captures or destroys them.
   const threats = useMemo(
@@ -755,6 +773,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               />
               <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
               <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
+              <SightingMarkers sightings={drawnSightings} armies={armies.data ?? []} />
               {shownHex && hexInfo && (
                 <HexInfoPopup
                   at={grid.centre(shownHex)}
@@ -824,6 +843,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             ) : !setup && manager && openTurn ? (
               <ReviewPanel
                 campaignId={campaignId}
+                places={afterTheOrders}
                 open={openTurn}
                 problems={turns.data.startProblems}
                 armyTurns={openTurns}
@@ -893,8 +913,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             onEdit={setDepotForm}
             onRemove={setRemovingDepot}
           />
+          <SightingsPanel
+            sightings={sightings.data ?? []}
+            armies={armies.data ?? []}
+            turn={viewingTurn}
+            manager={manager}
+          />
           {turns.data && !setup && (
             <TurnList
+              sighted={sightedTurns}
               turns={turns.data}
               viewing={past ?? turns.data.openTurn}
               onView={view}

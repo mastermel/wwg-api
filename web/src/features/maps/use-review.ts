@@ -11,6 +11,7 @@ import type {
   ArmyTurnDetails,
   AttritionLossRequest,
   ReviewTurnRequest,
+  SightingRequest,
 } from "@/api/generated/model";
 import { getGetSupplyQueryKey } from "@/api/generated/endpoints/supply/supply";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
@@ -39,7 +40,7 @@ export function useReview(campaignId: string) {
       queryClient.invalidateQueries({
         predicate: (query) =>
           typeof query.queryKey[0] === "string" &&
-          /^\/api\/(armies\/[^/]+\/(turns|marches)|army-units\/[^/]+\/points)$/.test(
+          /^\/api\/(armies\/[^/]+\/(turns|marches)|army-units\/[^/]+\/points|campaigns\/[^/]+\/sightings)$/.test(
             query.queryKey[0],
           ),
       }),
@@ -92,9 +93,13 @@ export function useReview(campaignId: string) {
       ),
     review,
     // With the attrition the closing turn cost, as the Umpire confirmed it (step 47).
-    startNext: (number: number, attrition: AttritionLossRequest[] = []) =>
+    startNext: (
+      number: number,
+      attrition: AttritionLossRequest[] = [],
+      sightings: SightingRequest[] = [],
+    ) =>
       run(
-        () => startNext.mutateAsync({ id: campaignId, data: { attrition } }),
+        () => startNext.mutateAsync({ id: campaignId, data: { attrition, sightings } }),
         `Turn ${String(number)} has started.`,
         "The next turn couldn't be started. Try again.",
       ),

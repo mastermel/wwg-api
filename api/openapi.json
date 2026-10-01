@@ -567,6 +567,46 @@
         ]
       }
     },
+    "/api/campaigns/{id}/sightings": {
+      "get": {
+        "tags": [
+          "Sightings"
+        ],
+        "summary": "The sightings the viewer may see, every turn's, oldest first: the Umpire's and Admins', every\narmy's; a commander's, their own army's (its own and those its allies' reports brought);\nanyone else's, none. The hex is left out where its observers weren't told it.",
+        "operationId": "ListSightings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SightingResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -6070,6 +6110,13 @@
         ],
         "description": "How the ground favours the army that asked, from the green die: rolled only when both sides\ncome onto a battlefield together (the rules, p. 57)."
       },
+      "ForceSize": {
+        "enum": [
+          "Small",
+          "Medium",
+          "Large"
+        ]
+      },
       "ForgotPasswordRequest": {
         "required": [
           "email"
@@ -7591,6 +7638,201 @@
         },
         "description": "A sighting the closing turn gives (decision 0020): another side's hex an army can see, for the\nUmpire to shape when starting the next turn."
       },
+      "SightingRequest": {
+        "required": [
+          "observingArmyId",
+          "q",
+          "r",
+          "showsHex",
+          "showsArmies",
+          "showsTypes",
+          "strength"
+        ],
+        "type": "object",
+        "properties": {
+          "observingArmyId": {
+            "type": "string",
+            "description": "The army that sees it.",
+            "format": "uuid"
+          },
+          "q": {
+            "type": "integer",
+            "description": "The hex of the other side's units (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex (axial r).",
+            "format": "int32"
+          },
+          "showsHex": {
+            "type": "boolean",
+            "description": "Whether its observers learn the hex, or only roughly where."
+          },
+          "showsArmies": {
+            "type": "boolean",
+            "description": "Whether they learn whose troops (army and nation)."
+          },
+          "showsTypes": {
+            "type": "boolean",
+            "description": "Whether they learn each unit's type."
+          },
+          "strength": {
+            "description": "Hidden, a rough size, or their points.",
+            "$ref": "#/components/schemas/SightingStrength"
+          },
+          "size": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The rough size, when that's what's shown.",
+                "$ref": "#/components/schemas/ForceSize"
+              }
+            ]
+          }
+        },
+        "description": "The Umpire's shaping of one sighting, when starting the next turn (decision 0020)."
+      },
+      "SightingResponse": {
+        "required": [
+          "id",
+          "observingArmyId",
+          "turn",
+          "q",
+          "r",
+          "latitude",
+          "longitude",
+          "whereabouts",
+          "armyIds",
+          "unitTypes",
+          "strength",
+          "size",
+          "points",
+          "byUmpire",
+          "sharedByArmyId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The sighting.",
+            "format": "uuid"
+          },
+          "observingArmyId": {
+            "type": "string",
+            "description": "The army that saw it.",
+            "format": "uuid"
+          },
+          "turn": {
+            "type": "integer",
+            "description": "The turn it was made for, and seen on.",
+            "format": "int32"
+          },
+          "q": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The hex, if shown (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The hex, if shown (axial r).",
+            "format": "int32"
+          },
+          "latitude": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "The hex's centre, if shown.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "The hex's centre, if shown.",
+            "format": "double"
+          },
+          "whereabouts": {
+            "type": "string",
+            "description": "Where it was, roughly, from the army's nearest unit."
+          },
+          "armyIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The armies seen, if shown."
+          },
+          "unitTypes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "Each unit's type, if shown."
+          },
+          "strength": {
+            "description": "Hidden, rough or exact.",
+            "$ref": "#/components/schemas/SightingStrength"
+          },
+          "size": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The rough size, if shown.",
+                "$ref": "#/components/schemas/ForceSize"
+              }
+            ]
+          },
+          "points": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The points, if shown exactly.",
+            "format": "int32"
+          },
+          "byUmpire": {
+            "type": "boolean",
+            "description": "Added by the Umpire (spies, scouting parties)."
+          },
+          "sharedByArmyId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The ally whose report brought it, if one did.",
+            "format": "uuid"
+          }
+        },
+        "description": "What an army saw of a hex of the other side's units, on a turn (decision 0020)."
+      },
+      "SightingStrength": {
+        "enum": [
+          "Hidden",
+          "Rough",
+          "Exact"
+        ],
+        "description": "How much of a sighted force's strength its observers learn (decision 0020)."
+      },
       "StartNextTurnRequest": {
         "required": [
           "attrition"
@@ -7607,6 +7849,17 @@
               "$ref": "#/components/schemas/AttritionLossRequest"
             },
             "description": "The attrition the closing turn cost, as the Umpire confirmed it: a loss for each unit that owes\none (see the attrition list), and no other."
+          },
+          "sightings": {
+            "maxItems": 1000,
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SightingRequest"
+            },
+            "description": "The sightings for the turn starting, as the Umpire shaped them (see the sightings due), and any\nthey added; those left out aren't seen (decision 0020)."
           }
         },
         "description": "Starting the next turn."

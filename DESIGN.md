@@ -2534,11 +2534,13 @@ build on positions.
       army, with possible screens flagged (`Sight`; `GET /api/campaigns/{id}/sightings/due`, the
       Umpire's, where the open turn's orders as given leave the units; `Whereabouts` loads them, for
       supply too).
-    - **49b. Sightings:** starting the next turn lists each army's sightings (one per enemy hex),
+    - ✅ **49b. Sightings:** starting the next turn lists each army's sightings (one per enemy hex),
       prefilled (the hex or roughly where, army and nation, unit types, exact or rough strength);
       the Umpire changes, skips or adds them. Each belongs to its turn and is kept: drawn in full on
       it, faded for the 3 turns after, and again when that turn is chosen in the turn history,
-      whose entries mark the turns with sightings.
+      whose entries mark the turns with sightings (`Sighting`, what was seen copied in; the start-turn
+      request's `sightings`; `GET /api/campaigns/{id}/sightings`, the hex left out where it wasn't
+      told; in the app `SightingsFields`, `SightingMarkers`, `SightingsPanel`, `sightings.ts`).
     - **49c. Couriers (API):** a commander sends an ally a report (their units' snapshot, all the
       sightings they've received, a note ≤ 1,000 characters; once it arrives, those sightings are
       the ally's too, on their turns); its courier rides as light cavalry

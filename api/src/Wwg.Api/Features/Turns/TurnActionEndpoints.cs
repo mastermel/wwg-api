@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Sightings;
 using Wwg.Api.Features.Supply;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
@@ -238,26 +239,14 @@ internal static class TurnActionEndpoints
             return Conflict("Not ready for the next turn", string.Join(" ", problems));
         }
 
-        var attrition = await Attrition.ApplyAsync(
-            db,
-            id,
-            open.Number,
-            request?.Attrition ?? [],
-            httpContext.User.GetUserId(),
-            cancellationToken
-        );
-        if (attrition is not null)
+        if (
+            await CloseTurnAsync(db, id, open.Number, request, httpContext, cancellationToken) is
+            { } invalid
+        )
         {
-            return TypedResults.ValidationProblem(
-                new Dictionary<string, string[]>(StringComparer.Ordinal)
-                {
-                    ["attrition"] = [attrition],
-                }
-            );
+            return TypedResults.ValidationProblem(invalid);
         }
 
-        // Supply (decision 0019): the closing turn counts towards each unit's turns cut off.
-        await SupplyData.CloseTurnAsync(db, id, cancellationToken);
         var now = time.GetUtcNow().UtcDateTime;
         var next = new CampaignTurn
         {
@@ -283,6 +272,50 @@ internal static class TurnActionEndpoints
 
         await EmailTurnStartedAsync(db, emails, appOptions, id, next.Number, cancellationToken);
         return await TurnEndpoints.ListTurnsAsync(id, db, httpContext, cancellationToken);
+    }
+
+    /// <summary>
+    /// What the closing turn leaves (not saved): the attrition and sightings the Umpire confirmed,
+    /// and each unit's supply counted; or why the confirmed ones won't do, by field.
+    /// </summary>
+    private static async Task<Dictionary<string, string[]>?> CloseTurnAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        int closing,
+        StartNextTurnRequest? request,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var attrition = await Attrition.ApplyAsync(
+            db,
+            campaignId,
+            closing,
+            request?.Attrition ?? [],
+            httpContext.User.GetUserId(),
+            cancellationToken
+        );
+        var sightings = attrition is null
+            ? await SightingRecords.ApplyAsync(
+                db,
+                campaignId,
+                closing + 1,
+                request?.Sightings ?? [],
+                cancellationToken
+            )
+            : null;
+        if (attrition is not null || sightings is not null)
+        {
+            // One of them isn't null: the one that failed.
+            return new(StringComparer.Ordinal)
+            {
+                [attrition is null ? "sightings" : "attrition"] = [attrition ?? sightings!],
+            };
+        }
+
+        // Supply (decision 0019): the closing turn counts towards each unit's turns cut off.
+        await SupplyData.CloseTurnAsync(db, campaignId, cancellationToken);
+        return null;
     }
 
     /// <summary>What stops the next turn starting, in sentences; empty when it's ready.</summary>

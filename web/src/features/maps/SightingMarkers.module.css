@@ -1,0 +1,18 @@
+/* A sighting: an eye on a white tile, framed in the sighted army's light colour (3.2:1 or more
+   against white; grey #5c6370 when unknown), above the hex's centre. */
+.sighting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  border: 3px solid #5c6370;
+  background: #ffffff;
+  color: #1f2a30;
+}
+
+/* From a turn before the one shown, as past positions are. */
+.sighting[data-faded="true"] {
+  opacity: 0.4;
+}

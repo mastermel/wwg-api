@@ -1,4 +1,5 @@
-import { Stack, Text, UnstyledButton } from "@mantine/core";
+import { Group, Stack, Text, UnstyledButton } from "@mantine/core";
+import { IconEye } from "@tabler/icons-react";
 import { useRef, type KeyboardEvent } from "react";
 import type { ArmyTurnStatus, CampaignTurnsResponse } from "@/api/generated/model";
 import { Section } from "@/components/Section";
@@ -18,13 +19,15 @@ interface TurnListProps {
   onView: (turn: number) => void;
   /** The Umpire (every army's progress), or a commander (their own army's status). */
   manager: boolean;
+  /** The turns with enemy sightings the viewer may see (step 49b), marked with an eye. */
+  sighted?: ReadonlySet<number>;
 }
 
 /**
  * The campaign's turns, newest first (DESIGN.md §3.13): choosing one shows the units where they
  * were after it. The arrow keys step through them: up and right to newer, down and left to older.
  */
-export function TurnList({ turns, viewing, onView, manager }: TurnListProps) {
+export function TurnList({ turns, viewing, onView, manager, sighted }: TurnListProps) {
   const buttons = useRef(new Map<number, HTMLButtonElement>());
   const newestFirst = [...turns.turns].reverse();
 
@@ -58,7 +61,7 @@ export function TurnList({ turns, viewing, onView, manager }: TurnListProps) {
                   else buttons.current.delete(turn.number);
                 }}
                 className={classes.row}
-                aria-label={`Turn ${String(turn.number)}${open ? " (open)" : ""}: ${detail}`}
+                aria-label={`Turn ${String(turn.number)}${open ? " (open)" : ""}: ${detail}${sighted?.has(turn.number) ? ", enemy sighted" : ""}`}
                 aria-pressed={turn.number === viewing}
                 onClick={() => {
                   onView(turn.number);
@@ -67,10 +70,13 @@ export function TurnList({ turns, viewing, onView, manager }: TurnListProps) {
                   step(event, turn.number);
                 }}
               >
-                <Text size="sm" fw={500} component="span">
-                  Turn {turn.number}
-                  {open && " (open)"}
-                </Text>
+                <Group gap={6} wrap="nowrap">
+                  <Text size="sm" fw={500} component="span">
+                    Turn {turn.number}
+                    {open && " (open)"}
+                  </Text>
+                  {sighted?.has(turn.number) && <IconEye size={14} aria-hidden />}
+                </Group>
                 <Text size="xs" c={turn.number === viewing ? undefined : "dimmed"} component="span">
                   {detail}
                 </Text>

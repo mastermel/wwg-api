@@ -133,6 +133,7 @@ function serveUmpire(nordTurn: ArmyTurnDetails, prussianTurn: ArmyTurnDetails, p
     http.get(`*/api/campaigns/${campaignId}/turns`, () => HttpResponse.json(turns(problems))),
     http.get(`*/api/campaigns/${campaignId}/positions`, () => HttpResponse.json([])),
     http.get(`*/api/campaigns/${campaignId}/attrition`, () => HttpResponse.json([])),
+    http.get(`*/api/campaigns/${campaignId}/sightings/due`, () => HttpResponse.json([])),
     http.get(`*/api/armies/${nord.id}/turns`, () => HttpResponse.json([nordTurn])),
     http.get(`*/api/armies/${prussians.id}/turns`, () => HttpResponse.json([prussianTurn])),
     http.post("*/api/army-turns/:id/:action", async ({ request }) => {
@@ -265,7 +266,7 @@ describe("the Umpire's turn", () => {
 
     expect(await screen.findByText("Turn 2 has started.")).toBeInTheDocument();
     expect(requests).toEqual([
-      { url: `/api/campaigns/${campaignId}/turns`, body: { attrition: [] } },
+      { url: `/api/campaigns/${campaignId}/turns`, body: { attrition: [], sightings: [] } },
     ]);
   });
 
@@ -310,7 +311,7 @@ describe("the Umpire's turn", () => {
     expect(requests).toEqual([
       {
         url: `/api/campaigns/${campaignId}/turns`,
-        body: { attrition: [{ unitId: guardId, points: 2 }] },
+        body: { attrition: [{ unitId: guardId, points: 2 }], sightings: [] },
       },
     ]);
   });
@@ -326,6 +327,65 @@ describe("the Umpire's turn", () => {
 
     expect(await screen.findByText("Submitted Prussian I Corps's turn 1.")).toBeInTheDocument();
     expect(requests).toEqual([{ url: `/api/army-turns/${waiting.id}/submit`, body: null }]);
+  });
+});
+
+describe("sightings when starting the next turn", () => {
+  it("prefills each army's sighting, for the Umpire to shape, and sends what they chose", async () => {
+    const requests = serveUmpire(approved, armyTurn(prussians, { status: "Completed" }), []);
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/sightings/due`, () =>
+        HttpResponse.json([
+          {
+            observingArmyId: nord.id,
+            q: 1,
+            r: 0,
+            whereabouts: "1 hex south-east of Imperial Guard",
+            screened: true,
+            units: [
+              {
+                unitId: "0192f5c1-0000-7000-8000-00000000b009",
+                armyId: prussians.id,
+                name: "1st Brigade",
+                type: "LightInfantry",
+                points: 200,
+              },
+            ],
+          },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Start turn 2" }));
+    const sighting = await within(await screen.findByRole("dialog")).findByRole("group", {
+      name: "Armée du Nord sees Hex (1, 0)",
+    });
+    expect(sighting).toHaveTextContent("Possible screen");
+    expect(sighting).toHaveTextContent("1st Brigade (Light Infantry, 200 points)");
+    await user.click(within(sighting).getByRole("checkbox", { name: "The hex" }));
+    await user.click(within(sighting).getByText("Exact"));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Start turn 2" }),
+    );
+
+    expect(await screen.findByText("Turn 2 has started.")).toBeInTheDocument();
+    expect(requests.at(-1)?.body).toEqual({
+      attrition: [],
+      sightings: [
+        {
+          observingArmyId: nord.id,
+          q: 1,
+          r: 0,
+          showsHex: false,
+          showsArmies: true,
+          showsTypes: true,
+          strength: "Exact",
+          size: null,
+        },
+      ],
+    });
   });
 });
 

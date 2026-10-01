@@ -10,7 +10,7 @@ import type {
 } from "@/api/generated/model";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
-import type { DepotThreat, HexWarning } from "@/features/maps/contact";
+import type { DepotThreat, HexWarning, UnitInHex } from "@/features/maps/contact";
 import { HexWarningsList } from "@/features/maps/HexWarningsList";
 import type { TerrainIndex } from "@/features/maps/terrain";
 import { ReviewModal } from "@/features/maps/ReviewModal";
@@ -29,6 +29,8 @@ const statusLabels: Record<ArmyTurnStatus, string> = {
 
 interface ReviewPanelProps {
   campaignId: string;
+  /** Where the orders as given leave the units, for sightings added by hand. */
+  places: readonly UnitInHex[];
   open: CampaignTurnSummary;
   /** What stops the next turn starting. */
   problems: readonly string[];
@@ -48,6 +50,7 @@ interface ReviewPanelProps {
  */
 export function ReviewPanel({
   campaignId,
+  places,
   open,
   problems,
   armyTurns,
@@ -127,9 +130,10 @@ export function ReviewPanel({
           campaignId={campaignId}
           closing={open.number}
           armies={armyTurns.map((entry) => entry.army)}
+          places={places}
           busy={review.busy}
-          onStart={(attrition) => {
-            void review.startNext(next, attrition).then((started) => {
+          onStart={(attrition, sightings) => {
+            void review.startNext(next, attrition, sightings).then((started) => {
               if (started) closeStart();
             });
           }}

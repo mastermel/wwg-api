@@ -17,6 +17,10 @@ internal static class SightingEndpoints
             .WithName("ListSightingsDue")
             .WithTags("Sightings")
             .RequireCampaignAccess(CampaignAccess.Umpire);
+        app.MapGet("/api/campaigns/{id:guid}/sightings", ListSightingsAsync)
+            .WithName("ListSightings")
+            .WithTags("Sightings")
+            .RequireCampaignAccess(CampaignAccess.Member);
         return app;
     }
 
@@ -52,6 +56,60 @@ internal static class SightingEndpoints
                 ))
                 .ToList()
         );
+
+    /// <summary>
+    /// The sightings the viewer may see, every turn's, oldest first: the Umpire's and Admins', every
+    /// army's; a commander's, their own army's (its own and those its allies' reports brought);
+    /// anyone else's, none. The hex is left out where its observers weren't told it.
+    /// </summary>
+    internal static async Task<Ok<List<SightingResponse>>> ListSightingsAsync(
+        Guid id,
+        WwgDbContext db,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var context = httpContext.CampaignContext();
+        var grid = await CampaignMaps.GridAsync(db, id, cancellationToken);
+        var sightings = await db
+            .Sightings.AsNoTracking()
+            .Where(s =>
+                s.ObservingArmy.CampaignId == id
+                && (context.CanManage || s.ObservingArmy.CommanderId == context.MemberId)
+            )
+            .OrderBy(s => s.Turn)
+            .ThenBy(s => s.CreatedAt)
+            .ThenBy(s => s.Id)
+            .ToListAsync(cancellationToken);
+        return TypedResults.Ok(
+            sightings
+                .Select(s =>
+                {
+                    var centre =
+                        s.ShowsHex && grid is not null
+                            ? grid.Centre(new Hex(s.Q, s.R))
+                            : ((double, double)?)null;
+                    return new SightingResponse(
+                        s.Id,
+                        s.ObservingArmyId,
+                        s.Turn,
+                        s.ShowsHex ? s.Q : null,
+                        s.ShowsHex ? s.R : null,
+                        centre?.Item1,
+                        centre?.Item2,
+                        s.Whereabouts,
+                        s.ArmyIds,
+                        s.UnitTypes,
+                        s.Strength,
+                        s.Size,
+                        s.Points,
+                        s.ByUmpire,
+                        s.SharedByArmyId
+                    );
+                })
+                .ToList()
+        );
+    }
 
     /// <summary>The sightings where the open turn's orders as given leave the units.</summary>
     public static async Task<List<SightCandidate>> DueAsync(

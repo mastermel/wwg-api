@@ -19,7 +19,13 @@ export const startingPlaces = {
  * both units are line infantry and foot artillery, which move two hexes a turn). Turn 1 is open.
  * Leaves the Umpire on the campaign.
  */
-export async function startedCampaign(umpire: User, commander: User, name: string, hexSize = 4828) {
+export async function startedCampaign(
+  umpire: User,
+  commander: User,
+  name: string,
+  hexSize = 4828,
+  options: { enemyAt?: { q: number; r: number } } = {},
+) {
   await createCampaign(umpire.page, name);
   const campaignUrl = umpire.page.url();
   const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
@@ -61,8 +67,28 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
     morningNations: [],
     afternoonNations: [],
   });
+  // An army of the other side, with no commander, from the start (armies get turns as they open).
+  let enemyArmyId: string | null = null;
+  if (options.enemyAt) {
+    const prussian = await libraryFaction(browserOf(umpire.page), "Prussian", "Prussia", [
+      { name: "1st Brigade", type: "LineInfantry", fightingFactor: 4, points: 20 },
+    ]);
+    const sides = await api.get<{ id: string }[]>(`/api/campaigns/${campaignId}/sides`);
+    const enemy = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
+      name: "Prussian I Corps",
+      commanderMemberId: null,
+      sideId: sides[1]?.id,
+      nation: "Prussia",
+      factionIds: [prussian.id],
+    });
+    const [brigade] = await api.post<{ id: string }[]>(`/api/armies/${enemy.id}/units`, {
+      unitIds: prussian.units.map((unit) => unit.id),
+    });
+    await api.put(`/api/army-units/${brigade.id}/placement`, options.enemyAt);
+    enemyArmyId = enemy.id;
+  }
   await api.post(`/api/campaigns/${campaignId}/start`, null);
-  return { campaignUrl, campaignId, armyId: army.id };
+  return { campaignUrl, campaignId, armyId: army.id, enemyArmyId };
 }
 
 /**
@@ -90,6 +116,22 @@ export async function holdAndSubmit(
     );
   }
   await api.post(`/api/army-turns/${turn.id}/submit`, null);
+}
+
+/** The Umpire gives each of an army's units a Hold, submits its turn for it and approves it. */
+export async function holdForArmy(umpire: User, campaignId: string, armyId: string) {
+  const api = await apiAs(umpire.page);
+  const turns = await api.get<{ id: string; open: boolean }[]>(`/api/armies/${armyId}/turns`);
+  const turn = turns.find((t) => t.open);
+  if (!turn) throw new Error("The army has no open turn.");
+  const units = await api.get<{ id: string; armyId: string }[]>(
+    `/api/campaigns/${campaignId}/units`,
+  );
+  for (const unit of units.filter((u) => u.armyId === armyId)) {
+    await api.put(`/api/army-turns/${turn.id}/orders/${unit.id}`, { kind: "Hold" });
+  }
+  await api.post(`/api/army-turns/${turn.id}/submit`, null);
+  await api.post(`/api/army-turns/${turn.id}/approve`, null);
 }
 
 /** The Umpire approves the army's open turn and starts the next, through the API. */
