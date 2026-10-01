@@ -23,9 +23,26 @@ describe("hexesAcross", () => {
 
 describe("shownRealLayers", () => {
   it("hides what the viewer hid, and never shows what the campaign hides", () => {
-    const shown = shownRealLayers(campaign, { real: ["forests", "contours"], game: ["grid"] });
+    const shown = shownRealLayers(campaign, {
+      real: ["forests", "contours"],
+      game: ["grid"],
+      groups: [],
+    });
 
     expect(shown).toEqual({ ...campaign, forests: false, contours: false });
+  });
+
+  it("hides all of them with the real map", () => {
+    const shown = shownRealLayers(campaign, { real: [], game: [], groups: ["real"] });
+
+    expect(shown).toEqual({
+      ...campaign,
+      roads: false,
+      places: false,
+      water: false,
+      forests: false,
+      hills: false,
+    });
   });
 });
 
@@ -35,17 +52,21 @@ describe("loadHidden", () => {
   });
 
   it("is nothing when nothing's saved, or what's saved isn't ours", () => {
-    expect(loadHidden("c")).toEqual({ real: [], game: [] });
+    expect(loadHidden("c")).toEqual({ real: [], game: [], groups: [] });
     localStorage.setItem("wwg:map-layers:c", "not json");
-    expect(loadHidden("c")).toEqual({ real: [], game: [] });
+    expect(loadHidden("c")).toEqual({ real: [], game: [], groups: [] });
   });
 
   it("keeps only the layers it knows", () => {
     localStorage.setItem(
       "wwg:map-layers:c",
-      JSON.stringify({ real: ["roads", "railways"], game: ["bridges", "units"] }),
+      JSON.stringify({
+        real: ["roads", "railways"],
+        game: ["bridges", "units"],
+        groups: ["game", "both"],
+      }),
     );
 
-    expect(loadHidden("c")).toEqual({ real: ["roads"], game: ["bridges"] });
+    expect(loadHidden("c")).toEqual({ real: ["roads"], game: ["bridges"], groups: ["game"] });
   });
 });

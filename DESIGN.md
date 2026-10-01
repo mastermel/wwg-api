@@ -1205,8 +1205,9 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   **Real map**'s layers (roads, place names, water, forests, hills, contours) and the **Game
   map**'s (grid, terrain, roads, rivers & waterways, towns & cities, bridges; for the Umpire,
   contact & concentration), of those the campaign's settings show: what the Umpire switches off
-  isn't offered. Remembered on that device, per campaign (`localStorage`); "Show everything
-  again" puts them back. The game map is drawn only once the view's longest side spans 20 hexes
+  isn't offered. Each map also has its own switch, hiding all of it at once and leaving its
+  layers' switches as they were for when it's back. Remembered on that device, per campaign
+  (`localStorage`); "Show everything again" puts them back. The game map is drawn only once the view's longest side spans 20 hexes
   or fewer. Units, the reach while moving and ghost moves are always drawn.
 - **A hex's card:** a click or tap on a hex (not on a unit, and not while placing or moving)
   opens a card at it with everything the viewer knows of it: its ground and forest, its town,

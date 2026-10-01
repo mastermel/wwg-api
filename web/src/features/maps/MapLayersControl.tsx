@@ -21,16 +21,30 @@ interface MapLayersControlProps {
 
 /**
  * The Map page's Layers panel, from a button over the map's top-left corner (a popover; on a phone, a
- * sheet from the bottom): the viewer shows or hides the real
- * map's layers and the game map's, of those the campaign's map settings show. Remembered on this
- * device.
+ * sheet from the bottom): the viewer shows or hides the real map's layers and the game map's, of
+ * those the campaign's map settings show, or either map whole by its own switch. Remembered on
+ * this device.
  */
 export function MapLayersControl({ campaign, layers, zoomedIn, warnings }: MapLayersControlProps) {
-  const { hidden, toggleReal, toggleGame, reset } = layers;
+  const { hidden, toggleReal, toggleGame, toggleGroup, reset } = layers;
+  const realShown = !hidden.groups.includes("real");
+  const gameShown = !hidden.groups.includes("game");
   const real = realLayers.filter(({ key }) => campaign[key]);
   // The game map is all or nothing in the campaign's settings (its grid).
   const game = campaign.grid ? gameLayers.filter(({ key }) => key !== "warnings" || warnings) : [];
-  const changed = hidden.real.length > 0 || hidden.game.length > 0;
+  const changed = hidden.real.length > 0 || hidden.game.length > 0 || hidden.groups.length > 0;
+  // A map's own switch: off hides all its layers, keeping theirs as they were for when it's on.
+  const groupSwitch = (group: "real" | "game", label: string, shown: boolean) => (
+    <Switch
+      size="sm"
+      label={label}
+      checked={shown}
+      onChange={() => {
+        toggleGroup(group);
+      }}
+      styles={{ label: { fontWeight: 600 } }}
+    />
+  );
 
   const phone = useMediaQuery("(max-width: 48em)");
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -47,15 +61,15 @@ export function MapLayersControl({ campaign, layers, zoomedIn, warnings }: MapLa
   const panel = (
     <Stack gap="sm">
       {real.length > 0 && (
-        <Stack gap={6} role="group" aria-labelledby="real-map-layers">
-          <Text size="sm" fw={600} id="real-map-layers">
-            Real map
-          </Text>
+        <Stack gap={6} role="group" aria-label="Real map">
+          {groupSwitch("real", "Real map", realShown)}
           {real.map(({ key, label }) => (
             <Switch
               key={key}
               size="sm"
+              ml="md"
               label={label}
+              disabled={!realShown}
               checked={!hidden.real.includes(key)}
               onChange={() => {
                 toggleReal(key);
@@ -66,11 +80,9 @@ export function MapLayersControl({ campaign, layers, zoomedIn, warnings }: MapLa
       )}
       {real.length > 0 && game.length > 0 && <Divider />}
       {game.length > 0 && (
-        <Stack gap={6} role="group" aria-labelledby="game-map-layers">
-          <Text size="sm" fw={600} id="game-map-layers">
-            Game map
-          </Text>
-          {!zoomedIn && (
+        <Stack gap={6} role="group" aria-label="Game map">
+          {groupSwitch("game", "Game map", gameShown)}
+          {gameShown && !zoomedIn && (
             <Text size="xs" c="dimmed">
               Zoom in to see it: it&apos;s drawn once {gameMaxHexesAcross} hexes or fewer fill the
               map.
@@ -80,7 +92,9 @@ export function MapLayersControl({ campaign, layers, zoomedIn, warnings }: MapLa
             <Switch
               key={key}
               size="sm"
+              ml="md"
               label={label}
+              disabled={!gameShown}
               checked={!hidden.game.includes(key)}
               onChange={() => {
                 toggleGame(key);

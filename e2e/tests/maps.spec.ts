@@ -206,6 +206,11 @@ test("a Player hides map layers, and the map remembers it", async ({ signUp }) =
   expect(await scan(page, "map, layers")).toEqual([]);
   await real.getByRole("switch", { name: "Forests" }).click();
   await expect(real.getByRole("switch", { name: "Forests" })).not.toBeChecked();
+  // The game map's own switch hides it whole, its layers kept as they were.
+  const game = page.getByRole("group", { name: "Game map" });
+  await game.getByRole("switch", { name: "Game map" }).click();
+  await expect(game.getByRole("switch", { name: "Grid" })).toBeDisabled();
+  await expect(game.getByRole("switch", { name: "Grid" })).toBeChecked();
 
   await page.reload();
   // The reload keeps the page's scroll, which can leave the button under the header.
@@ -216,9 +221,15 @@ test("a Player hides map layers, and the map remembers it", async ({ signUp }) =
   await expect(
     page.getByRole("group", { name: "Real map" }).getByRole("switch", { name: "Forests" }),
   ).not.toBeChecked();
+  await expect(
+    page.getByRole("group", { name: "Game map" }).getByRole("switch", { name: "Game map" }),
+  ).not.toBeChecked();
   await page.getByRole("button", { name: "Show everything again" }).click();
   await expect(
     page.getByRole("group", { name: "Real map" }).getByRole("switch", { name: "Forests" }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("group", { name: "Game map" }).getByRole("switch", { name: "Game map" }),
   ).toBeChecked();
 });
 

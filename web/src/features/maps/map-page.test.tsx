@@ -340,6 +340,50 @@ describe("the map's layers", () => {
     expect(JSON.parse(localStorage.getItem(`wwg:map-layers:${campaignId}`) ?? "{}")).toEqual({
       real: ["forests"],
       game: [],
+      groups: [],
+    });
+  });
+
+  it("hides a whole map by its own switch, keeping its layers' as they were", async () => {
+    localStorage.clear();
+    serveCampaign("Player", settings(waterloo));
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    await user.click(await screen.findByRole("button", { name: "Map layers" }));
+    const real = await screen.findByRole("group", { name: "Real map", hidden: true });
+    const forests = within(real).getByRole("switch", { name: "Forests", hidden: true });
+    await user.click(forests);
+    await user.click(within(real).getByRole("switch", { name: "Real map", hidden: true }));
+
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent(/^Drawn: ; grid on$/);
+    expect(forests).toBeDisabled();
+    expect(forests).not.toBeChecked();
+    expect(within(real).getByRole("switch", { name: "Roads", hidden: true })).toBeChecked();
+
+    await user.click(within(real).getByRole("switch", { name: "Real map", hidden: true }));
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent(
+      "Drawn: roads, places, water, hills; grid on",
+    );
+  });
+
+  it("hides the game map whole, zoomed in or not", async () => {
+    localStorage.clear();
+    serveCampaign("Player", settings(waterloo));
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    await user.click(await screen.findByRole("button", { name: "Map layers" }));
+    const game = await screen.findByRole("group", { name: "Game map", hidden: true });
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent("grid on");
+    await user.click(within(game).getByRole("switch", { name: "Game map", hidden: true }));
+
+    expect(screen.getByText(/^Drawn:/)).toHaveTextContent("grid off");
+    expect(within(game).getByRole("switch", { name: "Grid", hidden: true })).toBeChecked();
+    expect(JSON.parse(localStorage.getItem(`wwg:map-layers:${campaignId}`) ?? "{}")).toEqual({
+      real: [],
+      game: [],
+      groups: ["game"],
     });
   });
 

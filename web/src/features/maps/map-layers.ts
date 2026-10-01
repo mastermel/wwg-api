@@ -5,7 +5,8 @@ import { distanceMetres } from "@/features/maps/geo";
 /**
  * What each viewer shows on the map (the Map page's Layers panel): the real map's layers, from
  * OpenStreetMap, and the game map's, which the app draws from the campaign's terrain. A viewer
- * can hide what the campaign's map settings show, never show what they hide. The game map is
+ * can hide what the campaign's map settings show, never show what they hide, one by one or a
+ * whole map at once (keeping which of its layers they'd hidden). The game map is
  * drawn only once the view is close enough to read it.
  */
 
@@ -32,13 +33,18 @@ export const gameLayers = [
 
 export type GameLayer = (typeof gameLayers)[number]["key"];
 
-/** What a viewer has hidden. */
+/** The two maps, each of which a viewer can hide whole. */
+export type LayerGroup = "real" | "game";
+
+/** What a viewer has hidden: layers one by one, and whole maps. */
 export interface HiddenLayers {
   real: RealLayer[];
   game: GameLayer[];
+  groups: LayerGroup[];
 }
 
-const nothingHidden: HiddenLayers = { real: [], game: [] };
+const nothingHidden: HiddenLayers = { real: [], game: [], groups: [] };
+const layerGroups: readonly string[] = ["real", "game"];
 
 /** The game map is drawn once the view's longest side spans this many hexes or fewer. */
 export const gameMaxHexesAcross = 20;
@@ -57,11 +63,14 @@ export function hexesAcross(view: MapBounds, hexSize: number) {
   return Math.max(across, down) / hexSize;
 }
 
-/** The real map's layers the campaign shows, less those the viewer hid. */
+/** The real map's layers the campaign shows, less those the viewer hid (all, with the map). */
 export const shownRealLayers = (campaign: MapLayers, hidden: HiddenLayers): MapLayers => ({
   ...campaign,
   ...Object.fromEntries(
-    realLayers.map(({ key }) => [key, campaign[key] && !hidden.real.includes(key)]),
+    realLayers.map(({ key }) => [
+      key,
+      campaign[key] && !hidden.groups.includes("real") && !hidden.real.includes(key),
+    ]),
   ),
 });
 
@@ -78,6 +87,7 @@ export function loadHidden(campaignId: string): HiddenLayers {
     return {
       real: (saved?.real ?? []).filter((key): key is RealLayer => real.has(key)),
       game: (saved?.game ?? []).filter((key): key is GameLayer => game.has(key)),
+      groups: (saved?.groups ?? []).filter((key): key is LayerGroup => layerGroups.includes(key)),
     };
   } catch {
     // Storage may be blocked or hold something else: show everything.
@@ -116,6 +126,14 @@ export function useHiddenLayers(campaignId: string) {
         game: hidden.game.includes(key)
           ? hidden.game.filter((k) => k !== key)
           : [...hidden.game, key],
+      });
+    },
+    toggleGroup: (group: LayerGroup) => {
+      change({
+        ...hidden,
+        groups: hidden.groups.includes(group)
+          ? hidden.groups.filter((g) => g !== group)
+          : [...hidden.groups, group],
       });
     },
     reset: () => {

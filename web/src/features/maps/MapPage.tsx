@@ -364,7 +364,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     [settings, layers.hidden],
   );
   const showGame = (key: GameLayer) =>
-    settings.layers.grid && zoomedIn && !layers.hidden.game.includes(key);
+    settings.layers.grid &&
+    zoomedIn &&
+    !layers.hidden.groups.includes("game") &&
+    !layers.hidden.game.includes(key);
   const terrain = useGetCampaignGrid(campaignId, live);
   const movementTable = useGetMovementTable(campaignId, live);
   const calendar = useGetCampaignCalendar(campaignId, live);
