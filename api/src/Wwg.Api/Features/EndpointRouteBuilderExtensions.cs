@@ -9,6 +9,7 @@ using Wwg.Api.Features.Join;
 using Wwg.Api.Features.Library;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Sides;
+using Wwg.Api.Features.Supply;
 using Wwg.Api.Features.Turns;
 
 namespace Wwg.Api.Features;
@@ -37,6 +38,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapMovementEndpoints()
             .MapOrderEndpoints()
             .MapMarchEndpoints()
+            .MapDepotEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
     }

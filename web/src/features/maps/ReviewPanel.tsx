@@ -10,7 +10,7 @@ import type {
 } from "@/api/generated/model";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
-import type { HexWarning } from "@/features/maps/contact";
+import type { DepotThreat, HexWarning } from "@/features/maps/contact";
 import { HexWarningsList } from "@/features/maps/HexWarningsList";
 import type { TerrainIndex } from "@/features/maps/terrain";
 import { ReviewModal } from "@/features/maps/ReviewModal";
@@ -37,6 +37,7 @@ interface ReviewPanelProps {
   review: ReturnType<typeof useReview>;
   /** Contact and concentration, by the orders as given (step 46). */
   warnings: readonly HexWarning[];
+  threats: readonly DepotThreat[];
   terrain: TerrainIndex;
 }
 
@@ -53,6 +54,7 @@ export function ReviewPanel({
   units,
   review,
   warnings,
+  threats,
   terrain,
 }: ReviewPanelProps) {
   const online = useOnline();
@@ -88,7 +90,7 @@ export function ReviewPanel({
             />
           ) : null,
         )}
-        <HexWarningsList warnings={warnings} terrain={terrain} from="orders" />
+        <HexWarningsList warnings={warnings} threats={threats} terrain={terrain} from="orders" />
         {problems.length > 0 && (
           <Alert role="status" color="gray" title={`Before turn ${String(next)} can start`}>
             <List size="sm" spacing={2}>

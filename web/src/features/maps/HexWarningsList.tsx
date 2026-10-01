@@ -1,10 +1,18 @@
 import { Alert, List, Text } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
-import { describeWarning, warningPlace, type HexWarning } from "@/features/maps/contact";
+import {
+  describeThreat,
+  describeWarning,
+  warningPlace,
+  type DepotThreat,
+  type HexWarning,
+} from "@/features/maps/contact";
 import type { TerrainIndex } from "@/features/maps/terrain";
 
 interface HexWarningsListProps {
   warnings: readonly HexWarning[];
+  /** Depots with the other side's units in their hex (step 48a). */
+  threats?: readonly DepotThreat[];
   terrain: TerrainIndex;
   /** Whose positions they're from: the orders as given, or where the units ended up. */
   from: "orders" | "positions";
@@ -15,8 +23,8 @@ interface HexWarningsListProps {
  * words. Warnings only: nothing is refused, and battles are fought at the table. The map outlines
  * the same hexes, for sight.
  */
-export function HexWarningsList({ warnings, terrain, from }: HexWarningsListProps) {
-  if (warnings.length === 0) return null;
+export function HexWarningsList({ warnings, threats = [], terrain, from }: HexWarningsListProps) {
+  if (warnings.length === 0 && threats.length === 0) return null;
   return (
     <Alert
       color="orange"
@@ -36,6 +44,9 @@ export function HexWarningsList({ warnings, terrain, from }: HexWarningsListProp
             </Text>{" "}
             {describeWarning(warning).join(" ")}
           </List.Item>
+        ))}
+        {threats.map((threat) => (
+          <List.Item key={threat.depot.id}>{describeThreat(threat)}</List.Item>
         ))}
       </List>
     </Alert>

@@ -39,6 +39,9 @@ internal enum CampaignRouteId
 
     /// <summary>An army's turn (<c>/api/army-turns/{id}/...</c>): its army's campaign and commander.</summary>
     ArmyTurn,
+
+    /// <summary>An army's depot (<c>/api/depots/{id}</c>): its army's campaign and commander.</summary>
+    Depot,
 }
 
 /// <summary>
@@ -186,6 +189,16 @@ internal static class CampaignAccessExtensions
                     .Select(f => (Guid?)f.CampaignId)
                     .FirstOrDefaultAsync(cancellationToken);
                 return campaignId is { } found ? (found, null) : null;
+            }
+
+            if (routeId == CampaignRouteId.Depot)
+            {
+                var depot = await db
+                    .Depots.AsNoTracking()
+                    .Where(d => d.Id == id)
+                    .Select(d => new { d.Army.CampaignId, d.Army.CommanderId })
+                    .FirstOrDefaultAsync(cancellationToken);
+                return depot is null ? null : (depot.CampaignId, depot.CommanderId);
             }
 
             if (routeId == CampaignRouteId.ArmyTurn)

@@ -27,7 +27,14 @@ import {
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
 import { useListCampaignUnits } from "@/api/generated/endpoints/army-units/army-units";
-import type { CampaignMapResponse, MapBounds, MeResponse } from "@/api/generated/model";
+import { useListDepots } from "@/api/generated/endpoints/supply/supply";
+import type {
+  CampaignMapResponse,
+  DepotResponse,
+  MapBounds,
+  MeResponse,
+} from "@/api/generated/model";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { BackLink } from "@/components/BackLink";
 import { EmptyState } from "@/components/EmptyState";
 import { LinkButton } from "@/components/LinkButton";
@@ -38,8 +45,12 @@ import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
+import { DepotFormModal, type DepotDraft } from "@/features/maps/DepotFormModal";
+import { DepotMarkers } from "@/features/maps/DepotMarkers";
+import { DepotsPanel } from "@/features/maps/DepotsPanel";
+import { depotName, useDepots } from "@/features/maps/use-depots";
 import { CampaignMap } from "@/features/maps/CampaignMap";
-import { afterOrders, hexWarnings } from "@/features/maps/contact";
+import { afterOrders, depotThreats, hexWarnings } from "@/features/maps/contact";
 import type { Point } from "@/features/maps/geo";
 import { hexGrid, hexKey, type Hex } from "@/features/maps/hex-grid";
 import {
@@ -243,6 +254,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     [positions.data, everyUnit],
   );
   const placingUnit = everyUnit.find((u) => u.unit.id === placing);
+  // Depots (step 48a): those the viewer may see, and the Umpire placing, moving or changing one.
+  const depots = useListDepots(campaignId, live);
+  const depotChanges = useDepots(campaignId);
+  const [placingDepot, setPlacingDepot] = useState<{
+    draft: DepotDraft;
+    depot?: DepotResponse;
+  } | null>(null);
+  const [depotForm, setDepotForm] = useState<DepotResponse | "new" | null>(null);
+  const [removingDepot, setRemovingDepot] = useState<DepotResponse | null>(null);
 
   // Once running, the open turn of every army the viewer can see: the Umpire's, all of them; a
   // commander's, their own.
@@ -340,6 +360,23 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           )
         : [],
     [manager, setup, concentration.data, past, onMap, openTurns, costs.terrain],
+  );
+  // Depots with the other side's units in their hex: the Umpire captures or destroys them.
+  const threats = useMemo(
+    () =>
+      manager && !setup
+        ? depotThreats(
+            past !== null
+              ? onMap
+              : afterOrders(
+                  onMap,
+                  openTurns.flatMap(({ turn }) => turn?.orders ?? []),
+                ),
+            depots.data ?? [],
+            armies.data ?? [],
+          )
+        : [],
+    [manager, setup, past, onMap, openTurns, depots.data, armies.data],
   );
   const targetPath = target && reachable ? pathTo(reachable, target) : null;
   // Part of the way into it, when it takes more than a turn (the commander's moves only).
@@ -445,6 +482,21 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     }
   };
 
+  const placeDepot = async (point: Point) => {
+    if (!placingDepot) return;
+    const hex = grid.hexAt(point);
+    if (!grid.contains(hex)) {
+      notifications.show({ color: "red", message: "That's outside the campaign's area." });
+      return;
+    }
+    const { draft, depot } = placingDepot;
+    const data = { kind: draft.kind, name: draft.name || null, q: hex.q, r: hex.r };
+    const saved = depot
+      ? await depotChanges.update(depot, data)
+      : await depotChanges.create(draft.armyId, data);
+    if (saved) setPlacingDepot(null);
+  };
+
   const closeDrawer = () => {
     setChosen([]);
     setSelected(null);
@@ -475,6 +527,25 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                   variant="default"
                   onClick={() => {
                     setPlacing(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </Group>
+            </Alert>
+          )}
+          {placingDepot && (
+            <Alert role="status" color="navy" icon={<IconMapPin aria-hidden />}>
+              <Group justify="space-between" gap="xs">
+                <Text size="sm">
+                  Click the map where <strong>{placingDepot.draft.name || "the depot"}</strong>{" "}
+                  goes.
+                </Text>
+                <Button
+                  size="compact-sm"
+                  variant="default"
+                  onClick={() => {
+                    setPlacingDepot(null);
                   }}
                 >
                   Cancel
@@ -579,9 +650,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 setZoomedIn(hexesAcross(view, settings.hexSize) <= gameMaxHexesAcross);
               }}
               bounds={bounds}
-              cursor={placingUnit || moving ? "crosshair" : undefined}
+              cursor={placingUnit || placingDepot || moving ? "crosshair" : undefined}
               onMapClick={
-                placingUnit ? (point) => void placeAt(point) : moving ? chooseTarget : undefined
+                placingUnit
+                  ? (point) => void placeAt(point)
+                  : placingDepot
+                    ? (point) => void placeDepot(point)
+                    : moving
+                      ? chooseTarget
+                      : undefined
               }
             >
               {/* Mounted from the start and hidden by zoom: added later, WebKit can miss them. */}
@@ -609,6 +686,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                     : undefined
                 }
               />
+              <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
               <UnitMarkers
                 units={onMap}
                 highlight={manager ? highlighted : null}
@@ -616,6 +694,11 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                   // While placing, choosing a unit (or stack) puts the new one there too.
                   if (placingUnit) {
                     void placeAt({ longitude: stack.longitude, latitude: stack.latitude });
+                    return;
+                  }
+                  // While placing a depot, choosing a unit (or stack) puts it in that hex.
+                  if (placingDepot) {
+                    void placeDepot({ longitude: stack.longitude, latitude: stack.latitude });
                     return;
                   }
                   // While moving, choosing a unit (or stack) moves there.
@@ -642,6 +725,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 units={units.data ?? []}
                 openTurn={turns.data.openTurn}
                 warnings={warnings}
+                threats={threats}
                 terrain={costs.terrain}
                 onBack={() => {
                   setViewing(null);
@@ -667,6 +751,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 units={units.data ?? []}
                 review={review}
                 warnings={warnings}
+                threats={threats}
                 terrain={costs.terrain}
               />
             ) : !setup && commanded.length > 0 && openTurn ? (
@@ -703,6 +788,24 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               onHighlight={setHighlighted}
             />
           )}
+          <DepotsPanel
+            depots={depots.data ?? []}
+            armies={armies.data ?? []}
+            manager={manager}
+            busy={depotChanges.busy}
+            onAdd={() => {
+              setDepotForm("new");
+            }}
+            onMove={(depot) => {
+              setPlacingDepot({
+                draft: { armyId: depot.armyId, kind: depot.kind, name: depot.name ?? "" },
+                depot,
+              });
+              mapArea.current?.scrollIntoView({ block: "start" });
+            }}
+            onEdit={setDepotForm}
+            onRemove={setRemovingDepot}
+          />
           {turns.data && !setup && (
             <TurnList
               turns={turns.data}
@@ -716,6 +819,56 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           </Section>
         </Stack>
       </Grid.Col>
+      {depotForm && (
+        <DepotFormModal
+          title={depotForm === "new" ? "Add a depot" : `Edit ${depotName(depotForm)}`}
+          submitLabel={depotForm === "new" ? "Place it on the map" : "Save"}
+          armies={armies.data ?? []}
+          chooseArmy={depotForm === "new"}
+          initial={
+            depotForm === "new"
+              ? { armyId: armies.data?.[0]?.id ?? "", kind: "Main", name: "" }
+              : { armyId: depotForm.armyId, kind: depotForm.kind, name: depotForm.name ?? "" }
+          }
+          onSubmit={(draft) => {
+            if (depotForm === "new") {
+              setDepotForm(null);
+              setPlacingDepot({ draft });
+              mapArea.current?.scrollIntoView({ block: "start" });
+              return;
+            }
+            const data = {
+              kind: draft.kind,
+              name: draft.name || null,
+              q: depotForm.q,
+              r: depotForm.r,
+            };
+            void depotChanges.update(depotForm, data).then((saved) => {
+              if (saved) setDepotForm(null);
+            });
+          }}
+          onClose={() => {
+            setDepotForm(null);
+          }}
+        />
+      )}
+      <ConfirmModal
+        opened={removingDepot !== null}
+        onClose={() => {
+          setRemovingDepot(null);
+        }}
+        title={`Remove ${removingDepot ? depotName(removingDepot) : "the depot"}?`}
+        confirmLabel="Remove depot"
+        loading={depotChanges.busy}
+        onConfirm={() => {
+          if (!removingDepot) return;
+          void depotChanges.remove(removingDepot).then((removed) => {
+            if (removed) setRemovingDepot(null);
+          });
+        }}
+      >
+        It was captured, destroyed or given up: its army&apos;s units no longer draw supply from it.
+      </ConfirmModal>
       <UnitDrawer
         units={chosen}
         selected={selected}

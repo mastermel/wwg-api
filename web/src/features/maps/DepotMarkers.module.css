@@ -1,0 +1,17 @@
+/* A depot: a storehouse on a white tile, framed in its army's light colour (3.2:1 or more against
+   white, army-colors.ts); the icon is 14:1. Offset below the hex's centre, out from under units. */
+.depot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  border: 3px solid;
+  background: #ffffff;
+  color: #1f2a30;
+}
+
+.depot[data-kind="Intermediate"] {
+  border-style: dashed;
+}

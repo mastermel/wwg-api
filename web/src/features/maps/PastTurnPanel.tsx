@@ -9,7 +9,7 @@ import type {
 } from "@/api/generated/model";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
-import type { HexWarning } from "@/features/maps/contact";
+import type { DepotThreat, HexWarning } from "@/features/maps/contact";
 import { HexWarningsList } from "@/features/maps/HexWarningsList";
 import type { TerrainIndex } from "@/features/maps/terrain";
 import type { OpenArmyTurn } from "@/features/maps/use-orders";
@@ -41,6 +41,7 @@ interface PastTurnPanelProps {
   onBack: () => void;
   /** Contact and concentration, from where the units ended up (step 46); the Umpire's only. */
   warnings: readonly HexWarning[];
+  threats: readonly DepotThreat[];
   terrain: TerrainIndex;
 }
 
@@ -56,6 +57,7 @@ export function PastTurnPanel({
   openTurn,
   onBack,
   warnings,
+  threats,
   terrain,
 }: PastTurnPanelProps) {
   const unitName = (id: string) => units.find((u) => u.id === id)?.name ?? "A unit";
@@ -112,7 +114,7 @@ export function PastTurnPanel({
             </Stack>
           );
         })}
-        <HexWarningsList warnings={warnings} terrain={terrain} from="positions" />
+        <HexWarningsList warnings={warnings} threats={threats} terrain={terrain} from="positions" />
         <Button
           variant="default"
           leftSection={<IconPlayerTrackNext size={16} aria-hidden />}

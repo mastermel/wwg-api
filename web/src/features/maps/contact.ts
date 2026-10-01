@@ -3,6 +3,7 @@ import type {
   ArmySummary,
   ArmyUnitResponse,
   CampaignConcentrationResponse,
+  DepotResponse,
 } from "@/api/generated/model";
 import { hexKey, hexName, type Hex } from "@/features/maps/hex-grid";
 import type { TerrainIndex } from "@/features/maps/terrain";
@@ -126,4 +127,35 @@ export function describeWarning(warning: HexWarning): string[] {
     }
   }
   return sentences;
+}
+
+/** A depot with the other side's units in its hex (step 48a): the Umpire's to capture or destroy. */
+export interface DepotThreat {
+  depot: DepotResponse;
+  army: ArmySummary;
+  /** The other side's points there (every type). */
+  enemyPoints: number;
+}
+
+/** The depots the other side's units are in (or, by the orders as given, will be in). */
+export function depotThreats(
+  units: readonly UnitInHex[],
+  depots: readonly DepotResponse[],
+  armies: readonly ArmySummary[],
+): DepotThreat[] {
+  return depots.flatMap((depot) => {
+    const army = armies.find((a) => a.id === depot.armyId);
+    if (!army) return [];
+    const enemyPoints = units
+      .filter((u) => hexKey(u.hex) === hexKey(depot) && u.army.side.id !== army.side.id)
+      .reduce((sum, u) => sum + u.unit.points, 0);
+    return enemyPoints > 0 ? [{ depot, army, enemyPoints }] : [];
+  });
+}
+
+/** A threat in words: "Charleroi (Armée du Nord's main depot): 30 enemy points are in its hex." */
+export function describeThreat({ depot, army, enemyPoints }: DepotThreat) {
+  const kind = depot.kind === "Main" ? "main depot" : "intermediate depot";
+  const what = depot.name ? `${depot.name} (${army.name}'s ${kind})` : `${army.name}'s ${kind}`;
+  return `${what}: ${points(enemyPoints)} of the other side are in its hex.`;
 }

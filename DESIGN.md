@@ -2492,9 +2492,12 @@ build on positions.
       starting the next turn lists the attrition due, each loss editable, and sends what the
       Umpire confirms (`StartTurnModal`).
 48. **Supply** (decision 0019), in parts:
-    - **48a. Depots:** each army's depots (main or intermediate, in a hex), which the Umpire
-      places, moves, captures and destroys; shown on the map to the army's commander and the
-      Umpire, who's warned when enemy units end a turn in a depot's hex.
+    - ✅ **48a. Depots:** each army's depots (`Depot`: main or intermediate, a name, a hex), which
+      the Umpire places, moves, captures and destroys (`POST /api/armies/{id}/depots`, `PUT` /
+      `DELETE /api/depots/{id}`; on the map page's **Depots** panel, placed by clicking the map);
+      `GET /api/campaigns/{id}/depots` gives the viewer's (the Umpire's, all; a commander's, their
+      army's). Drawn on the map; the Umpire is warned, with contact and concentration, of the other
+      side's units in a depot's hex. An army with no depots has its supply untracked.
     - **48b. Supply settings and living off the land:** on the campaign's edit page, the supply
       reach (0–3 hexes, 1 by default), the exempt unit types, and the nations that may live off
       the land (France by default); `UnitOrder.LivesOffTheLand`, set with a unit's order; a

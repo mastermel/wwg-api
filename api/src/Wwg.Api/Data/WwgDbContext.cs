@@ -54,6 +54,8 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<PointsChange> PointsChanges => Set<PointsChange>();
 
+    public DbSet<Depot> Depots => Set<Depot>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

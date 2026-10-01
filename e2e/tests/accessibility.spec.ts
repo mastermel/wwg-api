@@ -101,6 +101,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         .getByRole("link", { name: "Users", exact: true })
         .filter({ visible: true })
         .click();
+      // The campaigns list has a search box too: wait for this page's before typing.
+      await expect(adminPage.getByRole("heading", { level: 1, name: "Users" })).toBeVisible();
       // Other runs' users fill the first pages: search for this one.
       await adminPage.getByRole("searchbox", { name: "Search" }).fill(umpire.email);
       await expect(adminPage).toHaveURL(/search=/);

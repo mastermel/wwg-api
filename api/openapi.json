@@ -383,6 +383,113 @@
         ]
       }
     },
+    "/api/campaigns/{id}/depots": {
+      "get": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "The campaign's depots the viewer may see, by army then name: the Umpire's and Admins', all;\na commander's, their own army's; anyone else's, none (they follow its moves).",
+        "operationId": "ListDepots",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DepotResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/armies/{id}/depots": {
+      "post": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "Places a depot for the army (Umpire or Admin), in a hex of the campaign's grid.",
+        "operationId": "CreateDepot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDepotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -3692,6 +3799,91 @@
         ]
       }
     },
+    "/api/depots/{id}": {
+      "put": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "Moves, renames or changes a depot (Umpire or Admin).",
+        "operationId": "UpdateDepot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDepotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepotResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "Removes a depot (Umpire or Admin): it was captured, destroyed or given up.",
+        "operationId": "DeleteDepot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/army-turns/{id}/submit": {
       "post": {
         "tags": [
@@ -5444,6 +5636,76 @@
         },
         "description": "Starts a campaign; the caller becomes its Umpire."
       },
+      "DepotKind": {
+        "enum": [
+          "Main",
+          "Intermediate"
+        ],
+        "description": "A depot's part in supply (decision 0019)."
+      },
+      "DepotResponse": {
+        "required": [
+          "id",
+          "armyId",
+          "kind",
+          "name",
+          "q",
+          "r",
+          "latitude",
+          "longitude",
+          "cutOffTurns"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The depot's ID.",
+            "format": "uuid"
+          },
+          "armyId": {
+            "type": "string",
+            "description": "Its army: only its units draw supply from it.",
+            "format": "uuid"
+          },
+          "kind": {
+            "description": "Main, or intermediate (supplied from a main one, stocked for 15 turns).",
+            "$ref": "#/components/schemas/DepotKind"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its name, if given."
+          },
+          "q": {
+            "type": "integer",
+            "description": "The hex it's in (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex it's in (axial r).",
+            "format": "int32"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "The hex's centre, in degrees.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "The hex's centre, in degrees.",
+            "format": "double"
+          },
+          "cutOffTurns": {
+            "type": "integer",
+            "description": "An intermediate depot's turns in a row cut off from a main one.",
+            "format": "int32"
+          }
+        },
+        "description": "One of an army's depots (decision 0019)."
+      },
       "DetailRelief": {
         "enum": [
           "Flat",
@@ -6816,6 +7078,41 @@
         },
         "description": "The terrain inferred for the whole grid. It replaces what inference saved before; what the\nUmpire set stays. Hexes and edges with nothing on them can be left out."
       },
+      "SaveDepotRequest": {
+        "required": [
+          "kind",
+          "name",
+          "q",
+          "r"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "description": "Main or intermediate.",
+            "$ref": "#/components/schemas/DepotKind"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its name, if any."
+          },
+          "q": {
+            "type": "integer",
+            "description": "The hex (axial q), inside the campaign's grid.",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "The hex (axial r).",
+            "format": "int32"
+          }
+        },
+        "description": "The Umpire places, moves or changes a depot."
+      },
       "SaveFactionRequest": {
         "required": [
           "name",
@@ -7737,6 +8034,9 @@
     },
     {
       "name": "Turns"
+    },
+    {
+      "name": "Supply"
     },
     {
       "name": "Account"

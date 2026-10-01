@@ -72,5 +72,6 @@ test("a Player leaves, and the Umpire removes another", async ({ signUp }) => {
   await expect(umpire.page.getByText(`Removed ${removed.name}.`)).toBeVisible();
 
   await removed.page.reload();
-  await expect(removed.page.getByText("Not found")).toBeVisible();
+  // Each of the page's sections says so, once its data has come back.
+  await expect(removed.page.getByText("Not found").first()).toBeVisible();
 });

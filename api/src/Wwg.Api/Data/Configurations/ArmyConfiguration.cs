@@ -40,3 +40,18 @@ internal sealed class ArmyConfiguration : IEntityTypeConfiguration<Army>
             .OnDelete(DeleteBehavior.SetNull);
     }
 }
+
+internal sealed class DepotConfiguration : IEntityTypeConfiguration<Depot>
+{
+    public void Configure(EntityTypeBuilder<Depot> builder)
+    {
+        builder.Property(d => d.Kind).HasMaxLength(16);
+        builder.Property(d => d.Name).HasMaxLength(100);
+        // Deleting an army deletes its depots.
+        builder
+            .HasOne(d => d.Army)
+            .WithMany()
+            .HasForeignKey(d => d.ArmyId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

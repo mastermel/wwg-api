@@ -9,6 +9,8 @@ import type {
 import { usualCavalryTypes, usualInfantryTypes } from "@/features/campaigns/concentration";
 import {
   afterOrders,
+  depotThreats,
+  describeThreat,
   describeWarning,
   hexWarnings,
   warningPlace,
@@ -173,5 +175,32 @@ describe("warningPlace", () => {
     expect(warningPlace(warning, settled({ size: "Town", name: "Ligny" }))).toBe(
       "Hex (0, 0), Ligny",
     );
+  });
+});
+
+describe("depotThreats", () => {
+  const depot = {
+    id: "d",
+    armyId: napoleon.id,
+    kind: "Main" as const,
+    name: "Charleroi",
+    q: 0,
+    r: 0,
+    latitude: 0,
+    longitude: 0,
+    cutOffTurns: 0,
+  };
+
+  it("finds a depot with the other side's units in its hex, not its own side's", () => {
+    const threats = depotThreats(
+      [unit(napoleon, 50), unit(wellington, 20), unit(blucher, 10, "LineInfantry", { q: 1, r: 0 })],
+      [depot],
+      [napoleon, wellington, blucher],
+    );
+
+    expect(threats.map(describeThreat)).toEqual([
+      "Charleroi (Armée du Nord's main depot): 20 points of the other side are in its hex.",
+    ]);
+    expect(depotThreats([unit(napoleon, 50)], [depot], [napoleon])).toEqual([]);
   });
 });
