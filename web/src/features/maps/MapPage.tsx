@@ -89,6 +89,7 @@ import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
 import { HexDetailsList } from "@/features/maps/HexDetailsList";
 import { MapLegend } from "@/features/maps/MapLegend";
+import classes from "@/features/maps/MapPage.module.css";
 import { describeHex } from "@/features/maps/hex-info";
 import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
 import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
@@ -605,371 +606,371 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     closeDrawer();
   };
 
-  return (
-    <Grid gap="xl">
-      <Grid.Col span={{ base: 12, md: 8 }}>
-        <Stack
-          gap="sm"
-          ref={mapArea}
-          style={{ scrollMarginTop: "calc(var(--app-shell-header-height, 60px) + 0.5rem)" }}
-        >
-          {placingUnit && (
-            <Alert role="status" color="navy" icon={<IconMapPin aria-hidden />}>
-              <Group justify="space-between" gap="xs">
-                <Text size="sm">
-                  Click the map where <strong>{placingUnit.unit.name}</strong> goes.
-                </Text>
-                <Button
-                  size="compact-sm"
-                  variant="default"
-                  onClick={() => {
-                    setPlacing(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </Group>
-            </Alert>
-          )}
-          {placingDepot && (
-            <Alert role="status" color="navy" icon={<IconMapPin aria-hidden />}>
-              <Group justify="space-between" gap="xs">
-                <Text size="sm">
-                  Click the map where <strong>{placingDepot.draft.name || "the depot"}</strong>{" "}
-                  goes.
-                </Text>
-                <Button
-                  size="compact-sm"
-                  variant="default"
-                  onClick={() => {
-                    setPlacingDepot(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </Group>
-            </Alert>
-          )}
-          {past !== null && (
-            <Alert role="status" color="gray" icon={<IconHistory aria-hidden />}>
-              <Group justify="space-between" gap="xs">
-                <Text size="sm">
-                  {past === 0
-                    ? "Showing where the Umpire placed the units."
-                    : `Showing where the units were after turn ${String(past)}.`}
-                </Text>
-                <Button
-                  size="compact-sm"
-                  variant="default"
-                  onClick={() => {
-                    setViewing(null);
-                  }}
-                >
-                  Back to now
-                </Button>
-              </Group>
-            </Alert>
-          )}
-          {moving && (
-            <Alert role="status" color="navy" icon={<IconArrowMoveRight aria-hidden />}>
-              <Group justify="space-between" gap="xs">
-                <Text size="sm">
-                  {target && targetPath ? (
+  const desktop = useMediaQuery("(min-width: 62em)");
+  // The map, with what's being placed or moved above it.
+  const mapColumn = (
+    <Stack
+      gap="sm"
+      ref={mapArea}
+      style={{ scrollMarginTop: "calc(var(--app-shell-header-height, 60px) + 0.5rem)" }}
+    >
+      {placingUnit && (
+        <Alert role="status" color="navy" icon={<IconMapPin aria-hidden />}>
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">
+              Click the map where <strong>{placingUnit.unit.name}</strong> goes.
+            </Text>
+            <Button
+              size="compact-sm"
+              variant="default"
+              onClick={() => {
+                setPlacing(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </Group>
+        </Alert>
+      )}
+      {placingDepot && (
+        <Alert role="status" color="navy" icon={<IconMapPin aria-hidden />}>
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">
+              Click the map where <strong>{placingDepot.draft.name || "the depot"}</strong> goes.
+            </Text>
+            <Button
+              size="compact-sm"
+              variant="default"
+              onClick={() => {
+                setPlacingDepot(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </Group>
+        </Alert>
+      )}
+      {past !== null && (
+        <Alert role="status" color="gray" icon={<IconHistory aria-hidden />}>
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">
+              {past === 0
+                ? "Showing where the Umpire placed the units."
+                : `Showing where the units were after turn ${String(past)}.`}
+            </Text>
+            <Button
+              size="compact-sm"
+              variant="default"
+              onClick={() => {
+                setViewing(null);
+              }}
+            >
+              Back to now
+            </Button>
+          </Group>
+        </Alert>
+      )}
+      {moving && (
+        <Alert role="status" color="navy" icon={<IconArrowMoveRight aria-hidden />}>
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">
+              {target && targetPath ? (
+                <>
+                  {targetProgress === undefined ? (
                     <>
-                      {targetProgress === undefined ? (
-                        <>
-                          Move <strong>{moving.unit.name}</strong> {hexes(targetPath.length)} to
-                          here?
-                        </>
-                      ) : (
-                        <>
-                          Move <strong>{moving.unit.name}</strong>{" "}
-                          {targetPath.length > 1 ? `${hexes(targetPath.length - 1)}, and ` : ""}
-                          {shareOfTheWay(targetProgress)} of the way into here? It takes more than a
-                          turn: it gets there next turn, going on.
-                        </>
-                      )}
-                      {pastTurn &&
-                        (closedStep
-                          ? ` It can't go that way (${closedStep}), but you may take it there.`
-                          : " That's further than it can go in a turn.")}
+                      Move <strong>{moving.unit.name}</strong> {hexes(targetPath.length)} to here?
                     </>
                   ) : (
                     <>
-                      Tap a shaded hex for where <strong>{moving.unit.name}</strong> moves to.
+                      Move <strong>{moving.unit.name}</strong>{" "}
+                      {targetPath.length > 1 ? `${hexes(targetPath.length - 1)}, and ` : ""}
+                      {shareOfTheWay(targetProgress)} of the way into here? It takes more than a
+                      turn: it gets there next turn, going on.
                     </>
                   )}
-                  {movingCost && <> {movingCost}</>}
-                </Text>
-                {canForceMarch(costs.rates, moving.unit.type, openTurn?.part) && (
-                  <Switch
-                    size="sm"
-                    label="Force march (a hex further)"
-                    checked={forceMarch}
-                    onChange={(event) => {
-                      setForceMarch(event.currentTarget.checked);
-                      // The shaded hexes change: choose again.
-                      setTarget(null);
-                    }}
-                  />
-                )}
-                <Group gap="xs">
-                  {target && (
-                    <Button
-                      size="compact-sm"
-                      loading={orders.busy}
-                      onClick={() => void confirmMove()}
-                    >
-                      {pastTurn ? "Move anyway" : "Confirm"}
-                    </Button>
-                  )}
-                  <Button size="compact-sm" variant="default" onClick={stopMoving}>
-                    Cancel
-                  </Button>
-                </Group>
-              </Group>
-            </Alert>
-          )}
-          {/* The map takes the rest of the screen, and at least enough to be useful. */}
-          <Box h="calc(100dvh - 15rem)" mih={360} pos="relative">
-            <Box pos="absolute" top={10} left={10} style={{ zIndex: 2 }}>
-              <MapLayersControl
-                campaign={settings.layers}
-                layers={layers}
-                zoomedIn={zoomedIn}
-                warnings={manager}
+                  {pastTurn &&
+                    (closedStep
+                      ? ` It can't go that way (${closedStep}), but you may take it there.`
+                      : " That's further than it can go in a turn.")}
+                </>
+              ) : (
+                <>
+                  Tap a shaded hex for where <strong>{moving.unit.name}</strong> moves to.
+                </>
+              )}
+              {movingCost && <> {movingCost}</>}
+            </Text>
+            {canForceMarch(costs.rates, moving.unit.type, openTurn?.part) && (
+              <Switch
+                size="sm"
+                label="Force march (a hex further)"
+                checked={forceMarch}
+                onChange={(event) => {
+                  setForceMarch(event.currentTarget.checked);
+                  // The shaded hexes change: choose again.
+                  setTarget(null);
+                }}
               />
-            </Box>
-            <CampaignMap
-              settings={shownSettings}
-              grid={showGame("grid")}
-              onHover={canHover ? hoverAt : undefined}
-              onViewChange={(view) => {
-                setZoomedIn(hexesAcross(view, settings.hexSize) <= gameMaxHexesAcross);
+            )}
+            <Group gap="xs">
+              {target && (
+                <Button size="compact-sm" loading={orders.busy} onClick={() => void confirmMove()}>
+                  {pastTurn ? "Move anyway" : "Confirm"}
+                </Button>
+              )}
+              <Button size="compact-sm" variant="default" onClick={stopMoving}>
+                Cancel
+              </Button>
+            </Group>
+          </Group>
+        </Alert>
+      )}
+      {/* The map takes the rest of the screen, and at least enough to be useful. */}
+      <Box h="calc(100dvh - 15rem)" mih={360} pos="relative">
+        <Box pos="absolute" top={10} left={10} style={{ zIndex: 2 }}>
+          <MapLayersControl
+            campaign={settings.layers}
+            layers={layers}
+            zoomedIn={zoomedIn}
+            warnings={manager}
+          />
+        </Box>
+        <CampaignMap
+          settings={shownSettings}
+          grid={showGame("grid")}
+          onHover={canHover ? hoverAt : undefined}
+          onViewChange={(view) => {
+            setZoomedIn(hexesAcross(view, settings.hexSize) <= gameMaxHexesAcross);
+          }}
+          bounds={bounds}
+          cursor={placingUnit || placingDepot || moving ? "crosshair" : undefined}
+          onMapClick={
+            placingUnit
+              ? (point) => void placeAt(point)
+              : placingDepot
+                ? (point) => void placeDepot(point)
+                : moving
+                  ? chooseTarget
+                  : (point) => {
+                      const hex = grid.hexAt(point);
+                      setPinned(grid.contains(hex) ? hex : null);
+                    }
+          }
+        >
+          {/* Mounted from the start and hidden by zoom: added later, WebKit can miss them. */}
+          {settings.layers.grid && terrain.data && (
+            <TerrainLayer
+              grid={grid}
+              terrain={terrain.data}
+              show={{
+                terrain: showGame("terrain"),
+                roads: showGame("roads"),
+                rivers: showGame("rivers"),
+                towns: showGame("towns"),
+                bridges: showGame("bridges"),
               }}
-              bounds={bounds}
-              cursor={placingUnit || placingDepot || moving ? "crosshair" : undefined}
-              onMapClick={
-                placingUnit
-                  ? (point) => void placeAt(point)
-                  : placingDepot
-                    ? (point) => void placeDepot(point)
-                    : moving
-                      ? chooseTarget
-                      : (point) => {
-                          const hex = grid.hexAt(point);
-                          setPinned(grid.contains(hex) ? hex : null);
-                        }
+            />
+          )}
+          <HexWarningsLayer grid={grid} warnings={warnings} visible={showGame("warnings")} />
+          <OrderOverlay
+            moves={moves}
+            reachable={
+              withinTurn
+                ? [...withinTurn.values()]
+                    .filter(({ from }) => from !== null)
+                    .map(({ hex }) => grid.corners(hex))
+                : undefined
+            }
+          />
+          <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
+          <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
+          <SightingMarkers sightings={drawnSightings} armies={armies.data ?? []} />
+          <SnapshotMarkers
+            report={reports.data?.find((r) => r.id === shownReport)}
+            armies={armies.data ?? []}
+          />
+          {shownHex && hexInfo && (
+            <HexInfoPopup
+              at={grid.centre(shownHex)}
+              info={hexInfo}
+              pinned={pinned !== null}
+              onClose={() => {
+                setPinned(null);
+              }}
+            />
+          )}
+          <UnitMarkers
+            units={onMap}
+            outOfSupply={past === null ? outOfSupply : undefined}
+            highlight={manager ? highlighted : null}
+            onSelect={(stack) => {
+              // While placing, choosing a unit (or stack) puts the new one there too.
+              if (placingUnit) {
+                void placeAt({ longitude: stack.longitude, latitude: stack.latitude });
+                return;
               }
-            >
-              {/* Mounted from the start and hidden by zoom: added later, WebKit can miss them. */}
-              {settings.layers.grid && terrain.data && (
-                <TerrainLayer
-                  grid={grid}
-                  terrain={terrain.data}
-                  show={{
-                    terrain: showGame("terrain"),
-                    roads: showGame("roads"),
-                    rivers: showGame("rivers"),
-                    towns: showGame("towns"),
-                    bridges: showGame("bridges"),
-                  }}
-                />
-              )}
-              <HexWarningsLayer grid={grid} warnings={warnings} visible={showGame("warnings")} />
-              <OrderOverlay
-                moves={moves}
-                reachable={
-                  withinTurn
-                    ? [...withinTurn.values()]
-                        .filter(({ from }) => from !== null)
-                        .map(({ hex }) => grid.corners(hex))
-                    : undefined
-                }
-              />
-              <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
-              <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
-              <SightingMarkers sightings={drawnSightings} armies={armies.data ?? []} />
-              <SnapshotMarkers
-                report={reports.data?.find((r) => r.id === shownReport)}
-                armies={armies.data ?? []}
-              />
-              {shownHex && hexInfo && (
-                <HexInfoPopup
-                  at={grid.centre(shownHex)}
-                  info={hexInfo}
-                  pinned={pinned !== null}
-                  onClose={() => {
-                    setPinned(null);
-                  }}
-                />
-              )}
-              <UnitMarkers
-                units={onMap}
-                outOfSupply={past === null ? outOfSupply : undefined}
-                highlight={manager ? highlighted : null}
-                onSelect={(stack) => {
-                  // While placing, choosing a unit (or stack) puts the new one there too.
-                  if (placingUnit) {
-                    void placeAt({ longitude: stack.longitude, latitude: stack.latitude });
-                    return;
-                  }
-                  // While placing a depot, choosing a unit (or stack) puts it in that hex.
-                  if (placingDepot) {
-                    void placeDepot({ longitude: stack.longitude, latitude: stack.latitude });
-                    return;
-                  }
-                  // While moving, choosing a unit (or stack) moves there.
-                  if (moving) {
-                    chooseTarget({ longitude: stack.longitude, latitude: stack.latitude });
-                    return;
-                  }
-                  setChosen(stack.units);
-                  setSelected(null);
-                }}
-              />
-            </CampaignMap>
-          </Box>
-        </Stack>
-      </Grid.Col>
-      <Grid.Col span={{ base: 12, md: 4 }}>
-        <Stack gap="xl">
-          {turns.data &&
-            (past !== null && turns.data.turns[past] ? (
-              <PastTurnPanel
-                turn={turns.data.turns[past]}
-                armies={armies.data ?? []}
-                armyTurns={openTurns}
-                units={units.data ?? []}
-                openTurn={turns.data.openTurn}
-                warnings={warnings}
-                threats={threats}
-                terrain={costs.terrain}
-                onBack={() => {
-                  setViewing(null);
-                }}
-              />
-            ) : setup && manager ? (
-              <SetupPanel
-                campaignId={campaignId}
-                turns={turns.data}
-                units={everyUnit.map((u) => ({
-                  ...u,
-                  placed: onMap.some((p) => p.unit.id === u.unit.id),
-                }))}
-                placing={placing}
-                onPlace={setPlacing}
-              />
-            ) : !setup && manager && openTurn ? (
-              <ReviewPanel
-                campaignId={campaignId}
-                places={afterTheOrders}
-                open={openTurn}
-                problems={turns.data.startProblems}
-                armyTurns={openTurns}
-                units={units.data ?? []}
-                review={review}
-                warnings={warnings}
-                threats={threats}
-                terrain={costs.terrain}
-              />
-            ) : !setup && commanded.length > 0 && openTurn ? (
-              <TurnPanel
-                open={openTurn}
-                commanded={commanded}
-                units={everyUnit
-                  .filter((u) => myArmies.some((a) => a.id === u.army.id))
-                  .map((u) => ({ ...u, placed: onMap.find((p) => p.unit.id === u.unit.id) }))}
-                orders={orders}
-                onChoose={(placed) => {
-                  setChosen([placed]);
-                  setSelected(null);
-                }}
-              />
-            ) : (
-              <Section title={setup ? "Setting up" : `Turn ${String(turns.data.openTurn)}`}>
-                <Text size="sm">
-                  {setup
-                    ? "The Umpire is placing the armies. Your units appear here once the campaign starts."
-                    : `${String(turns.data.turns.at(-1)?.submitted ?? 0)} of ${String(turns.data.turns.at(-1)?.armies ?? 0)} armies have submitted this turn.`}
-                </Text>
-              </Section>
-            ))}
-          <HexDetailsList campaignId={campaignId} />
-          {manager && (armies.data?.length ?? 0) > 0 && (
-            <ArmiesPanel
-              armies={armies.data ?? []}
-              onMap={onMap.reduce(
-                (counts, p) => counts.set(p.army.id, (counts.get(p.army.id) ?? 0) + 1),
-                new Map<string, number>(),
-              )}
-              highlighted={highlighted}
-              onHighlight={setHighlighted}
-            />
-          )}
-          {turns.data?.stage === "Running" && past === null && (
-            <SupplyWarnings
-              supply={supply.data}
-              units={units.data ?? []}
-              depots={depots.data ?? []}
-              armyIds={(manager ? (armies.data ?? []) : myArmies).map((a) => a.id)}
-            />
-          )}
-          <DepotsPanel
-            depots={depots.data ?? []}
-            armies={armies.data ?? []}
-            manager={manager}
-            busy={depotChanges.busy}
-            onAdd={() => {
-              setDepotForm("new");
+              // While placing a depot, choosing a unit (or stack) puts it in that hex.
+              if (placingDepot) {
+                void placeDepot({ longitude: stack.longitude, latitude: stack.latitude });
+                return;
+              }
+              // While moving, choosing a unit (or stack) moves there.
+              if (moving) {
+                chooseTarget({ longitude: stack.longitude, latitude: stack.latitude });
+                return;
+              }
+              setChosen(stack.units);
+              setSelected(null);
             }}
-            onMove={(depot) => {
-              setPlacingDepot({
-                draft: { armyId: depot.armyId, kind: depot.kind, name: depot.name ?? "" },
-                depot,
-              });
-              mapArea.current?.scrollIntoView({ block: "start" });
-            }}
-            onEdit={setDepotForm}
-            onRemove={setRemovingDepot}
           />
-          {running && !manager && myArmies.length > 0 && (
-            <IntelligencePanel
-              campaignId={campaignId}
-              reports={reports.data ?? []}
-              mine={myArmies}
-              armies={armies.data ?? []}
-              shown={shownReport}
-              onShow={setShownReport}
-            />
+        </CampaignMap>
+      </Box>
+    </Stack>
+  );
+  // What the viewer does this turn: the Umpire's review, a commander's orders, a past turn.
+  const turnPanel =
+    turns.data &&
+    (past !== null && turns.data.turns[past] ? (
+      <PastTurnPanel
+        turn={turns.data.turns[past]}
+        armies={armies.data ?? []}
+        armyTurns={openTurns}
+        units={units.data ?? []}
+        openTurn={turns.data.openTurn}
+        warnings={warnings}
+        threats={threats}
+        terrain={costs.terrain}
+        onBack={() => {
+          setViewing(null);
+        }}
+      />
+    ) : setup && manager ? (
+      <SetupPanel
+        campaignId={campaignId}
+        turns={turns.data}
+        units={everyUnit.map((u) => ({
+          ...u,
+          placed: onMap.some((p) => p.unit.id === u.unit.id),
+        }))}
+        placing={placing}
+        onPlace={setPlacing}
+      />
+    ) : !setup && manager && openTurn ? (
+      <ReviewPanel
+        campaignId={campaignId}
+        places={afterTheOrders}
+        open={openTurn}
+        problems={turns.data.startProblems}
+        armyTurns={openTurns}
+        units={units.data ?? []}
+        review={review}
+        warnings={warnings}
+        threats={threats}
+        terrain={costs.terrain}
+      />
+    ) : !setup && commanded.length > 0 && openTurn ? (
+      <TurnPanel
+        open={openTurn}
+        commanded={commanded}
+        units={everyUnit
+          .filter((u) => myArmies.some((a) => a.id === u.army.id))
+          .map((u) => ({ ...u, placed: onMap.find((p) => p.unit.id === u.unit.id) }))}
+        orders={orders}
+        onChoose={(placed) => {
+          setChosen([placed]);
+          setSelected(null);
+        }}
+      />
+    ) : (
+      <Section title={setup ? "Setting up" : `Turn ${String(turns.data.openTurn)}`}>
+        <Text size="sm">
+          {setup
+            ? "The Umpire is placing the armies. Your units appear here once the campaign starts."
+            : `${String(turns.data.turns.at(-1)?.submitted ?? 0)} of ${String(turns.data.turns.at(-1)?.armies ?? 0)} armies have submitted this turn.`}
+        </Text>
+      </Section>
+    ));
+  const otherPanels = (
+    <>
+      <HexDetailsList campaignId={campaignId} />
+      {manager && (armies.data?.length ?? 0) > 0 && (
+        <ArmiesPanel
+          armies={armies.data ?? []}
+          onMap={onMap.reduce(
+            (counts, p) => counts.set(p.army.id, (counts.get(p.army.id) ?? 0) + 1),
+            new Map<string, number>(),
           )}
-          {manager && (
-            <CouriersPanel
-              campaignId={campaignId}
-              couriers={couriers.data ?? []}
-              armies={armies.data ?? []}
-            />
-          )}
-          <SightingsPanel
-            sightings={sightings.data ?? []}
-            armies={armies.data ?? []}
-            turn={viewingTurn}
-            manager={manager}
-          />
-          {turns.data && !setup && (
-            <TurnList
-              sighted={sightedTurns}
-              turns={turns.data}
-              viewing={past ?? turns.data.openTurn}
-              onView={view}
-              manager={manager}
-            />
-          )}
-          <Section title="Legend">
-            <MapLegend umpire={manager} />
-          </Section>
-        </Stack>
-      </Grid.Col>
+          highlighted={highlighted}
+          onHighlight={setHighlighted}
+        />
+      )}
+      {turns.data?.stage === "Running" && past === null && (
+        <SupplyWarnings
+          supply={supply.data}
+          units={units.data ?? []}
+          depots={depots.data ?? []}
+          armyIds={(manager ? (armies.data ?? []) : myArmies).map((a) => a.id)}
+        />
+      )}
+      <DepotsPanel
+        depots={depots.data ?? []}
+        armies={armies.data ?? []}
+        manager={manager}
+        busy={depotChanges.busy}
+        onAdd={() => {
+          setDepotForm("new");
+        }}
+        onMove={(depot) => {
+          setPlacingDepot({
+            draft: { armyId: depot.armyId, kind: depot.kind, name: depot.name ?? "" },
+            depot,
+          });
+          mapArea.current?.scrollIntoView({ block: "start" });
+        }}
+        onEdit={setDepotForm}
+        onRemove={setRemovingDepot}
+      />
+      {running && !manager && myArmies.length > 0 && (
+        <IntelligencePanel
+          campaignId={campaignId}
+          reports={reports.data ?? []}
+          mine={myArmies}
+          armies={armies.data ?? []}
+          shown={shownReport}
+          onShow={setShownReport}
+        />
+      )}
+      {manager && (
+        <CouriersPanel
+          campaignId={campaignId}
+          couriers={couriers.data ?? []}
+          armies={armies.data ?? []}
+        />
+      )}
+      <SightingsPanel
+        sightings={sightings.data ?? []}
+        armies={armies.data ?? []}
+        turn={viewingTurn}
+        manager={manager}
+      />
+      {turns.data && !setup && (
+        <TurnList
+          sighted={sightedTurns}
+          turns={turns.data}
+          viewing={past ?? turns.data.openTurn}
+          onView={view}
+          manager={manager}
+        />
+      )}
+    </>
+  );
+  const legend = (
+    <Section title="Legend">
+      <MapLegend umpire={manager} collapsible={desktop} />
+    </Section>
+  );
+  const overlays = (
+    <>
       {depotForm && (
         <DepotFormModal
           title={depotForm === "new" ? "Add a depot" : `Edit ${depotName(depotForm)}`}
@@ -1112,6 +1113,36 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                 }
         }
       />
+    </>
+  );
+
+  // On a computer: the map with the turn panel and legend beside it, and the rest in columns
+  // beneath. On a phone or tablet: one column, the map first and the legend last.
+  return desktop ? (
+    <>
+      <Stack gap="xl">
+        <Group align="flex-start" wrap="nowrap" gap="xl">
+          <Box style={{ flex: 1, minWidth: 0 }}>{mapColumn}</Box>
+          <Stack gap="xl" className={classes.side}>
+            {turnPanel}
+            {legend}
+          </Stack>
+        </Group>
+        <div className={classes.panels}>{otherPanels}</div>
+      </Stack>
+      {overlays}
+    </>
+  ) : (
+    <Grid gap="xl">
+      <Grid.Col span={12}>{mapColumn}</Grid.Col>
+      <Grid.Col span={12}>
+        <Stack gap="xl">
+          {turnPanel}
+          {otherPanels}
+          {legend}
+        </Stack>
+      </Grid.Col>
+      {overlays}
     </Grid>
   );
 }

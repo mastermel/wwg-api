@@ -1,0 +1,31 @@
+/* On a computer: beside the map, the turn panel and legend, as tall as the map and scrolling
+   together; the width the legend had beside it before. */
+.side {
+  flex: 0 0 340px;
+  width: 340px;
+  height: calc(100dvh - 15rem);
+  min-height: 360px;
+  overflow-y: auto;
+}
+
+/* Each panel keeps its height: the column scrolls, rather than squeezing them. */
+.side > * {
+  flex-shrink: 0;
+}
+
+/* The other panels in columns under the map: two, or three on a wide screen. */
+.panels {
+  columns: 2;
+  column-gap: var(--mantine-spacing-xl);
+}
+
+.panels > * {
+  break-inside: avoid;
+  margin-bottom: var(--mantine-spacing-xl);
+}
+
+@media (min-width: 88em) {
+  .panels {
+    columns: 3;
+  }
+}

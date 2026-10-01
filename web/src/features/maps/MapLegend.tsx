@@ -1,6 +1,6 @@
-import { Group, SimpleGrid, Stack, Text, useComputedColorScheme } from "@mantine/core";
+import { Accordion, Group, SimpleGrid, Stack, Text, useComputedColorScheme } from "@mantine/core";
 import { IconBuildingWarehouse } from "@tabler/icons-react";
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import depotClasses from "@/features/maps/DepotMarkers.module.css";
 import { mapPalettes } from "@/features/maps/map-style";
 import { UnitLegend } from "@/features/units/UnitLegend";
@@ -29,23 +29,50 @@ function Item({ sample, label }: { sample: ReactNode; label: string }) {
   );
 }
 
-function LegendGroup({ title, children }: { title: string; children: ReactNode }) {
-  return (
+// Whether the legend's groups open and close (one at a time): on a computer, beside the map.
+const Collapsible = createContext(false);
+
+function LegendGroup({
+  title,
+  children,
+  list = true,
+}: {
+  title: string;
+  children: ReactNode;
+  /** Its children are list items (the default), or a list of their own. */
+  list?: boolean;
+}) {
+  const collapsible = useContext(Collapsible);
+  const content = list ? (
+    <SimpleGrid
+      cols={{ base: 2, sm: 1 }}
+      spacing={6}
+      verticalSpacing={6}
+      component="ul"
+      p={0}
+      m={0}
+      aria-label={title}
+    >
+      {children}
+    </SimpleGrid>
+  ) : (
+    children
+  );
+  return collapsible ? (
+    <Accordion.Item value={title}>
+      <Accordion.Control>
+        <Text size="sm" fw={600}>
+          {title}
+        </Text>
+      </Accordion.Control>
+      <Accordion.Panel>{content}</Accordion.Panel>
+    </Accordion.Item>
+  ) : (
     <Stack gap={6}>
       <Text size="sm" fw={600}>
         {title}
       </Text>
-      <SimpleGrid
-        cols={{ base: 2, sm: 1 }}
-        spacing={6}
-        verticalSpacing={6}
-        component="ul"
-        p={0}
-        m={0}
-        aria-label={title}
-      >
-        {children}
-      </SimpleGrid>
+      {content}
     </Stack>
   );
 }
@@ -91,16 +118,20 @@ const place = (p: Palette, radius: number, fill: string, stroke: string, strokeW
  * The map's legend (DESIGN.md §3.13): the unit symbols, and the game map's terrain, roads, rivers,
  * places and markers, drawn in the current scheme's map colours.
  */
-export function MapLegend({ umpire }: { umpire: boolean }) {
+export function MapLegend({
+  umpire,
+  collapsible = false,
+}: {
+  umpire: boolean;
+  /** Each group opens and closes, one at a time (beside the map, on a computer). */
+  collapsible?: boolean;
+}) {
   const p = mapPalettes[useComputedColorScheme("light")];
-  return (
-    <Stack gap="md">
-      <Stack gap={6}>
-        <Text size="sm" fw={600}>
-          Units
-        </Text>
+  const groups = (
+    <>
+      <LegendGroup title="Units" list={false}>
         <UnitLegend />
-      </Stack>
+      </LegendGroup>
       <LegendGroup title="Terrain">
         <Item sample={hex(p, p.land, 0)} label="Flat" />
         <Item sample={hex(p, p.lowHill, 0.45)} label="Low hills" />
@@ -196,6 +227,17 @@ export function MapLegend({ umpire }: { umpire: boolean }) {
           />
         )}
       </LegendGroup>
-    </Stack>
+    </>
+  );
+  return (
+    <Collapsible.Provider value={collapsible}>
+      {collapsible ? (
+        <Accordion defaultValue="Units" variant="filled" chevronPosition="right">
+          {groups}
+        </Accordion>
+      ) : (
+        <Stack gap="md">{groups}</Stack>
+      )}
+    </Collapsible.Provider>
   );
 }
