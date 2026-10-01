@@ -2491,8 +2491,21 @@ build on positions.
       march count in its drawer (its commander and the Umpire) and its points history (everyone);
       starting the next turn lists the attrition due, each loss editable, and sends what the
       Umpire confirms (`StartTurnModal`).
-48. **Supply:** depots per side, supply lines along roads and rivers, cut by 5 or more enemy
-    points in a hex on them, six turns' grace, then attrition; the exempt units.
+48. **Supply** (decision 0019), in parts:
+    - **48a. Depots:** each army's depots (main or intermediate, in a hex), which the Umpire
+      places, moves, captures and destroys; shown on the map to the army's commander and the
+      Umpire, who's warned when enemy units end a turn in a depot's hex.
+    - **48b. Supply settings and living off the land:** on the campaign's edit page, the supply
+      reach (0–3 hexes, 1 by default), the exempt unit types, and the nations that may live off
+      the land (France by default); `UnitOrder.LivesOffTheLand`, set with a unit's order; a
+      side's hex with a unit living off the land held to half the concentration limits.
+    - **48c. Supply (API):** each unit's supply turn by turn: routes by road and waterway from its
+      army's depots, cut by 5+ enemy points unless its side has twice as many there, within the
+      reach; intermediate depots by their own route to a main one, and for 15 turns after; the
+      turns in a row unsupplied; for its commander and the Umpire.
+    - **48d. Supply's attrition, in the app:** from the 7th unsupplied turn, normal attrition (a
+      forced march's doubled) in the list the Umpire confirms; supply on the map and in the unit
+      drawer, and living off the land with the unit's order.
 49. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants
     planned in §5.2), general reports rather than detail, screening by light troops, scouting
     parties' rolls, spies.
