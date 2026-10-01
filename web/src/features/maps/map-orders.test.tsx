@@ -409,6 +409,41 @@ describe("a commander's turn", () => {
     expect(screen.queryByRole("switch", { name: /Living off the land/ })).not.toBeInTheDocument();
   });
 
+  it("warns that the orders leave a unit out of supply, and says so in its drawer", async () => {
+    serveCommander(draft());
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/supply`, () =>
+        HttpResponse.json({
+          units: [
+            {
+              unitId,
+              armyId,
+              state: "Unsupplied",
+              depotId: null,
+              unsuppliedTurns: 6,
+              nextState: "Unsupplied",
+              nextUnsuppliedTurns: 7,
+            },
+          ],
+          depots: [],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    const warnings = await screen.findByRole("list", { name: "Supply" });
+    expect(warnings).toHaveTextContent(
+      "Imperial Guard: out of supply after this turn (its 7th turn: attrition).",
+    );
+    await user.click(screen.getByRole("button", { name: "Imperial Guard" }));
+    expect(
+      await within(await screen.findByRole("dialog")).findByText(
+        "Out of supply: 6 turns (attrition from the 7th); still after this turn's orders.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("takes an order back", async () => {
     const requests = serveCommander(draft({ orders: [hold] }));
     const user = userEvent.setup();

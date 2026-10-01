@@ -287,6 +287,72 @@ public sealed class SupplyTests : ApiTest
         );
     }
 
+    [Fact]
+    public async Task ListAttritionDue_SixTurnsOutOfSupply_IsNothingYet()
+    {
+        using var scenario = await StartedAsync();
+        await DepotAsync(scenario, DepotHex);
+
+        await TurnSteps.PlayAsync(scenario, "hold", "hold", "hold", "hold", "hold");
+
+        Assert.Empty(await TurnSteps.AttritionDueAsync(scenario));
+    }
+
+    [Fact]
+    public async Task ListAttritionDue_TheSeventhTurnOutOfSupply_IsNormalAttrition()
+    {
+        using var scenario = await StartedAsync();
+        await DepotAsync(scenario, DepotHex);
+
+        await TurnSteps.PlayAsync(scenario, "hold", "hold", "hold", "hold", "hold", "hold");
+        var due = Assert.Single(await TurnSteps.AttritionDueAsync(scenario));
+
+        Assert.Equal((7, 0, 1), (due.UnsuppliedTurns, due.ForcedMarchMultiplier, due.Multiplier));
+    }
+
+    [Fact]
+    public async Task ListAttritionDue_AForcedMarchOutOfSupply_IsDoubled()
+    {
+        using var scenario = await StartedAsync();
+        await DepotAsync(scenario, DepotHex);
+        await TurnSteps.PlayAsync(scenario, "move", "move", "move");
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        var there =
+            await TurnSteps.HereAsync(scenario) == TurnSteps.Start
+                ? new Hex(1, 0)
+                : TurnSteps.Start;
+
+        using var moved = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Move(there));
+        var due = Assert.Single(await TurnSteps.AttritionDueAsync(scenario));
+
+        Assert.Equal(
+            (2, 4, 2),
+            (due.ForcedMarchTurns, due.UnsuppliedTurns, due.ForcedMarchMultiplier)
+        );
+    }
+
+    [Fact]
+    public async Task StartNextTurn_SupplysAttrition_SaysSoInTheHistory()
+    {
+        using var scenario = await StartedAsync();
+        await DepotAsync(scenario, DepotHex);
+        await TurnSteps.PlayAsync(scenario, "hold", "hold", "hold", "hold", "hold", "hold");
+        await TurnSteps.CompletedAsync(scenario);
+
+        using var started = await TurnSteps.StartNextTurnAsync(
+            scenario,
+            request: new([new AttritionLossRequest(scenario.UnitId, 1)])
+        );
+        started.EnsureSuccessStatusCode();
+        var history = await scenario
+            .As(Role.Player)
+            .GetAsAsync<List<Wwg.Api.Features.ArmyUnits.PointsChangeResponse>>(
+                $"/api/army-units/{scenario.UnitId}/points"
+            );
+
+        Assert.Equal("Out of supply, turn 7", Assert.Single(history!).Note);
+    }
+
     [Theory]
     [InlineData(Role.Umpire, 1)]
     [InlineData(Role.Commander, 1)]

@@ -191,7 +191,14 @@ public sealed record UnitMarchResponse(
 /// <param name="FightingFactor">Its Fighting Factor, which sets the rules' scale.</param>
 /// <param name="Points">Its points now.</param>
 /// <param name="ForcedMarchTurns">Its turns of forced march, this one included.</param>
-/// <param name="Multiplier">This turn's multiple of the scale: 1, 2, 4…</param>
+/// <param name="ForcedMarchMultiplier">
+/// Its forced march's multiple of the scale (1, 2, 4…; doubled out of supply), or 0.
+/// </param>
+/// <param name="UnsuppliedTurns">Its turns in a row out of supply, this one included, or 0.</param>
+/// <param name="Multiplier">
+/// This turn's whole multiple of the scale: the forced march's, and 1 more from the 7th turn out of
+/// supply.
+/// </param>
 /// <param name="Loss">The whole points it loses (what it carries of a point adds in).</param>
 public sealed record AttritionDueResponse(
     Guid UnitId,
@@ -200,6 +207,8 @@ public sealed record AttritionDueResponse(
     int FightingFactor,
     int Points,
     int ForcedMarchTurns,
+    int ForcedMarchMultiplier,
+    int UnsuppliedTurns,
     int Multiplier,
     int Loss
 );

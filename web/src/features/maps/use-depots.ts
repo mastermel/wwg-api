@@ -1,6 +1,7 @@
 import { notifications } from "@mantine/notifications";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  getGetSupplyQueryKey,
   getListDepotsQueryKey,
   useCreateDepot,
   useDeleteDepot,
@@ -31,7 +32,11 @@ export function useDepots(campaignId: string) {
       notifications.show({ color: "red", message: errorMessage(error, failed) });
       return false;
     } finally {
-      await queryClient.invalidateQueries({ queryKey: getListDepotsQueryKey(campaignId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getListDepotsQueryKey(campaignId) }),
+        // Supply follows the depots (step 48).
+        queryClient.invalidateQueries({ queryKey: getGetSupplyQueryKey(campaignId) }),
+      ]);
     }
   };
 

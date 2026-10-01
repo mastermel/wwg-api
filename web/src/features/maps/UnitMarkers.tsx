@@ -10,6 +10,8 @@ interface UnitMarkersProps {
   onSelect: (stack: UnitStack) => void;
   /** An army to pick out: stacks without any of its units are faded. */
   highlight?: string | null;
+  /** Units out of supply (step 48d), marked as such, for those who see their supply. */
+  outOfSupply?: ReadonlySet<string>;
 }
 
 /**
@@ -17,7 +19,7 @@ interface UnitMarkersProps {
  * shows how many and opens the list to choose from (DESIGN.md §3.13). Restacked as the zoom
  * changes. Inside a CampaignMap.
  */
-export function UnitMarkers({ units, onSelect, highlight }: UnitMarkersProps) {
+export function UnitMarkers({ units, onSelect, highlight, outOfSupply }: UnitMarkersProps) {
   const { current: map } = useMap();
   const [stacks, setStacks] = useState<UnitStack[]>([]);
 
@@ -38,10 +40,16 @@ export function UnitMarkers({ units, onSelect, highlight }: UnitMarkersProps) {
   return stacks.map((stack) => {
     const [top, ...under] = stack.units as [PlacedUnit, ...PlacedUnit[]];
     const next = under.at(0);
+    const cutOff = stack.units.filter((u) => outOfSupply?.has(u.unit.id));
     const label =
-      under.length === 0
+      (under.length === 0
         ? describeUnit(top)
-        : `${String(stack.units.length)} units: ${stack.units.map((u) => u.unit.name).join(", ")}`;
+        : `${String(stack.units.length)} units: ${stack.units.map((u) => u.unit.name).join(", ")}`) +
+      (cutOff.length === 0
+        ? ""
+        : under.length === 0
+          ? ", out of supply"
+          : `; out of supply: ${cutOff.map((u) => u.unit.name).join(", ")}`);
     return (
       <Marker
         key={stack.key}
@@ -70,6 +78,11 @@ export function UnitMarkers({ units, onSelect, highlight }: UnitMarkersProps) {
           <span style={{ position: "relative", display: "block" }}>
             <UnitSymbol type={top.unit.type} color={armyColorVar(top.army.color)} width={30} />
           </span>
+          {cutOff.length > 0 && (
+            <span className={classes.supply} aria-hidden>
+              !
+            </span>
+          )}
           {under.length > 0 && (
             <span className={classes.count} aria-hidden>
               {stack.units.length}

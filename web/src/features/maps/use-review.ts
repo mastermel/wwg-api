@@ -12,6 +12,7 @@ import type {
   AttritionLossRequest,
   ReviewTurnRequest,
 } from "@/api/generated/model";
+import { getGetSupplyQueryKey } from "@/api/generated/endpoints/supply/supply";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
 
@@ -32,6 +33,7 @@ export function useReview(campaignId: string) {
   const refresh = () =>
     Promise.all([
       refreshCampaign(queryClient, campaignId),
+      queryClient.invalidateQueries({ queryKey: getGetSupplyQueryKey(campaignId) }),
       // Every army's turns and marches, and every unit's points history: they're keyed by the
       // army or unit, which refreshCampaign doesn't reach.
       queryClient.invalidateQueries({

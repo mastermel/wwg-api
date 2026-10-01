@@ -2512,9 +2512,12 @@ build on positions.
       depots). Counted as each turn closes (`ArmyUnit.UnsuppliedTurns`: turns closing reopen
       nothing, so it's stored, not replayed). `GET /api/campaigns/{id}/supply`: each unit's as the
       open turn began and by its orders as given, for its commander and the Umpire.
-    - **48d. Supply's attrition, in the app:** from the 7th unsupplied turn, normal attrition (a
-      forced march's doubled) in the list the Umpire confirms; supply on the map and in the unit
-      drawer, and living off the land with the unit's order.
+    - ✅ **48d. Supply's attrition, in the app:** from the 7th unsupplied turn, normal attrition, and
+      a forced march's doubled while out of supply, in the list the Umpire confirms (the attrition
+      list's `forcedMarchMultiplier` and `unsuppliedTurns`; the history's note says which); a red
+      mark on units out of supply on the map, their supply in the unit drawer, and the turn panel's
+      **Supply** warnings (units the orders leave out of supply, intermediate depots cut off), for
+      the army's commander and the Umpire.
 49. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants
     planned in §5.2), general reports rather than detail, screening by light troops, scouting
     parties' rolls, spies.

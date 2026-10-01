@@ -281,6 +281,8 @@ describe("the Umpire's turn", () => {
             fightingFactor: 6,
             points: 30,
             forcedMarchTurns: 3,
+            forcedMarchMultiplier: 2,
+            unsuppliedTurns: 0,
             multiplier: 2,
             loss: 1,
           },

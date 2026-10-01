@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Supply;
 
 namespace Wwg.Api.Features.Turns;
 
 /// <summary>
-/// Attrition (the rules, §F; decision 0018): points lost to forced marches, by Fighting Factor,
+/// Attrition (the rules, §F; decisions 0018 and 0019): points lost to forced marches and to
+/// being out of supply, by Fighting Factor,
 /// for about two battalions (50 points), more for larger units and less for smaller.
 /// </summary>
 internal static class Attrition
@@ -42,9 +44,19 @@ internal static class Attrition
         return (Math.Min(whole, points), Math.Max(0, owed - whole));
     }
 
+    /// <summary>What a unit owes this turn, and why.</summary>
+    private sealed record Owing(
+        int ForcedMarchTurns,
+        int ForcedMarchMultiplier,
+        int UnsuppliedTurns,
+        int SupplyMultiplier
+    );
+
     /// <summary>
     /// The attrition the open turn's orders cost each unit that owes any, by army then name: what
-    /// starting the next turn needs the Umpire to confirm.
+    /// starting the next turn needs the Umpire to confirm. Forced marches (decision 0018), doubled
+    /// out of supply; and from a unit's 7th turn in a row out of supply, normal attrition besides
+    /// (decision 0019).
     /// </summary>
     public static async Task<List<AttritionDueResponse>> DueAsync(
         WwgDbContext db,
@@ -53,12 +65,24 @@ internal static class Attrition
     )
     {
         var (before, open) = await Marches.LoadAsync(db, campaignId, null, cancellationToken);
-        var owing = open
-            .Values.Select(order =>
-                (order.UnitId, State: before[order.UnitId].After(order.Moved, order.ForceMarch))
-            )
-            .Where(o => o.State.Multiplier > 0)
-            .ToDictionary(o => o.UnitId, o => o.State);
+        var supply = await SupplyData.LoadAsync(db, campaignId, cancellationToken);
+        var owing = new Dictionary<Guid, Owing>();
+        foreach (var (id, unit) in supply.Units)
+        {
+            // Without an order it rests: no forced march.
+            var march = open.TryGetValue(id, out var order)
+                ? before[id].After(order.Moved, order.ForceMarch)
+                : MarchState.Rested;
+            var unsupplied = supply.Next.GetValueOrDefault(id)?.State == SupplyState.Unsupplied;
+            var turnsOut = unsupplied ? unit.UnsuppliedTurns + 1 : 0;
+            var forced = march.Multiplier * (unsupplied ? 2 : 1);
+            var cutOff = turnsOut > SupplyLines.GraceTurns ? 1 : 0;
+            if (forced + cutOff > 0)
+            {
+                owing[id] = new(march.ForcedMarchTurns, forced, turnsOut, cutOff);
+            }
+        }
+
         var ids = owing.Keys.ToList();
         var units = await db
             .ArmyUnits.AsNoTracking()
@@ -81,26 +105,46 @@ internal static class Attrition
         [
             .. units.Select(u =>
             {
-                var state = owing[u.Id];
-                var (loss, _) = Owed(
-                    u.FightingFactor,
-                    u.Points,
-                    state.Multiplier,
-                    u.AttritionCarry
-                );
+                var owed = owing[u.Id];
+                var multiplier = owed.ForcedMarchMultiplier + owed.SupplyMultiplier;
+                var (loss, _) = Owed(u.FightingFactor, u.Points, multiplier, u.AttritionCarry);
                 return new AttritionDueResponse(
                     u.Id,
                     u.ArmyId,
                     u.Name,
                     u.FightingFactor,
                     u.Points,
-                    state.ForcedMarchTurns,
-                    state.Multiplier,
+                    owed.ForcedMarchTurns,
+                    owed.ForcedMarchMultiplier,
+                    owed.UnsuppliedTurns,
+                    multiplier,
                     loss
                 );
             }),
         ];
     }
+
+    /// <summary>Why a unit loses points, for its history: "Forced march, ×2; out of supply, turn 7".</summary>
+    private static string NoteOf(AttritionDueResponse owed) =>
+        string.Join(
+            "; ",
+            new[]
+            {
+                owed.ForcedMarchMultiplier switch
+                {
+                    0 => null,
+                    1 => "Forced march",
+                    var times => $"Forced march, ×{times}",
+                },
+                owed.UnsuppliedTurns > SupplyLines.GraceTurns
+                    ? $"out of supply, turn {owed.UnsuppliedTurns}"
+                    : null,
+            }.Where(part => part is not null)
+        )
+            is var note
+        && note.Length > 0
+            ? char.ToUpperInvariant(note[0]) + note[1..]
+            : "Attrition";
 
     /// <summary>
     /// Applies the losses the Umpire confirmed for the closing turn (not saved), or says why they
@@ -158,10 +202,7 @@ internal static class Attrition
                         Change = -loss,
                         PointsAfter = unit.Points,
                         Reason = PointsChangeReason.Attrition,
-                        Note =
-                            owed.Multiplier == 1
-                                ? "Forced march"
-                                : $"Forced march, ×{owed.Multiplier}",
+                        Note = NoteOf(owed),
                         ByUserId = byUserId,
                     }
                 );

@@ -22,6 +22,8 @@ interface UnitDrawerProps {
   actions?: (unit: PlacedUnit) => ReactNode;
   /** Whether the viewer follows the unit's moves, and so its forced marches (step 47). */
   showsMarches?: (unit: PlacedUnit) => boolean;
+  /** The unit's supply in words (step 48), for those who see it. */
+  supplyOf?: (unit: PlacedUnit) => string | undefined;
 }
 
 /**
@@ -35,7 +37,9 @@ export function UnitDrawer({
   onClose,
   actions,
   showsMarches,
+  supplyOf,
 }: UnitDrawerProps) {
+  const supply = (unit: PlacedUnit) => supplyOf?.(unit);
   const phone = useMediaQuery("(max-width: 48em)");
   const shown = selected ?? (units.length === 1 ? units[0] : undefined);
 
@@ -82,6 +86,12 @@ export function UnitDrawer({
                 </Table.Tr>
               )}
               {showsMarches?.(shown) && <MarchRow armyId={shown.army.id} unitId={shown.unit.id} />}
+              {supply(shown) && (
+                <Table.Tr>
+                  <Table.Th>Supply</Table.Th>
+                  <Table.Td>{supply(shown)}</Table.Td>
+                </Table.Tr>
+              )}
             </Table.Tbody>
           </Table>
           <UnitPointsHistory unitId={shown.unit.id} />

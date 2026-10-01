@@ -58,6 +58,9 @@ internal sealed record UnitSupply(SupplyState State, Guid? DepotId);
 /// </summary>
 internal static class SupplyLines
 {
+    /// <summary>Turns out of supply before attrition starts (§G.4): it's from the 7th.</summary>
+    public const int GraceTurns = 6;
+
     /// <summary>The fewest enemy points in a hex that cut a route through it (§G.3).</summary>
     public const int CuttingPoints = 5;
 

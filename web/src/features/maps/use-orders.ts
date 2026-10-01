@@ -9,6 +9,7 @@ import {
   useUndoOrder,
 } from "@/api/generated/endpoints/turns/turns";
 import type { ArmySummary, ArmyTurnDetails, GiveOrderRequest } from "@/api/generated/model";
+import { getGetSupplyQueryKey } from "@/api/generated/endpoints/supply/supply";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
 
@@ -63,6 +64,8 @@ export function useOrders(campaignId: string) {
         queryClient.invalidateQueries({ queryKey: getListArmyTurnsQueryKey(armyId) }),
         // What its units' orders cost in forced marches (step 47).
         queryClient.invalidateQueries({ queryKey: getListMarchesQueryKey(armyId) }),
+        // Where its orders leave its units' supply (step 48).
+        queryClient.invalidateQueries({ queryKey: getGetSupplyQueryKey(campaignId) }),
       ]);
     }
   };

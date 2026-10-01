@@ -112,6 +112,10 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   `ListMarches`); the Umpire confirms attrition in `StartTurnModal`; a unit's points history is
   `UnitPointsHistory`. `useReview` refreshes every army's marches and every unit's history after a
   change, `useOrders` the army's marches.
+- Supply (step 48, decision 0019): depots are `DepotsPanel`, `DepotMarkers` and `use-depots.ts`;
+  each unit's supply is the API's (`useGetSupply`), worded by `supply.ts` (`describeSupply`) and
+  warned of by `SupplyWarnings`; living off the land is the drawer's switch, kept on every new
+  order (`livingOffTheLand` in `MapPage`). The settings are `SupplySection` on the edit page.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

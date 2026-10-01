@@ -27,7 +27,11 @@ import {
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
 import { useListCampaignUnits } from "@/api/generated/endpoints/army-units/army-units";
-import { useGetSupplySettings, useListDepots } from "@/api/generated/endpoints/supply/supply";
+import {
+  useGetSupply,
+  useGetSupplySettings,
+  useListDepots,
+} from "@/api/generated/endpoints/supply/supply";
 import type {
   CampaignMapResponse,
   DepotResponse,
@@ -48,6 +52,8 @@ import { ArmiesPanel } from "@/features/maps/ArmiesPanel";
 import { DepotFormModal, type DepotDraft } from "@/features/maps/DepotFormModal";
 import { DepotMarkers } from "@/features/maps/DepotMarkers";
 import { DepotsPanel } from "@/features/maps/DepotsPanel";
+import { describeSupply } from "@/features/maps/supply";
+import { SupplyWarnings } from "@/features/maps/SupplyWarnings";
 import { depotName, useDepots } from "@/features/maps/use-depots";
 import { CampaignMap } from "@/features/maps/CampaignMap";
 import { afterOrders, depotThreats, hexWarnings } from "@/features/maps/contact";
@@ -258,6 +264,17 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   // Depots (step 48a): those the viewer may see, and the Umpire placing, moving or changing one.
   const depots = useListDepots(campaignId, live);
   const supplySettings = useGetSupplySettings(campaignId, live);
+  // Supply (step 48): the viewer's armies' (the Umpire's, every army's), once running.
+  const supply = useGetSupply(campaignId, {
+    query: { meta: { persist: false }, enabled: turns.data?.stage === "Running" },
+  });
+  const outOfSupply = useMemo(
+    () =>
+      new Set(
+        (supply.data?.units ?? []).filter((s) => s.state === "Unsupplied").map((s) => s.unitId),
+      ),
+    [supply.data],
+  );
   const depotChanges = useDepots(campaignId);
   const [placingDepot, setPlacingDepot] = useState<{
     draft: DepotDraft;
@@ -701,6 +718,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
               <UnitMarkers
                 units={onMap}
+                outOfSupply={past === null ? outOfSupply : undefined}
                 highlight={manager ? highlighted : null}
                 onSelect={(stack) => {
                   // While placing, choosing a unit (or stack) puts the new one there too.
@@ -800,6 +818,14 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               onHighlight={setHighlighted}
             />
           )}
+          {turns.data?.stage === "Running" && past === null && (
+            <SupplyWarnings
+              supply={supply.data}
+              units={units.data ?? []}
+              depots={depots.data ?? []}
+              armyIds={(manager ? (armies.data ?? []) : myArmies).map((a) => a.id)}
+            />
+          )}
           <DepotsPanel
             depots={depots.data ?? []}
             armies={armies.data ?? []}
@@ -887,6 +913,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         onSelect={setSelected}
         onClose={closeDrawer}
         showsMarches={(unit) => manager || myArmies.some((a) => a.id === unit.army.id)}
+        supplyOf={(unit) => {
+          const found = supply.data?.units.find((s) => s.unitId === unit.unit.id);
+          return found && past === null ? describeSupply(found, depots.data ?? []) : undefined;
+        }}
         actions={
           past !== null
             ? undefined

@@ -17,6 +17,25 @@ import type {
   AttritionLossRequest,
 } from "@/api/generated/model";
 import { attritionInWords, forcedMarchTurn } from "@/features/maps/marches";
+import { graceTurns } from "@/features/maps/supply";
+
+/**
+ * Why a unit owes attrition, in words: its forced march (doubled out of supply), and from its 7th
+ * turn out of supply, that too (steps 47 and 48).
+ */
+function whyItOwes(d: AttritionDueResponse) {
+  const out = d.unsuppliedTurns > 0;
+  return [
+    d.forcedMarchMultiplier > 0
+      ? `${forcedMarchTurn(d.forcedMarchTurns)}, ${attritionInWords(d.forcedMarchMultiplier) ?? ""}${out ? " (doubled: out of supply)" : ""}`
+      : null,
+    d.unsuppliedTurns > graceTurns
+      ? `out of supply ${String(d.unsuppliedTurns)} turns, normal attrition`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
 
 interface StartTurnModalProps {
   campaignId: string;
@@ -126,8 +145,7 @@ function AttritionForm({
                     </Text>
                     <Text size="xs" c="dimmed">
                       {armies.find((a) => a.id === d.armyId)?.name ?? "An army"}: FF{" "}
-                      {d.fightingFactor}, {d.points} points; {forcedMarchTurn(d.forcedMarchTurns)},{" "}
-                      {attritionInWords(d.multiplier)}.
+                      {d.fightingFactor}, {d.points} points; {whyItOwes(d)}.
                     </Text>
                   </Table.Td>
                   <Table.Td>
