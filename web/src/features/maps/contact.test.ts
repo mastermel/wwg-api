@@ -101,6 +101,7 @@ describe("hexWarnings", () => {
     );
 
     expect(warning).toMatchObject({ contact: false, infantryLimit: 200 });
+    expect(warning.sides[0]).toMatchObject({ infantryLimit: 200, offTheLand: false });
     expect(describeWarning(warning)).toEqual(["Coalition has 210 points of infantry, over 200."]);
   });
 
@@ -140,6 +141,28 @@ describe("hexWarnings", () => {
     ).toEqual(["French Empire has 401 points of infantry, over 400 (doubled here)."]);
   });
 
+  it("halves a side's limits in a hex where any of its units lives off the land", () => {
+    const living = { ...unit(napoleon, 60, "HeavyCavalry"), livesOffTheLand: true };
+    const [warning] = hexWarnings([unit(napoleon, 110), living], usual, open);
+
+    expect(describeWarning(warning)).toEqual([
+      "French Empire has 110 points of infantry, over 100 (halved: living off the land).",
+    ]);
+    // The other side in the hex keeps its full limits.
+    expect(hexWarnings([unit(wellington, 150)], usual, open)).toEqual([]);
+  });
+
+  it("carries a unit's living off the land with its order", () => {
+    const moving = unit(napoleon, 150);
+    const [warning] = hexWarnings(
+      afterOrders([moving], [{ unitId: moving.unit.id, q: 0, r: 0, livesOffTheLand: true }]),
+      usual,
+      open,
+    );
+
+    expect(warning.sides[0]?.offTheLand).toBe(true);
+  });
+
   it("lists the hexes north to south, then west to east", () => {
     const at = (q: number, r: number) => [
       unit(wellington, 1, "LineInfantry", { q, r }),
@@ -161,7 +184,10 @@ describe("afterOrders", () => {
     const moving = unit(napoleon, 20);
     const still = unit(wellington, 20, "LineInfantry", { q: 2, r: 0 });
 
-    const after = afterOrders([moving, still], [{ unitId: moving.unit.id, q: 2, r: 0 }]);
+    const after = afterOrders(
+      [moving, still],
+      [{ unitId: moving.unit.id, q: 2, r: 0, livesOffTheLand: false }],
+    );
 
     expect(hexWarnings(after, usual, open)).toMatchObject([{ hex: { q: 2, r: 0 }, contact: true }]);
   });

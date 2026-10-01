@@ -12,6 +12,8 @@ export interface PlacedUnit {
   longitude: number;
   /** Part of the way into the next hex, from its last move (step 44). */
   headingInto?: HeadingInto;
+  /** It lived off the land in the turn its position is after (step 48b). */
+  livesOffTheLand?: boolean;
 }
 
 /** Units drawn as one marker: those that would overlap at the current zoom. */

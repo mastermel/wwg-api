@@ -99,6 +99,7 @@ const hold: UnitPosition = {
   byUmpire: false,
   progress: null,
   forceMarch: false,
+  livesOffTheLand: false,
   q: 0,
   r: 0,
   path: [],
@@ -225,6 +226,7 @@ describe("a commander's turn", () => {
             byUmpire: false,
             progress: null,
             forceMarch: false,
+            livesOffTheLand: false,
           },
         ],
       }),
@@ -256,7 +258,7 @@ describe("a commander's turn", () => {
       {
         method: "PUT",
         url: `/api/army-turns/${turnId}/orders/${unitId}`,
-        body: { kind: "Hold", path: null },
+        body: { kind: "Hold", path: null, livesOffTheLand: false },
       },
     ]);
   });
@@ -280,7 +282,7 @@ describe("a commander's turn", () => {
       {
         method: "PUT",
         url: `/api/army-turns/${turnId}/orders/${unitId}`,
-        body: { kind: "Move", path: [{ q: 0, r: -1 }], forceMarch: false },
+        body: { kind: "Move", path: [{ q: 0, r: -1 }], forceMarch: false, livesOffTheLand: false },
       },
     ]);
     expect(screen.queryByText(/to here\?/)).not.toBeInTheDocument();
@@ -349,6 +351,62 @@ describe("a commander's turn", () => {
         body: expect.objectContaining({ kind: "Move", forceMarch: true }) as unknown,
       }),
     ]);
+  });
+
+  it("lets a French unit live off the land, keeping its order", async () => {
+    const requests = serveCommander(draft());
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/supply-settings`, () =>
+        HttpResponse.json({ reach: 1, exemptTypes: [], offTheLandNations: ["France"] }),
+      ),
+      http.get(`*/api/campaigns/${campaignId}/units`, () =>
+        HttpResponse.json([
+          {
+            id: unitId,
+            armyId,
+            unitId: "l",
+            factionId: "f",
+            nation: "France",
+            name: "Imperial Guard",
+            type: "LineInfantry",
+            fightingFactor: 6,
+            points: 30,
+          },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("switch", {
+        name: /Living off the land/,
+      }),
+    );
+
+    expect(await screen.findByText("Imperial Guard will live off the land.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      expect.objectContaining({
+        body: { kind: "Hold", path: null, livesOffTheLand: true },
+      }),
+    ]);
+  });
+
+  it("offers living off the land only to units whose nation may", async () => {
+    serveCommander(draft());
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/supply-settings`, () =>
+        HttpResponse.json({ reach: 1, exemptTypes: [], offTheLandNations: ["Spain"] }),
+      ),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: /Living off the land/ })).not.toBeInTheDocument();
   });
 
   it("takes an order back", async () => {

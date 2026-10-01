@@ -174,7 +174,8 @@ internal static class TurnEndpoints
                 o.Path,
                 o.ByUmpire,
                 o.Progress,
-                o.ForceMarch
+                o.ForceMarch,
+                o.LivesOffTheLand
             ))
             .ToListAsync(cancellationToken);
         // Orders need a grid; without an area there are none.

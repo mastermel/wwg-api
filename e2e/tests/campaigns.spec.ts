@@ -114,3 +114,18 @@ test("the Umpire sets the concentration limits, and which unit types count", asy
     "Free (counted towards neither): Siege Artillery, Boat.",
   );
 });
+
+test("the Umpire sets the supply reach, kept for next time", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Waterloo 1815");
+  const page = umpire.page;
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+
+  const supply = page.getByRole("region", { name: "Supply" });
+  await supply.getByRole("textbox", { name: /Supply reach/ }).fill("2");
+  await supply.getByRole("button", { name: "Save supply" }).click();
+  await expect(page.getByText("Saved the supply settings.")).toBeVisible();
+
+  await page.reload();
+  await expect(supply.getByRole("textbox", { name: /Supply reach/ })).toHaveValue("2");
+});

@@ -100,6 +100,12 @@ internal sealed class UnitOrder : Entity
     /// towards the unit's forced marches, as moving turns in a row do.
     /// </summary>
     public bool ForceMarch { get; set; }
+
+    /// <summary>
+    /// The unit lives off the land this turn (decision 0019): it can't be out of supply, and its
+    /// side's hex is held to half the concentration limits.
+    /// </summary>
+    public bool LivesOffTheLand { get; set; }
 }
 
 /// <summary>What happened to an army's turn.</summary>

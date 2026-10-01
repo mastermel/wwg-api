@@ -19,6 +19,8 @@ export interface UnitInHex {
   unit: ArmyUnitResponse;
   army: ArmySummary;
   hex: Hex;
+  /** It lives off the land this turn (step 48b): its side's hex is held to half the limits. */
+  livesOffTheLand?: boolean;
 }
 
 /** A side's counted points in a hex, and whether they're over the hex's limits. */
@@ -26,6 +28,10 @@ export interface SideInHex {
   side: ArmySide;
   infantry: number;
   cavalry: number;
+  /** Its limits here: the hex's, halved if any of its units there lives off the land. */
+  infantryLimit: number;
+  cavalryLimit: number;
+  offTheLand: boolean;
   overInfantry: boolean;
   overCavalry: boolean;
 }
@@ -37,7 +43,7 @@ export interface HexWarning {
   contact: boolean;
   /** Each side in it, by name. */
   sides: SideInHex[];
-  /** Its limits, doubled in a City or a fortress. */
+  /** Its limits, doubled in a City or a fortress (each side's may be halved: `SideInHex`). */
   infantryLimit: number;
   cavalryLimit: number;
   doubled: boolean;
@@ -50,7 +56,7 @@ export function hexWarnings(
   terrain: TerrainIndex,
 ): HexWarning[] {
   const byHex = new Map<string, { hex: Hex; sides: Map<string, SideInHex> }>();
-  for (const { unit, army, hex } of units) {
+  for (const { unit, army, hex, livesOffTheLand } of units) {
     const key = hexKey(hex);
     const entry = byHex.get(key) ?? { hex, sides: new Map<string, SideInHex>() };
     byHex.set(key, entry);
@@ -58,10 +64,14 @@ export function hexWarnings(
       side: army.side,
       infantry: 0,
       cavalry: 0,
+      infantryLimit: 0,
+      cavalryLimit: 0,
+      offTheLand: false,
       overInfantry: false,
       overCavalry: false,
     };
     entry.sides.set(army.side.id, side);
+    if (livesOffTheLand) side.offTheLand = true;
     if (settings.infantryTypes.includes(unit.type)) side.infantry += unit.points;
     if (settings.cavalryTypes.includes(unit.type)) side.cavalry += unit.points;
   }
@@ -75,11 +85,19 @@ export function hexWarnings(
     const cavalryLimit = settings.cavalryLimit * (doubled ? 2 : 1);
     const inHex = [...sides.values()]
       .sort((x, y) => x.side.name.localeCompare(y.side.name))
-      .map((side) => ({
-        ...side,
-        overInfantry: side.infantry > infantryLimit,
-        overCavalry: side.cavalry > cavalryLimit,
-      }));
+      .map((side) => {
+        // Living off the land, a side must spread out: half the limits (decision 0019).
+        const share = side.offTheLand ? 0.5 : 1;
+        const sideInfantry = infantryLimit * share;
+        const sideCavalry = cavalryLimit * share;
+        return {
+          ...side,
+          infantryLimit: sideInfantry,
+          cavalryLimit: sideCavalry,
+          overInfantry: side.infantry > sideInfantry,
+          overCavalry: side.cavalry > sideCavalry,
+        };
+      });
     const contact = inHex.length > 1;
     if (contact || inHex.some((side) => side.overInfantry || side.overCavalry)) {
       warnings.push({ hex, contact, sides: inHex, infantryLimit, cavalryLimit, doubled });
@@ -91,11 +109,13 @@ export function hexWarnings(
 /** Where the units will be once the orders as given are carried out: each one's order, or still. */
 export function afterOrders<T extends UnitInHex>(
   units: readonly T[],
-  orders: readonly { unitId: string; q: number; r: number }[],
+  orders: readonly { unitId: string; q: number; r: number; livesOffTheLand: boolean }[],
 ): T[] {
   return units.map((placed) => {
     const order = orders.find((o) => o.unitId === placed.unit.id);
-    return order ? { ...placed, hex: { q: order.q, r: order.r } } : placed;
+    return order
+      ? { ...placed, hex: { q: order.q, r: order.r }, livesOffTheLand: order.livesOffTheLand }
+      : placed;
   });
 }
 
@@ -113,16 +133,20 @@ export function describeWarning(warning: HexWarning): string[] {
   if (warning.contact) {
     sentences.push(`Contact: ${warning.sides.map((s) => s.side.name).join(" and ")}.`);
   }
-  const inCity = warning.doubled ? " (doubled here)" : "";
   for (const side of warning.sides) {
+    const why = [
+      warning.doubled ? "doubled here" : null,
+      side.offTheLand ? "halved: living off the land" : null,
+    ].filter(Boolean);
+    const note = why.length > 0 ? ` (${why.join(", ")})` : "";
     if (side.overInfantry) {
       sentences.push(
-        `${side.side.name} has ${points(side.infantry)} of infantry, over ${String(warning.infantryLimit)}${inCity}.`,
+        `${side.side.name} has ${points(side.infantry)} of infantry, over ${String(side.infantryLimit)}${note}.`,
       );
     }
     if (side.overCavalry) {
       sentences.push(
-        `${side.side.name} has ${points(side.cavalry)} of cavalry, over ${String(warning.cavalryLimit)}${inCity}.`,
+        `${side.side.name} has ${points(side.cavalry)} of cavalry, over ${String(side.cavalryLimit)}${note}.`,
       );
     }
   }

@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text } from "@mantine/core";
+import { Button, Group, Stack, Switch, Text } from "@mantine/core";
 import { IconArrowBackUp, IconArrowMoveRight, IconHandStop } from "@tabler/icons-react";
 import type { ArmyTurnDetails } from "@/api/generated/model";
 import { describeOrder } from "@/features/maps/orders";
@@ -16,6 +16,11 @@ interface OrderActionsProps {
   onMove: () => void;
   onHold: () => void;
   onUndo: () => void;
+  /**
+   * Living off the land (step 48b, decision 0019), for a unit whose nation may: whether it does
+   * this turn, and the switch's change.
+   */
+  offTheLand?: { on: boolean; onChange: (on: boolean) => void };
 }
 
 /**
@@ -30,6 +35,7 @@ export function OrderActions({
   onMove,
   onHold,
   onUndo,
+  offTheLand,
 }: OrderActionsProps) {
   const online = useOnline();
   const order = turn.orders.find((o) => o.unitId === placed.unit.id);
@@ -45,6 +51,17 @@ export function OrderActions({
         <Text size="sm" fw={500}>
           Umpire: {note.text}
         </Text>
+      )}
+      {offTheLand && (
+        <Switch
+          label="Living off the land"
+          description="Never out of supply, but its side's hex is held to half the concentration."
+          checked={offTheLand.on}
+          disabled={!editable || !online || busy}
+          onChange={(event) => {
+            offTheLand.onChange(event.currentTarget.checked);
+          }}
+        />
       )}
       {editable ? (
         <Group grow>

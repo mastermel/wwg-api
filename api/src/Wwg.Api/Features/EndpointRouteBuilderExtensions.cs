@@ -39,6 +39,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapOrderEndpoints()
             .MapMarchEndpoints()
             .MapDepotEndpoints()
+            .MapSupplySettingsEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
     }

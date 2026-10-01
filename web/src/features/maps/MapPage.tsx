@@ -27,7 +27,7 @@ import {
   usePlaceUnit,
 } from "@/api/generated/endpoints/turns/turns";
 import { useListCampaignUnits } from "@/api/generated/endpoints/army-units/army-units";
-import { useListDepots } from "@/api/generated/endpoints/supply/supply";
+import { useGetSupplySettings, useListDepots } from "@/api/generated/endpoints/supply/supply";
 import type {
   CampaignMapResponse,
   DepotResponse,
@@ -247,6 +247,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                   position.progress !== null && position.path.length > 0
                     ? { hex: position.path.at(-1) ?? position, progress: position.progress }
                     : undefined,
+                livesOffTheLand: position.livesOffTheLand,
               },
             ]
           : [];
@@ -256,6 +257,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const placingUnit = everyUnit.find((u) => u.unit.id === placing);
   // Depots (step 48a): those the viewer may see, and the Umpire placing, moving or changing one.
   const depots = useListDepots(campaignId, live);
+  const supplySettings = useGetSupplySettings(campaignId, live);
   const depotChanges = useDepots(campaignId);
   const [placingDepot, setPlacingDepot] = useState<{
     draft: DepotDraft;
@@ -455,10 +457,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
       setTarget(hex);
     }
   };
+  // Whether a unit lives off the land this turn (step 48b): as its order says, or as it did.
+  const livingOffTheLand = (placed: PlacedUnit) =>
+    turnOf(placed.army.id)?.orders.find((o) => o.unitId === placed.unit.id)?.livesOffTheLand ??
+    placed.livesOffTheLand ??
+    false;
   const confirmMove = async () => {
     const turn = moving && turnOf(moving.army.id);
     if (!moving || !turn || !targetPath) return;
-    const order = { kind: "Move", path: targetPath, forceMarch } as const;
+    const order = {
+      kind: "Move",
+      path: targetPath,
+      forceMarch,
+      livesOffTheLand: livingOffTheLand(moving),
+    } as const;
     if (await orders.give(moving.army.id, turn.id, moving.unit, order)) stopMoving();
   };
 
@@ -908,6 +920,33 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                           });
                         }}
                         busy={orders.busy}
+                        offTheLand={
+                          supplySettings.data?.offTheLandNations.includes(unit.unit.nation)
+                            ? {
+                                on: livingOffTheLand(unit),
+                                onChange: (on) => {
+                                  // The order stays as it is, with or without living off the land.
+                                  const given = turn.orders.find((o) => o.unitId === unit.unit.id);
+                                  void orders.give(
+                                    unit.army.id,
+                                    turn.id,
+                                    unit.unit,
+                                    given?.kind === "Move"
+                                      ? {
+                                          kind: "Move",
+                                          path: given.path,
+                                          forceMarch: given.forceMarch,
+                                          livesOffTheLand: on,
+                                        }
+                                      : { kind: "Hold", path: null, livesOffTheLand: on },
+                                    on
+                                      ? `${unit.unit.name} will live off the land.`
+                                      : `${unit.unit.name} will draw on its supply.`,
+                                  );
+                                },
+                              }
+                            : undefined
+                        }
                         onMove={() => {
                           setMoving(unit);
                           setTarget(null);
@@ -918,6 +957,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                             .give(unit.army.id, turn.id, unit.unit, {
                               kind: "Hold",
                               path: null,
+                              livesOffTheLand: livingOffTheLand(unit),
                             })
                             .then((saved) => {
                               if (saved) closeDrawer();

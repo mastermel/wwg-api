@@ -2498,10 +2498,13 @@ build on positions.
       `GET /api/campaigns/{id}/depots` gives the viewer's (the Umpire's, all; a commander's, their
       army's). Drawn on the map; the Umpire is warned, with contact and concentration, of the other
       side's units in a depot's hex. An army with no depots has its supply untracked.
-    - **48b. Supply settings and living off the land:** on the campaign's edit page, the supply
-      reach (0–3 hexes, 1 by default), the exempt unit types, and the nations that may live off
-      the land (France by default); `UnitOrder.LivesOffTheLand`, set with a unit's order; a
-      side's hex with a unit living off the land held to half the concentration limits.
+    - ✅ **48b. Supply settings and living off the land:** on the campaign's edit page (**Supply**;
+      `GET` / `PUT /api/campaigns/{id}/supply-settings`), the supply reach (0–3 hexes, 1 by
+      default), the exempt unit types, and the nations that may live off the land (France by
+      default); `UnitOrder.LivesOffTheLand` (`livesOffTheLand` on `GiveOrder`, 400 for a nation
+      that may not), set with a unit's order (the drawer's **Living off the land** switch keeps the
+      order and changes only that; each new order keeps the unit's last); a side's hex with a unit
+      living off the land held to half the concentration limits.
     - **48c. Supply (API):** each unit's supply turn by turn: routes by road and waterway from its
       army's depots, cut by 5+ enemy points unless its side has twice as many there, within the
       reach; intermediate depots by their own route to a main one, and for 15 turns after; the

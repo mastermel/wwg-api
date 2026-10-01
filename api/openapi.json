@@ -3884,6 +3884,98 @@
         ]
       }
     },
+    "/api/campaigns/{id}/supply-settings": {
+      "get": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "The campaign's supply settings (every member): how far from its army's routes a unit may\nbe, the unit types that don't need supply, and the nations that may live off the land.",
+        "operationId": "GetSupplySettings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSupplySettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "Changes the campaign's supply settings (Umpire or Admin), from the next turn's close.",
+        "operationId": "UpdateSupplySettings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignSupplySettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSupplySettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/army-turns/{id}/submit": {
       "post": {
         "tags": [
@@ -5367,6 +5459,36 @@
         },
         "description": "A campaign in the \"my campaigns\" list."
       },
+      "CampaignSupplySettingsResponse": {
+        "required": [
+          "reach",
+          "exemptTypes",
+          "offTheLandNations"
+        ],
+        "type": "object",
+        "properties": {
+          "reach": {
+            "type": "integer",
+            "description": "How far from its army's supply routes a unit may be, in hexes.",
+            "format": "int32"
+          },
+          "exemptTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "The unit types that don't need supply."
+          },
+          "offTheLandNations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Nation"
+            },
+            "description": "The nations whose units may live off the land."
+          }
+        },
+        "description": "A campaign's supply settings (step 48, decision 0019)."
+      },
       "CampaignTurnsResponse": {
         "required": [
           "stage",
@@ -5850,6 +5972,11 @@
           "forceMarch": {
             "type": "boolean",
             "description": "A Move by force march (decision 0018): a flat hex's worth further, in a Morning or Afternoon\nturn only.",
+            "default": false
+          },
+          "livesOffTheLand": {
+            "type": "boolean",
+            "description": "The unit lives off the land this turn (decision 0019), if its nation may: never out of supply,\nand its side's hex held to half the concentration limits.",
             "default": false
           }
         },
@@ -7387,7 +7514,8 @@
           "path",
           "byUmpire",
           "progress",
-          "forceMarch"
+          "forceMarch",
+          "livesOffTheLand"
         ],
         "type": "object",
         "properties": {
@@ -7456,6 +7584,10 @@
           "forceMarch": {
             "type": "boolean",
             "description": "Whether the move is a force march (decision 0018)."
+          },
+          "livesOffTheLand": {
+            "type": "boolean",
+            "description": "Whether the unit lives off the land this turn (decision 0019)."
           }
         },
         "description": "Where a unit is (or is ordered to be) after a turn."
@@ -7747,6 +7879,40 @@
           }
         },
         "description": "Changes a campaign's name and description."
+      },
+      "UpdateCampaignSupplySettingsRequest": {
+        "required": [
+          "reach",
+          "exemptTypes",
+          "offTheLandNations"
+        ],
+        "type": "object",
+        "properties": {
+          "reach": {
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer",
+            "description": "How far from its army's supply routes a unit may be, 0 to 3 hexes.",
+            "format": "int32"
+          },
+          "exemptTypes": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitType"
+            },
+            "description": "The unit types that don't need supply."
+          },
+          "offTheLandNations": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Nation"
+            },
+            "description": "The nations whose units may live off the land."
+          }
+        },
+        "description": "The Umpire sets the campaign's supply settings."
       },
       "UpdateHexCellRequest": {
         "required": [

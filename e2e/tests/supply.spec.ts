@@ -34,3 +34,17 @@ test("the Umpire places a depot, which only its army's commander sees", async ({
   await expect(other.page.getByRole("heading", { level: 1, name: "Map" })).toBeVisible();
   await expect(other.page.getByRole("region", { name: "Depots" })).toHaveCount(0);
 });
+
+test("a commander has a French unit live off the land", async ({ signUp }) => {
+  const umpire = await signUp("Ada");
+  const commander = await signUp("Bob");
+  const { campaignUrl } = await startedCampaign(umpire, commander, "Ligny");
+
+  const page = commander.page;
+  await page.goto(`${campaignUrl}/map`);
+  await page.getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" }).click();
+  const drawer = page.getByRole("dialog", { name: "Imperial Guard" });
+  await drawer.getByRole("switch", { name: /Living off the land/ }).click();
+  await expect(page.getByText("Imperial Guard will live off the land.")).toBeVisible();
+  await expect(drawer).toContainText("Turn 1: Holds, living off the land");
+});

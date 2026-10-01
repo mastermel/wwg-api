@@ -4,6 +4,7 @@ using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
+using Wwg.Api.Features.Supply;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Turns;
@@ -110,7 +111,8 @@ internal static class OrderEndpoints
                     o.Path,
                     o.ByUmpire,
                     o.Progress,
-                    o.ForceMarch
+                    o.ForceMarch,
+                    o.LivesOffTheLand
                 ))
                 .ToListAsync(cancellationToken)
         ).ToLookup(o => o.ArmyTurnId);
@@ -124,11 +126,25 @@ internal static class OrderEndpoints
         List<Hex> Path,
         bool ByUmpire,
         double? Progress,
-        bool ForceMarch
+        bool ForceMarch,
+        bool LivesOffTheLand
     )
     {
         public OrderRow Row(Guid armyId, int turn, ArmyTurnStatus status) =>
-            new(UnitId, armyId, turn, status, Kind, Q, R, Path, ByUmpire, Progress, ForceMarch);
+            new(
+                UnitId,
+                armyId,
+                turn,
+                status,
+                Kind,
+                Q,
+                R,
+                Path,
+                ByUmpire,
+                Progress,
+                ForceMarch,
+                LivesOffTheLand
+            );
     }
 
     /// <summary>What happened to an army's turns (submitted, sent back...), by army turn.</summary>
@@ -203,9 +219,9 @@ internal static class OrderEndpoints
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
         var move = MoveFor(grid, unit, turn.Number, state, request, byUmpire);
-        if (move.ForceMarch && await ForceMarchProblemAsync(db, move, cancellationToken) is { } why)
+        if (await OrderProblemAsync(db, move, cancellationToken) is { } why)
         {
-            return Invalid("forceMarch", why);
+            return Invalid(why.Field, why.Message);
         }
 
         var plan = await PlanAsync(db, move, cancellationToken);
@@ -214,15 +230,7 @@ internal static class OrderEndpoints
             return Invalid("path", problem);
         }
 
-        var staged = new StagedOrder(
-            move.Kind,
-            plan.At,
-            move.Path,
-            plan.Progress,
-            byUmpire,
-            move.ForceMarch
-        );
-        var saved = await StageOrderAsync(db, grid, turn, unitId, staged);
+        var saved = await StageOrderAsync(db, grid, turn, unitId, StagedOrder.Of(move, plan));
         if (byUmpire)
         {
             await RecordEditAsync(
@@ -287,8 +295,21 @@ internal static class OrderEndpoints
         IReadOnlyList<Hex> Path,
         double? Progress,
         bool ByUmpire,
-        bool ForceMarch
-    );
+        bool ForceMarch,
+        bool LivesOffTheLand
+    )
+    {
+        public static StagedOrder Of(MoveRequest move, MovePlan plan) =>
+            new(
+                move.Kind,
+                plan.At,
+                move.Path,
+                plan.Progress,
+                move.ByUmpire,
+                move.ForceMarch,
+                move.LivesOffTheLand
+            );
+    }
 
     private static async Task<UnitPosition> StageOrderAsync(
         WwgDbContext db,
@@ -310,7 +331,7 @@ internal static class OrderEndpoints
             staged.Progress,
             staged.ByUmpire
         );
-        order.ForceMarch = staged.ForceMarch;
+        (order.ForceMarch, order.LivesOffTheLand) = (staged.ForceMarch, staged.LivesOffTheLand);
         return Positions.Of(
             grid,
             new OrderRow(
@@ -324,7 +345,8 @@ internal static class OrderEndpoints
                 order.Path,
                 staged.ByUmpire,
                 staged.Progress,
-                staged.ForceMarch
+                staged.ForceMarch,
+                staged.LivesOffTheLand
             )
         );
     }
@@ -423,7 +445,8 @@ internal static class OrderEndpoints
         OrderKind Kind,
         IReadOnlyList<Hex> Path,
         bool ByUmpire,
-        bool ForceMarch
+        bool ForceMarch,
+        bool LivesOffTheLand
     );
 
     /// <summary>
@@ -485,14 +508,17 @@ internal static class OrderEndpoints
             request.Kind,
             request.Kind == OrderKind.Hold ? [] : request.Path ?? [],
             byUmpire,
-            request.ForceMarch && request.Kind == OrderKind.Move
+            request.ForceMarch && request.Kind == OrderKind.Move,
+            request.LivesOffTheLand
         );
 
     /// <summary>The Umpire's change to an order, in the turn's history.</summary>
     private static string EditNote(MoveRequest move) =>
-        move.Kind == OrderKind.Hold ? "Set to hold."
-        : move.ForceMarch ? "Set to force march."
-        : "Set to move.";
+        (
+            move.Kind == OrderKind.Hold ? "Set to hold."
+            : move.ForceMarch ? "Set to force march."
+            : "Set to move."
+        ) + (move.LivesOffTheLand ? " Living off the land." : "");
 
     /// <summary>The unit being ordered: its type, campaign, and the nation it marches as.</summary>
     private sealed record OrderedUnit(UnitType Type, Guid CampaignId, Nation Nation);
@@ -531,6 +557,38 @@ internal static class OrderEndpoints
         var budget = Movement.BudgetFor(table, movementClass, move.Nation, part, calendar);
         // A force march goes a flat hex's worth further (decision 0018).
         return move.ForceMarch ? budget + (1 / table.Rate(movementClass, Ground.Flat)) : budget;
+    }
+
+    /// <summary>
+    /// What's wrong with the order besides its path, and on which field, or null: a force march
+    /// it can't make, or living off the land when its nation may not (decision 0019).
+    /// </summary>
+    private static async Task<(string Field, string Message)?> OrderProblemAsync(
+        WwgDbContext db,
+        MoveRequest move,
+        CancellationToken cancellationToken
+    )
+    {
+        if (move.ForceMarch && await ForceMarchProblemAsync(db, move, cancellationToken) is { } why)
+        {
+            return ("forceMarch", why);
+        }
+
+        if (!move.LivesOffTheLand)
+        {
+            return null;
+        }
+
+        var campaign = await CalendarEndpoints.LoadAsync(db, move.CampaignId, cancellationToken);
+        var nations = SupplySettingsEndpoints.OffTheLandNations(campaign);
+        return nations.Contains(move.Nation)
+            ? null
+            : (
+                "livesOffTheLand",
+                nations.Count == 0
+                    ? "No one lives off the land in this campaign."
+                    : $"Only these nations' units can live off the land here: {string.Join(", ", nations)}."
+            );
     }
 
     /// <summary>

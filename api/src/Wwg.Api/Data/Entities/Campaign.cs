@@ -43,6 +43,37 @@ internal sealed class Campaign : Entity
 
     /// <summary>The most points of cavalry a side may have in a hex (the rules: 160).</summary>
     public int CavalryLimit { get; set; } = Concentration.CavalryLimit;
+
+    /// <summary>
+    /// How far from its army's supply routes a unit may be and stay supplied, in hexes (step 48,
+    /// decision 0019).
+    /// </summary>
+    public int SupplyReach { get; set; } = SupplyRules.DefaultReach;
+
+    /// <summary>The unit types that don't need supply; null: the usual ones.</summary>
+    public List<UnitType>? SupplyExemptTypes { get; set; }
+
+    /// <summary>The nations whose units may live off the land; null: France.</summary>
+    public List<Nation>? OffTheLandNations { get; set; }
+}
+
+/// <summary>The rules' supply (Campaign, §G), until the Umpire changes it (decision 0019).</summary>
+internal static class SupplyRules
+{
+    public const int DefaultReach = 1,
+        MaxReach = 3;
+
+    /// <summary>Partisans, light infantry, scouts and light cavalry (§G.5).</summary>
+    public static readonly IReadOnlyList<UnitType> ExemptTypes =
+    [
+        UnitType.Partisans,
+        UnitType.LightInfantry,
+        UnitType.Scouts,
+        UnitType.LightCavalry,
+    ];
+
+    /// <summary>French forces living off the land (§G.5(b)).</summary>
+    public static readonly IReadOnlyList<Nation> OffTheLandNations = [Nation.France];
 }
 
 /// <summary>

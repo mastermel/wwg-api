@@ -67,6 +67,7 @@ public sealed record CampaignTurnsResponse(
 /// in Q, R. Null when it got where it was going.
 /// </param>
 /// <param name="ForceMarch">Whether the move is a force march (decision 0018).</param>
+/// <param name="LivesOffTheLand">Whether the unit lives off the land this turn (decision 0019).</param>
 public sealed record UnitPosition(
     Guid UnitId,
     Guid ArmyId,
@@ -80,7 +81,8 @@ public sealed record UnitPosition(
     IReadOnlyList<Hex> Path,
     bool ByUmpire,
     double? Progress,
-    bool ForceMarch
+    bool ForceMarch,
+    bool LivesOffTheLand
 );
 
 /// <summary>Where the Umpire places a unit: a hex in the campaign's grid.</summary>
@@ -101,10 +103,15 @@ public sealed record PlaceUnitRequest(
 /// A Move by force march (decision 0018): a flat hex's worth further, in a Morning or Afternoon
 /// turn only.
 /// </param>
+/// <param name="LivesOffTheLand">
+/// The unit lives off the land this turn (decision 0019), if its nation may: never out of supply,
+/// and its side's hex held to half the concentration limits.
+/// </param>
 public sealed record GiveOrderRequest(
     [property: JsonRequired, EnumDataType(typeof(OrderKind))] OrderKind Kind,
     [property: MaxLength(Movement.MaxSteps)] IReadOnlyList<Hex>? Path,
-    bool ForceMarch = false
+    bool ForceMarch = false,
+    bool LivesOffTheLand = false
 );
 
 /// <summary>The Umpire's note on one unit's order.</summary>

@@ -17,11 +17,12 @@ export function describeOrder(
 ) {
   if (!from) return "Not on the map yet";
   if (!order) return "No order yet";
-  if (order.kind === "Hold") return "Holds";
   // A move by night counts towards a forced march (step 45), as a force march is one (step 47).
-  if (night) return `${describeMove(order)}, by night`;
-  if (order.forceMarch) return `${describeMove(order)}, by force march`;
-  return describeMove(order);
+  const living = order.livesOffTheLand ? ", living off the land" : "";
+  if (order.kind === "Hold") return `Holds${living}`;
+  if (night) return `${describeMove(order)}, by night${living}`;
+  if (order.forceMarch) return `${describeMove(order)}, by force march${living}`;
+  return `${describeMove(order)}${living}`;
 }
 
 function describeMove(order: UnitPosition) {
