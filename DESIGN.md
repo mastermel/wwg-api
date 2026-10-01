@@ -1208,6 +1208,15 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   isn't offered. Remembered on that device, per campaign (`localStorage`); "Show everything
   again" puts them back. The game map is drawn only once the view's longest side spans 20 hexes
   or fewer. Units, the reach while moving and ghost moves are always drawn.
+- **A hex's card:** a click or tap on a hex (not on a unit, and not while placing or moving)
+  opens a card at it with everything the viewer knows of it: its ground and forest, its town,
+  city or fortress, the roads, rivers, bridges and waterways on its six sides, its actual terrain
+  if they've been shown it, and the depots there they may see; the hex is outlined. With a mouse,
+  a label with its ground follows the pointer from hex to hex.
+- **The legend** samples the unit symbols, the terrain tints, roads, rivers, waterways and
+  bridges, towns, cities and fortresses, and the markers, in the current scheme's map colours.
+- **Light or dark:** the system's setting, unless the user chooses one in the account menu
+  (remembered on the device).
 - **Place names** in the language the Umpire chooses (the tiles carry
   `name:en`, `name:de`, `name:fr`…, falling back to the local name). Names are
   modern ones.

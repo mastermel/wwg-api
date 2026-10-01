@@ -116,6 +116,11 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   each unit's supply is the API's (`useGetSupply`), worded by `supply.ts` (`describeSupply`) and
   warned of by `SupplyWarnings`; living off the land is the drawer's switch, kept on every new
   order (`livingOffTheLand` in `MapPage`). The settings are `SupplySection` on the edit page.
+- The Map page's hex card is `hex-info.ts` (`describeHex`, a pure function) in `HexInfoPopup`, a
+  MapLibre popup in the app's colours; hover is `CampaignMap`'s `onHover` (mouse only). The
+  legend is `MapLegend`. The theme choice is `ThemeMenuItems` (Mantine keeps it in localStorage;
+  `public/color-scheme.js` reads it before the first paint): a Menu item stays a `menuitem`, so
+  the chosen one is marked with `aria-current`.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

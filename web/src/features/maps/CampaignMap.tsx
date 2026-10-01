@@ -41,6 +41,8 @@ interface CampaignMapProps {
   onPointer?: (event: MapPointer) => void;
   /** The area in view, once the map loads and as it moves (the Map page's game map, by zoom). */
   onViewChange?: (view: MapBounds) => void;
+  /** The mouse over the map, at a point in degrees; null when it leaves (no touch: no hover). */
+  onHover?: (point: { longitude: number; latitude: number } | null) => void;
   /** Whether to show the hex grid, where the settings draw it (shown unless given). */
   grid?: boolean;
   children?: ReactNode;
@@ -61,6 +63,7 @@ export function CampaignMap({
   dragPan = true,
   onPointer,
   onViewChange,
+  onHover,
   grid,
   children,
 }: CampaignMapProps) {
@@ -95,6 +98,16 @@ export function CampaignMap({
         pitchWithRotate={false}
         cursor={cursor}
         dragPan={dragPan}
+        {...(onHover
+          ? {
+              onMouseMove: (event: { lngLat: { lng: number; lat: number } }) => {
+                onHover({ longitude: event.lngLat.lng, latitude: event.lngLat.lat });
+              },
+              onMouseOut: () => {
+                onHover(null);
+              },
+            }
+          : {})}
         {...(onPointer ? pointerHandlers(onPointer) : {})}
         onClick={(event) =>
           onMapClick?.({ longitude: event.lngLat.lng, latitude: event.lngLat.lat })

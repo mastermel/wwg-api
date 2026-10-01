@@ -11,6 +11,7 @@ import {
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useListArmies } from "@/api/generated/endpoints/armies/armies";
 import {
@@ -18,7 +19,11 @@ import {
   useGetCampaignCalendar,
   useGetCampaignConcentration,
 } from "@/api/generated/endpoints/campaigns/campaigns";
-import { useGetCampaignGrid, useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
+import {
+  useGetCampaignGrid,
+  useGetCampaignMap,
+  useListHexDetails,
+} from "@/api/generated/endpoints/maps/maps";
 import { useGetMovementTable } from "@/api/generated/endpoints/turns/turns";
 import {
   useListMarches,
@@ -79,6 +84,9 @@ import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
 import { HexDetailsList } from "@/features/maps/HexDetailsList";
 import { MapLegend } from "@/features/maps/MapLegend";
+import { describeHex } from "@/features/maps/hex-info";
+import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
+import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
 import { HexWarningsLayer } from "@/features/maps/HexWarningsLayer";
 import {
   gameMaxHexesAcross,
@@ -397,6 +405,32 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         : [],
     [manager, setup, past, onMap, openTurns, depots.data, armies.data],
   );
+  // A hex's card (what the viewer knows of it): pinned by a click or tap on the map, and on a
+  // screen with a mouse, a label for the hex it's over. Only while not placing or moving.
+  const hexDetails = useListHexDetails(campaignId, live);
+  const canHover = useMediaQuery("(hover: hover) and (pointer: fine)");
+  const [pinned, setPinned] = useState<Hex | null>(null);
+  const [hovered, setHovered] = useState<Hex | null>(null);
+  const idle = !placingUnit && !placingDepot && !moving;
+  const shownHex = idle ? (pinned ?? hovered) : null;
+  const hexInfo = useMemo(
+    () =>
+      shownHex
+        ? describeHex(
+            shownHex,
+            costs.terrain,
+            hexDetails.data ?? [],
+            depots.data ?? [],
+            armies.data ?? [],
+          )
+        : null,
+    [shownHex, costs.terrain, hexDetails.data, depots.data, armies.data],
+  );
+  const hoverAt = (point: Point | null) => {
+    const hex = point && idle ? grid.hexAt(point) : null;
+    const inside = hex && grid.contains(hex) ? hex : null;
+    setHovered((was) => (was && inside && hexKey(was) === hexKey(inside) ? was : inside));
+  };
   const targetPath = target && reachable ? pathTo(reachable, target) : null;
   // Part of the way into it, when it takes more than a turn (the commander's moves only).
   const targetProgress = target && !manager ? withinTurn?.get(hexKey(target))?.progress : undefined;
@@ -675,6 +709,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             <CampaignMap
               settings={shownSettings}
               grid={showGame("grid")}
+              onHover={canHover ? hoverAt : undefined}
               onViewChange={(view) => {
                 setZoomedIn(hexesAcross(view, settings.hexSize) <= gameMaxHexesAcross);
               }}
@@ -687,7 +722,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                     ? (point) => void placeDepot(point)
                     : moving
                       ? chooseTarget
-                      : undefined
+                      : (point) => {
+                          const hex = grid.hexAt(point);
+                          setPinned(grid.contains(hex) ? hex : null);
+                        }
               }
             >
               {/* Mounted from the start and hidden by zoom: added later, WebKit can miss them. */}
@@ -715,7 +753,18 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                     : undefined
                 }
               />
+              <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
               <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
+              {shownHex && hexInfo && (
+                <HexInfoPopup
+                  at={grid.centre(shownHex)}
+                  info={hexInfo}
+                  pinned={pinned !== null}
+                  onClose={() => {
+                    setPinned(null);
+                  }}
+                />
+              )}
               <UnitMarkers
                 units={onMap}
                 outOfSupply={past === null ? outOfSupply : undefined}

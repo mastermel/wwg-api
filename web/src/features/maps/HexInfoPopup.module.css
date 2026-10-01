@@ -1,0 +1,18 @@
+/* The hex card in the app's colours, light or dark, rather than MapLibre's white. */
+.popup :global(.maplibregl-popup-content) {
+  padding: 8px 10px;
+  border-radius: var(--mantine-radius-sm);
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  box-shadow: var(--mantine-shadow-md);
+}
+
+.popup :global(.maplibregl-popup-tip) {
+  border-top-color: var(--mantine-color-body);
+}
+
+.popup :global(.maplibregl-popup-close-button) {
+  color: var(--mantine-color-text);
+  font-size: 18px;
+  padding: 0 6px;
+}

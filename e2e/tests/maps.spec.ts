@@ -3,7 +3,7 @@ import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
 import { browserOf, libraryFaction } from "./support/library.ts";
 import { clickMap, clickMapCentre, dragOnMap } from "./support/map.ts";
-import { expect, test } from "./support/fixtures.ts";
+import { expect, test, type User } from "./support/fixtures.ts";
 
 // Place search isn't driven here: it calls a geocoding service over the internet (the component
 // tests cover it). The Umpire frames the area by the view instead.
@@ -216,4 +216,54 @@ test("a Player hides map layers, and the map remembers it", async ({ signUp }) =
   await expect(
     page.getByRole("group", { name: "Real map" }).getByRole("switch", { name: "Forests" }),
   ).toBeChecked();
+});
+
+/** A campaign whose middle hex has low hills, a walled town and a good road north; the Player on its map. */
+async function wavre(signUp: (firstName: string) => Promise<User>) {
+  const umpire = await signUp("Ada");
+  const player = await signUp("Bob");
+  await createCampaign(umpire.page, "Wavre");
+  const campaignUrl = umpire.page.url();
+  const campaignId = new URL(campaignUrl).pathname.split("/").at(-1) ?? "";
+  await join(player.page, await joinLink(umpire.page), "Wavre");
+  const api = await apiAs(umpire.page);
+  await api.put(`/api/campaigns/${campaignId}/map`, waterlooMap);
+  await api.put(`/api/campaigns/${campaignId}/grid/cells/0/0`, {
+    terrain: "LowHill",
+    forest: false,
+    settlement: { size: "Town", walled: true, fortress: false, capital: "None", name: "Wavre" },
+  });
+  await api.put(`/api/campaigns/${campaignId}/grid/edges/0/0/N`, {
+    road: "Good",
+    river: false,
+    bridge: false,
+    waterway: "None",
+  });
+  await player.page.goto(`${campaignUrl}/map`);
+  await expect(player.page.getByRole("region", { name: "Map", exact: true })).toBeVisible();
+  return player.page;
+}
+
+test("with a mouse, a label follows it over the hexes", async ({ signUp, isMobile }) => {
+  test.skip(isMobile, "A phone has no hover.");
+  const page = await wavre(signUp);
+
+  const box = await page.getByRole("region", { name: "Map", exact: true }).boundingBox();
+  await page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + (box?.height ?? 0) / 2,
+  );
+
+  await expect(page.getByRole("tooltip", { name: "Hex (0, 0), Wavre" })).toContainText("Low hills");
+});
+
+test("a click or tap on a hex shows everything known of it", async ({ signUp }) => {
+  const page = await wavre(signUp);
+
+  await clickMap(page);
+
+  const card = page.getByRole("dialog", { name: "Hex (0, 0), Wavre" });
+  await expect(card).toContainText("Walled town: Wavre.");
+  await expect(card).toContainText("Good road to the north.");
+  expect(await scan(page, "map, a hex's card")).toEqual([]);
 });
