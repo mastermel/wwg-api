@@ -23,11 +23,18 @@ boat, at the normal movement speed. Until now a commander saw only their own arm
   **army and nation**, **unit types**, and **strength** (exact, or a rough size). The prompt flags
   a possible **screen** (the observed side's light infantry or light or medium cavalry in
   between); the Umpire decides what's seen. The Umpire can **add** a sighting of any enemy hex for
-  any army (spies, scouting parties). A sighting shows to the observing army for the **next turn
-  only**; kept in sight, the next turn brings a new prompt.
+  any army (spies, scouting parties).
+- **A sighting belongs to its turn**, the turn it was made for and received on, and is **kept**:
+  on that turn it's drawn in full; for the **3 turns after**, it's drawn **faded**, as past
+  positions are; after that it's gone from the open turn's map, but choosing its turn in the turn
+  history draws it again (with the 3 turns before it, faded). Turns with sightings are marked in
+  the turn history. A sighting never carries on by itself: units still in sight after both sides
+  have moved bring a new prompt, and so a new sighting, on the next turn.
 - **Allies are not sighted.** A commander learns of their allies only by **intelligence they
-  send**: a report with any of a **snapshot** of their army's units (hexes and points), the
-  **sightings** they've had (each with its turn), and a **note** of up to 1,000 characters.
+  send**: a report with any of a **snapshot** of their army's units (hexes and points), **all the
+  sightings** they've received so far (each with its turn), and a **note** of up to 1,000
+  characters. Once it arrives, the ally has those sightings too, on their own turns in the turn
+  history (marked as the sender's), by the same rule of turns.
 - **A courier carries each report**, tracked behind the scenes, not drawn as a unit: from the
   sender's unit nearest the recipient towards the recipient's unit nearest it (re-aimed each
   turn), riding as light cavalry by the campaign's movement table over the terrain and roads,
@@ -35,8 +42,8 @@ boat, at the normal movement speed. Until now a commander saw only their own arm
   turn. The Umpire sees every courier, is warned when one is in a hex with enemy units, and can
   stop it (it never arrives) or let it through.
 - **Received reports are kept**: an Intelligence list of every report (from whom, sent on turn N,
-  arrived on turn M), each viewable on the map (its snapshot and sightings, marked with their
-  turns) with its note.
+  arrived on turn M), each viewable on the map (its snapshot) with its note; its sightings join
+  the recipient's own, on their turns.
 - The Umpire sees everything, as before.
 
 ## Consequences

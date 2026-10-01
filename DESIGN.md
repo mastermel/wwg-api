@@ -2534,10 +2534,12 @@ build on positions.
       army, with possible screens flagged.
     - **49b. Sightings:** starting the next turn lists each army's sightings (one per enemy hex),
       prefilled (the hex or roughly where, army and nation, unit types, exact or rough strength);
-      the Umpire changes, skips or adds them; each shows to its army for that turn only, on the
-      map and in a list, and past turns' stay in the turn history.
-    - **49c. Couriers (API):** a commander sends an ally a report (their units' snapshot, chosen
-      sightings with their turns, a note ≤ 1,000 characters); its courier rides as light cavalry
+      the Umpire changes, skips or adds them. Each belongs to its turn and is kept: drawn in full on
+      it, faded for the 3 turns after, and again when that turn is chosen in the turn history,
+      whose entries mark the turns with sightings.
+    - **49c. Couriers (API):** a commander sends an ally a report (their units' snapshot, all the
+      sightings they've received, a note ≤ 1,000 characters; once it arrives, those sightings are
+      the ally's too, on their turns); its courier rides as light cavalry
       from the sender's nearest unit towards the recipient's, turn by turn (within two turns'
       ride, next turn); the Umpire sees couriers, is warned of enemy in their hex, and can stop one.
     - **49d. Intelligence in the app:** sending a report, the Intelligence list of reports
