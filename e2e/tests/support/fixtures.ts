@@ -69,3 +69,9 @@ export const test = base.extend<Fixtures>({
 });
 
 export { expect } from "@playwright/test";
+
+/**
+ * Why a test is skipped on the phone: Umpires and Admins set up and manage campaigns on a computer;
+ * the phone is for Players' campaigns and maps.
+ */
+export const desktopOnly = "Umpires and Admins set up and manage campaigns on a computer.";

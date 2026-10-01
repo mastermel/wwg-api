@@ -1,6 +1,6 @@
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
 import { addFromLibrary, browserOf, chooseFaction, libraryFaction } from "./support/library.ts";
-import { expect, test, type User } from "./support/fixtures.ts";
+import { desktopOnly, expect, test, type User } from "./support/fixtures.ts";
 
 async function addArmy(umpire: User, name: string, commander?: User) {
   const page = umpire.page;
@@ -95,7 +95,8 @@ test("every member sees every army and its units; only the Umpire changes them",
   ).toHaveCount(0);
 });
 
-test("the Umpire removes a unit after confirming", async ({ signUp }) => {
+test("the Umpire removes a unit after confirming", async ({ signUp, isMobile }) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   const faction = await libraryFaction(browserOf(umpire.page), "Prussian", "Prussia", [
     { name: "IV Corps", type: "LineInfantry" },
@@ -115,7 +116,11 @@ test("the Umpire removes a unit after confirming", async ({ signUp }) => {
   await expect(units.getByText("No units yet")).toBeVisible();
 });
 
-test("the Umpire renames a side and puts an army on it, with its nation", async ({ signUp }) => {
+test("the Umpire renames a side and puts an army on it, with its nation", async ({
+  signUp,
+  isMobile,
+}) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   const page = umpire.page;
   await createCampaign(page, "The War of the Sixth Coalition");

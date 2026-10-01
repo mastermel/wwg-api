@@ -75,6 +75,10 @@ npm run lint && npm run typecheck && npm run format:check
   offline; the app saves at most once a second. Service workers are Chromium-only in Playwright,
   so offline tests skip WebKit.
 - A test that can't run in one browser uses a conditional `test.skip(condition, reason)`.
+- Umpires and Admins set up and manage campaigns on a computer; the phone is for Players. A test
+  in which only the Umpire or an Admin acts in the app skips the phone:
+  `test.skip(isMobile, desktopOnly)` (tests/support/fixtures.ts). One where a Player, commander
+  or ally sees or does something runs on both.
 - Emails: `latestEmailText(to)` and `linkIn(text, prefix)` (tests/support/mailpit.ts).
 - A new page or section belongs in `accessibility.spec.ts`, which axe-scans every page in both
   colour schemes (it's the only place colour contrast is checked).

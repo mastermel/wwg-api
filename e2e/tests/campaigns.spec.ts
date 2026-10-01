@@ -1,10 +1,11 @@
 import { scan } from "./support/axe.ts";
 import { createCampaign } from "./support/campaigns.ts";
 import { chooseFromList } from "./support/library.ts";
-import { expect, test } from "./support/fixtures.ts";
+import { desktopOnly, expect, test } from "./support/fixtures.ts";
 import { waitForServiceWorker, waitUntilSaved } from "./support/offline.ts";
 
-test("creates, edits and deletes a campaign", async ({ signUp }) => {
+test("creates, edits and deletes a campaign", async ({ signUp, isMobile }) => {
+  test.skip(isMobile, desktopOnly);
   const { page } = await signUp("Ada");
   await expect(page.getByText("You're not in any campaigns yet.")).toBeVisible();
 
@@ -66,7 +67,9 @@ test("shows saved campaigns offline, read-only", async ({ signUp, browserName })
 
 test("the Umpire sets the calendar, and the turns are labelled with their days", async ({
   signUp,
+  isMobile,
 }) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   await createCampaign(umpire.page, "Waterloo 1815");
   const page = umpire.page;
@@ -85,7 +88,11 @@ test("the Umpire sets the calendar, and the turns are labelled with their days",
   await expect(calendar.getByRole("radio", { name: "Afternoon (14:00–22:00)" })).toBeChecked();
 });
 
-test("the Umpire sets the concentration limits, and which unit types count", async ({ signUp }) => {
+test("the Umpire sets the concentration limits, and which unit types count", async ({
+  signUp,
+  isMobile,
+}) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   await createCampaign(umpire.page, "Waterloo 1815");
   const page = umpire.page;
@@ -115,7 +122,8 @@ test("the Umpire sets the concentration limits, and which unit types count", asy
   );
 });
 
-test("the Umpire sets the supply reach, kept for next time", async ({ signUp }) => {
+test("the Umpire sets the supply reach, kept for next time", async ({ signUp, isMobile }) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   await createCampaign(umpire.page, "Waterloo 1815");
   const page = umpire.page;

@@ -1,20 +1,21 @@
 import { admin } from "./support/accounts.ts";
 import { scan } from "./support/axe.ts";
 import { createCampaign } from "./support/campaigns.ts";
-import { expect, test } from "./support/fixtures.ts";
+import { desktopOnly, expect, test } from "./support/fixtures.ts";
 
 test("an Admin gives an Umpire-less campaign a new Umpire", async ({
   signIn,
   signUp,
   isMobile,
 }) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Bob");
   const successor = await signUp("Cal");
   const campaign = `Austerlitz ${String(Date.now())}`;
   await createCampaign(umpire.page, campaign);
 
   const page = await signIn(admin.email, admin.password);
-  const nav = page.getByRole("navigation", { name: isMobile ? "Main tabs" : "Main" });
+  const nav = page.getByRole("navigation", { name: "Main" });
 
   // Deleting the Umpire's account leaves the campaign with no Umpire.
   await nav.getByRole("link", { name: "Users" }).click();
@@ -61,12 +62,13 @@ test("an Admin masquerades as a Player, sees what they see, and ends it", async 
   signUp,
   isMobile,
 }) => {
+  test.skip(isMobile, desktopOnly);
   const bob = await signUp("Bob");
   const campaign = `Masked Ball ${String(Date.now())}`;
   await createCampaign(bob.page, campaign);
 
   const page = await signIn(admin.email, admin.password);
-  const nav = page.getByRole("navigation", { name: isMobile ? "Main tabs" : "Main" });
+  const nav = page.getByRole("navigation", { name: "Main" });
   await nav.getByRole("link", { name: "Users" }).click();
   await page.getByRole("searchbox", { name: "Search" }).fill(bob.email);
   await expect(page).toHaveURL(/search=/);

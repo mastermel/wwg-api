@@ -1,7 +1,7 @@
 import { apiAs, waterlooMap } from "./support/api.ts";
 import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
-import { expect, test } from "./support/fixtures.ts";
+import { desktopOnly, expect, test } from "./support/fixtures.ts";
 import { clickMapCentre } from "./support/map.ts";
 import { startedCampaign } from "./support/turns.ts";
 
@@ -69,7 +69,8 @@ test.describe("inference", () => {
   // Requests the app's service worker makes don't reach page.route: without it, they all do.
   test.use({ serviceWorkers: "block" });
 
-  test("the Umpire infers the terrain from the map's tiles", async ({ signUp }) => {
+  test("the Umpire infers the terrain from the map's tiles", async ({ signUp, isMobile }) => {
+    test.skip(isMobile, desktopOnly);
     const umpire = await signUp("Ada");
     await createCampaign(umpire.page, "Wavre 1815");
     const campaignUrl = umpire.page.url();

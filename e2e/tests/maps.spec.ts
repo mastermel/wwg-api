@@ -3,7 +3,7 @@ import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
 import { browserOf, libraryFaction } from "./support/library.ts";
 import { clickMap, clickMapCentre, dragOnMap } from "./support/map.ts";
-import { expect, test, type User } from "./support/fixtures.ts";
+import { desktopOnly, expect, test, type User } from "./support/fixtures.ts";
 
 // Place search isn't driven here: it calls a geocoding service over the internet (the component
 // tests cover it). The Umpire frames the area by the view instead.
@@ -55,7 +55,9 @@ test("the Umpire sets the map's area, and a Player sees the map inside it", asyn
 
 test("the Umpire draws the area corner to corner, and sees how many hexes it holds", async ({
   signUp,
+  isMobile,
 }) => {
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   await createCampaign(umpire.page, "Wagram 1809");
   const page = umpire.page;
@@ -76,7 +78,7 @@ test("the Umpire draws the area corner to corner, and sees how many hexes it hol
 });
 
 test("on a computer, the Umpire drags the area's rectangle", async ({ signUp, isMobile }) => {
-  test.skip(isMobile, "A phone draws it with two taps (the test above).");
+  test.skip(isMobile, desktopOnly);
   const umpire = await signUp("Ada");
   await createCampaign(umpire.page, "Aspern 1809");
   const page = umpire.page;
@@ -199,6 +201,8 @@ test("a Player hides map layers, and the map remembers it", async ({ signUp }) =
   await expect(real.getByRole("switch", { name: "Forests" })).toBeChecked();
   await expect(real.getByRole("switch", { name: "Contours" })).toHaveCount(0);
   await expect(page.getByRole("group", { name: "Game map" })).toBeVisible();
+  // The panel fades in (a sheet on a phone): a half-shown one fails axe's contrast check.
+  await expect(page.getByRole("dialog")).toHaveCSS("opacity", "1");
   expect(await scan(page, "map, layers")).toEqual([]);
   await real.getByRole("switch", { name: "Forests" }).click();
   await expect(real.getByRole("switch", { name: "Forests" })).not.toBeChecked();

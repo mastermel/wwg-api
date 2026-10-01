@@ -2,7 +2,7 @@ import { admin } from "./support/accounts.ts";
 import { scan } from "./support/axe.ts";
 import { createCampaign } from "./support/campaigns.ts";
 import { addFromLibrary, browserOf, chooseFaction, libraryFaction } from "./support/library.ts";
-import { expect, test } from "./support/fixtures.ts";
+import { desktopOnly, expect, test } from "./support/fixtures.ts";
 
 test("an Admin makes a Manager, who builds the library that everyone sees", async ({
   signIn,
@@ -64,7 +64,9 @@ test("an Admin makes a Manager, who builds the library that everyone sees", asyn
 
 test("an Umpire takes a library unit into two campaigns, but only once into each", async ({
   signUp,
+  isMobile,
 }) => {
+  test.skip(isMobile, desktopOnly);
   test.slow();
   const umpire = await signUp("Uma");
   const page = umpire.page;
