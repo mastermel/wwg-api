@@ -48,7 +48,8 @@ npm run lint && npm run typecheck && npm run format:check
   fades out, taking the click (and failing axe while it fades). A phone shows the area's full height
   but only part of its width: a unit near the east or west edge is off the map there (its
   marker is clipped, and a click on it lands on the page). `clickMapPart(page, across, downward)`
-  clicks a fraction of the map from its middle. Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
+  clicks a fraction of the map from its middle; `dragOnMap(page, from, to)` drags across it with
+  the mouse (drawing the area on the settings page). Units on it are buttons named "Name, Type, Army"; a stack "2 units: A, B". Don't drive
   place search here (it calls a service over the internet).
 - Setup the test isn't about (a map's area, armies, units) goes through the API: `apiAs(page)`
   (tests/support/api.ts) calls it as that page's user; `waterlooMap` is a ready area.

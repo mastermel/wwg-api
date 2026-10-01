@@ -14,10 +14,10 @@ import {
   useComputedColorScheme,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCrop, IconLock } from "@tabler/icons-react";
+import { IconCrop, IconLock, IconVectorBezier2 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { Layer, Source, type MapRef } from "react-map-gl/maplibre";
 import { z } from "zod";
@@ -37,9 +37,10 @@ import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
 import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
-import { CampaignMap } from "@/features/maps/CampaignMap";
+import { drawStep, preview as drawnSoFar, type AreaDrawing } from "@/features/maps/area-drawing";
+import { CampaignMap, type MapPointer } from "@/features/maps/CampaignMap";
 import { HexGridLayer } from "@/features/maps/HexGridLayer";
-import { hexCount, maxDrawnHexes } from "@/features/maps/hex-grid";
+import { hexCount, hexGrid, maxDrawnHexes } from "@/features/maps/hex-grid";
 import { MovementTableSection } from "@/features/maps/MovementTableSection";
 import { PlaceSearch } from "@/features/maps/PlaceSearch";
 import {
@@ -52,6 +53,9 @@ import {
 } from "@/features/maps/map-units";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
+
+/** Up to this many hexes (the most a campaign's terrain can hold), they're counted exactly. */
+const exactHexCountLimit = 60_000;
 
 /** Where the Umpire starts choosing, before there's an area: Europe. */
 const europe: MapBounds = { west: -10, south: 36, east: 30, north: 60 };
@@ -158,6 +162,33 @@ function SettingsFormView({
       ? hexCount(bounds, toMetres(hexDistance, distanceUnit))
       : 0;
   const tooManyHexes = hexes > maxDrawnHexes ? hexes : 0;
+  const hexSize = toMetres(hexDistance, distanceUnit);
+  // Exactly, while that's quick; beyond, the estimate (which is within a few per cent).
+  const hexesInArea = useMemo(
+    () =>
+      !bounds || hexes === 0
+        ? 0
+        : hexes <= exactHexCountLimit
+          ? hexGrid(bounds, hexSize).hexes().length
+          : hexes,
+    [bounds, hexSize, hexes],
+  );
+  const [drawing, setDrawingState] = useState<AreaDrawing>({ phase: "idle" });
+  // Pointer events can come faster than the page draws: each builds on the last, not on the
+  // state as of the last render.
+  const drawingNow = useRef<AreaDrawing>({ phase: "idle" });
+  const setDrawing = (next: AreaDrawing) => {
+    drawingNow.current = next;
+    setDrawingState(next);
+  };
+  const isDrawing = drawing.phase !== "idle";
+  // The rectangle while it's being drawn, in place of the area.
+  const drawn = drawnSoFar(drawing);
+  const draw = (pointer: MapPointer) => {
+    const step = drawStep(drawingNow.current, pointer);
+    setDrawing(step.drawing);
+    if (step.done) form.setValue("bounds", step.done, { shouldDirty: true });
+  };
 
   const useThisView = () => {
     const view = mapRef.current?.getBounds();
@@ -242,31 +273,61 @@ function SettingsFormView({
                     bounds={settings.bounds ?? europe}
                     free
                     mapRef={mapRef}
+                    dragPan={!isDrawing}
+                    cursor={isDrawing ? "crosshair" : undefined}
+                    onPointer={isDrawing ? draw : undefined}
                   >
-                    {bounds && <AreaOutline bounds={bounds} />}
+                    {(drawn ?? bounds) && <AreaOutline bounds={drawn ?? bounds ?? europe} />}
                     {bounds && layers.grid && hexDistance >= minHexDistance(distanceUnit) && (
                       <HexGridLayer bounds={bounds} size={toMetres(hexDistance, distanceUnit)} />
                     )}
                   </CampaignMap>
                 </Box>
-                <Group justify="space-between">
-                  <Text size="sm" c="dimmed">
+                <Group justify="space-between" align="flex-start">
+                  <Text size="sm" c="dimmed" maw={420} aria-live="polite">
                     {started
                       ? "The campaign has started: its area and grid are fixed."
-                      : bounds
-                        ? tooManyHexes
-                          ? `The outline is the campaign's area: about ${tooManyHexes.toLocaleString()} hexes, too many to draw. Choose a smaller area or larger hexes.`
-                          : "The outline is the campaign's area."
-                        : "No area chosen yet."}
+                      : isDrawing
+                        ? "Drag a rectangle on the map, or tap one corner and then the opposite one."
+                        : bounds
+                          ? tooManyHexes
+                            ? `The outline is the campaign's area: about ${tooManyHexes.toLocaleString()} hexes, too many to draw. Choose a smaller area or larger hexes.`
+                            : "The outline is the campaign's area."
+                          : "No area chosen yet."}
                   </Text>
-                  <Button
-                    variant="default"
-                    leftSection={<IconCrop size={16} aria-hidden />}
-                    onClick={useThisView}
-                    disabled={started}
-                  >
-                    Use this view
-                  </Button>
+                  <Group gap="xs">
+                    {isDrawing ? (
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          setDrawing({ phase: "idle" });
+                        }}
+                      >
+                        Stop drawing
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="default"
+                          leftSection={<IconVectorBezier2 size={16} aria-hidden />}
+                          onClick={() => {
+                            setDrawing({ phase: "waiting" });
+                          }}
+                          disabled={started}
+                        >
+                          Draw the area
+                        </Button>
+                        <Button
+                          variant="default"
+                          leftSection={<IconCrop size={16} aria-hidden />}
+                          onClick={useThisView}
+                          disabled={started}
+                        >
+                          Use this view
+                        </Button>
+                      </>
+                    )}
+                  </Group>
                 </Group>
               </Stack>
             </Section>
@@ -346,6 +407,13 @@ function SettingsFormView({
                       />
                     )}
                   />
+                  {layers.grid && hexesInArea > 0 && (
+                    <Text size="sm" aria-live="polite">
+                      {hexesInArea > exactHexCountLimit ? "About " : ""}
+                      {hexesInArea.toLocaleString()} {hexesInArea === 1 ? "hex" : "hexes"} in the
+                      area.
+                    </Text>
+                  )}
                 </Stack>
               </Section>
             </Stack>

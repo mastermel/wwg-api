@@ -2,7 +2,7 @@ import { apiAs, waterlooMap } from "./support/api.ts";
 import { scan } from "./support/axe.ts";
 import { createCampaign, join, joinLink } from "./support/campaigns.ts";
 import { browserOf, libraryFaction } from "./support/library.ts";
-import { clickMapCentre } from "./support/map.ts";
+import { clickMap, clickMapCentre, dragOnMap } from "./support/map.ts";
 import { expect, test } from "./support/fixtures.ts";
 
 // Place search isn't driven here: it calls a geocoding service over the internet (the component
@@ -51,6 +51,43 @@ test("the Umpire sets the map's area, and a Player sees the map inside it", asyn
   await expect(player.page.getByRole("link", { name: "Map settings" })).toHaveCount(0);
   await player.page.goto(`${campaignUrl}/map/settings`);
   await expect(player.page.getByText("Only the Umpire can change the map")).toBeVisible();
+});
+
+test("the Umpire draws the area corner to corner, and sees how many hexes it holds", async ({
+  signUp,
+}) => {
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Wagram 1809");
+  const page = umpire.page;
+  await page.goto(`${page.url()}/map/settings`);
+  await expect(page.getByRole("region", { name: "Map", exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: "Hex size, across the flats" }).fill("45");
+
+  // A tap (or click) on one corner, then on the opposite one: as on a phone.
+  await page.getByRole("button", { name: "Draw the area" }).click();
+  await expect(page.getByText(/Drag a rectangle on the map/)).toBeVisible();
+  await clickMap(page, -60, -40);
+  await clickMap(page, 60, 40);
+
+  await expect(page.getByText(/^The outline is the campaign's area/)).toBeVisible();
+  await expect(page.getByText(/^(About )?[\d,]+ hex(es)? in the area\.$/)).toBeVisible();
+  await page.getByRole("button", { name: "Save map settings" }).click();
+  await expect(page.getByText("Saved the map settings.")).toBeVisible();
+});
+
+test("on a computer, the Umpire drags the area's rectangle", async ({ signUp, isMobile }) => {
+  test.skip(isMobile, "A phone draws it with two taps (the test above).");
+  const umpire = await signUp("Ada");
+  await createCampaign(umpire.page, "Aspern 1809");
+  const page = umpire.page;
+  await page.goto(`${page.url()}/map/settings`);
+  await expect(page.getByRole("region", { name: "Map", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Draw the area" }).click();
+  await dragOnMap(page, [-0.2, -0.2], [0.2, 0.2]);
+
+  await expect(page.getByText(/^The outline is the campaign's area/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Draw the area" })).toBeVisible();
 });
 
 test("the Umpire places the units, stacking two, and starts the campaign", async ({ signUp }) => {

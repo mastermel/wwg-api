@@ -1203,8 +1203,11 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
 - **Place names** in the language the Umpire chooses (the tiles carry
   `name:en`, `name:de`, `name:fr`…, falling back to the local name). Names are
   modern ones.
-- **Bounds:** the Umpire pans and zooms to the campaign's area and saves it as
-  a rectangle (**Use this view**). Everyone's map opens framed on it and is held
+- **Bounds:** the Umpire draws the campaign's area as a rectangle on the map
+  (**Draw the area**: drag it, or tap one corner and then the opposite one, as
+  on a phone), or saves the view as it is (**Use this view**); while the grid's
+  shown, the Hex grid section counts the hexes the area and hex size give, as
+  they change. Everyone's map opens framed on it and is held
   inside it (MapLibre's `maxBounds`): nothing outside it can be seen, so on a
   screen of another shape zooming out stops once the area fills it one way, and
   the rest is a pan away. Zooming in is unlimited. Place search (our API, §5.3)

@@ -11,6 +11,14 @@ import { contourTiles } from "@/features/maps/contours";
 import { HexGridLayer } from "@/features/maps/HexGridLayer";
 import { attribution, buildMapStyle, toLngLatBounds } from "@/features/maps/map-style";
 
+export interface MapPointer {
+  kind: "down" | "move" | "up";
+  longitude: number;
+  latitude: number;
+  x: number;
+  y: number;
+}
+
 interface CampaignMapProps {
   settings: CampaignMapResponse;
   /** Where the map opens; also the area it's held inside, unless `free`. */
@@ -23,6 +31,13 @@ interface CampaignMapProps {
   onMapClick?: (point: { longitude: number; latitude: number }) => void;
   /** The cursor over the map, e.g. "crosshair" while choosing a point. */
   cursor?: string;
+  /** Whether dragging pans the map (not while the Umpire draws the area). */
+  dragPan?: boolean;
+  /**
+   * A pointer (mouse or finger) pressed, moved or lifted over the map, at a point in degrees and
+   * in pixels on the map: for drawing on it.
+   */
+  onPointer?: (event: MapPointer) => void;
   children?: ReactNode;
 }
 
@@ -38,6 +53,8 @@ export function CampaignMap({
   mapRef,
   onMapClick,
   cursor,
+  dragPan = true,
+  onPointer,
   children,
 }: CampaignMapProps) {
   const scheme = useComputedColorScheme("light");
@@ -70,6 +87,8 @@ export function CampaignMap({
         touchPitch={false}
         pitchWithRotate={false}
         cursor={cursor}
+        dragPan={dragPan}
+        {...(onPointer ? pointerHandlers(onPointer) : {})}
         onClick={(event) =>
           onMapClick?.({ longitude: event.lngLat.lng, latitude: event.lngLat.lat })
         }
@@ -83,4 +102,27 @@ export function CampaignMap({
       </MapGL>
     </div>
   );
+}
+
+/** MapLibre's mouse and touch events, as one kind of pointer. */
+function pointerHandlers(onPointer: (event: MapPointer) => void) {
+  const send =
+    (kind: MapPointer["kind"]) =>
+    (event: { lngLat: { lng: number; lat: number }; point: { x: number; y: number } }) => {
+      onPointer({
+        kind,
+        longitude: event.lngLat.lng,
+        latitude: event.lngLat.lat,
+        x: event.point.x,
+        y: event.point.y,
+      });
+    };
+  return {
+    onMouseDown: send("down"),
+    onMouseMove: send("move"),
+    onMouseUp: send("up"),
+    onTouchStart: send("down"),
+    onTouchMove: send("move"),
+    onTouchEnd: send("up"),
+  };
 }

@@ -29,3 +29,26 @@ export async function clickMapPart(page: Page, across: number, downward: number)
 
 /** Clicks the middle of the campaign map. */
 export const clickMapCentre = (page: Page) => clickMap(page);
+
+/**
+ * Drags across the campaign map with the mouse, from one part of it to another (each -0.5 to
+ * 0.5 of its width and height from its middle), once it's in the middle of the screen: otherwise
+ * part of it can be under the header, which takes the press.
+ */
+export async function dragOnMap(
+  page: Page,
+  from: [number, number],
+  to: [number, number],
+): Promise<void> {
+  await campaignMap(page).evaluate((map) => {
+    map.scrollIntoView({ block: "center" });
+  });
+  const box = await campaignMap(page).boundingBox();
+  if (!box) throw new Error("The map isn't on the page.");
+  const at = ([across, down]: [number, number]) =>
+    [box.x + box.width * (0.5 + across), box.y + box.height * (0.5 + down)] as const;
+  await page.mouse.move(...at(from));
+  await page.mouse.down();
+  await page.mouse.move(...at(to), { steps: 10 });
+  await page.mouse.up();
+}

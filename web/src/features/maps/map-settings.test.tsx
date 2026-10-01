@@ -11,7 +11,21 @@ import { server } from "@/test/server";
 // where the page asks it to go.
 const flights = vi.hoisted(() => ({ fitBounds: [] as unknown[] }));
 vi.mock("@/features/maps/CampaignMap", () => ({
-  CampaignMap: ({ mapRef }: { mapRef?: Ref<unknown> }) => {
+  // Dragging on it goes from Waterloo's north-west corner to its south-east (the map tests'
+  // Waterloo: 31 hexes at 3 miles), as MapLibre would report it.
+  CampaignMap: ({
+    mapRef,
+    onPointer,
+  }: {
+    mapRef?: Ref<unknown>;
+    onPointer?: (event: {
+      kind: "down" | "move" | "up";
+      longitude: number;
+      latitude: number;
+      x: number;
+      y: number;
+    }) => void;
+  }) => {
     useImperativeHandle(mapRef, () => ({
       getBounds: () => ({
         getWest: () => 12.2,
@@ -22,7 +36,20 @@ vi.mock("@/features/maps/CampaignMap", () => ({
       fitBounds: (bounds: unknown) => flights.fitBounds.push(bounds),
       flyTo: () => undefined,
     }));
-    return <div role="application" aria-label="Campaign map" />;
+    return (
+      <div role="application" aria-label="Campaign map">
+        <button
+          type="button"
+          onClick={() => {
+            onPointer?.({ kind: "down", longitude: 4.2, latitude: 50.8, x: 10, y: 10 });
+            onPointer?.({ kind: "move", longitude: 4.4, latitude: 50.7, x: 100, y: 60 });
+            onPointer?.({ kind: "up", longitude: 4.6, latitude: 50.6, x: 200, y: 110 });
+          }}
+        >
+          Drag on the map
+        </button>
+      </div>
+    );
   },
 }));
 
@@ -108,6 +135,50 @@ describe("map settings", () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe(`/campaigns/${campaignId}/map`);
     });
+  });
+
+  it("draws the area as a rectangle on the map, and saves it", async () => {
+    const puts = serve("Umpire");
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+
+    await user.click(await screen.findByRole("button", { name: "Draw the area" }));
+    expect(screen.getByText(/Drag a rectangle on the map/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Drag on the map" }));
+
+    expect(screen.getByText("The outline is the campaign's area.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Draw the area" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save map settings" }));
+    expect(await screen.findByText("Saved the map settings.")).toBeInTheDocument();
+    expect(puts[0]).toMatchObject({ bounds: { west: 4.2, south: 50.6, east: 4.6, north: 50.8 } });
+  });
+
+  it("stops drawing without changing the area", async () => {
+    serve("Umpire");
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+
+    await user.click(await screen.findByRole("button", { name: "Draw the area" }));
+    await user.click(screen.getByRole("button", { name: "Stop drawing" }));
+    await user.click(screen.getByRole("button", { name: "Drag on the map" }));
+
+    expect(screen.getByText("No area chosen yet.")).toBeInTheDocument();
+  });
+
+  it("counts the area's hexes as it and the hex size change, while the grid's shown", async () => {
+    serve("Umpire");
+    const user = userEvent.setup();
+    await renderApp(`/campaigns/${campaignId}/map/settings`);
+    await user.click(await screen.findByRole("button", { name: "Draw the area" }));
+    await user.click(screen.getByRole("button", { name: "Drag on the map" }));
+
+    expect(screen.getByText("31 hexes in the area.")).toBeInTheDocument();
+    const size = screen.getByRole("textbox", { name: "Hex size, across the flats" });
+    await user.clear(size);
+    await user.type(size, "2");
+    expect(await screen.findByText(/^1[,\d]* hexes in the area\.$/)).toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Hex grid" }));
+    expect(screen.queryByText(/hexes in the area/)).not.toBeInTheDocument();
   });
 
   it("keeps the hex size when switching to miles", async () => {
