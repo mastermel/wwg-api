@@ -1,5 +1,11 @@
-import type { ArmySummary, DepotResponse, HexDetailResponse } from "@/api/generated/model";
+import type {
+  ArmySummary,
+  DepotResponse,
+  HexDetailResponse,
+  SettlementScoreResponse,
+} from "@/api/generated/model";
 import { describeDetail } from "@/features/maps/hex-detail";
+import { settlementValue, victoryPoints } from "@/features/maps/victory";
 import { hexKey, hexName, type Hex } from "@/features/maps/hex-grid";
 import {
   describeSettlement,
@@ -38,6 +44,8 @@ export function describeHex(
   details: readonly HexDetailResponse[],
   depots: readonly DepotResponse[],
   armies: readonly ArmySummary[],
+  /** The settlements whose holders the viewer may know (step 50). */
+  holdings: readonly SettlementScoreResponse[] = [],
 ): HexInfo {
   const cell = terrain.cell(hex);
   const ground = terrainLabels[cell?.terrain ?? "Flat"];
@@ -46,6 +54,14 @@ export function describeHex(
 
   const settlement = cell && describeSettlement(cell.settlement);
   if (settlement) lines.push(`${settlement}.`);
+  const worth = cell ? settlementValue(cell.settlement) : 0;
+  if (worth > 0) {
+    const holding = holdings.find((h) => hexKey(h) === hexKey(hex));
+    const holder = holding?.armyId && armies.find((a) => a.id === holding.armyId)?.name;
+    lines.push(
+      `Worth ${victoryPoints(worth)}${holder ? `; held by ${holder}` : holding ? "; held by no one" : ""}.`,
+    );
+  }
 
   const edges = sides.map((side) => {
     const at = storedEdge(hex, side);

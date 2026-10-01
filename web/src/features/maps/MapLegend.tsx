@@ -1,7 +1,8 @@
 import { Accordion, Group, SimpleGrid, Stack, Text, useComputedColorScheme } from "@mantine/core";
-import { IconBuildingWarehouse } from "@tabler/icons-react";
+import { IconBuildingWarehouse, IconFlagFilled } from "@tabler/icons-react";
 import { createContext, useContext, type ReactNode } from "react";
 import depotClasses from "@/features/maps/DepotMarkers.module.css";
+import flagClasses from "@/features/maps/HoldingFlags.module.css";
 import { mapPalettes } from "@/features/maps/map-style";
 import { UnitLegend } from "@/features/units/UnitLegend";
 
@@ -193,6 +194,14 @@ export function MapLegend({
             </svg>
           }
           label="Out of supply"
+        />
+        <Item
+          sample={
+            <span className={flagClasses.flag} style={{ display: "inline-flex" }}>
+              <IconFlagFilled size={14} color="#5c6370" aria-hidden />
+            </span>
+          }
+          label="Held by (its army's colour)"
         />
         <Item
           sample={

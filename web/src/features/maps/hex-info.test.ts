@@ -75,11 +75,42 @@ describe("describeHex", () => {
     expect(info.lines).toEqual([
       "Low hills, forest.",
       "Walled town: Wavre.",
+      "Worth 35 points.",
       "Good road to the north and south.",
       "Poor road to the north-east.",
       "River along the north-east and south-east sides, bridged to the north-east.",
       "Waterway to the south-west, upstream.",
     ]);
+  });
+
+  it("says what a settlement is worth, and who holds it where the viewer may know", () => {
+    const terrain = indexTerrain({
+      cells: [
+        {
+          q: 0,
+          r: 0,
+          terrain: "Flat",
+          forest: false,
+          settlement: { ...noSettlement, size: "City", name: "Namur" },
+          setByUmpire: true,
+        },
+      ],
+      edges: [],
+    });
+    const holding = {
+      q: 0,
+      r: 0,
+      latitude: 0,
+      longitude: 0,
+      name: "Namur",
+      value: 25,
+      armyId: nord.id,
+    };
+
+    expect(describeHex(centre, terrain, [], [], [nord]).lines).toContain("Worth 25 points.");
+    expect(describeHex(centre, terrain, [], [], [nord], [holding]).lines).toContain(
+      "Worth 25 points; held by Armée du Nord.",
+    );
   });
 
   it("adds the actual terrain the viewer was shown, and the depots they may see", () => {

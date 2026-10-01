@@ -2570,8 +2570,9 @@ build on positions.
       the settlements and their holders for their own side and the Umpire; the history of totals
       per turn, and the changes a side made or suffered (`GET /api/campaigns/{id}/scoreboard`,
       `Scoreboard`; sides by name, as the sides list).
-    - **50c. In the app:** the value and starting holder in the terrain editor; the scoreboard on
+    - ✅ **50c. In the app:** the value and starting holder in the terrain editor; the scoreboard on
       the campaign and map pages, with its history; a flag in the holder's colour by each
-      settlement on the map, and the holder and value in the hex card.
+      settlement on the map, and the holder and value in the hex card (`victory.ts`, mirroring the
+      API's value; `HolderField`, `ScoreboardPanel`, `HoldingFlags`).
 51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.

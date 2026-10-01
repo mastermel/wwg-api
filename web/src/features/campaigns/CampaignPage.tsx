@@ -17,6 +17,7 @@ import { useSession } from "@/features/auth/session-context";
 import { canManage } from "@/features/campaigns/campaign-access";
 import { JoinLinkSection } from "@/features/campaigns/JoinLinkSection";
 import { SidesSection } from "@/features/sides/SidesSection";
+import { CampaignScoreboard } from "@/features/campaigns/CampaignScoreboard";
 import { LeaveCampaignButton } from "@/features/campaigns/LeaveCampaignButton";
 import { MembersSection } from "@/features/campaigns/MembersSection";
 import { SetUmpireButton } from "@/features/campaigns/SetUmpireButton";
@@ -125,6 +126,7 @@ function CampaignDetails({ campaign, manager }: { campaign: CampaignResponse; ma
             )}
           </Section>
           <SidesSection campaign={campaign} />
+          <CampaignScoreboard campaignId={campaign.id} />
           {manager && <JoinLinkSection campaign={campaign} />}
           {manager && (
             <Section

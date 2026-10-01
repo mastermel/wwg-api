@@ -192,6 +192,62 @@ describe("the terrain page", () => {
     await expectNoAxeViolations(container);
   });
 
+  it("lets the Umpire give a settlement its points and who holds it", async () => {
+    const town = {
+      q: 0,
+      r: 0,
+      terrain: "Flat" as const,
+      forest: false,
+      settlement: {
+        size: "Town" as const,
+        walled: false,
+        fortress: false,
+        capital: "None" as const,
+        name: "Wavre",
+        victoryPoints: null,
+      },
+      setByUmpire: true,
+    };
+    serveCampaign("Umpire", { cells: [town], edges: [] });
+    const holdings: unknown[] = [];
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/armies`, () =>
+        HttpResponse.json([
+          {
+            id: armyId,
+            name: "Armée du Nord",
+            commander: null,
+            side: { id: "0192f5c1-0000-7000-8000-00000000f001", name: "French Empire" },
+            color: "Blue",
+            nation: "France",
+          },
+        ]),
+      ),
+      http.get(`*/api/campaigns/${campaignId}/scoreboard`, () =>
+        HttpResponse.json({ sides: [], settlements: [], turns: [], changes: [] }),
+      ),
+      http.put(`*/api/campaigns/${campaignId}/holdings/0/0`, async ({ request }) => {
+        holdings.push(await request.json());
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Click the middle" }));
+    const hex = within(screen.getByRole("region", { name: "Hex (0, 0)" }));
+    // A town: the rules' 10, unless the Umpire says otherwise.
+    expect(hex.getByRole("textbox", { name: "Victory points" })).toHaveAttribute(
+      "placeholder",
+      "10",
+    );
+    await user.click(await hex.findByRole("combobox", { name: "Held by" }));
+    await user.click(await hex.findByRole("option", { name: "Armée du Nord", hidden: true }));
+
+    expect(await screen.findByText("Hex (0, 0) is held by Armée du Nord.")).toBeInTheDocument();
+    expect(holdings).toEqual([{ armyId }]);
+  });
+
   it("lets the Umpire set a hex's ground and settlement", async () => {
     const saved = serveCampaign("Umpire");
     const user = userEvent.setup();
@@ -222,6 +278,7 @@ describe("the terrain page", () => {
             fortress: false,
             capital: "None",
             name: "Mont-Saint-Jean",
+            victoryPoints: null,
           },
         },
       },

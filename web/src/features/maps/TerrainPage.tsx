@@ -6,6 +6,7 @@ import {
   Button,
   Grid,
   Group,
+  NumberInput,
   Select,
   Stack,
   Switch,
@@ -64,6 +65,8 @@ import {
   type TerrainIndex,
 } from "@/features/maps/terrain";
 import { HexDetailSection } from "@/features/maps/HexDetailSection";
+import { HolderField } from "@/features/maps/HolderField";
+import { rulesValue, settlementValue } from "@/features/maps/victory";
 import { InferTerrainSection } from "@/features/maps/InferTerrainSection";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { applyServerErrors } from "@/lib/form-errors";
@@ -272,14 +275,22 @@ function HexForm({
     defaultValues: {
       terrain: cell?.terrain ?? "Flat",
       forest: cell?.forest ?? false,
-      settlement: { ...noSettlement, ...cell?.settlement, name: cell?.settlement.name ?? "" },
+      settlement: {
+        ...noSettlement,
+        ...cell?.settlement,
+        name: cell?.settlement.name ?? "",
+        victoryPoints: cell?.settlement.victoryPoints ?? null,
+      },
     },
   });
   const { errors } = form.formState;
-  const [size, fortress] = useWatch({
+  const [size, fortress, walled, capital] = useWatch({
     control: form.control,
-    name: ["settlement.size", "settlement.fortress"],
+    name: ["settlement.size", "settlement.fortress", "settlement.walled", "settlement.capital"],
   });
+  const place = size !== "None" || fortress;
+  // What the rules make it worth, as it's being edited (step 50).
+  const rules = rulesValue({ ...noSettlement, size, fortress, walled, capital });
   const { isSubmitting } = form.formState;
 
   const submit = form.handleSubmit(async (values) => {
@@ -427,6 +438,31 @@ function HexForm({
               setValueAs: (value: string | null) => value?.trim() ?? "",
             })}
           />
+          <Controller
+            control={form.control}
+            name="settlement.victoryPoints"
+            render={({ field }) => (
+              <NumberInput
+                label="Victory points"
+                description={`What holding it is worth. Leave it empty for the rules' ${String(rules)}; 0 if it doesn't count.`}
+                placeholder={String(rules)}
+                min={0}
+                max={1000}
+                allowDecimal={false}
+                allowNegative={false}
+                clampBehavior="strict"
+                // Its step buttons have no accessible names; arrow keys still step.
+                hideControls
+                disabled={!place}
+                value={field.value ?? ""}
+                onChange={(value) => {
+                  field.onChange(typeof value === "number" ? value : null);
+                }}
+                onBlur={field.onBlur}
+                error={errors.settlement?.victoryPoints?.message}
+              />
+            )}
+          />
           <Group justify="flex-end">
             <Button type="submit" loading={isSubmitting} disabled={!online}>
               Save hex
@@ -434,6 +470,11 @@ function HexForm({
           </Group>
         </Stack>
       </form>
+      {cell && settlementValue(cell.settlement) > 0 && (
+        <Stack mt="md">
+          <HolderField campaignId={campaignId} hex={hex} />
+        </Stack>
+      )}
     </Section>
   );
 }

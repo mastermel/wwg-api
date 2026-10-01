@@ -37,6 +37,7 @@ import {
   useListReports,
 } from "@/api/generated/endpoints/intelligence/intelligence";
 import { useListSightings } from "@/api/generated/endpoints/sightings/sightings";
+import { useGetScoreboard } from "@/api/generated/endpoints/victory/victory";
 import {
   useGetSupply,
   useGetSupplySettings,
@@ -94,6 +95,8 @@ import { describeHex } from "@/features/maps/hex-info";
 import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
 import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
 import { CouriersPanel } from "@/features/maps/CouriersPanel";
+import { HoldingFlags } from "@/features/maps/HoldingFlags";
+import { ScoreboardPanel } from "@/features/maps/ScoreboardPanel";
 import { IntelligencePanel } from "@/features/maps/IntelligencePanel";
 import { SightingMarkers } from "@/features/maps/SightingMarkers";
 import { SnapshotMarkers } from "@/features/maps/SnapshotMarkers";
@@ -311,6 +314,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     query: { meta: { persist: false }, enabled: running && manager },
   });
   const [shownReport, setShownReport] = useState<string | null>(null);
+  // Victory points (step 50): the totals, and the holders the viewer may know.
+  const scoreboard = useGetScoreboard(campaignId, live);
   const outOfSupply = useMemo(
     () =>
       new Set(
@@ -457,9 +462,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             hexDetails.data ?? [],
             depots.data ?? [],
             armies.data ?? [],
+            scoreboard.data?.settlements,
           )
         : null,
-    [shownHex, costs.terrain, hexDetails.data, depots.data, armies.data],
+    [shownHex, costs.terrain, hexDetails.data, depots.data, armies.data, scoreboard.data],
   );
   const hoverAt = (point: Point | null) => {
     const hex = point && idle ? grid.hexAt(point) : null;
@@ -784,6 +790,12 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           />
           <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
           <DepotMarkers depots={depots.data ?? []} armies={armies.data ?? []} />
+          {showGame("towns") && (
+            <HoldingFlags
+              settlements={scoreboard.data?.settlements ?? []}
+              armies={armies.data ?? []}
+            />
+          )}
           <SightingMarkers sightings={drawnSightings} armies={armies.data ?? []} />
           <SnapshotMarkers
             report={reports.data?.find((r) => r.id === shownReport)}
@@ -947,6 +959,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           armies={armies.data ?? []}
         />
       )}
+      <ScoreboardPanel scoreboard={scoreboard.data} armies={armies.data ?? []} />
       <SightingsPanel
         sightings={sightings.data ?? []}
         armies={armies.data ?? []}
