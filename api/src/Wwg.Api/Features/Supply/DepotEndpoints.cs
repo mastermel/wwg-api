@@ -22,6 +22,10 @@ internal static class DepotEndpoints
             .WithTags("Supply")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Army)
             .ProducesProblem(StatusCodes.Status409Conflict);
+        app.MapGet("/api/campaigns/{id:guid}/supply", GetSupplyAsync)
+            .WithName("GetSupply")
+            .WithTags("Supply")
+            .RequireCampaignAccess(CampaignAccess.Member);
         var depot = app.MapGroup("/api/depots/{id:guid}").WithTags("Supply");
         depot
             .MapPut("", UpdateDepotAsync)
@@ -63,6 +67,56 @@ internal static class DepotEndpoints
             .ThenBy(d => d.Id)
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(depots.Select(d => ToResponse(grid, d)).ToList());
+    }
+
+    /// <summary>
+    /// The supply the viewer may see (step 48c): each unit's as the open turn began and by its
+    /// orders as given, and each intermediate depot's. The Umpire's and Admins', every army's; a
+    /// commander's, their own army's; anyone else's, none.
+    /// </summary>
+    internal static async Task<Ok<CampaignSupplyResponse>> GetSupplyAsync(
+        Guid id,
+        WwgDbContext db,
+        HttpContext httpContext,
+        CancellationToken cancellationToken
+    )
+    {
+        var context = httpContext.CampaignContext();
+        var mine = await db
+            .Armies.AsNoTracking()
+            .Where(a =>
+                a.CampaignId == id && (context.CanManage || a.CommanderId == context.MemberId)
+            )
+            .Select(a => a.Id)
+            .ToListAsync(cancellationToken);
+        var supply = await SupplyData.LoadAsync(db, id, cancellationToken);
+        var units = supply
+            .Units.Where(u => mine.Contains(u.Value.ArmyId) && supply.Now.ContainsKey(u.Key))
+            .Select(u =>
+            {
+                var now = supply.Now[u.Key];
+                var next = supply.Next.GetValueOrDefault(u.Key) ?? now;
+                return new UnitSupplyResponse(
+                    u.Key,
+                    u.Value.ArmyId,
+                    now.State,
+                    now.DepotId,
+                    u.Value.UnsuppliedTurns,
+                    next.State,
+                    next.State == SupplyState.Unsupplied ? u.Value.UnsuppliedTurns + 1 : 0
+                );
+            })
+            .OrderBy(u => u.UnitId)
+            .ToList();
+        var depots = supply
+            .Depots.Where(d => d.Kind == DepotKind.Intermediate && mine.Contains(d.ArmyId))
+            .Select(d => new DepotSupplyResponse(
+                d.Id,
+                supply.ConnectedNow.GetValueOrDefault(d.Id),
+                d.CutOffTurns
+            ))
+            .ToList();
+        return TypedResults.Ok(new CampaignSupplyResponse(units, depots));
     }
 
     /// <summary>Places a depot for the army (Umpire or Admin), in a hex of the campaign's grid.</summary>

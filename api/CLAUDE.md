@@ -111,6 +111,9 @@ true, because the build launches the app to write the document.
   neighbours'.
 - Forced marches (decision 0018) are worked out, never stored: `Marches.LoadAsync` replays each
   unit's orders turn by turn through `MarchState.After`, so reopening a turn can't leave them stale.
+- Supply (decision 0019) is `Features/Supply`: `SupplyLines.Of` is the pure rule (routes, cut
+  hexes, reach), `SupplyData` loads a campaign's units where they are (now, and by the open turn's
+  orders) and counts each closing turn (`CloseTurnAsync`, from `StartNextTurn`).
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.

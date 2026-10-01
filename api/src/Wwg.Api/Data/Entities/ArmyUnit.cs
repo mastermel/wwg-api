@@ -71,4 +71,10 @@ internal sealed class ArmyUnit : Entity
     /// whole, and the unit loses one once this adds up to it.
     /// </summary>
     public double AttritionCarry { get; set; }
+
+    /// <summary>
+    /// Turns in a row it ended out of supply (decision 0019), counted as each turn closes; from
+    /// the 7th, each costs attrition.
+    /// </summary>
+    public int UnsuppliedTurns { get; set; }
 }

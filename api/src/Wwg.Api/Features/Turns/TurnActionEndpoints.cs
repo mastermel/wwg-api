@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Supply;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 using Wwg.Api.Infrastructure.Email;
@@ -255,6 +256,8 @@ internal static class TurnActionEndpoints
             );
         }
 
+        // Supply (decision 0019): the closing turn counts towards each unit's turns cut off.
+        await SupplyData.CloseTurnAsync(db, id, cancellationToken);
         var now = time.GetUtcNow().UtcDateTime;
         var next = new CampaignTurn
         {

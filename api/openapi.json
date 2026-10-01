@@ -490,6 +490,43 @@
         ]
       }
     },
+    "/api/campaigns/{id}/supply": {
+      "get": {
+        "tags": [
+          "Supply"
+        ],
+        "summary": "The supply the viewer may see (step 48c): each unit's as the open turn began and by its\norders as given, and each intermediate depot's. The Umpire's and Admins', every army's; a\ncommander's, their own army's; anyone else's, none.",
+        "operationId": "GetSupply",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignSupplyResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -5459,6 +5496,30 @@
         },
         "description": "A campaign in the \"my campaigns\" list."
       },
+      "CampaignSupplyResponse": {
+        "required": [
+          "units",
+          "depots"
+        ],
+        "type": "object",
+        "properties": {
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitSupplyResponse"
+            },
+            "description": "Each unit's supply."
+          },
+          "depots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DepotSupplyResponse"
+            },
+            "description": "Each intermediate depot's."
+          }
+        },
+        "description": "The supply the viewer may see: their army's (the Umpire's, every army's)."
+      },
       "CampaignSupplySettingsResponse": {
         "required": [
           "reach",
@@ -5827,6 +5888,31 @@
           }
         },
         "description": "One of an army's depots (decision 0019)."
+      },
+      "DepotSupplyResponse": {
+        "required": [
+          "depotId",
+          "connected",
+          "cutOffTurns"
+        ],
+        "type": "object",
+        "properties": {
+          "depotId": {
+            "type": "string",
+            "description": "The depot.",
+            "format": "uuid"
+          },
+          "connected": {
+            "type": "boolean",
+            "description": "Whether a route reaches it from a main depot of its army now."
+          },
+          "cutOffTurns": {
+            "type": "integer",
+            "description": "Turns in a row it has been cut off (its stock lasts 15).",
+            "format": "int32"
+          }
+        },
+        "description": "An intermediate depot's supply (decision 0019)."
       },
       "DetailRelief": {
         "enum": [
@@ -7393,6 +7479,16 @@
         },
         "description": "Starting the next turn."
       },
+      "SupplyState": {
+        "enum": [
+          "Supplied",
+          "Unsupplied",
+          "Exempt",
+          "LivingOffTheLand",
+          "Untracked"
+        ],
+        "description": "Where a unit stands for supply (decision 0019)."
+      },
       "Terrain": {
         "enum": [
           "Flat",
@@ -7633,6 +7729,57 @@
           }
         },
         "description": "A unit in the library."
+      },
+      "UnitSupplyResponse": {
+        "required": [
+          "unitId",
+          "armyId",
+          "state",
+          "depotId",
+          "unsuppliedTurns",
+          "nextState",
+          "nextUnsuppliedTurns"
+        ],
+        "type": "object",
+        "properties": {
+          "unitId": {
+            "type": "string",
+            "description": "The unit.",
+            "format": "uuid"
+          },
+          "armyId": {
+            "type": "string",
+            "description": "Its army.",
+            "format": "uuid"
+          },
+          "state": {
+            "description": "Its supply as the open turn began.",
+            "$ref": "#/components/schemas/SupplyState"
+          },
+          "depotId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The depot it's supplied from, if it is.",
+            "format": "uuid"
+          },
+          "unsuppliedTurns": {
+            "type": "integer",
+            "description": "Turns in a row it has ended out of supply.",
+            "format": "int32"
+          },
+          "nextState": {
+            "description": "Its supply where its order this turn (as given) leaves it.",
+            "$ref": "#/components/schemas/SupplyState"
+          },
+          "nextUnsuppliedTurns": {
+            "type": "integer",
+            "description": "Its turns in a row out of supply, after this one.",
+            "format": "int32"
+          }
+        },
+        "description": "A unit's supply (decision 0019): as the open turn began, and by its orders as given."
       },
       "UnitType": {
         "enum": [

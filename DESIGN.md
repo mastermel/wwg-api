@@ -2505,10 +2505,13 @@ build on positions.
       that may not), set with a unit's order (the drawer's **Living off the land** switch keeps the
       order and changes only that; each new order keeps the unit's last); a side's hex with a unit
       living off the land held to half the concentration limits.
-    - **48c. Supply (API):** each unit's supply turn by turn: routes by road and waterway from its
-      army's depots, cut by 5+ enemy points unless its side has twice as many there, within the
-      reach; intermediate depots by their own route to a main one, and for 15 turns after; the
-      turns in a row unsupplied; for its commander and the Umpire.
+    - ✅ **48c. Supply (API):** each unit's supply (`SupplyLines`, `SupplyData`): routes by road and
+      waterway from its army's depots, cut by 5+ enemy points unless its side has twice as many
+      there, within the reach; intermediate depots by their own route to a main one, and for 15
+      turns after (`Depot.CutOffTurns`); exempt, living off the land, or untracked (an army with no
+      depots). Counted as each turn closes (`ArmyUnit.UnsuppliedTurns`: turns closing reopen
+      nothing, so it's stored, not replayed). `GET /api/campaigns/{id}/supply`: each unit's as the
+      open turn began and by its orders as given, for its commander and the Umpire.
     - **48d. Supply's attrition, in the app:** from the 7th unsupplied turn, normal attrition (a
       forced march's doubled) in the list the Umpire confirms; supply on the map and in the unit
       drawer, and living off the land with the unit's order.

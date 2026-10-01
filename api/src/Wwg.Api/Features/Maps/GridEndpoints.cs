@@ -408,7 +408,7 @@ internal static class GridEndpoints
         grid.Contains(hex) || grid.Contains(Across(hex, side));
 
     /// <summary>The hex on the other side of one of a hex's N, NE or SE edges.</summary>
-    private static Hex Across(Hex hex, EdgeSide side) =>
+    internal static Hex Across(Hex hex, EdgeSide side) =>
         side switch
         {
             EdgeSide.N => new Hex(hex.Q, hex.R - 1),

@@ -38,3 +38,35 @@ public sealed record SaveDepotRequest(
     [property: JsonRequired] int Q,
     [property: JsonRequired] int R
 );
+
+/// <summary>A unit's supply (decision 0019): as the open turn began, and by its orders as given.</summary>
+/// <param name="UnitId">The unit.</param>
+/// <param name="ArmyId">Its army.</param>
+/// <param name="State">Its supply as the open turn began.</param>
+/// <param name="DepotId">The depot it's supplied from, if it is.</param>
+/// <param name="UnsuppliedTurns">Turns in a row it has ended out of supply.</param>
+/// <param name="NextState">Its supply where its order this turn (as given) leaves it.</param>
+/// <param name="NextUnsuppliedTurns">Its turns in a row out of supply, after this one.</param>
+public sealed record UnitSupplyResponse(
+    Guid UnitId,
+    Guid ArmyId,
+    SupplyState State,
+    Guid? DepotId,
+    int UnsuppliedTurns,
+    SupplyState NextState,
+    int NextUnsuppliedTurns
+);
+
+/// <summary>An intermediate depot's supply (decision 0019).</summary>
+/// <param name="DepotId">The depot.</param>
+/// <param name="Connected">Whether a route reaches it from a main depot of its army now.</param>
+/// <param name="CutOffTurns">Turns in a row it has been cut off (its stock lasts 15).</param>
+public sealed record DepotSupplyResponse(Guid DepotId, bool Connected, int CutOffTurns);
+
+/// <summary>The supply the viewer may see: their army's (the Umpire's, every army's).</summary>
+/// <param name="Units">Each unit's supply.</param>
+/// <param name="Depots">Each intermediate depot's.</param>
+public sealed record CampaignSupplyResponse(
+    IReadOnlyList<UnitSupplyResponse> Units,
+    IReadOnlyList<DepotSupplyResponse> Depots
+);
