@@ -3,12 +3,6 @@ using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Sides;
 
-/// <summary>Adds a side to the campaign.</summary>
-/// <param name="Name">The side's name, unique in the campaign.</param>
-public sealed record CreateSideRequest(
-    [property: Trimmed, Required, StringLength(100)] string Name
-);
-
 /// <summary>Renames a side.</summary>
 /// <param name="Name">The side's new name, unique in the campaign.</param>
 public sealed record RenameSideRequest(

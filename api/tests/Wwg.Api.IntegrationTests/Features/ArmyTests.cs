@@ -20,7 +20,7 @@ public sealed class ArmyTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest(name, commanderMemberId),
+                new CreateArmyRequest(name, commanderMemberId, scenario.SideId),
                 TestContext.Current.CancellationToken
             );
 
@@ -153,7 +153,7 @@ public sealed class ArmyTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
-                new UpdateArmyRequest(name, null, ArmyColor.Red, Nation.None),
+                new UpdateArmyRequest(name, scenario.SideId, ArmyColor.Red, Nation.None),
                 CancellationToken
             );
 
@@ -179,7 +179,12 @@ public sealed class ArmyTests : ApiTest
             .As(Role.Umpire)
             .PutAsJsonAsync(
                 new Uri($"/api/armies/{scenario.ArmyId}", UriKind.Relative),
-                new UpdateArmyRequest(" Imperial Guard ", null, ArmyColor.Red, Nation.None),
+                new UpdateArmyRequest(
+                    " Imperial Guard ",
+                    scenario.SideId,
+                    ArmyColor.Red,
+                    Nation.None
+                ),
                 CancellationToken
             );
 

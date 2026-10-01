@@ -26,6 +26,8 @@ import { useOnline } from "@/lib/use-online";
 // form always sends its factions (the API also takes null, for "leave them").
 const ArmyForm = UpdateArmyBody.extend({
   commanderMemberId: CreateArmyBody.shape.commanderMemberId,
+  // Every army is on one of the campaign's two sides (decision 0017).
+  sideId: z.uuid({ error: "Choose a side." }),
   factionIds: z.array(z.uuid()),
 });
 
@@ -131,13 +133,13 @@ export function ArmyFormModal({
             render={({ field }) => (
               <Select
                 label="Side"
-                description="Every army needs one before the campaign starts."
-                placeholder={sides.length ? "Unassigned" : "No sides yet"}
+                required
                 data={sides}
-                value={field.value}
-                onChange={field.onChange}
-                clearable
-                disabled={sides.length === 0}
+                value={field.value || null}
+                onChange={(value) => {
+                  if (value) field.onChange(value);
+                }}
+                allowDeselect={false}
                 error={errors.sideId?.message}
                 comboboxProps={{ withinPortal: false }}
               />

@@ -139,9 +139,11 @@ test("a commander steps back through the turns; the Umpire picks out an army", a
   const prussian = await libraryFaction(browserOf(umpire.page), "Prussian", "Prussia", [
     { name: "1st Brigade", type: "LightInfantry", fightingFactor: 4, points: 20 },
   ]);
+  const sides = await api.get<{ id: string }[]>(`/api/campaigns/${campaignId}/sides`);
   const prussians = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/armies`, {
     name: "Prussian I Corps",
     commanderMemberId: null,
+    sideId: sides[1].id,
     nation: "Prussia",
     factionIds: [prussian.id],
   });

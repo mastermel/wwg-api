@@ -3,11 +3,11 @@ import { Alert, Button, Group, Modal, Stack, TextInput } from "@mantine/core";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
-import { CreateSideBody } from "@/api/generated/zod/sides/sides.zod";
+import { RenameSideBody } from "@/api/generated/zod/sides/sides.zod";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
-type SideValues = z.infer<typeof CreateSideBody>;
+type SideValues = z.infer<typeof RenameSideBody>;
 
 interface SideFormModalProps {
   title: string;
@@ -28,7 +28,7 @@ export function SideFormModal({
   const online = useOnline();
   const [formError, setFormError] = useState<string | null>(null);
   const form = useForm<SideValues>({
-    resolver: zodResolver(CreateSideBody),
+    resolver: zodResolver(RenameSideBody),
     defaultValues: { name: defaultName },
   });
   const { errors, isSubmitting } = form.formState;

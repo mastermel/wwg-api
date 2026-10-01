@@ -45,9 +45,19 @@ const commander = (member: CampaignMemberResponse) => ({
   lastName: member.lastName,
 });
 
-/** An army's side, colour and nation: none, the given colour, a plain flag. */
+/** An army's side, colour and nation: Coalition, the given colour, a plain flag. */
 const factionId = "0192f5c1-0000-7000-8000-0000000fac01";
-const identity = (color: ArmyColor) => ({ side: null, color, nation: "None" as const });
+const otherSideId = "0192f5c1-0000-7000-8000-00000000f002";
+const identity = (color: ArmyColor) => ({
+  side: { id: sideId, name: "Coalition" },
+  color,
+  nation: "None" as const,
+});
+/** The campaign's two sides (decision 0017). */
+const sides = [
+  { id: sideId, name: "Coalition", armyCount: 2 },
+  { id: otherSideId, name: "French Empire", armyCount: 0 },
+];
 
 const armies: ArmySummary[] = [
   { ...identity("Red"), id: armyId, name: "First Corps", commander: commander(me) },
@@ -104,8 +114,9 @@ describe("armies on the campaign page", () => {
       "href",
       `/campaigns/${campaignId}/armies/${otherArmyId}`,
     );
-    // Reserve has no commander; neither army has a side.
+    // Reserve has no commander; both armies are on the Coalition's side.
     expect(within(table).getAllByText("Unassigned").length).toBeGreaterThan(0);
+    expect(within(table).getAllByText("Coalition").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "New army" })).not.toBeInTheDocument();
   });
 
@@ -123,6 +134,7 @@ describe("armies on the campaign page", () => {
     serveCampaign("Umpire");
     const bodies: unknown[] = [];
     server.use(
+      http.get(`*/api/campaigns/${campaignId}/sides`, () => HttpResponse.json(sides)),
       http.post(`*/api/campaigns/${campaignId}/armies`, async ({ request }) => {
         bodies.push(await request.json());
         return HttpResponse.json(
@@ -151,7 +163,8 @@ describe("armies on the campaign page", () => {
       {
         name: "Second Corps",
         commanderMemberId: arthur.id,
-        sideId: null,
+        // The first side, to start with.
+        sideId,
         color: "Green",
         nation: "None",
         factionIds: [],
@@ -221,9 +234,7 @@ describe("army page", () => {
     serveCampaign("Umpire");
     const bodies: unknown[] = [];
     server.use(
-      http.get(`*/api/campaigns/${campaignId}/sides`, () =>
-        HttpResponse.json([{ id: sideId, name: "Coalition", armyCount: 0 }]),
-      ),
+      http.get(`*/api/campaigns/${campaignId}/sides`, () => HttpResponse.json(sides)),
       http.get("*/api/factions", () =>
         HttpResponse.json([{ id: factionId, name: "Prussian", nation: "Prussia", unitCount: 3 }]),
       ),
@@ -239,7 +250,7 @@ describe("army page", () => {
     await user.click(await screen.findByRole("button", { name: "Edit army" }));
     const dialog = within(await screen.findByRole("dialog"));
     await user.click(dialog.getByRole("combobox", { name: "Side" }));
-    await user.click(await dialog.findByRole("option", { name: "Coalition", hidden: true }));
+    await user.click(await dialog.findByRole("option", { name: "French Empire", hidden: true }));
     await user.click(dialog.getByRole("combobox", { name: "Colour" }));
     await user.click(await dialog.findByRole("option", { name: "Gold", hidden: true }));
     await user.click(dialog.getByRole("combobox", { name: "Nation" }));
@@ -250,7 +261,13 @@ describe("army page", () => {
 
     expect(await screen.findByText("Saved First Corps.")).toBeInTheDocument();
     expect(bodies).toEqual([
-      { name: "First Corps", sideId, color: "Gold", nation: "Prussia", factionIds: [factionId] },
+      {
+        name: "First Corps",
+        sideId: otherSideId,
+        color: "Gold",
+        nation: "Prussia",
+        factionIds: [factionId],
+      },
     ]);
   });
 

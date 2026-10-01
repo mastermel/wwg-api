@@ -350,16 +350,12 @@ internal static class TurnEndpoints
             .Armies.AsNoTracking()
             .Where(a => a.CampaignId == campaignId)
             .OrderBy(a => a.Name)
-            .Select(a => new { a.Name, a.SideId })
+            .Select(a => a.Name)
             .ToListAsync(cancellationToken);
         if (armies.Count == 0)
         {
             problems.Add("Add at least one army.");
         }
-
-        problems.AddRange(
-            armies.Where(a => a.SideId is null).Select(a => $"Put {a.Name} on a side.")
-        );
 
         var unplaced = await db.ArmyUnits.CountAsync(
             u =>

@@ -114,8 +114,18 @@ public sealed class ArmyDataRulesTests : ApiTest
         await WithDbAsync(db =>
         {
             db.Armies.AddRange(
-                new Army { CampaignId = scenario.CampaignId, Name = "Reserve" },
-                new Army { CampaignId = scenario.CampaignId, Name = "Garrison" }
+                new Army
+                {
+                    CampaignId = scenario.CampaignId,
+                    SideId = scenario.SideId,
+                    Name = "Reserve",
+                },
+                new Army
+                {
+                    CampaignId = scenario.CampaignId,
+                    SideId = scenario.SideId,
+                    Name = "Garrison",
+                }
             );
             return db.SaveChangesAsync(CancellationToken);
         });

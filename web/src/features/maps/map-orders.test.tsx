@@ -47,7 +47,7 @@ const army: ArmySummary = {
     firstName: testUser.firstName,
     lastName: testUser.lastName,
   },
-  side: null,
+  side: { id: "0192f5c1-0000-7000-8000-00000000f001", name: "Coalition" },
   color: "Blue",
   nation: "France",
 };

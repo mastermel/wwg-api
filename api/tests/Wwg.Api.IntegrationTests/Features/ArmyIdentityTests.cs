@@ -40,8 +40,14 @@ public sealed class ArmyIdentityTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var second = await CreateAsync(scenario, new CreateArmyRequest("Second Corps", null));
-        using var third = await CreateAsync(scenario, new CreateArmyRequest("Third Corps", null));
+        using var second = await CreateAsync(
+            scenario,
+            new CreateArmyRequest("Second Corps", null, scenario.SideId)
+        );
+        using var third = await CreateAsync(
+            scenario,
+            new CreateArmyRequest("Third Corps", null, scenario.SideId)
+        );
 
         // First Corps, the scenario's, has Red.
         Assert.Equal(
@@ -81,10 +87,16 @@ public sealed class ArmyIdentityTests : ApiTest
     {
         using var scenario = await CreateCampaignScenarioAsync();
 
-        using var response = await CreateAsync(scenario, new CreateArmyRequest("Reserve", null));
+        using var response = await CreateAsync(
+            scenario,
+            new CreateArmyRequest("Reserve", null, scenario.SideId)
+        );
 
         var army = await response.Content.ReadAsAsync<ArmyResponse>();
-        Assert.Equal((Nation.None, null), (army?.Nation, army?.Side));
+        Assert.Equal(
+            (Nation.None, new ArmySide(scenario.SideId, "Coalition")),
+            (army?.Nation, army?.Side)
+        );
     }
 
     [Fact]
@@ -95,12 +107,15 @@ public sealed class ArmyIdentityTests : ApiTest
         {
             using var created = await CreateAsync(
                 scenario,
-                new CreateArmyRequest($"Corps {i}", null)
+                new CreateArmyRequest($"Corps {i}", null, scenario.SideId)
             );
             created.EnsureSuccessStatusCode();
         }
 
-        using var response = await CreateAsync(scenario, new CreateArmyRequest("Ninth", null));
+        using var response = await CreateAsync(
+            scenario,
+            new CreateArmyRequest("Ninth", null, scenario.SideId)
+        );
 
         await response.AssertProblemAsync(HttpStatusCode.Conflict);
     }
@@ -126,7 +141,12 @@ public sealed class ArmyIdentityTests : ApiTest
 
         using var response = await UpdateAsync(
             scenario,
-            new UpdateArmyRequest("Prussian I Corps", null, ArmyColor.Gold, Nation.Prussia)
+            new UpdateArmyRequest(
+                "Prussian I Corps",
+                scenario.OtherSideId,
+                ArmyColor.Gold,
+                Nation.Prussia
+            )
         );
 
         var armies = await scenario
@@ -134,7 +154,12 @@ public sealed class ArmyIdentityTests : ApiTest
             .GetAsAsync<List<ArmySummary>>($"/api/campaigns/{scenario.CampaignId}/armies");
         var army = Assert.Single(armies!);
         Assert.Equal(
-            ("Prussian I Corps", null, ArmyColor.Gold, Nation.Prussia),
+            (
+                "Prussian I Corps",
+                new ArmySide(scenario.OtherSideId, "French Empire"),
+                ArmyColor.Gold,
+                Nation.Prussia
+            ),
             (army.Name, army.Side, army.Color, army.Nation)
         );
     }
@@ -203,11 +228,10 @@ public sealed class ArmyIdentityTests : ApiTest
         var campaignId = (
             await campaign.Content.ReadAsAsync<Wwg.Api.Features.Campaigns.CampaignResponse>()
         )!.Id;
-        using var side = await umpire.PostAsJsonAsync(
-            new Uri($"/api/campaigns/{campaignId}/sides", UriKind.Relative),
-            new CreateSideRequest("Elsewhere's side"),
-            TestContext.Current.CancellationToken
+        // One of the two sides it was made with.
+        var sides = await umpire.GetAsAsync<List<SideResponse>>(
+            $"/api/campaigns/{campaignId}/sides"
         );
-        return (await side.Content.ReadAsAsync<SideResponse>())!.Id;
+        return sides![0].Id;
     }
 }

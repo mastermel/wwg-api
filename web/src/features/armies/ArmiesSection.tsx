@@ -7,7 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { useCreateArmy, useListArmies } from "@/api/generated/endpoints/armies/armies";
 import { useListCampaignMembers } from "@/api/generated/endpoints/campaigns/campaigns";
 import { useListSides } from "@/api/generated/endpoints/sides/sides";
-import type { ArmyCommander, ArmySummary, CampaignResponse } from "@/api/generated/model";
+import type { ArmyCommander, CampaignResponse } from "@/api/generated/model";
 import { EmptyState } from "@/components/EmptyState";
 import { QueryState } from "@/components/QueryState";
 import { Section } from "@/components/Section";
@@ -25,17 +25,6 @@ import { useOnline } from "@/lib/use-online";
 const maxArmies = 8;
 
 const commanderName = (commander: ArmyCommander) => `${commander.firstName} ${commander.lastName}`;
-
-/** A side's name, or "Unassigned". */
-function SideName({ army }: { army: ArmySummary }) {
-  return army.side ? (
-    army.side.name
-  ) : (
-    <Text span c="dimmed" inherit>
-      Unassigned
-    </Text>
-  );
-}
 
 /**
  * Every army in the campaign: its side and who commands it. Every member can open any army
@@ -112,12 +101,10 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
                         </Anchor>
                       </ArmyBadge>
                       <Text size="xs" c="dimmed" hiddenFrom="sm">
-                        <SideName army={army} />
+                        {army.side.name}
                       </Text>
                     </Table.Td>
-                    <Table.Td visibleFrom="sm">
-                      <SideName army={army} />
-                    </Table.Td>
+                    <Table.Td visibleFrom="sm">{army.side.name}</Table.Td>
                     <Table.Td>
                       {army.commander ? (
                         commanderName(army.commander)
@@ -141,7 +128,8 @@ export function ArmiesSection({ campaign }: { campaign: CampaignResponse }) {
           defaultValues={{
             name: "",
             commanderMemberId: null,
-            sideId: null,
+            // The first side, to start with: every army is on one (decision 0017).
+            sideId: sides.data?.[0]?.id ?? "",
             color: freeColor((armies.data ?? []).map((army) => army.color)),
             nation: "None",
             factionIds: [],

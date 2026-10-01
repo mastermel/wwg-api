@@ -115,19 +115,21 @@ test("the Umpire removes a unit after confirming", async ({ signUp }) => {
   await expect(units.getByText("No units yet")).toBeVisible();
 });
 
-test("the Umpire adds sides and puts an army in one, with its nation", async ({ signUp }) => {
+test("the Umpire renames a side and puts an army on it, with its nation", async ({ signUp }) => {
   const umpire = await signUp("Ada");
   const page = umpire.page;
   await createCampaign(page, "The War of the Sixth Coalition");
   await addArmy(umpire, "Armée du Nord");
 
+  // Every campaign has two sides; a new army goes on the first.
   const sides = page.getByRole("region", { name: "Sides" });
-  await expect(sides.getByText("No sides yet")).toBeVisible();
-  await sides.getByRole("button", { name: "New side" }).click();
+  await expect(sides.getByText("Side 1")).toBeVisible();
+  await expect(sides.getByText("Side 2")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Armies" })).toContainText("Side 1");
+  await sides.getByRole("button", { name: "Rename Side 2" }).click();
   await page.getByRole("dialog").getByRole("textbox", { name: "Name" }).fill("French Empire");
-  await page.getByRole("dialog").getByRole("button", { name: "Add side" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
   await expect(sides.getByText("French Empire")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Armies" })).toContainText("Unassigned");
 
   await page.getByRole("link", { name: "Armée du Nord" }).click();
   await page.getByRole("button", { name: "Edit army" }).click();
@@ -143,5 +145,5 @@ test("the Umpire adds sides and puts an army in one, with its nation", async ({ 
   const row = page.getByRole("region", { name: "Armies" }).getByRole("row", { name: /Armée/ });
   await expect(row).toContainText("French Empire");
   await expect(row.getByTitle("France")).toBeVisible();
-  await expect(sides).toContainText("1 army");
+  await expect(sides.getByRole("row", { name: /French Empire/ })).toContainText("1 army");
 });

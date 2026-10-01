@@ -1251,7 +1251,7 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   units; Managers and Admins create, edit and delete them there, and only there. In a campaign,
   **Edit army** selects the army's factions, and **Add units** lists only their units.
 - The campaign page gains a **Factions** section (the Umpire creates, renames
-  and deletes them; from step 41, **Sides**); the army page's **Edit army** covers name, faction (side), colour (with
+  and deletes them; from step 41, **Sides**; from step 46a, the campaign's two sides, renamed only); the army page's **Edit army** covers name, faction (side), colour (with
   swatches; a new army is offered the first free one) and nation (with its flag).
 - **`ArmyBadge`**, the army's flag in its colour beside its name, everywhere an
   army is named: the armies list, the army page, the members list, the admin
@@ -1591,7 +1591,7 @@ Faction (global: a collection)   Unit (global)                ArmyUnit (a unit i
 Side (was the campaign's                                          Points (copied when it joins;
 Faction; unchanged)                                               the campaign's from then on)
   CampaignId, Name                                              CreatedAt / UpdatedAt
-Army.SideId (was FactionId)
+Army.SideId (was FactionId; required from step 46a, a campaign having exactly two sides)
 ArmyFaction (the library factions an army takes units from)
   ArmyId → Army, FactionId → Faction    (unique together)
 ```
@@ -1731,7 +1731,7 @@ New rows:
 |---|:-:|:-:|:-:|:-:|:-:|
 | List factions; see each army's faction, colour, nation | ✅ | ✅ | ✅ | ✅ | 404 |
 | Create / rename / delete faction; set an army's faction, colour, nation | ✅ | ✅ | 403 | 403 | 404 |
-| Step 41: list / create / rename / delete sides (the campaign's; as factions above) | ✅ | ✅ | 403 | 403 | 404 |
+| Step 41: list / create / rename / delete sides (the campaign's; as factions above; from step 46a, list and rename only) | ✅ | ✅ | 403 | 403 | 404 |
 | Step 41: select an army's factions; add library units to an army, edit or remove an army unit | ✅ | ✅ | 403 | 403 | 404 |
 
 The library (step 41) isn't a campaign's: viewing it is for everyone signed in, and creating,
@@ -1871,7 +1871,8 @@ each step)
 | PUT / DELETE | `/api/campaigns/{id}/grid/details/{q}/{r}` | The Umpire changes it, or sets one without dice `{ relief, features, dominant, favorability, forArmyId?, shownToArmyIds, shownToAll }` / forgets it. Changing the grid forgets them all; deleting the army that asked keeps them |
 
 **Step 41: the library and army units** (decision 0015; the campaign's factions become sides:
-`/api/campaigns/{id}/sides`, `/api/sides/{id}`)
+`/api/campaigns/{id}/sides`, `/api/sides/{id}`; from step 46a, GET the two and PUT to rename
+one, as a campaign is made with both)
 
 | Method | Route | Purpose |
 |---|---|---|
@@ -2441,7 +2442,7 @@ build on positions.
       unit's march; in a Night turn the Turn panel says moving counts towards a forced march,
       and its moves read "by night".
 46. **Contact and concentration** (decision 0017), in parts:
-    - **46a. Two sides:** every campaign has exactly two sides, made with it ("Side 1" and
+    - ✅ **46a. Two sides:** every campaign has exactly two sides, made with it ("Side 1" and
       "Side 2", renamable; no adding or deleting), and every army is on one (`Army.SideId`
       required; the army forms choose it). The migration keeps a campaign's first two sides by
       name, merges any others into the second, makes any missing, and puts armies on none on the

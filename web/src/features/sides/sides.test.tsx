@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import type { CampaignResponse, SideResponse } from "@/api/generated/model";
-import { renderApp } from "@/test/render";
+import { expectNoAxeViolations, renderApp } from "@/test/render";
 import { server } from "@/test/server";
 import { testUser } from "@/test/session";
 
@@ -13,11 +13,16 @@ const coalition: SideResponse = {
   name: "Coalition",
   armyCount: 2,
 };
+const empire: SideResponse = {
+  id: "0192f5c1-0000-7000-8000-00000000f002",
+  name: "French Empire",
+  armyCount: 1,
+};
 
-/** A campaign with the given sides, which change as the test adds and deletes them. */
-function serveCampaign(myRole: CampaignResponse["myRole"], initial: SideResponse[]) {
-  let sides = initial;
-  const deleted: string[] = [];
+/** A campaign with its two sides, renamed as the test renames them; records the renames. */
+function serveCampaign(myRole: CampaignResponse["myRole"]) {
+  let sides = [coalition, empire];
+  const renamed: unknown[] = [];
   server.use(
     http.get(`*/api/campaigns/${campaignId}`, () =>
       HttpResponse.json({
@@ -37,68 +42,47 @@ function serveCampaign(myRole: CampaignResponse["myRole"], initial: SideResponse
       } satisfies CampaignResponse),
     ),
     http.get(`*/api/campaigns/${campaignId}/sides`, () => HttpResponse.json(sides)),
-    http.post(`*/api/campaigns/${campaignId}/sides`, async ({ request }) => {
+    http.put("*/api/sides/:id", async ({ params, request }) => {
       const { name } = (await request.json()) as { name: string };
-      const added = { id: "0192f5c1-0000-7000-8000-00000000f002", name, armyCount: 0 };
-      sides = [...sides, added];
-      return HttpResponse.json(added, { status: 201 });
-    }),
-    http.delete("*/api/sides/:id", ({ params }) => {
-      deleted.push(String(params.id));
-      sides = sides.filter((f) => f.id !== params.id);
-      return new HttpResponse(null, { status: 204 });
+      renamed.push({ id: params.id, name });
+      sides = sides.map((s) => (s.id === params.id ? { ...s, name } : s));
+      return HttpResponse.json(sides.find((s) => s.id === params.id));
     }),
   );
-  return deleted;
+  return renamed;
 }
 
 const sidesSection = async () => within(await screen.findByRole("region", { name: "Sides" }));
 
 describe("sides", () => {
-  it("lists the sides and their armies for everyone, without the Umpire's buttons", async () => {
-    serveCampaign("Player", [coalition]);
+  it("lists the two sides and their armies for everyone, without the Umpire's buttons", async () => {
+    serveCampaign("Player");
     await renderApp(`/campaigns/${campaignId}`);
     const section = await sidesSection();
 
     expect(await section.findByText("Coalition")).toBeInTheDocument();
+    expect(section.getByText("French Empire")).toBeInTheDocument();
     expect(section.getByText("2 armies")).toBeInTheDocument();
+    expect(section.getByText("1 army")).toBeInTheDocument();
     expect(section.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("says what to do when there are none", async () => {
-    serveCampaign("Umpire", []);
-    await renderApp(`/campaigns/${campaignId}`);
-
-    expect(await (await sidesSection()).findByText("No sides yet")).toBeInTheDocument();
-  });
-
-  it("lets the Umpire add a side", async () => {
-    serveCampaign("Umpire", [coalition]);
+  it("lets the Umpire rename a side, and nothing else", async () => {
+    const renamed = serveCampaign("Umpire");
     const user = userEvent.setup();
-    await renderApp(`/campaigns/${campaignId}`);
+    const { container } = await renderApp(`/campaigns/${campaignId}`);
     const section = await sidesSection();
 
-    await user.click(section.getByRole("button", { name: "New side" }));
-    const dialog = within(await screen.findByRole("dialog"));
-    await user.type(dialog.getByRole("textbox", { name: "Name" }), " French Empire ");
-    await user.click(dialog.getByRole("button", { name: "Add side" }));
+    expect(section.queryByRole("button", { name: /New side|Delete/ })).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+    await user.click(await section.findByRole("button", { name: "Rename Coalition" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Rename side" }));
+    await user.clear(dialog.getByRole("textbox", { name: "Name" }));
+    await user.type(dialog.getByRole("textbox", { name: "Name" }), "Sixth Coalition ");
+    await user.click(dialog.getByRole("button", { name: "Save" }));
 
-    expect(await screen.findByText("Added French Empire.")).toBeInTheDocument();
-    expect(await section.findByText("French Empire")).toBeInTheDocument();
-  });
-
-  it("warns that deleting a side leaves its armies unassigned", async () => {
-    const deleted = serveCampaign("Umpire", [coalition]);
-    const user = userEvent.setup();
-    await renderApp(`/campaigns/${campaignId}`);
-    const section = await sidesSection();
-
-    await user.click(await section.findByRole("button", { name: "Delete Coalition" }));
-    const dialog = within(await screen.findByRole("dialog"));
-    expect(dialog.getByText(/its 2 armies left Unassigned/)).toBeInTheDocument();
-    await user.click(dialog.getByRole("button", { name: "Delete side" }));
-
-    expect(await screen.findByText("Deleted Coalition.")).toBeInTheDocument();
-    expect(deleted).toEqual([coalition.id]);
+    expect(await screen.findByText("Renamed to Sixth Coalition.")).toBeInTheDocument();
+    expect(renamed).toEqual([{ id: coalition.id, name: "Sixth Coalition" }]);
+    expect(await section.findByText("Sixth Coalition")).toBeInTheDocument();
   });
 });

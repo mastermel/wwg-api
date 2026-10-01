@@ -73,7 +73,7 @@ internal static class ArmyEndpoints
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
                     ),
-                a.Side == null ? null : new ArmySide(a.Side.Id, a.Side.Name),
+                new ArmySide(a.Side.Id, a.Side.Name),
                 a.Color,
                 a.Nation
             ))
@@ -228,16 +228,15 @@ internal static class ArmyEndpoints
         return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
     }
 
-    /// <summary>A validation problem on <c>sideId</c> unless it's null or one of the campaign's.</summary>
+    /// <summary>A validation problem on <c>sideId</c> unless it's one of the campaign's.</summary>
     private static async Task<ValidationProblem?> InvalidSideAsync(
         WwgDbContext db,
         Guid campaignId,
-        Guid? sideId,
+        Guid sideId,
         CancellationToken cancellationToken
     ) =>
-        sideId is not { } side
-        || await db.Sides.AnyAsync(
-            f => f.Id == side && f.CampaignId == campaignId,
+        await db.Sides.AnyAsync(
+            f => f.Id == sideId && f.CampaignId == campaignId,
             cancellationToken
         )
             ? null
@@ -399,7 +398,7 @@ internal static class ArmyEndpoints
                         a.Commander.User.FirstName,
                         a.Commander.User.LastName
                     ),
-                a.Side == null ? null : new ArmySide(a.Side.Id, a.Side.Name),
+                new ArmySide(a.Side.Id, a.Side.Name),
                 a.Color,
                 a.Nation,
                 db.ArmyFactions.Where(f => f.ArmyId == a.Id)

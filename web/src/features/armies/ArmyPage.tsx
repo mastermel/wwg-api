@@ -68,7 +68,7 @@ function ArmySummaryLine({ army }: { army: ArmyResponse }) {
   const { user } = useSession();
   return (
     <Group gap="lg" wrap="wrap">
-      <ArmyBadge army={army}>{army.side?.name ?? "Unassigned"}</ArmyBadge>
+      <ArmyBadge army={army}>{army.side.name}</ArmyBadge>
       <Group gap={6} wrap="nowrap">
         <IconBooks size={16} aria-hidden />
         <Text span inherit>
@@ -209,7 +209,7 @@ function EditArmyButton({ army }: { army: ArmyResponse }) {
           defaultValues={{
             name: army.name,
             commanderMemberId: null,
-            sideId: army.side?.id ?? null,
+            sideId: army.side.id,
             color: army.color,
             nation: army.nation,
             factionIds: army.factions.map((faction) => faction.id),

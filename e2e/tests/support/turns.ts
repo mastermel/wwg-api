@@ -30,9 +30,8 @@ export async function startedCampaign(umpire: User, commander: User, name: strin
     ...waterlooMap,
     hexSize,
   });
-  const side = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/sides`, {
-    name: "French Empire",
-  });
+  const [side] = await api.get<{ id: string }[]>(`/api/campaigns/${campaignId}/sides`);
+  await api.put(`/api/sides/${side.id}`, { name: "French Empire" });
   const members = await api.get<{ id: string; firstName: string }[]>(
     `/api/campaigns/${campaignId}/members`,
   );

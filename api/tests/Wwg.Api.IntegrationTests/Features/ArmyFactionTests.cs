@@ -50,7 +50,12 @@ public sealed class ArmyFactionTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest("Allies", null, FactionIds: [scenario.FactionId, british]),
+                new CreateArmyRequest(
+                    "Allies",
+                    null,
+                    scenario.SideId,
+                    FactionIds: [scenario.FactionId, british]
+                ),
                 CancellationToken
             );
 
@@ -73,7 +78,12 @@ public sealed class ArmyFactionTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest("Allies", null, FactionIds: [Guid.CreateVersion7()]),
+                new CreateArmyRequest(
+                    "Allies",
+                    null,
+                    scenario.SideId,
+                    FactionIds: [Guid.CreateVersion7()]
+                ),
                 CancellationToken
             );
 

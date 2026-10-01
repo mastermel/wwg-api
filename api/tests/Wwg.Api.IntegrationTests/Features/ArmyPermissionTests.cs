@@ -46,7 +46,7 @@ public sealed class ArmyPermissionTests : ApiTest
             .As(role)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest("Second Corps", null),
+                new CreateArmyRequest("Second Corps", null, scenario.SideId),
                 CancellationToken
             );
 
@@ -83,7 +83,7 @@ public sealed class ArmyPermissionTests : ApiTest
             .As(role)
             .PutAsJsonAsync(
                 ArmyUri(scenario),
-                new UpdateArmyRequest("Renamed", null, ArmyColor.Red, Nation.None),
+                new UpdateArmyRequest("Renamed", scenario.SideId, ArmyColor.Red, Nation.None),
                 CancellationToken
             );
 
@@ -166,7 +166,7 @@ public sealed class ArmyPermissionTests : ApiTest
             "get" => await admin.GetAsync(uri, CancellationToken),
             "put" => await admin.PutAsJsonAsync(
                 uri,
-                new UpdateArmyRequest("x", null, ArmyColor.Red, Nation.None),
+                new UpdateArmyRequest("x", scenario.SideId, ArmyColor.Red, Nation.None),
                 CancellationToken
             ),
             _ => await admin.DeleteAsync(uri, CancellationToken),

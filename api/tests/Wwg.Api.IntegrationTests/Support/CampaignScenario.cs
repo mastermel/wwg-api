@@ -15,7 +15,7 @@ public enum Role
 }
 
 /// <summary>
-/// A campaign with an Umpire, two Players (one commanding the army "First Corps", in the side
+/// A campaign with an Umpire, two Players (one commanding the army "First Corps", on the side
 /// "Coalition", which has the unit "1st Division" from the library's faction "French"), an Admin and a
 /// signed-in outsider, each with their own client. Permission tests pick a client by <see cref="Role"/>.
 /// </summary>
@@ -25,6 +25,7 @@ internal sealed class CampaignScenario(
     Guid commanderMemberId,
     Guid playerMemberId,
     Guid sideId,
+    Guid otherSideId,
     Guid armyId,
     Guid factionId,
     Guid unitId,
@@ -44,6 +45,9 @@ internal sealed class CampaignScenario(
 
     /// <summary>The side "Coalition", which <see cref="ArmyId"/> is in.</summary>
     public Guid SideId { get; } = sideId;
+
+    /// <summary>The other side, "French Empire", with no army yet: the opposing side.</summary>
+    public Guid OtherSideId { get; } = otherSideId;
 
     /// <summary>The army "First Corps", commanded by the <see cref="Role.Commander"/>.</summary>
     public Guid ArmyId { get; } = armyId;

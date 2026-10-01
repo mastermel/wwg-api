@@ -151,12 +151,7 @@ public abstract class ApiTest : IAsyncDisposable
 
         var memberIds = await MemberIdsAsync(campaignId);
 
-        var sideId = await PostForIdAsync<SideResponse>(
-            umpire,
-            $"/api/campaigns/{campaignId}/sides",
-            new CreateSideRequest("Coalition"),
-            f => f.Id
-        );
+        var (sideId, otherSideId) = await NameSidesAsync(umpire, campaignId);
         var (factionId, armyId, unitId) = await FirstArmyAsync(
             admin,
             umpire,
@@ -171,6 +166,7 @@ public abstract class ApiTest : IAsyncDisposable
             memberIds["COMMANDER@EXAMPLE.COM"],
             memberIds["PLAYER@EXAMPLE.COM"],
             sideId,
+            otherSideId,
             armyId,
             factionId,
             unitId,
@@ -217,6 +213,35 @@ public abstract class ApiTest : IAsyncDisposable
             units => units[0].Id
         );
         return (factionId, armyId, unitId);
+    }
+
+    /// <summary>
+    /// The campaign's two sides (decision 0017: made with it, as "Side 1" and "Side 2"), renamed
+    /// "Coalition" and "French Empire".
+    /// </summary>
+    private static async Task<(Guid Coalition, Guid FrenchEmpire)> NameSidesAsync(
+        HttpClient umpire,
+        Guid campaignId
+    )
+    {
+        var sides =
+            await umpire.GetAsAsync<List<SideResponse>>($"/api/campaigns/{campaignId}/sides")
+            ?? throw new InvalidOperationException("No sides.");
+        var first = sides.Single(s => string.Equals(s.Name, "Side 1", StringComparison.Ordinal)).Id;
+        var second = sides
+            .Single(s => string.Equals(s.Name, "Side 2", StringComparison.Ordinal))
+            .Id;
+        foreach (var (id, name) in new[] { (first, "Coalition"), (second, "French Empire") })
+        {
+            using var renamed = await umpire.PutAsJsonAsync(
+                new Uri($"/api/sides/{id}", UriKind.Relative),
+                new RenameSideRequest(name),
+                CancellationToken
+            );
+            renamed.EnsureSuccessStatusCode();
+        }
+
+        return (first, second);
     }
 
     /// <summary>The campaign's membership IDs, by the member's normalized (upper-case) email.</summary>

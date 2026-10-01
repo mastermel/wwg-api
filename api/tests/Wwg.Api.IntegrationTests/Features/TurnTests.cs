@@ -198,14 +198,14 @@ public sealed class TurnTests : ApiTest
     }
 
     [Fact]
-    public async Task StartCampaign_AnArmyWithoutASideAndAUnitNotPlaced_Returns409SayingSo()
+    public async Task StartCampaign_AUnitNotPlaced_Returns409SayingSo()
     {
         using var scenario = await ReadyAsync();
         using var reserve = await scenario
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest("Reserve", null),
+                new CreateArmyRequest("Reserve", null, scenario.SideId),
                 CancellationToken
             );
         var reserveId = (await reserve.Content.ReadAsAsync<ArmyResponse>())!.Id;
@@ -214,11 +214,7 @@ public sealed class TurnTests : ApiTest
         using var response = await TurnSteps.StartAsync(scenario);
 
         var problem = await response.AssertProblemAsync(HttpStatusCode.Conflict);
-        Assert.Equal(
-            "Put Reserve on a side. Place 1 unit on the map.",
-            problem.Detail,
-            StringComparer.Ordinal
-        );
+        Assert.Equal("Place 1 unit on the map.", problem.Detail, StringComparer.Ordinal);
     }
 
     [Fact]

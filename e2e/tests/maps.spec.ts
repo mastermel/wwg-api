@@ -102,12 +102,11 @@ test("the Umpire places the units, stacking two, and starts the campaign", async
   await join(commander.page, link, "Waterloo 1815");
   await join(other.page, link, "Waterloo 1815");
 
-  // Set up through the API: the map's area, a side, and Bob's army with two library units.
+  // Set up through the API: the map's area, a side's name, and Bob's army with two library units.
   const api = await apiAs(umpire.page);
   await api.put(`/api/campaigns/${campaignId}/map`, waterlooMap);
-  const side = await api.post<{ id: string }>(`/api/campaigns/${campaignId}/sides`, {
-    name: "French Empire",
-  });
+  const [side] = await api.get<{ id: string }[]>(`/api/campaigns/${campaignId}/sides`);
+  await api.put(`/api/sides/${side.id}`, { name: "French Empire" });
   const members = await api.get<{ id: string; firstName: string }[]>(
     `/api/campaigns/${campaignId}/members`,
   );

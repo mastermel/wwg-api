@@ -63,7 +63,7 @@ internal static class LibrarySteps
             new Uri($"/api/armies/{armyId}", UriKind.Relative),
             new UpdateArmyRequest(
                 army.Name,
-                army.Side?.Id,
+                army.Side.Id,
                 army.Color,
                 army.Nation,
                 [.. army.Factions.Select(f => f.Id).Union(factionIds)]

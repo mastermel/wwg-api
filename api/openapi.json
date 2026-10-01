@@ -1774,61 +1774,6 @@
             "Bearer": [ ]
           }
         ]
-      },
-      "post": {
-        "tags": [
-          "Sides"
-        ],
-        "summary": "Adds a side (Umpire or Admin). 409 if the campaign already has one by that name.",
-        "operationId": "CreateSide",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSideRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SideResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "Bearer": [ ]
-          }
-        ]
       }
     },
     "/api/sides/{id}": {
@@ -1879,34 +1824,6 @@
                 }
               }
             }
-          }
-        },
-        "security": [
-          {
-            "Bearer": [ ]
-          }
-        ]
-      },
-      "delete": {
-        "tags": [
-          "Sides"
-        ],
-        "summary": "Deletes a side (Umpire or Admin). Its armies are kept, unassigned; the Umpire assigns\nthem to another before the campaign starts.",
-        "operationId": "DeleteSide",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
           }
         },
         "security": [
@@ -4287,15 +4204,8 @@
             ]
           },
           "side": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Its side, or null if it has none yet.",
-                "$ref": "#/components/schemas/ArmySide"
-              }
-            ]
+            "description": "Its side.",
+            "$ref": "#/components/schemas/ArmySide"
           },
           "color": {
             "description": "Its colour.",
@@ -4383,15 +4293,8 @@
             ]
           },
           "side": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "Its side, or null if it has none yet.",
-                "$ref": "#/components/schemas/ArmySide"
-              }
-            ]
+            "description": "Its side.",
+            "$ref": "#/components/schemas/ArmySide"
           },
           "color": {
             "description": "Its colour.",
@@ -5106,7 +5009,8 @@
       "CreateArmyRequest": {
         "required": [
           "name",
-          "commanderMemberId"
+          "commanderMemberId",
+          "sideId"
         ],
         "type": "object",
         "properties": {
@@ -5125,11 +5029,8 @@
             "format": "uuid"
           },
           "sideId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Its side, or null for none yet (\"Unassigned\").",
+            "type": "string",
+            "description": "Its side: one of the campaign's two.",
             "format": "uuid"
           },
           "color": {
@@ -5191,21 +5092,6 @@
           }
         },
         "description": "Starts a campaign; the caller becomes its Umpire."
-      },
-      "CreateSideRequest": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string",
-            "description": "The side's name, unique in the campaign."
-          }
-        },
-        "description": "Adds a side to the campaign."
       },
       "DetailRelief": {
         "enum": [
@@ -6862,11 +6748,8 @@
             "description": "The army's name."
           },
           "sideId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "Its side, or null for none (\"Unassigned\").",
+            "type": "string",
+            "description": "Its side: one of the campaign's two.",
             "format": "uuid"
           },
           "color": {

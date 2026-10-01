@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
-using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
 
@@ -12,25 +11,18 @@ internal static class SideEndpoints
     public static IEndpointRouteBuilder MapSideEndpoints(this IEndpointRouteBuilder app)
     {
         // Shallow nesting (DESIGN.md §3.3): the list under its campaign, each side on its own.
+        // A campaign has exactly two (decision 0017), made with it: renamed, never added or deleted.
         var campaignSides = app.MapGroup("/api/campaigns/{id:guid}/sides").WithTags("Sides");
         campaignSides
             .MapGet("", ListSidesAsync)
             .WithName("ListSides")
             .RequireCampaignAccess(CampaignAccess.Member);
-        campaignSides
-            .MapPost("", CreateSideAsync)
-            .WithName("CreateSide")
-            .RequireCampaignAccess(CampaignAccess.Umpire)
-            .ProducesProblem(StatusCodes.Status409Conflict);
 
         var side = app.MapGroup("/api/sides/{id:guid}").WithTags("Sides");
         side.MapPut("", RenameSideAsync)
             .WithName("RenameSide")
             .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Side)
             .ProducesProblem(StatusCodes.Status409Conflict);
-        side.MapDelete("", DeleteSideAsync)
-            .WithName("DeleteSide")
-            .RequireCampaignAccess(CampaignAccess.Umpire, CampaignRouteId.Side);
 
         return app;
     }
@@ -50,28 +42,6 @@ internal static class SideEndpoints
             .Select(f => new SideResponse(f.Id, f.Name, db.Armies.Count(a => a.SideId == f.Id)))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(sides);
-    }
-
-    /// <summary>Adds a side (Umpire or Admin). 409 if the campaign already has one by that name.</summary>
-    internal static async Task<Results<Created<SideResponse>, ProblemHttpResult>> CreateSideAsync(
-        Guid id,
-        CreateSideRequest request,
-        WwgDbContext db,
-        CancellationToken cancellationToken
-    )
-    {
-        if (await NameTakenAsync(db, id, request.Name, exceptId: null, cancellationToken))
-        {
-            return NameTaken(request.Name);
-        }
-
-        var side = new Side { CampaignId = id, Name = request.Name };
-        db.Sides.Add(side);
-        await db.SaveChangesAsync(cancellationToken);
-        return TypedResults.Created(
-            $"/api/sides/{side.Id}",
-            new SideResponse(side.Id, side.Name, 0)
-        );
     }
 
     /// <summary>Renames a side (Umpire or Admin). 409 if another has that name.</summary>
@@ -99,21 +69,6 @@ internal static class SideEndpoints
         );
     }
 
-    /// <summary>
-    /// Deletes a side (Umpire or Admin). Its armies are kept, unassigned; the Umpire assigns
-    /// them to another before the campaign starts.
-    /// </summary>
-    internal static async Task<NoContent> DeleteSideAsync(
-        Guid id,
-        WwgDbContext db,
-        CancellationToken cancellationToken
-    )
-    {
-        await db.Sides.Where(f => f.Id == id).ExecuteDeleteAsync(cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    // Case-insensitive: the column is NOCASE (so is the unique index, the final guarantee).
     private static Task<bool> NameTakenAsync(
         WwgDbContext db,
         Guid campaignId,

@@ -45,7 +45,12 @@ public sealed class ArmyUnitTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest("Reserve", null, FactionIds: [scenario.FactionId]),
+                new CreateArmyRequest(
+                    "Reserve",
+                    null,
+                    scenario.SideId,
+                    FactionIds: [scenario.FactionId]
+                ),
                 TestContext.Current.CancellationToken
             );
         return (await response.Content.ReadAsAsync<ArmyResponse>())?.Id
@@ -171,7 +176,19 @@ public sealed class ArmyUnitTests : ApiTest
             .As(Role.Umpire)
             .PostAsJsonAsync(
                 new Uri($"/api/campaigns/{campaignId}/armies", UriKind.Relative),
-                new CreateArmyRequest("Armée du Nord", null, FactionIds: [first.FactionId]),
+                new CreateArmyRequest(
+                    "Armée du Nord",
+                    null,
+                    // One of the new campaign's own two sides.
+                    (
+                        await first
+                            .As(Role.Umpire)
+                            .GetAsAsync<List<Wwg.Api.Features.Sides.SideResponse>>(
+                                $"/api/campaigns/{campaignId}/sides"
+                            )
+                    )![0].Id,
+                    FactionIds: [first.FactionId]
+                ),
                 CancellationToken
             );
         var armyId = (await army.Content.ReadAsAsync<ArmyResponse>())!.Id;

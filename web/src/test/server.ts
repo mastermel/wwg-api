@@ -13,7 +13,13 @@ const defaults = [
   // Every campaign page shows its armies and members, and its join link to the Umpire.
   http.get("*/api/campaigns/:id/members", () => HttpResponse.json([])),
   http.get("*/api/campaigns/:id/armies", () => HttpResponse.json([])),
-  http.get("*/api/campaigns/:id/sides", () => HttpResponse.json([])),
+  // Every campaign has two (decision 0017).
+  http.get("*/api/campaigns/:id/sides", () =>
+    HttpResponse.json([
+      { id: "0192f5c1-0000-7000-8000-00000000f001", name: "Side 1", armyCount: 0 },
+      { id: "0192f5c1-0000-7000-8000-00000000f002", name: "Side 2", armyCount: 0 },
+    ]),
+  ),
   // The map page: a campaign setting up, with nothing on the map.
   http.get("*/api/campaigns/:id/units", () => HttpResponse.json([])),
   http.get("*/api/factions", () => HttpResponse.json([])),

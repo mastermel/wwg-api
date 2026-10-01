@@ -14,10 +14,10 @@ internal sealed class Army : Entity
 
     public CampaignMember? Commander { get; set; }
 
-    /// <summary>The army's side, or null until the Umpire assigns one ("Unassigned").</summary>
-    public Guid? SideId { get; set; }
+    /// <summary>The army's side: one of the campaign's two (decision 0017).</summary>
+    public Guid SideId { get; set; }
 
-    public Side? Side { get; set; }
+    public Side Side { get; set; } = null!; // Set by EF Core when loaded.
 
     /// <summary>At most this many armies in a campaign: one per palette colour.</summary>
     public const int MaxPerCampaign = 8;

@@ -83,6 +83,11 @@ internal static class CampaignEndpoints
             new CampaignMember { UserId = principal.GetUserId(), Role = CampaignRole.Umpire }
         );
         db.Campaigns.Add(campaign);
+        // Exactly two sides, for the Umpire to rename (decision 0017).
+        db.Sides.AddRange(
+            new Side { CampaignId = campaign.Id, Name = "Side 1" },
+            new Side { CampaignId = campaign.Id, Name = "Side 2" }
+        );
         await db.SaveChangesAsync(cancellationToken);
 
         var response = await LoadAsync(db, campaign.Id, CampaignRole.Umpire, cancellationToken);
