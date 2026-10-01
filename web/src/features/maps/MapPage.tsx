@@ -78,6 +78,7 @@ import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
 import { HexDetailsList } from "@/features/maps/HexDetailsList";
+import { MapLegend } from "@/features/maps/MapLegend";
 import { HexWarningsLayer } from "@/features/maps/HexWarningsLayer";
 import {
   gameMaxHexesAcross,
@@ -94,7 +95,6 @@ import { UnitDrawer } from "@/features/maps/UnitDrawer";
 import { UnitMarkers } from "@/features/maps/UnitMarkers";
 import { useOpenTurns, useOrders } from "@/features/maps/use-orders";
 import { useReview } from "@/features/maps/use-review";
-import { UnitLegend } from "@/features/units/UnitLegend";
 import { errorMessage } from "@/lib/errors";
 import { useOnline } from "@/lib/use-online";
 
@@ -853,7 +853,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             />
           )}
           <Section title="Legend">
-            <UnitLegend />
+            <MapLegend umpire={manager} />
           </Section>
         </Stack>
       </Grid.Col>

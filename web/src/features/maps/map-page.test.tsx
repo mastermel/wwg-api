@@ -380,3 +380,31 @@ describe("the map's layers", () => {
     expect(screen.queryByRole("group", { name: "Game map", hidden: true })).not.toBeInTheDocument();
   });
 });
+
+describe("the map's legend", () => {
+  const waterloo = { west: 4.2, south: 50.55, east: 4.7, north: 50.8 };
+
+  it("shows the game map's terrain, roads, rivers and places, as well as the units", async () => {
+    serveCampaign("Player", settings(waterloo));
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    const legend = await screen.findByRole("region", { name: "Legend" });
+    expect(within(legend).getByRole("list", { name: "Terrain" })).toHaveTextContent("High hills");
+    expect(
+      within(legend).getByRole("list", { name: "Roads, rivers and bridges" }),
+    ).toHaveTextContent("Poor road");
+    expect(within(legend).getByRole("list", { name: "Towns and cities" })).toHaveTextContent(
+      "Walled town",
+    );
+    // A Player has no contact warnings to see.
+    expect(within(legend).queryByText("Contact or concentration")).not.toBeInTheDocument();
+  });
+
+  it("shows the Umpire the contact and concentration outline", async () => {
+    serveCampaign("Umpire", settings(waterloo));
+    await renderApp(`/campaigns/${campaignId}/map`);
+
+    const legend = await screen.findByRole("region", { name: "Legend" });
+    expect(await within(legend).findByText("Contact or concentration")).toBeInTheDocument();
+  });
+});
