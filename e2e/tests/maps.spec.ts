@@ -271,3 +271,28 @@ test("a click or tap on a hex shows everything known of it", async ({ signUp }) 
   await expect(card).toContainText("Good road to the north.");
   expect(await scan(page, "map, a hex's card")).toEqual([]);
 });
+
+test("on a computer, the map fills the screen and comes back", async ({ signUp, isMobile }) => {
+  test.skip(isMobile, "A phone's map is most of its screen already.");
+  const page = await wavre(signUp);
+  const map = page.getByRole("region", { name: "Map", exact: true });
+  const viewport = page.viewportSize() ?? { width: 0, height: 0 };
+  const before = await map.boundingBox();
+
+  await page.getByRole("button", { name: "Full screen" }).click();
+  await expect
+    .poll(async () => (await map.boundingBox())?.height ?? 0)
+    .toBeGreaterThan((before?.height ?? 0) + 100);
+  const full = await map.boundingBox();
+  expect(full?.width ?? 0).toBeGreaterThan(viewport.width - 40);
+
+  await page.getByRole("button", { name: "Exit full screen" }).click();
+  await expect(page.getByRole("button", { name: "Full screen" })).toBeVisible();
+  await expect.poll(async () => (await map.boundingBox())?.height).toBe(before?.height);
+
+  // Esc leaves it too.
+  await page.getByRole("button", { name: "Full screen" }).click();
+  await expect(page.getByRole("button", { name: "Exit full screen" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Full screen" })).toBeVisible();
+});

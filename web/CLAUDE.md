@@ -74,7 +74,9 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   Stacking (`stacks.ts`) is a pure function, tested alone.
   Import it only through `CampaignMap`, which sets MapLibre's worker URL (`maplibre-worker.ts`).
   How far the view may go, and the playable area's outline, are `playable-area.ts`
-  (`viewLimits`, `playableOutline`), drawn by `PlayableAreaLayer`.
+  (`viewLimits`, `playableOutline`), drawn by `PlayableAreaLayer`. The Map page's full screen (a
+  computer's) is `useFullScreen`: a fixed layer under drawers and dialogs, and the whole page's
+  browser full screen, never the map's (which would hide them).
   Distances and the range circle come from `geo.ts` (haversine, the same Earth radius as the
   API's `Geo.cs`); orders in words from `orders.ts`. Ghost moves and the range are
   `OrderOverlay`, inside the map: sight only, as the turn panel lists the same orders.

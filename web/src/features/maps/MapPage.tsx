@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Grid, Group, Stack, Switch, Text } from "@mantine/core";
+import { ActionIcon, Alert, Box, Button, Grid, Group, Stack, Switch, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
   IconArrowMoveRight,
@@ -6,6 +6,8 @@ import {
   IconHistory,
   IconMap,
   IconMapPin,
+  IconMaximize,
+  IconMinimize,
   IconMountain,
   IconSettings,
 } from "@tabler/icons-react";
@@ -92,6 +94,7 @@ import { HexDetailsList } from "@/features/maps/HexDetailsList";
 import { MapLegend } from "@/features/maps/MapLegend";
 import classes from "@/features/maps/MapPage.module.css";
 import { describeHex } from "@/features/maps/hex-info";
+import { useFullScreen } from "@/features/maps/use-full-screen";
 import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
 import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
 import { CouriersPanel } from "@/features/maps/CouriersPanel";
@@ -624,11 +627,15 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   };
 
   const desktop = useMediaQuery("(min-width: 62em)");
-  // The map, with what's being placed or moved above it.
+  const fullScreen = useFullScreen();
+  // Full screen is a computer's: a phone's map is most of the screen already.
+  const full = desktop && fullScreen.full;
+  // The map, with what's being placed or moved above it; on a computer, it can fill the screen.
   const mapColumn = (
     <Stack
       gap="sm"
       ref={mapArea}
+      className={full ? classes.full : undefined}
       style={{ scrollMarginTop: "calc(var(--app-shell-header-height, 60px) + 0.5rem)" }}
     >
       {placingUnit && (
@@ -743,15 +750,35 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         </Alert>
       )}
       {/* The map takes the rest of the screen, and at least enough to be useful. */}
-      <Box h="calc(100dvh - 15rem)" mih={360} pos="relative">
-        <Box pos="absolute" top={10} left={10} style={{ zIndex: 2 }}>
+      <Box className={classes.mapBox}>
+        <Group gap="xs" pos="absolute" top={10} left={10} style={{ zIndex: 2 }}>
           <MapLayersControl
             campaign={settings.layers}
             layers={layers}
             zoomedIn={zoomedIn}
             warnings={manager}
           />
-        </Box>
+          {desktop &&
+            (full ? (
+              <Button
+                variant="default"
+                leftSection={<IconMinimize size={18} aria-hidden />}
+                title="Or press Esc"
+                onClick={fullScreen.exit}
+              >
+                Exit full screen
+              </Button>
+            ) : (
+              <ActionIcon
+                variant="default"
+                size="lg"
+                aria-label="Full screen"
+                onClick={fullScreen.enter}
+              >
+                <IconMaximize size={18} aria-hidden />
+              </ActionIcon>
+            ))}
+        </Group>
         <CampaignMap
           settings={shownSettings}
           grid={showGame("grid")}

@@ -1,3 +1,26 @@
+/* The map takes the rest of the screen, and at least enough to be useful. */
+.mapBox {
+  position: relative;
+  height: calc(100dvh - 15rem);
+  min-height: 360px;
+}
+
+/* Full screen (a computer's): the map, and what's being placed or moved, over the whole window;
+   under drawers and dialogs (200), over the app's header (100). */
+.full {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  padding: var(--mantine-spacing-sm);
+  background-color: var(--app-canvas);
+}
+
+.full .mapBox {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
 /* On a computer: beside the map, the turn panel and legend, as tall as the map and scrolling
    together; the width the legend had beside it before. */
 .side {

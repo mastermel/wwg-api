@@ -1235,7 +1235,10 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   shows all of it at any size or shape). The world outside is faded, and the
   playable area outlined along the grid's outer hexes (its rectangle without a
   grid); the game map is only ever drawn inside it. The Map and Terrain pages
-  take the screen's whole width. Zooming in is unlimited. Place search (our API, §5.3)
+  take the screen's whole width, and on a computer the Map page's map can go
+  **full screen** (the browser's too, where it allows it), with what's being
+  placed or moved above it; **Exit full screen**, or Esc, brings it back.
+  Zooming in is unlimited. Place search (our API, §5.3)
   helps the Umpire find the area; the settings page previews layers and the
   label language as they change.
 - **The hex grid** (decision 0014, Phase 11): flat-topped hexes (3 miles
