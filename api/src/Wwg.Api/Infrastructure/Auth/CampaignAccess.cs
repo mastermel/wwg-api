@@ -42,6 +42,9 @@ internal enum CampaignRouteId
 
     /// <summary>An army's depot (<c>/api/depots/{id}</c>): its army's campaign and commander.</summary>
     Depot,
+
+    /// <summary>A report between allies (<c>/api/reports/{id}</c>): the sender's campaign.</summary>
+    Report,
 }
 
 /// <summary>
@@ -199,6 +202,16 @@ internal static class CampaignAccessExtensions
                     .Select(d => new { d.Army.CampaignId, d.Army.CommanderId })
                     .FirstOrDefaultAsync(cancellationToken);
                 return depot is null ? null : (depot.CampaignId, depot.CommanderId);
+            }
+
+            if (routeId == CampaignRouteId.Report)
+            {
+                var report = await db
+                    .IntelReports.AsNoTracking()
+                    .Where(r => r.Id == id)
+                    .Select(r => new { r.FromArmy.CampaignId, r.FromArmy.CommanderId })
+                    .FirstOrDefaultAsync(cancellationToken);
+                return report is null ? null : (report.CampaignId, report.CommanderId);
             }
 
             if (routeId == CampaignRouteId.ArmyTurn)

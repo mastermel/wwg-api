@@ -74,3 +74,24 @@ internal sealed class SightingConfiguration : IEntityTypeConfiguration<Sighting>
         builder.HasIndex(s => new { s.ObservingArmyId, s.Turn });
     }
 }
+
+internal sealed class IntelReportConfiguration : IEntityTypeConfiguration<IntelReport>
+{
+    public void Configure(EntityTypeBuilder<IntelReport> builder)
+    {
+        builder.Property(r => r.Note).HasMaxLength(1000);
+        builder.Property(r => r.Status).HasMaxLength(16);
+        builder.PrimitiveCollection(r => r.SightingIds);
+        // Deleting either army deletes the reports between them.
+        builder
+            .HasOne(r => r.FromArmy)
+            .WithMany()
+            .HasForeignKey(r => r.FromArmyId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder
+            .HasOne(r => r.ToArmy)
+            .WithMany()
+            .HasForeignKey(r => r.ToArmyId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

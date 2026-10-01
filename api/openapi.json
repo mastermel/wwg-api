@@ -607,6 +607,193 @@
         ]
       }
     },
+    "/api/armies/{id}/reports": {
+      "post": {
+        "tags": [
+          "Intelligence"
+        ],
+        "summary": "Sends an ally a report (the army's commander, or the Umpire on its behalf): any of a\nsnapshot of the army's units, every sighting it has received so far, and a note. A courier\nsets out from the army's unit nearest the ally; within two turns' ride, it arrives as the\nnext turn starts.",
+        "operationId": "SendReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/reports": {
+      "get": {
+        "tags": [
+          "Intelligence"
+        ],
+        "summary": "The reports the viewer may see, newest first: those their armies sent (without whether\nthey've arrived), and those that have reached them; the Umpire's, all.",
+        "operationId": "ListReports",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReportResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/couriers": {
+      "get": {
+        "tags": [
+          "Intelligence"
+        ],
+        "summary": "The couriers on their way (Umpire or Admin): where each is, and whether the other side's\nunits are in its hex, for the Umpire to stop it or let it through.",
+        "operationId": "ListCouriers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CourierResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/reports/{id}/stop": {
+      "post": {
+        "tags": [
+          "Intelligence"
+        ],
+        "summary": "Stops a courier on its way (Umpire or Admin): captured or lost, it never arrives.",
+        "operationId": "StopCourier",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/campaigns/{id}/turns": {
       "post": {
         "tags": [
@@ -5824,6 +6011,79 @@
         },
         "description": "Changes the password. Other sessions are signed out; this one continues."
       },
+      "CourierResponse": {
+        "required": [
+          "reportId",
+          "fromArmyId",
+          "toArmyId",
+          "sentTurn",
+          "q",
+          "r",
+          "latitude",
+          "longitude",
+          "arrivesNext",
+          "amongTheEnemy"
+        ],
+        "type": "object",
+        "properties": {
+          "reportId": {
+            "type": "string",
+            "description": "The report it carries.",
+            "format": "uuid"
+          },
+          "fromArmyId": {
+            "type": "string",
+            "description": "The sender's army.",
+            "format": "uuid"
+          },
+          "toArmyId": {
+            "type": "string",
+            "description": "The recipient's army.",
+            "format": "uuid"
+          },
+          "sentTurn": {
+            "type": "integer",
+            "description": "The turn it was sent in.",
+            "format": "int32"
+          },
+          "q": {
+            "type": "integer",
+            "description": "Its hex (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "Its hex (axial r).",
+            "format": "int32"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "The hex's centre.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "The hex's centre.",
+            "format": "double"
+          },
+          "arrivesNext": {
+            "type": "boolean",
+            "description": "It arrives as the next turn starts."
+          },
+          "amongTheEnemy": {
+            "type": "boolean",
+            "description": "Units of the other side are in its hex: the Umpire's to stop or let through."
+          }
+        },
+        "description": "A courier on its way, for the Umpire (decision 0020)."
+      },
+      "CourierStatus": {
+        "enum": [
+          "EnRoute",
+          "Arrived",
+          "Stopped"
+        ]
+      },
       "CreateArmyRequest": {
         "required": [
           "name",
@@ -7272,6 +7532,84 @@
         },
         "description": "Renames a side."
       },
+      "ReportResponse": {
+        "required": [
+          "id",
+          "fromArmyId",
+          "toArmyId",
+          "sentTurn",
+          "arrivedTurn",
+          "status",
+          "note",
+          "snapshot",
+          "sightingCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The report.",
+            "format": "uuid"
+          },
+          "fromArmyId": {
+            "type": "string",
+            "description": "The sender's army.",
+            "format": "uuid"
+          },
+          "toArmyId": {
+            "type": "string",
+            "description": "The recipient's army.",
+            "format": "uuid"
+          },
+          "sentTurn": {
+            "type": "integer",
+            "description": "The turn it was sent in.",
+            "format": "int32"
+          },
+          "arrivedTurn": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The turn it arrived for, once it has.",
+            "format": "int32"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "On its way, arrived, or stopped (a sender isn't told which).",
+                "$ref": "#/components/schemas/CourierStatus"
+              }
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Its note, if any."
+          },
+          "snapshot": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SnapshotUnitResponse"
+            },
+            "description": "The sender's units as they were, if sent."
+          },
+          "sightingCount": {
+            "type": "integer",
+            "description": "How many sightings it carries.",
+            "format": "int32"
+          }
+        },
+        "description": "A report between allies, as its sender, its recipient or the Umpire sees it."
+      },
       "ResetPasswordRequest": {
         "required": [
           "email",
@@ -7497,6 +7835,40 @@
           }
         },
         "description": "Adds a unit to a faction in the library, or changes one."
+      },
+      "SendReportRequest": {
+        "required": [
+          "toArmyId",
+          "includesSnapshot",
+          "includesSightings",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "toArmyId": {
+            "type": "string",
+            "description": "The ally: another army of the same side.",
+            "format": "uuid"
+          },
+          "includesSnapshot": {
+            "type": "boolean",
+            "description": "Whether it carries the army's units: where they are, and their points."
+          },
+          "includesSightings": {
+            "type": "boolean",
+            "description": "Whether it carries every sighting the army has received so far."
+          },
+          "note": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A note, if any."
+          }
+        },
+        "description": "A commander's report to an ally (decision 0020), carried by courier."
       },
       "SetManagerRequest": {
         "required": [
@@ -7832,6 +8204,54 @@
           "Exact"
         ],
         "description": "How much of a sighted force's strength its observers learn (decision 0020)."
+      },
+      "SnapshotUnitResponse": {
+        "required": [
+          "name",
+          "type",
+          "q",
+          "r",
+          "latitude",
+          "longitude",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Its name."
+          },
+          "type": {
+            "description": "Its type.",
+            "$ref": "#/components/schemas/UnitType"
+          },
+          "q": {
+            "type": "integer",
+            "description": "Its hex (axial q).",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "description": "Its hex (axial r).",
+            "format": "int32"
+          },
+          "latitude": {
+            "type": "number",
+            "description": "The hex's centre.",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "description": "The hex's centre.",
+            "format": "double"
+          },
+          "points": {
+            "type": "integer",
+            "description": "Its points.",
+            "format": "int32"
+          }
+        },
+        "description": "A unit as a report's snapshot has it."
       },
       "StartNextTurnRequest": {
         "required": [
@@ -8738,6 +9158,9 @@
     },
     {
       "name": "Sightings"
+    },
+    {
+      "name": "Intelligence"
     },
     {
       "name": "Account"

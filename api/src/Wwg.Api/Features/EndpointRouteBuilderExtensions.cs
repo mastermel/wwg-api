@@ -5,6 +5,7 @@ using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Health;
+using Wwg.Api.Features.Intelligence;
 using Wwg.Api.Features.Join;
 using Wwg.Api.Features.Library;
 using Wwg.Api.Features.Maps;
@@ -42,6 +43,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapDepotEndpoints()
             .MapSupplySettingsEndpoints()
             .MapSightingEndpoints()
+            .MapIntelEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
     }

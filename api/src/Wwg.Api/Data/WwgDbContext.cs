@@ -58,6 +58,8 @@ internal sealed class WwgDbContext(DbContextOptions<WwgDbContext> options)
 
     public DbSet<Sighting> Sightings => Set<Sighting>();
 
+    public DbSet<IntelReport> IntelReports => Set<IntelReport>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

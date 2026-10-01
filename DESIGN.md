@@ -2541,11 +2541,15 @@ build on positions.
       whose entries mark the turns with sightings (`Sighting`, what was seen copied in; the start-turn
       request's `sightings`; `GET /api/campaigns/{id}/sightings`, the hex left out where it wasn't
       told; in the app `SightingsFields`, `SightingMarkers`, `SightingsPanel`, `sightings.ts`).
-    - **49c. Couriers (API):** a commander sends an ally a report (their units' snapshot, all the
+    - ✅ **49c. Couriers (API):** a commander sends an ally a report (their units' snapshot, all the
       sightings they've received, a note ≤ 1,000 characters; once it arrives, those sightings are
       the ally's too, on their turns); its courier rides as light cavalry
       from the sender's nearest unit towards the recipient's, turn by turn (within two turns'
-      ride, next turn); the Umpire sees couriers, is warned of enemy in their hex, and can stop one.
+      ride, next turn); the Umpire sees couriers, is warned of enemy in their hex, and can stop one
+      (`IntelReport`, its content copied in; `CourierRides`, a cheapest-path ride by the movement
+      table; `Couriers.RideAsync` as each turn closes; `POST /api/armies/{id}/reports`, `GET
+      /api/campaigns/{id}/reports` (a sender isn't told whether it arrived), `GET
+      /api/campaigns/{id}/couriers` and `POST /api/reports/{id}/stop` for the Umpire).
     - **49d. Intelligence in the app:** sending a report, the Intelligence list of reports
       received (viewable on the map), and the Umpire's couriers.
 50. **Towns and victory points:** points per settlement (10, 25, 35, 50; capitals more) to the
