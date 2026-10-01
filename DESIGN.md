@@ -2440,10 +2440,23 @@ build on positions.
       Afternoon", under its "Turn 7" heading and in the turn list); the map's reach uses the
       unit's march; in a Night turn the Turn panel says moving counts towards a forced march,
       and its moves read "by night".
-46. **Contact and concentration:** the Umpire is shown where opposing armies share a hex after a
-    turn (battles themselves happen at the table), and warned of hexes over the concentration
-    limits (200 points of infantry or 160 of cavalry; double in large and walled cities and
-    fortresses; allowed for the three turns either side of a battle).
+46. **Contact and concentration** (decision 0017), in parts:
+    - **46a. Two sides:** every campaign has exactly two sides, made with it ("Side 1" and
+      "Side 2", renamable; no adding or deleting), and every army is on one (`Army.SideId`
+      required; the army forms choose it). The migration keeps a campaign's first two sides by
+      name, merges any others into the second, makes any missing, and puts armies on none on the
+      first.
+    - **46b. Concentration settings:** on the campaign's edit page, the unit types that count
+      towards the infantry limit and those towards the cavalry limit (the rest are free), and the
+      two limits (200 and 160 by default).
+    - **46c. Contact and concentration:** for the Umpire, the hexes holding units of both sides
+      (contact), and each side's hexes over a limit (its counted points of those types; doubled in
+      a large city or a fortress); in the open turn from the orders as given, on past turns from
+      where the units ended up. Shown on the map and in the review panel, as warnings.
+    - **46d. Battle records (later):** the Umpire records a battle: its hex and turn, the units
+      involved, and their points afterwards (which the units then have). Concentration within
+      three turns of a battle in that hex is then allowed, as the rules say.
+    - Later, for consideration: units whose paths cross during a turn (meeting mid-move).
 47. **Forced marches and attrition:** a force-march order (+1 hex a day turn, or moving by
     night), consecutive turns and rest tracked, and attrition by the rules' FF scale applied to
     units' points (points then change over time, with a history per turn).
