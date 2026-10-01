@@ -3,6 +3,7 @@ import { useQueries, useQueryClient } from "@tanstack/react-query";
 import {
   getListArmyTurnsQueryKey,
   getListArmyTurnsQueryOptions,
+  getListMarchesQueryKey,
   useGiveOrder,
   useSubmitTurn,
   useUndoOrder,
@@ -60,6 +61,8 @@ export function useOrders(campaignId: string) {
       await Promise.all([
         refreshCampaign(queryClient, campaignId),
         queryClient.invalidateQueries({ queryKey: getListArmyTurnsQueryKey(armyId) }),
+        // What its units' orders cost in forced marches (step 47).
+        queryClient.invalidateQueries({ queryKey: getListMarchesQueryKey(armyId) }),
       ]);
     }
   };
@@ -75,7 +78,11 @@ export function useOrders(campaignId: string) {
       run(
         armyId,
         () => give.mutateAsync({ id: turnId, unitId: unit.id, data: order }),
-        order.kind === "Hold" ? `${unit.name} will hold.` : `${unit.name} will move.`,
+        order.kind === "Hold"
+          ? `${unit.name} will hold.`
+          : order.forceMarch
+            ? `${unit.name} will force march.`
+            : `${unit.name} will move.`,
         `${unit.name}'s order couldn't be saved. Try again.`,
       ),
     undo: (armyId: string, turnId: string, unit: { id: string; name: string }) =>

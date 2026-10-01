@@ -6,7 +6,7 @@ import { shareOfTheWay } from "@/features/maps/movement";
 export const hexes = (count: number) => `${String(count)} ${count === 1 ? "hex" : "hexes"}`;
 
 /**
- * A unit's order this turn, in words: "Moves 2 hexes", "Holds" or "No order yet"; "Not on the map
+ * A unit's order this turn, in words: "Moves 2 hexes" (", by force march"), "Holds" or "No order yet"; "Not on the map
  * yet" for a unit the Umpire hasn't placed (it can't have one). A move from before the grid, with
  * no path, just "Moves".
  */
@@ -18,8 +18,9 @@ export function describeOrder(
   if (!from) return "Not on the map yet";
   if (!order) return "No order yet";
   if (order.kind === "Hold") return "Holds";
-  // A move by night counts towards a forced march (step 45).
+  // A move by night counts towards a forced march (step 45), as a force march is one (step 47).
   if (night) return `${describeMove(order)}, by night`;
+  if (order.forceMarch) return `${describeMove(order)}, by force march`;
   return describeMove(order);
 }
 

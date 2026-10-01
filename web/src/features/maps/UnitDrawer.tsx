@@ -7,6 +7,9 @@ import { describeUnit, type PlacedUnit } from "@/features/maps/stacks";
 import { UnitSymbol } from "@/features/units/UnitSymbol";
 import { unitTypeLabels } from "@/features/units/unit-types";
 import { shareOfTheWay } from "@/features/maps/movement";
+import { useListMarches } from "@/api/generated/endpoints/turns/turns";
+import { describeMarch } from "@/features/maps/marches";
+import { UnitPointsHistory } from "@/features/maps/UnitPointsHistory";
 
 interface UnitDrawerProps {
   /** The units chosen on the map: one, or a stack to choose from. Closed when empty. */
@@ -17,13 +20,22 @@ interface UnitDrawerProps {
   onClose: () => void;
   /** What the viewer can do with the unit (placing it, its orders). */
   actions?: (unit: PlacedUnit) => ReactNode;
+  /** Whether the viewer follows the unit's moves, and so its forced marches (step 47). */
+  showsMarches?: (unit: PlacedUnit) => boolean;
 }
 
 /**
  * A unit's details, opened by choosing it on the map (a stack lists its units first). From the
  * side on wide screens, from the bottom on phones (DESIGN.md §3.13).
  */
-export function UnitDrawer({ units, selected, onSelect, onClose, actions }: UnitDrawerProps) {
+export function UnitDrawer({
+  units,
+  selected,
+  onSelect,
+  onClose,
+  actions,
+  showsMarches,
+}: UnitDrawerProps) {
   const phone = useMediaQuery("(max-width: 48em)");
   const shown = selected ?? (units.length === 1 ? units[0] : undefined);
 
@@ -69,8 +81,10 @@ export function UnitDrawer({ units, selected, onSelect, onClose, actions }: Unit
                   </Table.Td>
                 </Table.Tr>
               )}
+              {showsMarches?.(shown) && <MarchRow armyId={shown.army.id} unitId={shown.unit.id} />}
             </Table.Tbody>
           </Table>
+          <UnitPointsHistory unitId={shown.unit.id} />
           {actions?.(shown)}
         </Stack>
       ) : (
@@ -98,5 +112,18 @@ export function UnitDrawer({ units, selected, onSelect, onClose, actions }: Unit
         </Stack>
       )}
     </Drawer>
+  );
+}
+
+/** The unit's forced marches as the open turn began, for its commander and the Umpire. */
+function MarchRow({ armyId, unitId }: { armyId: string; unitId: string }) {
+  const marches = useListMarches(armyId, { query: { meta: { persist: false } } });
+  const march = marches.data?.find((m) => m.unitId === unitId);
+  if (!march) return null;
+  return (
+    <Table.Tr>
+      <Table.Th>Marches</Table.Th>
+      <Table.Td>{describeMarch(march)}</Table.Td>
+    </Table.Tr>
   );
 }

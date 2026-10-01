@@ -59,7 +59,8 @@ npm run lint && npm run typecheck && npm run format:check
   library: `libraryFaction(browserOf(page), name, nation, units)` (tests/support/library.ts)
   makes a faction of the test's own (a stamped name: every run shares the library) as the
   Admin; `chooseFaction` and `addFromLibrary` do the Umpire's side in the UI. `holdAndSubmit`
-  and `approveAndStartNext` move a turn on through the API.
+  and `approveAndStartNext` move a turn on through the API; the latter confirms no attrition, so it
+  fails once a unit owes some (a fourth move in a row: decision 0018).
 - To stand in for an outside service (the map's tiles, say), `page.route` it, and
   `test.use({ serviceWorkers: "block" })`: requests the app's service worker makes don't reach
   `page.route`, so without that some get through (WebKit, often).

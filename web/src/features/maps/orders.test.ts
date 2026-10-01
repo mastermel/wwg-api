@@ -33,6 +33,12 @@ describe("describeOrder", () => {
     ).toBe("Moves 2 hexes");
   });
 
+  it("marks a force march", () => {
+    const forced = { ...order("Move", [{ q: 0, r: -1 }]), forceMarch: true };
+
+    expect(describeOrder(forced, from)).toBe("Moves 1 hex, by force march");
+  });
+
   it("says how far into a hex that takes more than a turn a Move gets", () => {
     const twoSteps = order("Move", [
       { q: 0, r: -1 },

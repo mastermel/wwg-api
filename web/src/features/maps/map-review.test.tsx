@@ -132,6 +132,7 @@ function serveUmpire(nordTurn: ArmyTurnDetails, prussianTurn: ArmyTurnDetails, p
     ),
     http.get(`*/api/campaigns/${campaignId}/turns`, () => HttpResponse.json(turns(problems))),
     http.get(`*/api/campaigns/${campaignId}/positions`, () => HttpResponse.json([])),
+    http.get(`*/api/campaigns/${campaignId}/attrition`, () => HttpResponse.json([])),
     http.get(`*/api/armies/${nord.id}/turns`, () => HttpResponse.json([nordTurn])),
     http.get(`*/api/armies/${prussians.id}/turns`, () => HttpResponse.json([prussianTurn])),
     http.post("*/api/army-turns/:id/:action", async ({ request }) => {
@@ -262,7 +263,53 @@ describe("the Umpire's turn", () => {
     );
 
     expect(await screen.findByText("Turn 2 has started.")).toBeInTheDocument();
-    expect(requests).toEqual([{ url: `/api/campaigns/${campaignId}/turns`, body: null }]);
+    expect(requests).toEqual([
+      { url: `/api/campaigns/${campaignId}/turns`, body: { attrition: [] } },
+    ]);
+  });
+
+  it("asks the Umpire to confirm the attrition, each loss editable", async () => {
+    const requests = serveUmpire(approved, armyTurn(prussians, { status: "Completed" }), []);
+    server.use(
+      http.get(`*/api/campaigns/${campaignId}/attrition`, () =>
+        HttpResponse.json([
+          {
+            unitId: guardId,
+            armyId: nord.id,
+            name: "Imperial Guard",
+            fightingFactor: 6,
+            points: 30,
+            forcedMarchTurns: 3,
+            multiplier: 2,
+            loss: 1,
+          },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Start turn 2" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText(
+        "Armée du Nord: FF 6, 30 points; its 3rd turn of forced march, double attrition.",
+      ),
+    ).toBeInTheDocument();
+    const loss = within(dialog).getByRole("textbox", { name: "Points Imperial Guard loses" });
+    expect(loss).toHaveValue("1");
+    await user.clear(loss);
+    expect(within(dialog).getByRole("button", { name: "Start turn 2" })).toBeDisabled();
+    await user.type(loss, "2");
+    await user.click(within(dialog).getByRole("button", { name: "Start turn 2" }));
+
+    expect(await screen.findByText("Turn 2 has started.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        url: `/api/campaigns/${campaignId}/turns`,
+        body: { attrition: [{ unitId: guardId, points: 2 }] },
+      },
+    ]);
   });
 
   it("submits an army's draft for it", async () => {

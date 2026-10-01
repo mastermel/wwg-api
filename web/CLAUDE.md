@@ -102,6 +102,11 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   per hex and side, by the campaign's concentration settings (`features/campaigns/concentration.ts`
   has the usual ones); `afterOrders` for the open turn. The Umpire's only: `HexWarningsList` in
   the turn panels, `HexWarningsLayer` on the map. Name a hex with `hexName` (`hex-grid.ts`).
+- Forced marches (step 47, decision 0018) are `features/maps/marches.ts` (the force march's extra
+  reach, when it's allowed, the count and costs in words; the count itself is the API's
+  `ListMarches`); the Umpire confirms attrition in `StartTurnModal`; a unit's points history is
+  `UnitPointsHistory`. `useReview` refreshes every army's marches and every unit's history after a
+  change, `useOrders` the army's marches.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

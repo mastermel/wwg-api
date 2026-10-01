@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Grid, Group, Stack, Text } from "@mantine/core";
+import { Alert, Box, Button, Grid, Group, Stack, Switch, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
   IconArrowMoveRight,
@@ -21,6 +21,7 @@ import {
 import { useGetCampaignGrid, useGetCampaignMap } from "@/api/generated/endpoints/maps/maps";
 import { useGetMovementTable } from "@/api/generated/endpoints/turns/turns";
 import {
+  useListMarches,
   useListPositions,
   useListTurns,
   usePlaceUnit,
@@ -51,6 +52,7 @@ import {
   stepCost,
 } from "@/features/maps/movement";
 import { indexTerrain } from "@/features/maps/terrain";
+import { canForceMarch, forceMarchBonus, moveCost } from "@/features/maps/marches";
 import { OrderActions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
 import { PastTurnPanel } from "@/features/maps/PastTurnPanel";
@@ -195,6 +197,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   // back into view (below the header: the Stack's scroll margin).
   const [moving, setMoving] = useState<PlacedUnit | null>(null);
   const [target, setTarget] = useState<Hex | null>(null);
+  // The move being chosen is a force march (step 47): a flat hex's worth further, by day.
+  const [forceMarch, setForceMarch] = useState(false);
   useEffect(() => {
     if (placing || moving) mapArea.current?.scrollIntoView({ block: "start" });
   }, [placing, moving]);
@@ -266,18 +270,30 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         ? reach(grid, moving.hex, moving.unit.type, {
             ...costs,
             carried: moving.headingInto,
-            // Further or less by the time of day, for some nations' infantry (step 45).
-            budget: budgetFor(
-              costs.rates,
-              moving.unit.type,
-              moving.unit.nation,
-              openTurn?.part,
-              calendar.data,
-            ),
+            // Further or less by the time of day, for some nations' infantry (step 45), and
+            // further by force march (step 47).
+            budget:
+              budgetFor(
+                costs.rates,
+                moving.unit.type,
+                moving.unit.nation,
+                openTurn?.part,
+                calendar.data,
+              ) + (forceMarch ? forceMarchBonus(costs.rates, moving.unit.type) : 0),
           })
         : null,
-    [grid, moving, costs, openTurn?.part, calendar.data],
+    [grid, moving, costs, openTurn?.part, calendar.data, forceMarch],
   );
+  // The moving unit's forced marches, for what the move costs: its commander's and the Umpire's.
+  const marches = useListMarches(moving?.army.id ?? "", {
+    query: { meta: { persist: false }, enabled: moving !== null },
+  });
+  const movingCost = moving
+    ? moveCost(
+        marches.data?.find((m) => m.unitId === moving.unit.id),
+        forceMarch,
+      )
+    : null;
   const reachable = useMemo(
     () =>
       moving && manager
@@ -362,6 +378,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const stopMoving = () => {
     setMoving(null);
     setTarget(null);
+    setForceMarch(false);
   };
   const chooseTarget = (point: Point) => {
     if (!moving) return;
@@ -382,7 +399,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const confirmMove = async () => {
     const turn = moving && turnOf(moving.army.id);
     if (!moving || !turn || !targetPath) return;
-    const order = { kind: "Move", path: targetPath } as const;
+    const order = { kind: "Move", path: targetPath, forceMarch } as const;
     if (await orders.give(moving.army.id, turn.id, moving.unit, order)) stopMoving();
   };
 
@@ -492,7 +509,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                       Tap a shaded hex for where <strong>{moving.unit.name}</strong> moves to.
                     </>
                   )}
+                  {movingCost && <> {movingCost}</>}
                 </Text>
+                {canForceMarch(costs.rates, moving.unit.type, openTurn?.part) && (
+                  <Switch
+                    size="sm"
+                    label="Force march (a hex further)"
+                    checked={forceMarch}
+                    onChange={(event) => {
+                      setForceMarch(event.currentTarget.checked);
+                      // The shaded hexes change: choose again.
+                      setTarget(null);
+                    }}
+                  />
+                )}
                 <Group gap="xs">
                   {target && (
                     <Button
@@ -585,6 +615,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               />
             ) : !setup && manager && openTurn ? (
               <ReviewPanel
+                campaignId={campaignId}
                 open={openTurn}
                 problems={turns.data.startProblems}
                 armyTurns={openTurns}
@@ -645,6 +676,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         selected={selected}
         onSelect={setSelected}
         onClose={closeDrawer}
+        showsMarches={(unit) => manager || myArmies.some((a) => a.id === unit.army.id)}
         actions={
           past !== null
             ? undefined

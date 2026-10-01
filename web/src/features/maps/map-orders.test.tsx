@@ -280,7 +280,7 @@ describe("a commander's turn", () => {
       {
         method: "PUT",
         url: `/api/army-turns/${turnId}/orders/${unitId}`,
-        body: { kind: "Move", path: [{ q: 0, r: -1 }] },
+        body: { kind: "Move", path: [{ q: 0, r: -1 }], forceMarch: false },
       },
     ]);
     expect(screen.queryByText(/to here\?/)).not.toBeInTheDocument();
@@ -308,6 +308,47 @@ describe("a commander's turn", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByText(/Tap a shaded hex/)).not.toBeInTheDocument();
     expect(requests).toEqual([]);
+  });
+
+  it("force marches a unit a hex further, and says what moving costs", async () => {
+    const requests = serveCommander(draft());
+    server.use(
+      http.get(`*/api/armies/${armyId}/marches`, () =>
+        HttpResponse.json([
+          {
+            unitId,
+            movesInRow: 0,
+            forceMarchesInRow: 0,
+            forcedMarchTurns: 2,
+            moveCosts: 2,
+            forceMarchCosts: 2,
+            orderCosts: 0,
+          },
+        ]),
+      ),
+    );
+    const user = userEvent.setup();
+    // In hex (-3, 1): three hexes away; line infantry moves two, or three by force march.
+    click.at = { longitude: 4.272, latitude: 50.6967 };
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Imperial Guard" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Move" }),
+    );
+    expect(
+      await screen.findByText(/Moving costs double attrition: its 3rd turn of forced march\./),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Force march (a hex further)" }));
+    await user.click(screen.getByRole("button", { name: "Click the map" }));
+    await user.click(await screen.findByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("Imperial Guard will force march.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      expect.objectContaining({
+        body: expect.objectContaining({ kind: "Move", forceMarch: true }) as unknown,
+      }),
+    ]);
   });
 
   it("takes an order back", async () => {

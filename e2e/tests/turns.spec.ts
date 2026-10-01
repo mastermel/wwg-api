@@ -158,6 +158,53 @@ test("the Umpire is warned where the orders bring the two sides together", async
   await expect(commander.page.getByText("Contact and concentration")).toHaveCount(0);
 });
 
+test("the Umpire confirms a forced march's attrition, and it's in the unit's history", async ({
+  signUp,
+}) => {
+  test.slow();
+  const umpire = await signUp("Ada");
+  const commander = await signUp("Bob");
+  const { campaignUrl, campaignId, armyId } = await startedCampaign(umpire, commander, "Wavre");
+  // Three turns marching back and forth make the first forced march, which is free.
+  for (const path of [[{ q: 0, r: -1 }], [{ q: 0, r: 0 }], [{ q: 0, r: -1 }]]) {
+    await holdAndSubmit(commander, campaignId, armyId, { "Imperial Guard": path });
+    await approveAndStartNext(umpire, campaignId, armyId);
+  }
+  // A fourth costs attrition: approved, but not yet started.
+  await holdAndSubmit(commander, campaignId, armyId, { "Imperial Guard": [{ q: 0, r: 0 }] });
+  const api = await apiAs(umpire.page);
+  const turns = await api.get<{ id: string; open: boolean }[]>(`/api/armies/${armyId}/turns`);
+  await api.post(`/api/army-turns/${turns.find((t) => t.open)?.id ?? ""}/approve`, null);
+
+  const page = umpire.page;
+  await page.goto(`${campaignUrl}/map`);
+  await page.getByRole("button", { name: "Start turn 5" }).click();
+  const dialog = page.getByRole("dialog", { name: "Start turn 5?" });
+  // FF 6 and 30 points: 0.6 of a point, carried; the Umpire makes it 2.
+  const loss = dialog.getByRole("textbox", { name: "Points Imperial Guard loses" });
+  await expect(loss).toHaveValue("0");
+  await expect(dialog).toContainText("its 2nd turn of forced march, normal attrition");
+  expect(await scan(page, "start turn, attrition")).toEqual([]);
+  await page.emulateMedia({ colorScheme: "dark" });
+  expect(await scan(page, "start turn, attrition, dark")).toEqual([]);
+  await page.emulateMedia({ colorScheme: "light" });
+  await loss.fill("2");
+  await dialog.getByRole("button", { name: "Start turn 5" }).click();
+  await expect(page.getByText("Turn 5 has started.")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // Bob sees it in the Guard's drawer, with what its forced marches are now.
+  await commander.page.goto(`${campaignUrl}/map`);
+  await commander.page
+    .getByRole("button", { name: "Imperial Guard, Line Infantry, Armée du Nord" })
+    .click();
+  const drawer = commander.page.getByRole("dialog", { name: "Imperial Guard" });
+  await expect(drawer.getByRole("list", { name: "Points history" })).toContainText(
+    "Turn 4: −2, to 28. Forced march.",
+  );
+  await expect(drawer).toContainText("Force marching: 2 turns to rest off (a Hold each).");
+});
+
 test("a commander steps back through the turns; the Umpire picks out an army", async ({
   signUp,
 }) => {

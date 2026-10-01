@@ -2478,9 +2478,11 @@ build on positions.
       points }] }`, a loss for each unit that owes one and no other (400 otherwise), and applies
       it. Each unit's points history (`PointsChange`: attrition, and the Umpire's edits once the
       campaign has started), for every member (`GET /api/army-units/{id}/points`).
-    - **47c. In the app:** "Force march" when moving (the reach goes a hex further), each unit's
-      march count and what its next move would cost, the Umpire's attrition list (each loss
-      editable) on starting the next turn, and the points history in the unit drawer.
+    - ✅ **47c. In the app:** "Force march (a hex further)" when moving, by day (the reach goes a
+      flat hex further; the order reads "by force march"), with what the move costs; each unit's
+      march count in its drawer (its commander and the Umpire) and its points history (everyone);
+      starting the next turn lists the attrition due, each loss editable, and sends what the
+      Umpire confirms (`StartTurnModal`).
 48. **Supply:** depots per side, supply lines along roads and rivers, cut by 5 or more enemy
     points in a hex on them, six turns' grace, then attrition; the exempt units.
 49. **Visibility by hex:** sighting by terrain and elevation (the intelligence and scouting grants

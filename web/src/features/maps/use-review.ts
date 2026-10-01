@@ -7,7 +7,11 @@ import {
   useStartNextTurn,
   useSubmitTurn,
 } from "@/api/generated/endpoints/turns/turns";
-import type { ArmyTurnDetails, ReviewTurnRequest } from "@/api/generated/model";
+import type {
+  ArmyTurnDetails,
+  AttritionLossRequest,
+  ReviewTurnRequest,
+} from "@/api/generated/model";
 import { refreshCampaign } from "@/features/campaigns/campaign-cache";
 import { errorMessage } from "@/lib/errors";
 
@@ -28,11 +32,14 @@ export function useReview(campaignId: string) {
   const refresh = () =>
     Promise.all([
       refreshCampaign(queryClient, campaignId),
-      // Every army's: they're keyed by the army, which refreshCampaign doesn't reach.
+      // Every army's turns and marches, and every unit's points history: they're keyed by the
+      // army or unit, which refreshCampaign doesn't reach.
       queryClient.invalidateQueries({
         predicate: (query) =>
           typeof query.queryKey[0] === "string" &&
-          /^\/api\/armies\/[^/]+\/turns$/.test(query.queryKey[0]),
+          /^\/api\/(armies\/[^/]+\/(turns|marches)|army-units\/[^/]+\/points)$/.test(
+            query.queryKey[0],
+          ),
       }),
     ]);
 
@@ -82,9 +89,10 @@ export function useReview(campaignId: string) {
         `${armyName}'s turn couldn't be approved. Try again.`,
       ),
     review,
-    startNext: (number: number) =>
+    // With the attrition the closing turn cost, as the Umpire confirmed it (step 47).
+    startNext: (number: number, attrition: AttritionLossRequest[] = []) =>
       run(
-        () => startNext.mutateAsync({ id: campaignId }),
+        () => startNext.mutateAsync({ id: campaignId, data: { attrition } }),
         `Turn ${String(number)} has started.`,
         "The next turn couldn't be started. Try again.",
       ),

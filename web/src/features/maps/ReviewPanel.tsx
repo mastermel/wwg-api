@@ -8,13 +8,13 @@ import type {
   CampaignTurnSummary,
   ArmyUnitResponse,
 } from "@/api/generated/model";
-import { ConfirmModal } from "@/components/ConfirmModal";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
 import type { HexWarning } from "@/features/maps/contact";
 import { HexWarningsList } from "@/features/maps/HexWarningsList";
 import type { TerrainIndex } from "@/features/maps/terrain";
 import { ReviewModal } from "@/features/maps/ReviewModal";
+import { StartTurnModal } from "@/features/maps/StartTurnModal";
 import type { OpenArmyTurn } from "@/features/maps/use-orders";
 import type { useReview } from "@/features/maps/use-review";
 import { formatDateTime } from "@/lib/format";
@@ -28,6 +28,7 @@ const statusLabels: Record<ArmyTurnStatus, string> = {
 };
 
 interface ReviewPanelProps {
+  campaignId: string;
   open: CampaignTurnSummary;
   /** What stops the next turn starting. */
   problems: readonly string[];
@@ -45,6 +46,7 @@ interface ReviewPanelProps {
  * once it's approved; and Start turn N+1 once every army's turn is approved.
  */
 export function ReviewPanel({
+  campaignId,
   open,
   problems,
   armyTurns,
@@ -118,18 +120,20 @@ export function ReviewPanel({
           }}
         />
       )}
-      <ConfirmModal
-        opened={starting}
-        onClose={closeStart}
-        title={`Start turn ${String(next)}?`}
-        confirmLabel={`Start turn ${String(next)}`}
-        color="navy"
-        loading={review.busy}
-        onConfirm={() => void review.startNext(next).then(closeStart)}
-      >
-        Turn {open.number} closes: its approved orders become where every unit is, and no turn in it
-        can be reopened. Every commander is emailed to give orders for turn {next}.
-      </ConfirmModal>
+      {starting && (
+        <StartTurnModal
+          campaignId={campaignId}
+          closing={open.number}
+          armies={armyTurns.map((entry) => entry.army)}
+          busy={review.busy}
+          onStart={(attrition) => {
+            void review.startNext(next, attrition).then((started) => {
+              if (started) closeStart();
+            });
+          }}
+          onClose={closeStart}
+        />
+      )}
     </Section>
   );
 }
