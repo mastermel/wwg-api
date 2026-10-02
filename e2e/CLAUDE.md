@@ -81,5 +81,10 @@ npm run lint && npm run typecheck && npm run format:check
   or ally sees or does something runs on both.
 - Emails: `latestEmailText(to)` and `linkIn(text, prefix)` (tests/support/mailpit.ts).
 - A new page or section belongs in `accessibility.spec.ts`, which axe-scans every page in both
-  colour schemes (it's the only place colour contrast is checked).
-- Long multi-user tests call `test.slow()`: beside the rest of the suite they can pass 30s.
+  colour schemes (it's the only place colour contrast is checked): in the test for whoever sees
+  it (signed out, a Player, the Umpire, an Admin). Keep each test short: one for every page
+  passed its time on CI's iPhone.
+- Long multi-user tests call `test.slow()`: beside the rest of the suite they can pass 30s, and
+  CI's iPhone (WebKit) runs about three times slower than a desktop. A click, fill or page load
+  fails after 10s (`actionTimeout`, `navigationTimeout`), so a stuck step fails then, not at the
+  test's timeout; `expect` waits 5s.

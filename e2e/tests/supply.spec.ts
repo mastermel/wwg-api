@@ -6,6 +6,8 @@ import { startedCampaign } from "./support/turns.ts";
 import { apiAs } from "./support/api.ts";
 
 test("the Umpire places a depot, which only its army's commander sees", async ({ signUp }) => {
+  // Three people, two map pages: past 30s on CI's iPhone.
+  test.slow();
   const umpire = await signUp("Ada");
   const commander = await signUp("Bob");
   const other = await signUp("Cy");
