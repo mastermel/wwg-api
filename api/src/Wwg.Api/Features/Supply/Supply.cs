@@ -54,7 +54,8 @@ internal sealed record UnitSupply(SupplyState State, Guid? DepotId);
 /// <summary>
 /// Supply (the rules, §G; decision 0019): each army's routes by road and waterway from its own
 /// depots, cut by a hex holding 5 or more points of the other side unless the army's side has
-/// twice as many there; a unit is supplied within the reach of a hex its routes come to.
+/// twice as many there (boats don't count, either way: decision 0022); a unit is supplied within
+/// the reach of a hex its routes come to.
 /// </summary>
 internal static class SupplyLines
 {
@@ -76,10 +77,11 @@ internal static class SupplyLines
         IReadOnlyList<SupplyDepot> depots
     )
     {
-        var points = units
+        var troops = units.Where(u => u.Type != UnitType.Boat).ToList();
+        var points = troops
             .GroupBy(u => (u.At, u.SideId))
             .ToDictionary(g => g.Key, g => g.Sum(u => u.Points));
-        var totals = units.GroupBy(u => u.At).ToDictionary(g => g.Key, g => g.Sum(u => u.Points));
+        var totals = troops.GroupBy(u => u.At).ToDictionary(g => g.Key, g => g.Sum(u => u.Points));
         bool Cut(Guid side, Hex hex)
         {
             var own = points.GetValueOrDefault((hex, side));

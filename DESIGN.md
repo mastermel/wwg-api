@@ -2601,7 +2601,7 @@ build on positions.
       a waterway and no enemy: two turns in a row there, and as the second closes, a generic Boat
       ("Boat 1", "Boat 2"…; an army unit with no library unit) joins its army in the hex; any
       other order loses the work (`BoatBuilding`, after couriers as the turn closes). A
-      sighting's embarked detail (`SightingRequest.ShowsAfloat`, `SightingResponse.Afloat`).
+      sighting's embarked detail (`SightingRequest.ShowsAfloat`, `SightingResponse.Afloat`). Boats never take a settlement, nor count towards cutting a supply route.
     - ✅ **51c. In the app:** Embark, Land and Build a boat in the unit's drawer, with the boats
       needed and free; an embarked unit's marker badged with its boats (theirs not drawn, nor
       listed in the turn panel), its reach by water, and where it can land shaded; the Umpire

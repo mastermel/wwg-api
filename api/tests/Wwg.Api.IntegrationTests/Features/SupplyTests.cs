@@ -66,7 +66,12 @@ public sealed class SupplyTests : ApiTest
     }
 
     /// <summary>An army of the other side with one unit of these points, placed in the hex.</summary>
-    private static async Task EnemyAsync(CampaignScenario scenario, Hex at, int points)
+    private static async Task EnemyAsync(
+        CampaignScenario scenario,
+        Hex at,
+        int points,
+        UnitType type = UnitType.LineInfantry
+    )
     {
         using var created = await scenario
             .As(Role.Umpire)
@@ -79,6 +84,7 @@ public sealed class SupplyTests : ApiTest
         var unit = await LibrarySteps.AddUnitAsync(
             scenario,
             "Brigade",
+            type,
             points: points,
             armyId: army
         );
@@ -147,6 +153,18 @@ public sealed class SupplyTests : ApiTest
         await EnemyAsync(scenario, OnTheRoad, points: 5);
 
         Assert.Equal(SupplyState.Unsupplied, (await UnitAsync(scenario)).State);
+    }
+
+    [Fact]
+    public async Task GetSupply_EnemyBoatsOnTheRoad_DontCutIt()
+    {
+        using var scenario = await StartedAsync();
+        await RoadAsync(scenario);
+        await DepotAsync(scenario, DepotHex);
+
+        await EnemyAsync(scenario, OnTheRoad, points: 30, UnitType.Boat);
+
+        Assert.Equal(SupplyState.Supplied, (await UnitAsync(scenario)).State);
     }
 
     [Fact]

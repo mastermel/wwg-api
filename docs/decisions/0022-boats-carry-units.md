@@ -33,6 +33,8 @@ the boats, not the units, what moves and is counted.
 - **While embarked:** being carried is rest (no forced marches, none owed); no living off the
   land; no taking a settlement until it lands. The Umpire may show an enemy that a sighted unit
   is embarked, as a detail of the sighting.
+- **Boats themselves hold nothing:** a boat, carrying or not, never takes a settlement, and boats
+  count for neither side where a supply route is cut (5 enemy points unless 2:1, decision 0019).
 - **Who embarks:** any land unit that's commanded (infantry, artillery, cavalry, siege artillery);
   not supply trains, nor boats.
 - **Building (or procuring) boats:** a land unit in a settlement hex with a waterway, and no enemy

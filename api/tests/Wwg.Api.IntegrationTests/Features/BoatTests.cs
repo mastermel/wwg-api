@@ -441,6 +441,31 @@ public sealed class BoatTests : ApiTest
     }
 
     [Fact]
+    public async Task StartNextTurn_LooseBoatsInATown_TakeNothing()
+    {
+        var (scenario, boats) = await AfloatAsync(
+            boats: 1,
+            beforeStart: s => TownAsync(s, new Hex(1, 0))
+        );
+        // The unit holds; its boat rows down the river into the town.
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var rowed = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            TurnSteps.Move(new Hex(1, 0)),
+            boats[0]
+        );
+        rowed.EnsureSuccessStatusCode();
+
+        await TurnAsync(scenario, TurnSteps.Hold);
+
+        var score = await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<ScoreboardResponse>($"/api/campaigns/{scenario.CampaignId}/scoreboard");
+        Assert.Null(Assert.Single(score!.Settlements).ArmyId);
+    }
+
+    [Fact]
     public async Task GiveOrder_ToABoatWhoseUnitHasNoPointsLeft_IsItsOwn()
     {
         var (scenario, boats) = await AboardAsync();
