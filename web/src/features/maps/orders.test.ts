@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { UnitPosition } from "@/api/generated/model";
-import { describeOrder, hexes } from "@/features/maps/orders";
+import { describeOrder, hexes, withLivingOffTheLand } from "@/features/maps/orders";
 
 const from = { latitude: 50.7, longitude: 4.4 };
 const order = (kind: UnitPosition["kind"], path: UnitPosition["path"] = []): UnitPosition => ({
@@ -20,6 +20,32 @@ const order = (kind: UnitPosition["kind"], path: UnitPosition["path"] = []): Uni
   livesOffTheLand: false,
   boats: [],
   carriedBy: null,
+});
+
+describe("withLivingOffTheLand", () => {
+  it("keeps the order as it is, living off the land or not", () => {
+    expect(withLivingOffTheLand(order("BuildBoat"), true)).toEqual({
+      kind: "BuildBoat",
+      path: null,
+      livesOffTheLand: true,
+    });
+    expect(withLivingOffTheLand(order("Disembark", [{ q: 0, r: -1 }]), true)).toEqual({
+      kind: "Disembark",
+      path: [{ q: 0, r: -1 }],
+      livesOffTheLand: true,
+    });
+    expect(withLivingOffTheLand(order("Move", [{ q: 1, r: 0 }]), false)).toEqual({
+      kind: "Move",
+      path: [{ q: 1, r: 0 }],
+      forceMarch: false,
+      livesOffTheLand: false,
+    });
+    expect(withLivingOffTheLand(undefined, true)).toEqual({
+      kind: "Hold",
+      path: null,
+      livesOffTheLand: true,
+    });
+  });
 });
 
 describe("describeOrder", () => {

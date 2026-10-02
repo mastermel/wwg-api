@@ -88,7 +88,7 @@ import { canForceMarch, forceMarchBonus, moveCost } from "@/features/maps/marche
 import { OrderActions, type BoatOptions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
 import { PastTurnPanel } from "@/features/maps/PastTurnPanel";
-import { hexes } from "@/features/maps/orders";
+import { hexes, withLivingOffTheLand } from "@/features/maps/orders";
 import { ReviewPanel } from "@/features/maps/ReviewPanel";
 import { SetupPanel } from "@/features/maps/SetupPanel";
 import { TurnList } from "@/features/maps/TurnList";
@@ -707,6 +707,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         give("BuildBoat", `${unit.unit.name} will build a boat.`);
       },
       onLand: () => {
+        setForceMarch(false);
         setMoving(unit);
         setLanding(true);
         setTarget(null);
@@ -1227,8 +1228,9 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                         busy={orders.busy}
                         boats={boatOptions(unit, turn)}
                         offTheLand={
-                          // Not on boats (step 51).
+                          // Not on boats, nor boarding them (step 51).
                           (unit.boats?.length ?? 0) === 0 &&
+                          turn.orders.find((o) => o.unitId === unit.unit.id)?.kind !== "Embark" &&
                           supplySettings.data?.offTheLandNations.includes(unit.unit.nation)
                             ? {
                                 on: livingOffTheLand(unit),
@@ -1239,14 +1241,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                                     unit.army.id,
                                     turn.id,
                                     unit.unit,
-                                    given?.kind === "Move"
-                                      ? {
-                                          kind: "Move",
-                                          path: given.path,
-                                          forceMarch: given.forceMarch,
-                                          livesOffTheLand: on,
-                                        }
-                                      : { kind: "Hold", path: null, livesOffTheLand: on },
+                                    withLivingOffTheLand(given, on),
                                     on
                                       ? `${unit.unit.name} will live off the land.`
                                       : `${unit.unit.name} will draw on its supply.`,
@@ -1256,6 +1251,9 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                             : undefined
                         }
                         onMove={() => {
+                          // A move of its own: nothing carried over from another's.
+                          setLanding(false);
+                          setForceMarch(false);
                           setMoving(unit);
                           setTarget(null);
                           closeDrawer();

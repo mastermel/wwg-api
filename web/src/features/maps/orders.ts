@@ -1,4 +1,4 @@
-import type { UnitPosition } from "@/api/generated/model";
+import type { GiveOrderRequest, UnitPosition } from "@/api/generated/model";
 import type { Point } from "@/features/maps/geo";
 import { boatCount } from "@/features/maps/boats";
 import { shareOfTheWay } from "@/features/maps/movement";
@@ -32,6 +32,27 @@ export function describeOrder(
   if (night) return `${describeMove(order)}, by night${living}`;
   if (order.forceMarch) return `${describeMove(order)}, by force march${living}`;
   return `${describeMove(order)}${living}`;
+}
+
+/**
+ * The unit's order as it stands, with living off the land turned on or off (step 48b): a Move,
+ * a landing or building a boat stays one; anything else (or no order yet) is a Hold. Embarking
+ * can't live off the land, so isn't offered it.
+ */
+export function withLivingOffTheLand(
+  given: UnitPosition | undefined,
+  on: boolean,
+): GiveOrderRequest {
+  switch (given?.kind) {
+    case "Move":
+      return { kind: "Move", path: given.path, forceMarch: given.forceMarch, livesOffTheLand: on };
+    case "Disembark":
+      return { kind: "Disembark", path: given.path, livesOffTheLand: on };
+    case "BuildBoat":
+      return { kind: "BuildBoat", path: null, livesOffTheLand: on };
+    default:
+      return { kind: "Hold", path: null, livesOffTheLand: on };
+  }
 }
 
 function describeMove(order: UnitPosition) {

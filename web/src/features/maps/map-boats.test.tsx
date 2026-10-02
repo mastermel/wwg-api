@@ -131,14 +131,21 @@ const edge = (side: "N" | "NE" | "SE", changes: { river?: boolean; waterway?: "O
  * The signed-in Player's army: the Imperial Guard (30 points: three boats of 14) at (0, 0), with
  * as many boats as given there, where these positions say, on this grid.
  */
+const artilleryId = "0192f5c1-0000-7000-8000-00000000b002";
+
 function serve({
   boats = 3,
   positions = [at(guardId), ...boatIds.slice(0, boats).map((id) => at(id))],
   grid = { cells: [], edges: [] },
+  turn = draft,
+  artillery = false,
 }: {
   boats?: number;
   positions?: UnitPosition[];
   grid?: CampaignGridResponse;
+  turn?: ArmyTurnDetails;
+  /** The Reserve Artillery too, ashore in the hex south-west. */
+  artillery?: boolean;
 } = {}) {
   const sent: unknown[] = [];
   server.use(
@@ -177,11 +184,19 @@ function serve({
       HttpResponse.json([
         unit(guardId, "Imperial Guard", { type: "LineInfantry", fightingFactor: 6, points: 30 }),
         ...boatIds.slice(0, boats).map((id, i) => unit(id, `Boat ${String(i + 1)}`)),
+        ...(artillery
+          ? [unit(artilleryId, "Reserve Artillery", { type: "FootArtillery", points: 20 })]
+          : []),
       ]),
     ),
+    http.get(`*/api/campaigns/${campaignId}/supply-settings`, () =>
+      HttpResponse.json({ reach: 1, exemptTypes: [], offTheLandNations: ["France"] }),
+    ),
     http.get(`*/api/campaigns/${campaignId}/turns`, () => HttpResponse.json(running)),
-    http.get(`*/api/campaigns/${campaignId}/positions`, () => HttpResponse.json(positions)),
-    http.get(`*/api/armies/${armyId}/turns`, () => HttpResponse.json([draft])),
+    http.get(`*/api/campaigns/${campaignId}/positions`, () =>
+      HttpResponse.json(artillery ? [...positions, at(artilleryId, { q: -1, r: 1 })] : positions),
+    ),
+    http.get(`*/api/armies/${armyId}/turns`, () => HttpResponse.json([turn])),
     http.put(`*/api/army-turns/${turnId}/orders/${guardId}`, async ({ request }) => {
       sent.push(await request.json());
       return HttpResponse.json(at(guardId, { turn: 1, status: "Draft" }));
@@ -241,6 +256,39 @@ describe("boats on the map", () => {
 
     expect(await screen.findByText("Imperial Guard will land.")).toBeInTheDocument();
     expect(sent).toEqual([{ kind: "Disembark", path: [{ q: 0, r: -1 }], livesOffTheLand: false }]);
+  });
+
+  it("starts another unit's move afresh after choosing where one lands", async () => {
+    serve({ positions: aboard, artillery: true });
+    const { user, drawer } = await openGuard();
+    await user.click(drawer.getByRole("button", { name: "Land" }));
+    expect(screen.getByText(/Tap a shaded hex for where/)).toHaveTextContent("lands");
+
+    const panel = screen.getByRole("region", { name: "Turn 1" });
+    await user.click(within(panel).getByRole("button", { name: "Reserve Artillery" }));
+    await user.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Move" }),
+    );
+
+    expect(screen.getByText(/Tap a shaded hex for where/)).toHaveTextContent(
+      "Tap a shaded hex for where Reserve Artillery moves to.",
+    );
+  });
+
+  it("keeps building a boat while switching to living off the land", async () => {
+    const sent = serve({
+      boats: 0,
+      turn: {
+        ...draft,
+        orders: [at(guardId, { turn: 1, status: "Draft", kind: "BuildBoat" })],
+      },
+    });
+    const { user, drawer } = await openGuard();
+
+    await user.click(drawer.getByRole("switch", { name: /Living off the land/ }));
+
+    expect(await screen.findByText("Imperial Guard will live off the land.")).toBeInTheDocument();
+    expect(sent).toEqual([{ kind: "BuildBoat", path: null, livesOffTheLand: true }]);
   });
 
   it("won't land where there's no river side to land across", async () => {
