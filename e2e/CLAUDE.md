@@ -79,7 +79,9 @@ npm run lint && npm run typecheck && npm run format:check
   in which only the Umpire or an Admin acts in the app skips the phone:
   `test.skip(isMobile, desktopOnly)` (tests/support/fixtures.ts). One where a Player, commander
   or ally sees or does something runs on both.
-- Emails: `latestEmailText(to)` and `linkIn(text, prefix)` (tests/support/mailpit.ts).
+- Emails: `latestEmailText(to)` and `linkIn(text, prefix)` (tests/support/mailpit.ts). Every new
+  account gets a welcome first (decision 0023): `latestEmailText` leaves it out, unless asked for
+  with `{ welcome: true }`. The reminder to confirm shows on every page for them.
 - A new page or section belongs in `accessibility.spec.ts`, which axe-scans every page in both
   colour schemes (it's the only place colour contrast is checked): in the test for whoever sees
   it (signed out, a Player, the Umpire, an Admin). Keep each test short: one for every page

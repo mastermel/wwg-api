@@ -241,9 +241,12 @@ export function createSessionStore({
 /** The last user record, if there is one and it still has the right shape. */
 function readLastUser(): MeResponse | null {
   const stored = storage.read(lastUserKey);
-  // Saved before masquerades existed: not one.
+  // Saved before masquerades existed: not one. Before confirmation (decision 0023): taken as
+  // confirmed until the next sign-in says otherwise, rather than nagging offline.
   const parsed = GetMeResponse.safeParse(
-    typeof stored === "object" && stored !== null ? { masquerade: null, ...stored } : stored,
+    typeof stored === "object" && stored !== null
+      ? { masquerade: null, emailConfirmed: true, ...stored }
+      : stored,
   );
   return parsed.success ? parsed.data : null;
 }

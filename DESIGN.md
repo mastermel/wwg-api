@@ -2616,10 +2616,12 @@ build on positions.
       user's turned-off kinds are kept on their account (`AppUser.MutedEmails`; `GET` / `PUT
       /api/me/email-settings`) and honoured by every campaign email (`TurnRecipient.Wants`); the
       account page's **Email notifications** section (`EmailSettings`).
-    - **52b. Welcome and confirmation:** registering emails a welcome with a link to confirm the
+    - ✅ **52b. Welcome and confirmation:** registering emails a welcome with a link to confirm the
       address; changing it sends one to the new address (`POST /api/auth/confirm-email`, `POST
       /api/me/confirmation-email` to send it again); the app's confirm page, and a reminder
-      for an unconfirmed account with the link sent again on request.
+      for an unconfirmed account with the link sent again on request (`EmailConfirmation`; the
+      link lasts 7 days, by its own token provider, apart from the 2-hour reset link;
+      `ConfirmEmailPage`, `ConfirmEmailReminder`).
     - **52c. The new turn's email:** to each army's commander, the campaign's first turn too: the
       turn's number, date and time of day, and what's new for the army as the last turn closed
       (sightings, supply, attrition, boats built, allies' reports with their messages), or

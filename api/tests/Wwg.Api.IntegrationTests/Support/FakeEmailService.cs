@@ -33,8 +33,18 @@ internal sealed class FakeEmailService : IEmailService
         return Task.CompletedTask;
     }
 
-    /// <summary>The first email sent to <paramref name="address"/>, waiting up to 5 seconds.</summary>
-    public async Task<EmailMessage> WaitForEmailToAsync(string address)
+    /// <summary>
+    /// The first email sent to <paramref name="address"/>, waiting up to 5 seconds, leaving out the
+    /// welcome every new account gets (decision 0023): tests make accounts as they go.
+    /// </summary>
+    public Task<EmailMessage> WaitForEmailToAsync(string address) =>
+        WaitForAsync(address, e => !e.Subject.StartsWith("Welcome to", StringComparison.Ordinal));
+
+    /// <summary>The welcome sent to <paramref name="address"/> on registering.</summary>
+    public Task<EmailMessage> WaitForWelcomeToAsync(string address) =>
+        WaitForAsync(address, e => e.Subject.StartsWith("Welcome to", StringComparison.Ordinal));
+
+    private async Task<EmailMessage> WaitForAsync(string address, Func<EmailMessage, bool> which)
     {
         for (
             var elapsed = TimeSpan.Zero;
@@ -43,7 +53,7 @@ internal sealed class FakeEmailService : IEmailService
         )
         {
             var email = _sent.FirstOrDefault(e =>
-                string.Equals(e.ToAddress, address, StringComparison.OrdinalIgnoreCase)
+                string.Equals(e.ToAddress, address, StringComparison.OrdinalIgnoreCase) && which(e)
             );
             if (email is not null)
             {

@@ -76,6 +76,7 @@ public sealed class EmailSettingsTests : ApiTest
             Emails.Sent,
             e =>
                 string.Equals(e.ToAddress, "umpire@example.com", StringComparison.OrdinalIgnoreCase)
+                && !e.Subject.StartsWith("Welcome to", StringComparison.Ordinal)
         );
     }
 

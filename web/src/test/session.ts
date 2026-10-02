@@ -10,6 +10,7 @@ export const testUser: MeResponse = {
   isAdmin: false,
   isManager: false,
   masquerade: null,
+  emailConfirmed: true,
 };
 
 export const testAdmin: MeResponse = {
@@ -20,6 +21,7 @@ export const testAdmin: MeResponse = {
   isAdmin: true,
   isManager: false,
   masquerade: null,
+  emailConfirmed: true,
 };
 
 /**

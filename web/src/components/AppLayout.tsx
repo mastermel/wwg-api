@@ -29,6 +29,7 @@ import { InstallHint } from "@/components/InstallHint";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { ThemeMenuItems } from "@/components/ThemeMenuItems";
 import { useMasqueradeSession } from "@/features/admin/use-masquerade-session";
+import { ConfirmEmailReminder } from "@/features/auth/ConfirmEmailReminder";
 import { useSession, useSessionStore } from "@/features/auth/session-context";
 import { formatDateTime } from "@/lib/format";
 
@@ -167,6 +168,7 @@ export function AppLayout() {
       <AppShell.Main className={classes.main}>
         <Box className={classes.content}>
           <OfflineBanner />
+          <ConfirmEmailReminder />
           <InstallHint />
           <Outlet />
         </Box>

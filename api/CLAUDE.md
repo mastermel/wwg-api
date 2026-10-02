@@ -125,7 +125,9 @@ true, because the build launches the app to write the document.
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
   A campaign email has an `EmailKind`, which its recipient can turn off (decision 0023): load
   the recipient with their `MutedEmails` (`TurnRecipient`) and send only if they `Wants` it. The
-  queue sends in order, so a test shows an email wasn't sent by waiting for a later one.
+  queue sends in order, so a test shows an email wasn't sent by waiting for a later one. Every new
+  account gets a welcome: `Emails.WaitForEmailToAsync` leaves it out (`WaitForWelcomeToAsync`
+  finds it).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.
 - No `!` (null-forgiving) without a comment saying why it's safe.
 - Logging uses message templates with named placeholders, never interpolation.

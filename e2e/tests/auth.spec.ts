@@ -87,3 +87,21 @@ test("resets a forgotten password with the emailed link", async ({ page, signUp 
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Campaigns" })).toBeVisible();
 });
+
+test("a new account confirms its email with the welcome's link", async ({ signUp }) => {
+  const user = await signUp("Cleo");
+  const page = user.page;
+  await page.goto("/campaigns");
+  await expect(page.getByText("Confirm your email")).toBeVisible();
+
+  const link = linkIn(
+    await latestEmailText(user.email, { welcome: true }),
+    "https://localhost:8443/confirm-email",
+  );
+  await page.goto(link);
+
+  await expect(page.getByText("Your email is confirmed")).toBeVisible();
+  await page.getByRole("link", { name: "Go to your campaigns" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Campaigns" })).toBeVisible();
+  await expect(page.getByText("Confirm your email")).toHaveCount(0);
+});

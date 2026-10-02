@@ -31,4 +31,7 @@ internal sealed class AuthOptions
     /// against the system clock, not the injected TimeProvider.
     /// </summary>
     public TimeSpan PasswordResetLinkLifetime { get; set; } = TimeSpan.FromHours(2);
+
+    /// <summary>How long an email confirmation link works (decision 0023).</summary>
+    public TimeSpan EmailConfirmationLinkLifetime { get; set; } = TimeSpan.FromDays(7);
 }

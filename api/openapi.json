@@ -1012,7 +1012,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Creates an account and signs it in.",
+        "summary": "Creates an account and signs it in, and emails a welcome with a link to confirm the address\n(decision 0023).",
         "operationId": "Register",
         "requestBody": {
           "content": {
@@ -1228,6 +1228,50 @@
         }
       }
     },
+    "/api/auth/confirm-email": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Confirms an account's email address with the code its link carries (decision 0023): from a\nwelcome, or a changed address's email. Signed in or not.",
+        "operationId": "ConfirmEmail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/reset-password": {
       "post": {
         "tags": [
@@ -1393,7 +1437,7 @@
         "tags": [
           "Account"
         ],
-        "summary": "Changes the email the account signs in with (the current password is required). Every other\nsession is signed out, a notice goes to the old address, and the response carries new\ntokens so this session keeps working.",
+        "summary": "Changes the email the account signs in with (the current password is required). Every other\nsession is signed out, a notice goes to the old address and a link to confirm it to the new\none (decision 0023), and the response carries new tokens so this session keeps working.",
         "operationId": "ChangeEmail",
         "requestBody": {
           "content": {
@@ -1464,6 +1508,35 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/me/confirmation-email": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Emails the signed-in user a new link to confirm their address (decision 0023); nothing if\nit's confirmed already.",
+        "operationId": "SendConfirmationEmail",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -6390,6 +6463,27 @@
         },
         "description": "Changes the password. Other sessions are signed out; this one continues."
       },
+      "ConfirmEmailRequest": {
+        "required": [
+          "userId",
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "The account, from the link.",
+            "format": "uuid"
+          },
+          "code": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string",
+            "description": "The code, from the link."
+          }
+        },
+        "description": "Confirms an account's email address with the code from its link (decision 0023)."
+      },
       "CourierResponse": {
         "required": [
           "reportId",
@@ -7568,7 +7662,8 @@
           "lastName",
           "isAdmin",
           "isManager",
-          "masquerade"
+          "masquerade",
+          "emailConfirmed"
         ],
         "type": "object",
         "properties": {
@@ -7607,6 +7702,10 @@
                 "$ref": "#/components/schemas/MasqueradeInfo"
               }
             ]
+          },
+          "emailConfirmed": {
+            "type": "boolean",
+            "description": "Whether they've confirmed their email address (decision 0023)."
           }
         },
         "description": "The signed-in user."

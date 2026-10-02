@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Auth;
@@ -15,6 +16,14 @@ public sealed record RegisterRequest(
 public sealed record LoginRequest(
     [property: Trimmed, Required, EmailAddress, StringLength(256)] string Email,
     [property: Required, StringLength(128)] string Password
+);
+
+/// <summary>Confirms an account's email address with the code from its link (decision 0023).</summary>
+/// <param name="UserId">The account, from the link.</param>
+/// <param name="Code">The code, from the link.</param>
+public sealed record ConfirmEmailRequest(
+    [property: JsonRequired] Guid UserId,
+    [property: Required, StringLength(2000)] string Code
 );
 
 /// <summary>Asks for a password reset link by email.</summary>

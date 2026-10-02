@@ -14,6 +14,7 @@ namespace Wwg.Api.Features.Account;
 /// <param name="Masquerade">
 /// When an Admin is using the app as this user (decision 0012): who, and until when. Null otherwise.
 /// </param>
+/// <param name="EmailConfirmed">Whether they've confirmed their email address (decision 0023).</param>
 public sealed record MeResponse(
     Guid Id,
     string Email,
@@ -21,7 +22,8 @@ public sealed record MeResponse(
     string LastName,
     bool IsAdmin,
     bool IsManager,
-    MasqueradeInfo? Masquerade
+    MasqueradeInfo? Masquerade,
+    bool EmailConfirmed
 );
 
 /// <summary>A masquerade: an Admin using the app as the signed-in user.</summary>

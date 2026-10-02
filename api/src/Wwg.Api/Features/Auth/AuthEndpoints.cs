@@ -46,6 +46,10 @@ internal static class AuthEndpoints
             .RequireRateLimiting(RateLimiting.EmailPolicy)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        auth.MapPost("/confirm-email", ConfirmEmailAsync)
+            .WithName("ConfirmEmail")
+            .RequireRateLimiting(RateLimiting.AuthPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
         auth.MapPost("/reset-password", ResetPasswordAsync)
             .WithName("ResetPassword")
             .RequireRateLimiting(RateLimiting.AuthPolicy)
@@ -54,13 +58,18 @@ internal static class AuthEndpoints
         return app;
     }
 
-    /// <summary>Creates an account and signs it in.</summary>
+    /// <summary>
+    /// Creates an account and signs it in, and emails a welcome with a link to confirm the address
+    /// (decision 0023).
+    /// </summary>
     internal static async Task<
         Results<Ok<TokenResponse>, ValidationProblem, ProblemHttpResult>
     > RegisterAsync(
         RegisterRequest request,
         UserManager<AppUser> userManager,
         TokenService tokens,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
         HttpContext httpContext,
         CancellationToken cancellationToken
     )
@@ -90,7 +99,48 @@ internal static class AuthEndpoints
             return TypedResults.ValidationProblem(ToValidationErrors(result));
         }
 
+        await EmailConfirmation.SendAsync(
+            userManager,
+            emails,
+            appOptions,
+            user,
+            welcome: true,
+            cancellationToken
+        );
         return TypedResults.Ok(await tokens.IssueAsync(httpContext, user));
+    }
+
+    /// <summary>
+    /// Confirms an account's email address with the code its link carries (decision 0023): from a
+    /// welcome, or a changed address's email. Signed in or not.
+    /// </summary>
+    internal static async Task<Results<NoContent, ValidationProblem>> ConfirmEmailAsync(
+        ConfirmEmailRequest request,
+        UserManager<AppUser> userManager,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(request.UserId.ToString());
+        var token = EmailConfirmation.TokenOf(request.Code);
+        if (
+            user is null
+            || token is null
+            || !(await userManager.ConfirmEmailAsync(user, token)).Succeeded
+        )
+        {
+            return TypedResults.ValidationProblem(
+                new Dictionary<string, string[]>(StringComparer.Ordinal)
+                {
+                    ["code"] =
+                    [
+                        "This link has expired, or is for an older address. Send a new one from your account.",
+                    ],
+                }
+            );
+        }
+
+        return TypedResults.NoContent();
     }
 
     /// <summary>Signs in with email and password. Repeated failures lock the account briefly.</summary>

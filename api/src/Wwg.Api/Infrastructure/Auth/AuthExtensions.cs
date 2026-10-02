@@ -61,17 +61,27 @@ internal static class AuthExtensions
                 options.Password.RequireUppercase = false;
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequiredUniqueChars = 1;
+                options.Tokens.EmailConfirmationTokenProvider =
+                    EmailConfirmationTokenProvider.ProviderName;
                 // Lockout keeps Identity's defaults: 5 failed attempts, 5 minutes.
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<WwgDbContext>()
             .AddSignInManager()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddTokenProvider<EmailConfirmationTokenProvider>(
+                EmailConfirmationTokenProvider.ProviderName
+            );
 
         services
             .AddOptions<DataProtectionTokenProviderOptions>()
             .Configure<IOptions<AuthOptions>>(
                 (tokens, auth) => tokens.TokenLifespan = auth.Value.PasswordResetLinkLifetime
+            );
+        services
+            .AddOptions<EmailConfirmationTokenProviderOptions>()
+            .Configure<IOptions<AuthOptions>>(
+                (tokens, auth) => tokens.TokenLifespan = auth.Value.EmailConfirmationLinkLifetime
             );
     }
 

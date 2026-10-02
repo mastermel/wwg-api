@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.Infrastructure;
@@ -32,6 +33,11 @@ internal static class AccountEndpoints
         account
             .MapPost("/sign-out-everywhere", SignOutEverywhereAsync)
             .WithName("SignOutEverywhere");
+        account
+            .MapPost("/confirmation-email", SendConfirmationAsync)
+            .WithName("SendConfirmationEmail")
+            .RequireRateLimiting(RateLimiting.EmailPolicy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
         account
             .MapGet("/email-settings", EmailSettingsEndpoints.GetEmailSettingsAsync)
             .WithName("GetEmailSettings");
@@ -129,8 +135,8 @@ internal static class AccountEndpoints
 
     /// <summary>
     /// Changes the email the account signs in with (the current password is required). Every other
-    /// session is signed out, a notice goes to the old address, and the response carries new
-    /// tokens so this session keeps working.
+    /// session is signed out, a notice goes to the old address and a link to confirm it to the new
+    /// one (decision 0023), and the response carries new tokens so this session keeps working.
     /// </summary>
     internal static async Task<
         Results<Ok<TokenResponse>, ValidationProblem, ProblemHttpResult, UnauthorizedHttpResult>
@@ -141,6 +147,7 @@ internal static class AccountEndpoints
         SignInManager<AppUser> signInManager,
         TokenService tokens,
         IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
         HttpContext httpContext,
         CancellationToken cancellationToken
     )
@@ -176,6 +183,7 @@ internal static class AccountEndpoints
         // in one save: UpdateSecurityStampAsync validates (unique email) and saves.
         user.Email = request.NewEmail;
         user.UserName = request.NewEmail;
+        user.EmailConfirmed = false;
         await userManager.UpdateNormalizedEmailAsync(user);
         await userManager.UpdateNormalizedUserNameAsync(user);
         var result = await userManager.UpdateSecurityStampAsync(user);
@@ -193,10 +201,7 @@ internal static class AccountEndpoints
                 );
         }
 
-        await emails.QueueAsync(
-            EmailChangedEmail.Create(user, oldEmail, request.NewEmail),
-            cancellationToken
-        );
+        await EmailChangedAsync(userManager, emails, appOptions, user, oldEmail, cancellationToken);
         return TypedResults.Ok(
             await tokens.IssueAsync(httpContext, user, Masquerade.From(principal))
         );
@@ -221,6 +226,64 @@ internal static class AccountEndpoints
 
         (await userManager.UpdateSecurityStampAsync(user)).ThrowIfFailed();
         TokenService.ClearRefreshCookie(httpContext);
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>A changed address's emails: a notice to the old one, a link to confirm the new.</summary>
+    private static async Task EmailChangedAsync(
+        UserManager<AppUser> userManager,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
+        AppUser user,
+        string oldEmail,
+        CancellationToken cancellationToken
+    )
+    {
+        await emails.QueueAsync(
+            EmailChangedEmail.Create(user, oldEmail, user.Email ?? ""),
+            cancellationToken
+        );
+        await EmailConfirmation.SendAsync(
+            userManager,
+            emails,
+            appOptions,
+            user,
+            welcome: false,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// Emails the signed-in user a new link to confirm their address (decision 0023); nothing if
+    /// it's confirmed already.
+    /// </summary>
+    internal static async Task<Results<NoContent, UnauthorizedHttpResult>> SendConfirmationAsync(
+        ClaimsPrincipal principal,
+        UserManager<AppUser> userManager,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.GetUserAsync(principal);
+        if (user is null)
+        {
+            return TypedResults.Unauthorized();
+        }
+
+        if (!user.EmailConfirmed)
+        {
+            await EmailConfirmation.SendAsync(
+                userManager,
+                emails,
+                appOptions,
+                user,
+                welcome: false,
+                cancellationToken
+            );
+        }
+
         return TypedResults.NoContent();
     }
 
@@ -271,7 +334,8 @@ internal static class AccountEndpoints
             await userManager.IsInRoleAsync(user, Roles.Manager),
             Masquerade.From(principal) is { } masquerade
                 ? new MasqueradeInfo(masquerade.AdminName, masquerade.Ends.UtcDateTime)
-                : null
+                : null,
+            user.EmailConfirmed
         );
 
     private static Dictionary<string, string[]> Errors(string field, params string[] messages) =>
