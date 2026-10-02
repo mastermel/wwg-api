@@ -63,6 +63,10 @@ export function hexesAcross(view: MapBounds, hexSize: number) {
   return Math.max(across, down) / hexSize;
 }
 
+/** Whether a game map layer is shown: the campaign has a game map, and neither it nor the layer is hidden. */
+export const showsGameLayer = (campaign: MapLayers, hidden: HiddenLayers, key: GameLayer) =>
+  campaign.grid && !hidden.groups.includes("game") && !hidden.game.includes(key);
+
 /** The real map's layers the campaign shows, less those the viewer hid (all, with the map). */
 export const shownRealLayers = (campaign: MapLayers, hidden: HiddenLayers): MapLayers => ({
   ...campaign,
@@ -74,13 +78,17 @@ export const shownRealLayers = (campaign: MapLayers, hidden: HiddenLayers): MapL
   ),
 });
 
-const storageKey = (campaignId: string) => `wwg:map-layers:${campaignId}`;
+/** Which page's map the layers are for: each remembers its own. */
+export type LayersFor = "map" | "terrain";
 
-/** What the viewer hid on this campaign's map, as this device remembers it. */
-export function loadHidden(campaignId: string): HiddenLayers {
+const storageKey = (campaignId: string, page: LayersFor = "map") =>
+  `wwg:${page === "map" ? "map" : "terrain"}-layers:${campaignId}`;
+
+/** What the viewer hid on this campaign's map (or terrain editor), as this device remembers it. */
+export function loadHidden(campaignId: string, page: LayersFor = "map"): HiddenLayers {
   try {
     const saved = JSON.parse(
-      localStorage.getItem(storageKey(campaignId)) ?? "null",
+      localStorage.getItem(storageKey(campaignId, page)) ?? "null",
     ) as Partial<HiddenLayers> | null;
     const real = new Set<string>(realLayers.map((l) => l.key));
     const game = new Set<string>(gameLayers.map((l) => l.key));
@@ -95,20 +103,23 @@ export function loadHidden(campaignId: string): HiddenLayers {
   }
 }
 
-function saveHidden(campaignId: string, hidden: HiddenLayers) {
+function saveHidden(campaignId: string, page: LayersFor, hidden: HiddenLayers) {
   try {
-    localStorage.setItem(storageKey(campaignId), JSON.stringify(hidden));
+    localStorage.setItem(storageKey(campaignId, page), JSON.stringify(hidden));
   } catch {
     // Not remembered on this device: it still applies until the page closes.
   }
 }
 
-/** The viewer's hidden layers on a campaign's map, remembered on this device. */
-export function useHiddenLayers(campaignId: string) {
-  const [hidden, setHidden] = useState(() => loadHidden(campaignId));
+/**
+ * The viewer's hidden layers on a campaign's map, remembered on this device: the Map page's, or
+ * the terrain editor's, apart.
+ */
+export function useHiddenLayers(campaignId: string, page: LayersFor = "map") {
+  const [hidden, setHidden] = useState(() => loadHidden(campaignId, page));
   const change = (next: HiddenLayers) => {
     setHidden(next);
-    saveHidden(campaignId, next);
+    saveHidden(campaignId, page, next);
   };
   return {
     hidden,

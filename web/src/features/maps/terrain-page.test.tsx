@@ -16,10 +16,13 @@ import { server } from "@/test/server";
 vi.mock("@/features/maps/CampaignMap", () => ({
   CampaignMap: ({
     onMapClick,
+    grid,
   }: {
     onMapClick?: (point: { longitude: number; latitude: number }) => void;
+    grid?: boolean;
   }) => (
     <div role="application" aria-label="Campaign map">
+      <p>Grid {grid === false ? "off" : "on"}</p>
       <button type="button" onClick={() => onMapClick?.({ longitude: 4.4, latitude: 50.71 })}>
         Click the middle
       </button>
@@ -599,6 +602,25 @@ describe("the terrain page", () => {
 
     expect(await screen.findByText("Forgot the actual terrain.")).toBeInTheDocument();
     expect(calls.map((c) => c.method)).toEqual(["DELETE"]);
+  });
+
+  it("lets the Umpire hide game map layers while editing, remembered apart from the Map page", async () => {
+    localStorage.clear();
+    serveCampaign("Umpire", { cells: [], edges: [] });
+    const user = userEvent.setup();
+    await renderApp(page);
+
+    await user.click(await screen.findByRole("button", { name: "Map layers" }));
+    const game = await screen.findByRole("group", { name: "Game map", hidden: true });
+    expect(within(game).queryByText(/Zoom in to see it/)).not.toBeInTheDocument();
+    expect(
+      within(game).queryByRole("switch", { name: "Contact & concentration", hidden: true }),
+    ).not.toBeInTheDocument();
+    await user.click(within(game).getByRole("switch", { name: "Grid", hidden: true }));
+
+    expect(screen.getByText("Grid off")).toBeInTheDocument();
+    expect(localStorage.getItem(`wwg:terrain-layers:${campaignId}`)).toContain("grid");
+    expect(localStorage.getItem(`wwg:map-layers:${campaignId}`)).toBeNull();
   });
 
   it("isn't for Players", async () => {

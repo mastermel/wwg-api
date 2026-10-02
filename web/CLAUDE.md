@@ -109,7 +109,8 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   the turn panels, `HexWarningsLayer` on the map. Name a hex with `hexName` (`hex-grid.ts`).
 - The Map page's layers (`map-layers.ts`, `MapLayersControl`): each viewer hides what the
   campaign's map settings show, layer by layer or a whole map by its own switch (`groups`, which
-  leaves its layers' switches as they were; `useHiddenLayers`, in `localStorage`); the game map shows once the
+  leaves its layers' switches as they were; `useHiddenLayers`, in `localStorage`; the terrain
+  editor has its own, `useHiddenLayers(id, "terrain")`, and no zoom rule); the game map shows once the
   view spans `gameMaxHexesAcross` hexes or fewer (`CampaignMap`'s `onViewChange`). Game layers stay
   mounted and are hidden with `visibility`: WebKit can miss layers first added just after the map
   loads, so `zoomedIn` starts from the area's own size.

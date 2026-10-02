@@ -1208,7 +1208,9 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   isn't offered. Each map also has its own switch, hiding all of it at once and leaving its
   layers' switches as they were for when it's back. Remembered on that device, per campaign
   (`localStorage`); "Show everything again" puts them back. The game map is drawn only once the view's longest side spans 20 hexes
-  or fewer. Units, the reach while moving and ghost moves are always drawn.
+  or fewer. Units, the reach while moving and ghost moves are always drawn. The terrain editor
+  has the same panel, remembered apart from the Map page's, without the zoom rule (the Umpire
+  edits the game map at any zoom).
 - **A hex's card:** a click or tap on a hex (not on a unit, and not while placing or moving)
   opens a card at it with everything the viewer knows of it: its ground and forest, its town,
   city or fortress, the roads, rivers, bridges and waterways on its six sides, its actual terrain

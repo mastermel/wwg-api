@@ -70,6 +70,13 @@ import { HolderField } from "@/features/maps/HolderField";
 import { rulesValue, settlementValue } from "@/features/maps/victory";
 import { InferTerrainSection } from "@/features/maps/InferTerrainSection";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
+import { MapLayersControl } from "@/features/maps/MapLayersControl";
+import {
+  shownRealLayers,
+  showsGameLayer,
+  useHiddenLayers,
+  type GameLayer,
+} from "@/features/maps/map-layers";
 import { applyServerErrors } from "@/lib/form-errors";
 import { useOnline } from "@/lib/use-online";
 
@@ -159,6 +166,13 @@ interface TerrainEditorProps extends TerrainAreaProps {
 
 function TerrainEditor({ campaignId, settings, bounds, terrain, details }: TerrainEditorProps) {
   const grid = useMemo(() => hexGrid(bounds, settings.hexSize), [bounds, settings.hexSize]);
+  // What the Umpire shows while editing (the Map page's Layers panel, remembered apart).
+  const layers = useHiddenLayers(campaignId, "terrain");
+  const shownSettings = useMemo(
+    () => ({ ...settings, layers: shownRealLayers(settings.layers, layers.hidden) }),
+    [settings, layers.hidden],
+  );
+  const shows = (key: GameLayer) => showsGameLayer(settings.layers, layers.hidden, key);
   const index = useMemo(() => indexTerrain(terrain), [terrain]);
   const [chosen, setChosen] = useState<{ hex: Hex; side: Side } | null>(null);
   const [outside, setOutside] = useState(false);
@@ -172,9 +186,34 @@ function TerrainEditor({ campaignId, settings, bounds, terrain, details }: Terra
   return (
     <Grid gap="xl">
       <Grid.Col span={{ base: 12, md: 8, xl: 9 }}>
-        <Box h="calc(100dvh - 15rem)" mih={360}>
-          <CampaignMap settings={settings} bounds={bounds} cursor="crosshair" onMapClick={choose}>
-            <TerrainLayer grid={grid} terrain={terrain} />
+        <Box h="calc(100dvh - 15rem)" mih={360} pos="relative">
+          <Box pos="absolute" top={10} left={10} style={{ zIndex: 2 }}>
+            {/* No zoom rule here: the Umpire edits the game map at any zoom. */}
+            <MapLayersControl
+              campaign={settings.layers}
+              layers={layers}
+              zoomedIn
+              warnings={false}
+            />
+          </Box>
+          <CampaignMap
+            settings={shownSettings}
+            grid={shows("grid")}
+            bounds={bounds}
+            cursor="crosshair"
+            onMapClick={choose}
+          >
+            <TerrainLayer
+              grid={grid}
+              terrain={terrain}
+              show={{
+                terrain: shows("terrain"),
+                roads: shows("roads"),
+                rivers: shows("rivers"),
+                towns: shows("towns"),
+                bridges: shows("bridges"),
+              }}
+            />
             {chosen && <ChosenHex grid={grid} hex={chosen.hex} />}
           </CampaignMap>
         </Box>

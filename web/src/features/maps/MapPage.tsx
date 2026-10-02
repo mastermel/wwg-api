@@ -124,6 +124,7 @@ import {
   gameMaxHexesAcross,
   hexesAcross,
   shownRealLayers,
+  showsGameLayer,
   useHiddenLayers,
   type GameLayer,
 } from "@/features/maps/map-layers";
@@ -386,10 +387,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     [settings, layers.hidden],
   );
   const showGame = (key: GameLayer) =>
-    settings.layers.grid &&
-    zoomedIn &&
-    !layers.hidden.groups.includes("game") &&
-    !layers.hidden.game.includes(key);
+    zoomedIn && showsGameLayer(settings.layers, layers.hidden, key);
   const terrain = useGetCampaignGrid(campaignId, live);
   const movementTable = useGetMovementTable(campaignId, live);
   const calendar = useGetCampaignCalendar(campaignId, live);
