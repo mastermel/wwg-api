@@ -1,12 +1,22 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Turns;
 
-/// <summary>Someone a turn email goes to.</summary>
-internal sealed record TurnRecipient(string Email, string FirstName, string LastName);
+/// <summary>Someone a campaign email goes to, and the kinds they've turned off (decision 0023).</summary>
+internal sealed record TurnRecipient(
+    string Email,
+    string FirstName,
+    string LastName,
+    IReadOnlyCollection<EmailKind> Muted
+)
+{
+    /// <summary>Whether they get emails of this kind.</summary>
+    public bool Wants(EmailKind kind) => !Muted.Contains(kind);
+}
 
 /// <summary>
 /// The emails every turn action sends to the other side (DESIGN.md §3.13): the Umpire when a

@@ -32,6 +32,12 @@ internal static class AccountEndpoints
         account
             .MapPost("/sign-out-everywhere", SignOutEverywhereAsync)
             .WithName("SignOutEverywhere");
+        account
+            .MapGet("/email-settings", EmailSettingsEndpoints.GetEmailSettingsAsync)
+            .WithName("GetEmailSettings");
+        account
+            .MapPut("/email-settings", EmailSettingsEndpoints.UpdateEmailSettingsAsync)
+            .WithName("UpdateEmailSettings");
 
         return app;
     }

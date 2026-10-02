@@ -1,6 +1,7 @@
 import { Stack } from "@mantine/core";
 import { Page } from "@/components/Page";
 import { EmailForm } from "@/features/account/EmailForm";
+import { EmailSettings } from "@/features/account/EmailSettings";
 import { PasswordForm } from "@/features/account/PasswordForm";
 import { ProfileForm } from "@/features/account/ProfileForm";
 import { SignOutEverywhere } from "@/features/account/SignOutEverywhere";
@@ -19,6 +20,7 @@ export function AccountPage() {
         <ProfileForm key={`${user.id} ${user.firstName} ${user.lastName}`} user={user} />
         <EmailForm currentEmail={user.email} />
         <PasswordForm />
+        <EmailSettings />
         <SignOutEverywhere />
       </Stack>
     </Page>

@@ -33,6 +33,7 @@ const defaults = [
   ),
   http.get("*/api/campaigns/:id/victory-settings", () => HttpResponse.json({ mode: "Rules" })),
   http.get("*/api/campaigns/:id/boat-settings", () => HttpResponse.json({ capacity: 14 })),
+  http.get("*/api/me/email-settings", () => HttpResponse.json({ muted: [] })),
   http.get("*/api/campaigns/:id/join-code", () =>
     HttpResponse.json({ joinCode: "test-join-code" }),
   ),

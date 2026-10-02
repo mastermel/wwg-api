@@ -1473,6 +1473,76 @@
         ]
       }
     },
+    "/api/me/email-settings": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "The campaign emails the signed-in user has turned off.",
+        "operationId": "GetEmailSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailSettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Turns campaign emails off, or back on, for the signed-in user.",
+        "operationId": "UpdateEmailSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEmailSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/admin/users": {
       "get": {
         "tags": [
@@ -6608,6 +6678,33 @@
         ],
         "description": "A hex side an edge is stored on: N, NE or SE. The other three (S, SW, NW) are the neighbours'\nN, NE and SE, so every edge has one place."
       },
+      "EmailKind": {
+        "enum": [
+          "TurnStarted",
+          "TurnReviewed",
+          "ArmyGiven",
+          "ArmySubmitted",
+          "AllSubmitted",
+          "PlayerJoined"
+        ],
+        "description": "The campaign emails a user can turn off (decision 0023). The account's own (welcome,\nconfirmation, password reset, a changed address) always go."
+      },
+      "EmailSettingsResponse": {
+        "required": [
+          "muted"
+        ],
+        "type": "object",
+        "properties": {
+          "muted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmailKind"
+            },
+            "description": "The kinds turned off; every other kind is sent."
+          }
+        },
+        "description": "The campaign emails the signed-in user has turned off (decision 0023)."
+      },
       "FactionResponse": {
         "required": [
           "id",
@@ -9489,6 +9586,23 @@
           }
         },
         "description": "The Umpire sets the campaign's supply settings."
+      },
+      "UpdateEmailSettingsRequest": {
+        "required": [
+          "muted"
+        ],
+        "type": "object",
+        "properties": {
+          "muted": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmailKind"
+            },
+            "description": "The kinds to turn off; every other is turned on."
+          }
+        },
+        "description": "Turns campaign emails off, or back on: the account's own always go."
       },
       "UpdateHexCellRequest": {
         "required": [

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Wwg.Api.Data.Entities;
 using Wwg.Api.Infrastructure;
 
 namespace Wwg.Api.Features.Account;
@@ -47,4 +48,14 @@ public sealed record ChangePasswordRequest(
 public sealed record ChangeEmailRequest(
     [property: Trimmed, Required, EmailAddress, StringLength(256)] string NewEmail,
     [property: Required, StringLength(128)] string CurrentPassword
+);
+
+/// <summary>The campaign emails the signed-in user has turned off (decision 0023).</summary>
+/// <param name="Muted">The kinds turned off; every other kind is sent.</param>
+public sealed record EmailSettingsResponse(IReadOnlyList<EmailKind> Muted);
+
+/// <summary>Turns campaign emails off, or back on: the account's own always go.</summary>
+/// <param name="Muted">The kinds to turn off; every other is turned on.</param>
+public sealed record UpdateEmailSettingsRequest(
+    [property: Required, MaxLength(20)] IReadOnlyList<EmailKind> Muted
 );

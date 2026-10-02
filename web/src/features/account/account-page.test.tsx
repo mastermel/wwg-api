@@ -129,6 +129,27 @@ describe("account page", () => {
     expect(called).toBe(true);
   });
 
+  it("turns a campaign email off", async () => {
+    const saved: unknown[] = [];
+    server.use(
+      http.get("*/api/me/email-settings", () => HttpResponse.json({ muted: ["PlayerJoined"] })),
+      http.put("*/api/me/email-settings", async ({ request }) => {
+        const body = await request.json();
+        saved.push(body);
+        return HttpResponse.json(body);
+      }),
+    );
+    await renderApp("/account");
+    const user = userEvent.setup();
+    const emails = within(await screen.findByRole("region", { name: "Email notifications" }));
+
+    expect(await emails.findByRole("switch", { name: /A player joins/ })).not.toBeChecked();
+    await user.click(emails.getByRole("switch", { name: /An army submits its turn/ }));
+
+    expect(await screen.findByText("Saved your email settings.")).toBeInTheDocument();
+    expect(saved).toEqual([{ muted: ["PlayerJoined", "ArmySubmitted"] }]);
+  });
+
   it("has no detectable accessibility problems", async () => {
     const { container } = await renderApp("/account");
     await screen.findByRole("heading", { level: 1, name: "Account" });

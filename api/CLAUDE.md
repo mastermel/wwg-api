@@ -123,6 +123,9 @@ true, because the build launches the app to write the document.
   `Unit` are null there, so queries reaching the library through a unit allow for it.
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
+  A campaign email has an `EmailKind`, which its recipient can turn off (decision 0023): load
+  the recipient with their `MutedEmails` (`TurnRecipient`) and send only if they `Wants` it. The
+  queue sends in order, so a test shows an email wasn't sent by waiting for a later one.
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.
 - No `!` (null-forgiving) without a comment saying why it's safe.
 - Logging uses message templates with named placeholders, never interpolation.

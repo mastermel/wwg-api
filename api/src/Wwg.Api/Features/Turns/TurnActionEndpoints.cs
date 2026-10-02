@@ -99,7 +99,11 @@ internal static class TurnActionEndpoints
             return TypedResults.NoContent();
         }
 
-        foreach (var umpire in await UmpiresAsync(db, turn.CampaignId, cancellationToken))
+        foreach (
+            var umpire in (await UmpiresAsync(db, turn.CampaignId, cancellationToken)).Where(u =>
+                u.Wants(EmailKind.ArmySubmitted)
+            )
+        )
         {
             await emails.QueueAsync(
                 TurnEmails.Create(
@@ -596,9 +600,15 @@ internal static class TurnActionEndpoints
         var commander = await db
             .CampaignMembers.AsNoTracking()
             .Where(m => db.Armies.Any(a => a.Id == turn.ArmyId && a.CommanderId == m.Id))
-            .Select(m => new TurnRecipient(m.User.Email ?? "", m.User.FirstName, m.User.LastName))
+            .Select(m => new TurnRecipient(
+                m.User.Email ?? "",
+                m.User.FirstName,
+                m.User.LastName,
+                m.User.MutedEmails
+            ))
             .SingleOrDefaultAsync(cancellationToken);
-        if (commander is null)
+        // Each is the Umpire's word on the commander's turn (decision 0023).
+        if (commander is null || !commander.Wants(EmailKind.TurnReviewed))
         {
             return;
         }
@@ -660,13 +670,14 @@ internal static class TurnActionEndpoints
                     .Select(m => new TurnRecipient(
                         m.User.Email ?? "",
                         m.User.FirstName,
-                        m.User.LastName
+                        m.User.LastName,
+                        m.User.MutedEmails
                     ))
                     .Single(),
             })
             .ToListAsync(cancellationToken);
         var map = MapLink(appOptions, campaignId);
-        foreach (var commander in commanders)
+        foreach (var commander in commanders.Where(c => c.To.Wants(EmailKind.TurnStarted)))
         {
             await emails.QueueAsync(
                 TurnEmails.Create(
@@ -689,7 +700,12 @@ internal static class TurnActionEndpoints
         db
             .CampaignMembers.AsNoTracking()
             .Where(m => m.CampaignId == campaignId && m.Role == CampaignRole.Umpire)
-            .Select(m => new TurnRecipient(m.User.Email ?? "", m.User.FirstName, m.User.LastName))
+            .Select(m => new TurnRecipient(
+                m.User.Email ?? "",
+                m.User.FirstName,
+                m.User.LastName,
+                m.User.MutedEmails
+            ))
             .ToListAsync(cancellationToken);
 
     /// <summary>The caller's name, for the emails.</summary>
