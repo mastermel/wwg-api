@@ -6,8 +6,31 @@ import { useEffect, useState } from "react";
  * whole page's, not the map's, so drawers and dialogs still show over the map. Esc leaves it (the
  * browser's own Esc, or ours where the browser's isn't on), unless it's closing a dialog.
  */
-export function useFullScreen() {
-  const [full, setFull] = useState(false);
+export function useFullScreen(
+  /** Whether it's on offer (a computer's screen): narrowed past that, it ends. */
+  available = true,
+) {
+  const [chosen, setFull] = useState(false);
+  // Narrowed past a computer's screen, it ends, and doesn't come back as the window widens (set
+  // while rendering, as React suggests for state that follows a prop).
+  const [wasAvailable, setWasAvailable] = useState(available);
+  if (available !== wasAvailable) {
+    setWasAvailable(available);
+    if (!available) setFull(false);
+  }
+  const full = available && chosen;
+
+  // Left with the browser's full screen on (the window narrowed, or the page left): it ends.
+  useEffect(() => {
+    if (full) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+  }, [full]);
+  useEffect(
+    () => () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!full) return;
@@ -35,6 +58,7 @@ export function useFullScreen() {
     full,
     enter: () => {
       setFull(true);
+      if (!available) return;
       if (document.fullscreenEnabled) {
         // Refused (no gesture, or a setting): the map still fills the window.
         document.documentElement.requestFullscreen().catch(() => undefined);

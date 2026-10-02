@@ -139,6 +139,7 @@ function serve({
   grid = { cells: [], edges: [] },
   turn = draft,
   artillery = false,
+  guardPoints = 30,
 }: {
   boats?: number;
   positions?: UnitPosition[];
@@ -146,6 +147,7 @@ function serve({
   turn?: ArmyTurnDetails;
   /** The Reserve Artillery too, ashore in the hex south-west. */
   artillery?: boolean;
+  guardPoints?: number;
 } = {}) {
   const sent: unknown[] = [];
   server.use(
@@ -182,7 +184,11 @@ function serve({
     http.get(`*/api/campaigns/${campaignId}/armies`, () => HttpResponse.json([army])),
     http.get(`*/api/campaigns/${campaignId}/units`, () =>
       HttpResponse.json([
-        unit(guardId, "Imperial Guard", { type: "LineInfantry", fightingFactor: 6, points: 30 }),
+        unit(guardId, "Imperial Guard", {
+          type: "LineInfantry",
+          fightingFactor: 6,
+          points: guardPoints,
+        }),
         ...boatIds.slice(0, boats).map((id, i) => unit(id, `Boat ${String(i + 1)}`)),
         ...(artillery
           ? [unit(artilleryId, "Reserve Artillery", { type: "FootArtillery", points: 20 })]
@@ -273,6 +279,41 @@ describe("boats on the map", () => {
     expect(screen.getByText(/Tap a shaded hex for where/)).toHaveTextContent(
       "Tap a shaded hex for where Reserve Artillery moves to.",
     );
+  });
+
+  it("frees the boats of a unit at 0 points", async () => {
+    serve({ positions: aboard, guardPoints: 0 });
+    const { drawer } = await openGuard();
+
+    expect(drawer.queryByText(/On 3 boats/)).not.toBeInTheDocument();
+    expect(drawer.queryByRole("button", { name: "Land" })).not.toBeInTheDocument();
+    // Its boats are its army's, free again: listed as units of their own.
+    const panel = screen.getByRole("region", { name: "Turn 1" });
+    expect(within(panel).getByText("Boat 1")).toBeInTheDocument();
+  });
+
+  it("lets a unit landing live off the land, keeping its landing", async () => {
+    const sent = serve({
+      positions: aboard,
+      turn: {
+        ...draft,
+        orders: [
+          at(guardId, {
+            turn: 1,
+            status: "Draft",
+            kind: "Disembark",
+            path: [{ q: 0, r: -1 }],
+            boats: boatIds,
+          }),
+        ],
+      },
+    });
+    const { user, drawer } = await openGuard();
+
+    await user.click(drawer.getByRole("switch", { name: /Living off the land/ }));
+
+    expect(await screen.findByText("Imperial Guard will live off the land.")).toBeInTheDocument();
+    expect(sent).toEqual([{ kind: "Disembark", path: [{ q: 0, r: -1 }], livesOffTheLand: true }]);
   });
 
   it("keeps building a boat while switching to living off the land", async () => {

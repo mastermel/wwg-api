@@ -298,7 +298,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                     ? { hex: position.path.at(-1) ?? position, progress: position.progress }
                     : undefined,
                 livesOffTheLand: position.livesOffTheLand,
-                boats: aboardAfter(position),
+                // At 0 points it has lost its boats: they're free (decision 0022).
+                boats: known.unit.points === 0 ? [] : aboardAfter(position),
               },
             ]
           : [];
@@ -427,12 +428,14 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const marches = useListMarches(moving?.army.id ?? "", {
     query: { meta: { persist: false }, enabled: moving !== null },
   });
-  const movingCost = moving
-    ? moveCost(
-        marches.data?.find((m) => m.unitId === moving.unit.id),
-        forceMarch,
-      )
-    : null;
+  // On boats, moving is rest (decision 0022): it costs nothing more.
+  const movingCost =
+    moving && (moving.boats?.length ?? 0) === 0
+      ? moveCost(
+          marches.data?.find((m) => m.unitId === moving.unit.id),
+          forceMarch,
+        )
+      : null;
   const reachable = useMemo(
     () =>
       moving && movingType && manager && !landing
@@ -588,10 +591,11 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
       });
       return;
     }
+    // Living off the land as its order says, if it lands again (the switch shows once it lands).
     const order = {
       kind: "Disembark",
       path: hexKey(hex) === hexKey(moving.hex) ? [] : [hex],
-      livesOffTheLand: false,
+      livesOffTheLand: livingOffTheLand(moving),
     } as const;
     if (await orders.give(moving.army.id, turn.id, moving.unit, order)) stopMoving();
   };
@@ -723,9 +727,9 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   };
 
   const desktop = useMediaQuery("(min-width: 62em)");
-  const fullScreen = useFullScreen();
+  const fullScreen = useFullScreen(desktop);
   // Full screen is a computer's: a phone's map is most of the screen already.
-  const full = desktop && fullScreen.full;
+  const full = fullScreen.full;
   // The map, with what's being placed or moved above it; on a computer, it can fill the screen.
   const mapColumn = (
     <Stack
@@ -1228,8 +1232,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                         busy={orders.busy}
                         boats={boatOptions(unit, turn)}
                         offTheLand={
-                          // Not on boats, nor boarding them (step 51).
-                          (unit.boats?.length ?? 0) === 0 &&
+                          // Not on boats, unless landing from them, nor boarding them (step 51).
+                          ((unit.boats?.length ?? 0) === 0 ||
+                            turn.orders.find((o) => o.unitId === unit.unit.id)?.kind ===
+                              "Disembark") &&
                           turn.orders.find((o) => o.unitId === unit.unit.id)?.kind !== "Embark" &&
                           supplySettings.data?.offTheLandNations.includes(unit.unit.nation)
                             ? {

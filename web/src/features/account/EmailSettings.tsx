@@ -83,9 +83,10 @@ function EmailSwitches({ muted }: { muted: readonly EmailKind[] }) {
   const toggle = async (kind: EmailKind, on: boolean) => {
     const next = on ? muted.filter((k) => k !== kind) : [...muted, kind];
     try {
-      await update.mutateAsync({ data: { muted: next } });
+      const saved = await update.mutateAsync({ data: { muted: next } });
+      // At once, so a quick next switch builds on this one, not the list before it.
+      queryClient.setQueryData(getGetEmailSettingsQueryKey(), saved);
       notifications.show({ color: "green", message: "Saved your email settings." });
-      await queryClient.invalidateQueries({ queryKey: getGetEmailSettingsQueryKey() });
     } catch (error) {
       notifications.show({
         color: "red",
