@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Boats;
 using Wwg.Api.Features.Maps;
 
 namespace Wwg.Api.Features.Turns;
 
-/// <summary>A unit where a turn leaves it, with what the rules on it need.</summary>
+/// <summary>
+/// A unit where a turn leaves it, with what the rules on it need: whether it's afloat, too (on
+/// boats, or a boat tied to a unit on them; decision 0022).
+/// </summary>
 internal sealed record UnitPlace(
     Guid UnitId,
     Guid ArmyId,
@@ -14,7 +18,8 @@ internal sealed record UnitPlace(
     UnitType Type,
     int Points,
     Hex At,
-    bool LivesOffTheLand
+    bool LivesOffTheLand,
+    bool Afloat = false
 );
 
 /// <summary>
@@ -68,7 +73,8 @@ internal static class Whereabouts
             .GroupBy(o => o.UnitId)
             .ToDictionary(g => g.Key, g => g.MaxBy(o => o.Number));
         var open = orders.Where(o => !o.Closed).ToDictionary(o => o.UnitId);
-        List<UnitPlace> At(Func<Guid, OrderRow?> orderOf) =>
+        var embarked = await Embarkation.LoadAsync(db, campaignId, cancellationToken);
+        List<UnitPlace> At(Func<Guid, OrderRow?> orderOf, Func<Guid, bool> afloat) =>
             [
                 .. units.SelectMany(u =>
                     orderOf(u.Id) is { } order
@@ -82,15 +88,19 @@ internal static class Whereabouts
                                 u.Type,
                                 u.Points,
                                 new Hex(order.Q, order.R),
-                                order.LivesOffTheLand
+                                order.LivesOffTheLand,
+                                afloat(u.Id)
                             ),
                         ]
                         : Array.Empty<UnitPlace>()
                 ),
             ];
         return (
-            At(id => latest.GetValueOrDefault(id)),
-            At(id => open.GetValueOrDefault(id) ?? latest.GetValueOrDefault(id))
+            At(id => latest.GetValueOrDefault(id), embarked.AfloatNow),
+            At(
+                id => open.GetValueOrDefault(id) ?? latest.GetValueOrDefault(id),
+                embarked.AfloatNext
+            )
         );
     }
 }

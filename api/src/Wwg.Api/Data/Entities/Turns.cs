@@ -60,6 +60,18 @@ public enum OrderKind
 
     /// <summary>Stays where it is (the order keeps that position, so every turn is complete).</summary>
     Hold,
+
+    /// <summary>
+    /// Boards its army's free boats in its hex, for the whole turn (decision 0022): they're tied to
+    /// it from then on, and it moves by them.
+    /// </summary>
+    Embark,
+
+    /// <summary>
+    /// Lands from its boats, for the whole turn: in its hex, across a river side of it, or from a
+    /// lake onto a shore beside it (the order's position). The boats stay, free, where it was.
+    /// </summary>
+    Disembark,
 }
 
 /// <summary>A unit's order in an army's turn, and so its position after that turn.</summary>
@@ -106,6 +118,18 @@ internal sealed class UnitOrder : Entity
     /// side's hex is held to half the concentration limits.
     /// </summary>
     public bool LivesOffTheLand { get; set; }
+
+    /// <summary>
+    /// The boats the unit is on in this turn (decision 0022): those it embarks on, moves with or
+    /// lands from. Empty for a unit ashore.
+    /// </summary>
+    public List<Guid> Boats { get; set; } = [];
+
+    /// <summary>
+    /// For a boat tied to a unit: that unit, whose order this one follows (written with it, never
+    /// given itself). Null for every other order.
+    /// </summary>
+    public Guid? CarrierId { get; set; }
 }
 
 /// <summary>What happened to an army's turn.</summary>

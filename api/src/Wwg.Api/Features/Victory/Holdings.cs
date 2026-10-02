@@ -44,7 +44,8 @@ internal static class Holdings
     /// <summary>
     /// Settlements change hands as a turn closes (not saved): an army whose side alone has units in
     /// the hex takes it (of several, the one with the most points there); with both sides there,
-    /// or none, it stays with its holder.
+    /// or none, it stays with its holder. Units on boats, and their boats, take nothing until they
+    /// land (decision 0022), though they keep an enemy from taking it.
     /// </summary>
     public static async Task CloseTurnAsync(
         WwgDbContext db,
@@ -70,7 +71,14 @@ internal static class Holdings
                 continue;
             }
 
-            var taker = hex.GroupBy(p => p.ArmyId)
+            var ashore = hex.Where(p => !p.Afloat).ToList();
+            if (ashore.Count == 0)
+            {
+                continue;
+            }
+
+            var taker = ashore
+                .GroupBy(p => p.ArmyId)
                 .OrderByDescending(g => g.Sum(p => p.Points))
                 .ThenBy(g => g.Key)
                 .First()

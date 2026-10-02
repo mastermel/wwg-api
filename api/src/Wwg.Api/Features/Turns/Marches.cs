@@ -124,15 +124,20 @@ internal static class Marches
                     o.Path,
                     o.Progress,
                     o.ForceMarch,
+                    o.Boats,
+                    o.CarrierId,
                 })
                 .ToListAsync(cancellationToken)
         )
             .Select(o => new MarchTurn(
                 o.UnitId,
                 o.Turn,
-                // Any move, even part of the way into a hex.
+                // Any move, even part of the way into a hex; but not on boats, which is rest
+                // (decision 0022), for the unit carried and its boats alike.
                 o.Kind == OrderKind.Move
-                    && (o.Path.Count > 0 || o.Progress != null),
+                    && (o.Path.Count > 0 || o.Progress != null)
+                    && o.Boats.Count == 0
+                    && o.CarrierId == null,
                 o.ForceMarch
             ))
             .ToList();

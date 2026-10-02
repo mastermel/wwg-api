@@ -16,7 +16,9 @@ internal sealed record OrderRow(
     bool ByUmpire,
     double? Progress = null,
     bool ForceMarch = false,
-    bool LivesOffTheLand = false
+    bool LivesOffTheLand = false,
+    List<Guid>? Boats = null,
+    Guid? CarrierId = null
 );
 
 internal static class Positions
@@ -39,7 +41,9 @@ internal static class Positions
             row.ByUmpire,
             row.Progress,
             row.ForceMarch,
-            row.LivesOffTheLand
+            row.LivesOffTheLand,
+            row.Boats ?? [],
+            row.CarrierId
         );
     }
 }

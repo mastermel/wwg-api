@@ -18,6 +18,8 @@ const order = (kind: UnitPosition["kind"], path: UnitPosition["path"] = []): Uni
   progress: null,
   forceMarch: false,
   livesOffTheLand: false,
+  boats: [],
+  carriedBy: null,
 });
 
 describe("describeOrder", () => {

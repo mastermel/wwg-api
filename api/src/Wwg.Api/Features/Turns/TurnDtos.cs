@@ -68,6 +68,11 @@ public sealed record CampaignTurnsResponse(
 /// </param>
 /// <param name="ForceMarch">Whether the move is a force march (decision 0018).</param>
 /// <param name="LivesOffTheLand">Whether the unit lives off the land this turn (decision 0019).</param>
+/// <param name="Boats">
+/// The boats it's on in this turn (decision 0022): those it embarks on, moves with or lands from.
+/// Empty for a unit ashore.
+/// </param>
+/// <param name="CarriedBy">For a boat tied to a unit, that unit: it goes by its orders.</param>
 public sealed record UnitPosition(
     Guid UnitId,
     Guid ArmyId,
@@ -82,7 +87,9 @@ public sealed record UnitPosition(
     bool ByUmpire,
     double? Progress,
     bool ForceMarch,
-    bool LivesOffTheLand
+    bool LivesOffTheLand,
+    IReadOnlyList<Guid> Boats,
+    Guid? CarriedBy
 );
 
 /// <summary>Where the Umpire places a unit: a hex in the campaign's grid.</summary>
@@ -94,10 +101,14 @@ public sealed record PlaceUnitRequest(
 );
 
 /// <summary>A unit's order for the turn.</summary>
-/// <param name="Kind">Move (along the path) or Hold (stay where it is).</param>
+/// <param name="Kind">
+/// Move (along the path), Hold (stay where it is), Embark (board the army's free boats in its hex)
+/// or Disembark (land: in its hex, or with one step, across a river side or onto a lake's shore).
+/// </param>
 /// <param name="Path">
 /// A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it
-/// ends. Adjacent, inside the grid, and within what the unit can move in a turn.
+/// ends. Adjacent, inside the grid, and within what the unit can move in a turn. A landing's one
+/// step, if any.
 /// </param>
 /// <param name="ForceMarch">
 /// A Move by force march (decision 0018): a flat hex's worth further, in a Morning or Afternoon

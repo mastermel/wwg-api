@@ -4090,7 +4090,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Gives a unit its order for the turn: Move along a path of adjacent hexes from its current\none, inside the grid (and for the commander, one its movement class can afford this turn:\nDESIGN.md §5.2); or Hold, where it is. Replaces any order it had. The army's commander gives orders while the turn is a\nDraft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on\nthe commander's behalf (decision 0011), which goes in the turn's history.",
+        "summary": "Gives a unit its order for the turn: Move along a path of adjacent hexes from its current\none, inside the grid (and for the commander, one its movement class can afford this turn:\nDESIGN.md §5.2; by boat while it's on boats); Hold, where it is; Embark on the army's free\nboats in its hex, or Disembark from them (decision 0022), each the whole turn. A boat tied\nto a unit has no orders of its own: its follow that unit's. Replaces any order it had. The army's commander gives orders while the turn is a\nDraft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on\nthe commander's behalf (decision 0011), which goes in the turn's history.",
         "operationId": "GiveOrder",
         "parameters": [
           {
@@ -4455,6 +4455,88 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VictorySettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/campaigns/{id}/boat-settings": {
+      "get": {
+        "tags": [
+          "Boats"
+        ],
+        "summary": "What a boat carries in the campaign (every member), in points.",
+        "operationId": "GetBoatSettings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoatSettingsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Boats"
+        ],
+        "summary": "Changes what a boat carries (Umpire or Admin), for units embarking from now on: those on\nboats keep theirs.",
+        "operationId": "UpdateBoatSettings",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBoatSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoatSettingsResponse"
                 }
               }
             }
@@ -5664,6 +5746,20 @@
         },
         "description": "The Umpire's confirmed attrition for one unit."
       },
+      "BoatSettingsResponse": {
+        "required": [
+          "capacity"
+        ],
+        "type": "object",
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "description": "The points a boat carries: a unit needs a boat for each, or part.",
+            "format": "int32"
+          }
+        },
+        "description": "A campaign's boat settings (decision 0022)."
+      },
       "CampaignCalendarResponse": {
         "required": [
           "startDate",
@@ -6607,7 +6703,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "description": "Move (along the path) or Hold (stay where it is).",
+            "description": "Move (along the path), Hold (stay where it is), Embark (board the army's free boats in its hex)\nor Disembark (land: in its hex, or with one step, across a river side or onto a lake's shore).",
             "$ref": "#/components/schemas/OrderKind"
           },
           "path": {
@@ -6619,7 +6715,7 @@
             "items": {
               "$ref": "#/components/schemas/Hex"
             },
-            "description": "A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it\nends. Adjacent, inside the grid, and within what the unit can move in a turn."
+            "description": "A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it\nends. Adjacent, inside the grid, and within what the unit can move in a turn. A landing's one\nstep, if any."
           },
           "forceMarch": {
             "type": "boolean",
@@ -7500,7 +7596,9 @@
       "OrderKind": {
         "enum": [
           "Move",
-          "Hold"
+          "Hold",
+          "Embark",
+          "Disembark"
         ],
         "description": "What a unit does in a turn."
       },
@@ -8883,7 +8981,9 @@
           "byUmpire",
           "progress",
           "forceMarch",
-          "livesOffTheLand"
+          "livesOffTheLand",
+          "boats",
+          "carriedBy"
         ],
         "type": "object",
         "properties": {
@@ -8956,6 +9056,22 @@
           "livesOffTheLand": {
             "type": "boolean",
             "description": "Whether the unit lives off the land this turn (decision 0019)."
+          },
+          "boats": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The boats it's on in this turn (decision 0022): those it embarks on, moves with or lands from.\nEmpty for a unit ashore."
+          },
+          "carriedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "For a boat tied to a unit, that unit: it goes by its orders.",
+            "format": "uuid"
           }
         },
         "description": "Where a unit is (or is ordered to be) after a turn."
@@ -9149,6 +9265,22 @@
           }
         },
         "description": "Changes the campaign's copy of a unit (the library's stays as it is)."
+      },
+      "UpdateBoatSettingsRequest": {
+        "required": [
+          "capacity"
+        ],
+        "type": "object",
+        "properties": {
+          "capacity": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "description": "The points a boat carries, 1–100 (Chart #11: 14).",
+            "format": "int32"
+          }
+        },
+        "description": "The Umpire sets what a boat carries."
       },
       "UpdateCampaignCalendarRequest": {
         "required": [
@@ -9682,6 +9814,9 @@
     },
     {
       "name": "Armies"
+    },
+    {
+      "name": "Boats"
     },
     {
       "name": "Library"

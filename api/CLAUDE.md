@@ -114,6 +114,11 @@ true, because the build launches the app to write the document.
 - Supply (decision 0019) is `Features/Supply`: `SupplyLines.Of` is the pure rule (routes, cut
   hexes, reach), `SupplyData` loads a campaign's units where they are (now, and by the open turn's
   orders) and counts each closing turn (`CloseTurnAsync`, from `StartNextTurn`).
+- Boats (decision 0022) are `Features/Boats`: `Embarkation.LoadAsync` says who's aboard, and on
+  which boats, now (the last closed turn's orders) and after the open turn's. An order keeps the
+  boats its unit is on (`UnitOrder.Boats`); a tied boat's order is written with its unit's
+  (`CarrierId`, in `OrderEndpoints.TieBoatsAsync`) and can't be given on its own. Being carried is
+  rest (`Marches`), and units afloat take no towns (`UnitPlace.Afloat`, `Holdings`).
 - Emails: build an `EmailMessage` (HTML and text, with user values HTML-encoded) and queue it with
   `IEmailQueue`; never send inline. Tests read them from `Emails` (`FakeEmailService`).
 - Time comes from the injected `TimeProvider`; IDs from `Guid.CreateVersion7()`.

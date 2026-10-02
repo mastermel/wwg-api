@@ -58,6 +58,9 @@ internal sealed class Campaign : Entity
 
     /// <summary>Which settlements are worth victory points (step 50, decision 0021).</summary>
     public VictoryPointsMode VictoryPoints { get; set; }
+
+    /// <summary>The points a boat carries (step 51, decision 0022; Chart #11's 14).</summary>
+    public int BoatCapacity { get; set; } = BoatRules.DefaultCapacity;
 }
 
 /// <summary>Which settlements are worth victory points (decision 0021).</summary>
@@ -68,6 +71,26 @@ public enum VictoryPointsMode
 
     /// <summary>Only those the Umpire gives points; every other is worth nothing.</summary>
     Chosen,
+}
+
+/// <summary>Boats (decision 0022): what each carries, until the Umpire changes it, and who boards.</summary>
+internal static class BoatRules
+{
+    /// <summary>Chart #11's boat holds 14 points.</summary>
+    public const int DefaultCapacity = 14,
+        MinCapacity = 1,
+        MaxCapacity = 100;
+
+    /// <summary>The most boats a unit can need: its most points, a point a boat.</summary>
+    public const int MaxBoats = UnitStats.MaxPoints;
+
+    /// <summary>The boats a unit of these points needs: one for each capacity's worth, or part.</summary>
+    public static int Needed(int points, int capacity) =>
+        Math.Max(1, (points + capacity - 1) / capacity);
+
+    /// <summary>Whether a unit of this type may board boats: not boats, nor supply trains.</summary>
+    public static bool CanEmbark(UnitType type) =>
+        type is not (UnitType.Boat or UnitType.SupplyTrain);
 }
 
 /// <summary>The rules' supply (Campaign, §G), until the Umpire changes it (decision 0019).</summary>

@@ -3,6 +3,7 @@ using Wwg.Api.Features.Admin;
 using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Auth;
+using Wwg.Api.Features.Boats;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Health;
 using Wwg.Api.Features.Intelligence;
@@ -47,6 +48,7 @@ internal static class EndpointRouteBuilderExtensions
             .MapIntelEndpoints()
             .MapVictoryEndpoints()
             .MapVictorySettingsEndpoints()
+            .MapBoatSettingsEndpoints()
             .MapTurnActionEndpoints()
             .MapLibraryEndpoints();
     }

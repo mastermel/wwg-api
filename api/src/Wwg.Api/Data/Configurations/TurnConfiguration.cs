@@ -63,7 +63,7 @@ internal sealed class UnitOrderConfiguration : IEntityTypeConfiguration<UnitOrde
     public void Configure(EntityTypeBuilder<UnitOrder> builder)
     {
         builder.HasIndex(o => new { o.ArmyTurnId, o.UnitId }).IsUnique();
-        builder.Property(o => o.Kind).HasMaxLength(8);
+        builder.Property(o => o.Kind).HasMaxLength(16);
         // The path as compact text, "q,r;q,r;…" (empty for none): it's only ever read whole.
         builder
             .Property(o => o.Path)
@@ -78,6 +78,22 @@ internal sealed class UnitOrderConfiguration : IEntityTypeConfiguration<UnitOrde
                 )
             )
             .HasMaxLength(Movement.MaxSteps * 12);
+        // The boats as their IDs, "id;id;…" (empty for none), as the path is.
+        builder
+            .Property(o => o.Boats)
+            .HasConversion(
+                boats => string.Join(';', boats),
+                text =>
+                    text.Length == 0
+                        ? new List<Guid>()
+                        : text.Split(';', StringSplitOptions.None).Select(Guid.Parse).ToList(),
+                new ValueComparer<List<Guid>>(
+                    (a, b) => a != null && b != null && a.SequenceEqual(b),
+                    boats => boats.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+                    boats => boats.ToList()
+                )
+            )
+            .HasMaxLength(BoatRules.MaxBoats * 37);
         builder
             .HasOne(o => o.ArmyTurn)
             .WithMany()

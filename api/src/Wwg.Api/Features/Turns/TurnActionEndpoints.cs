@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Boats;
 using Wwg.Api.Features.Intelligence;
 using Wwg.Api.Features.Sightings;
 using Wwg.Api.Features.Supply;
@@ -560,13 +561,20 @@ internal static class TurnActionEndpoints
                 && !db.UnitOrders.Any(o => o.UnitId == u.Id && o.ArmyTurnId == turn.Id)
             )
             .OrderBy(u => u.Name)
-            .Select(u => u.Name)
+            .Select(u => new { u.Id, u.Name })
             .ToListAsync(cancellationToken);
+        if (without.Count > 0)
+        {
+            // A boat tied to a unit gets its order with the unit's (decision 0022): name the unit.
+            var embarked = await Embarkation.LoadAsync(db, turn.CampaignId, cancellationToken);
+            without = [.. without.Where(u => embarked.CarrierNow(u.Id) is null)];
+        }
+
         return without.Count == 0
             ? null
             : Conflict(
                 "Orders missing",
-                $"Give every unit an order first. Without one: {string.Join(", ", without)}."
+                $"Give every unit an order first. Without one: {string.Join(", ", without.Select(u => u.Name))}."
             );
     }
 
@@ -593,12 +601,26 @@ internal static class TurnActionEndpoints
             return;
         }
 
-        var umpireOrders = await db
-            .UnitOrders.AsNoTracking()
-            .Where(o => o.ArmyTurnId == turn.Id && o.ByUmpire)
-            .OrderBy(o => o.ArmyUnit.Name)
-            .Select(o => o.ArmyUnit.Name + (o.Kind == OrderKind.Hold ? ": hold" : ": move"))
-            .ToListAsync(cancellationToken);
+        // A tied boat's order is its unit's (decision 0022): only the unit's is listed.
+        var umpireOrders = (
+            await db
+                .UnitOrders.AsNoTracking()
+                .Where(o => o.ArmyTurnId == turn.Id && o.ByUmpire && o.CarrierId == null)
+                .OrderBy(o => o.ArmyUnit.Name)
+                .Select(o => new { o.ArmyUnit.Name, o.Kind })
+                .ToListAsync(cancellationToken)
+        )
+            .Select(o =>
+                o.Name
+                + o.Kind switch
+                {
+                    OrderKind.Hold => ": hold",
+                    OrderKind.Embark => ": embark",
+                    OrderKind.Disembark => ": land",
+                    _ => ": move",
+                }
+            )
+            .ToList();
         await emails.QueueAsync(
             TurnEmails.Create(
                 commander,

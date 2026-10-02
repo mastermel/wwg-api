@@ -2586,7 +2586,7 @@ build on positions.
       (`Campaign.VictoryPoints`, `VictoryPointsMode`, `HexSettlement.ValueIn`; `GET` / `PUT
       /api/campaigns/{id}/victory-settings`; `VictorySection`).
 51. **Boats** (decision 0022), in parts:
-    - **51a. Embarking (API):** the Embark order (a unit and its army's free boats in its hex,
+    - ✅ **51a. Embarking (API):** the Embark order (a unit and its army's free boats in its hex,
       one per `BoatCapacity` points or part, a campaign setting of 14 by default; a whole turn)
       and Disembark (a whole turn: landing in the hex, across a river side, or from a lake onto
       a shore beside it, the boats left free in the water hex); an embarked unit moves by the
@@ -2594,7 +2594,9 @@ build on positions.
       checks skip them), rests (no forced marches), doesn't live off the land or take a
       settlement; boats freed when the unit falls to 0 points or leaves; the Umpire warned of a
       unit with more points than its boats carry. Worked out by replaying the orders, as forced
-      marches are (`GET` / `PUT /api/campaigns/{id}/boat-settings`).
+      marches are (`Embarkation`; each order keeps its `Boats`, and a tied boat's its
+      `CarrierId`, written with its unit's; positions give both; `GET` / `PUT
+      /api/campaigns/{id}/boat-settings`).
     - **51b. Building boats (API):** the Build boat order, for a land unit in a settlement hex with
       a waterway and no enemy: two turns in a row there, and as the second closes, a generic Boat
       joins its army in the hex; any other order loses the work. A sighting's embarked detail.

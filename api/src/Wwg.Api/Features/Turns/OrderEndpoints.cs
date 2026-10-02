@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Boats;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Supply;
@@ -112,7 +113,9 @@ internal static class OrderEndpoints
                     o.ByUmpire,
                     o.Progress,
                     o.ForceMarch,
-                    o.LivesOffTheLand
+                    o.LivesOffTheLand,
+                    o.Boats,
+                    o.CarrierId
                 ))
                 .ToListAsync(cancellationToken)
         ).ToLookup(o => o.ArmyTurnId);
@@ -127,7 +130,9 @@ internal static class OrderEndpoints
         bool ByUmpire,
         double? Progress,
         bool ForceMarch,
-        bool LivesOffTheLand
+        bool LivesOffTheLand,
+        List<Guid> Boats,
+        Guid? CarrierId
     )
     {
         public OrderRow Row(Guid armyId, int turn, ArmyTurnStatus status) =>
@@ -143,7 +148,9 @@ internal static class OrderEndpoints
                 ByUmpire,
                 Progress,
                 ForceMarch,
-                LivesOffTheLand
+                LivesOffTheLand,
+                Boats,
+                CarrierId
             );
     }
 
@@ -179,7 +186,9 @@ internal static class OrderEndpoints
     /// <summary>
     /// Gives a unit its order for the turn: Move along a path of adjacent hexes from its current
     /// one, inside the grid (and for the commander, one its movement class can afford this turn:
-    /// DESIGN.md §5.2); or Hold, where it is. Replaces any order it had. The army's commander gives orders while the turn is a
+    /// DESIGN.md §5.2; by boat while it's on boats); Hold, where it is; Embark on the army's free
+    /// boats in its hex, or Disembark from them (decision 0022), each the whole turn. A boat tied
+    /// to a unit has no orders of its own: its follow that unit's. Replaces any order it had. The army's commander gives orders while the turn is a
     /// Draft in the open campaign turn; the Umpire and Admins while it's a Draft or Submitted, on
     /// the commander's behalf (decision 0011), which goes in the turn's history.
     /// </summary>
@@ -202,23 +211,18 @@ internal static class OrderEndpoints
             return NotEditable(byUmpire);
         }
 
-        var unit = await OrderedUnitAsync(db, unitId, turn.ArmyId, cancellationToken);
-        if (unit is null)
+        var (ordered, refused) = await OrderedAsync(db, unitId, turn.ArmyId, cancellationToken);
+        if (ordered is null)
         {
-            return TypedResults.Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                detail: "That unit isn't in this army."
-            );
+            return refused!; // Set whenever there's no unit to order.
         }
 
-        if (await TurnRules.CurrentStateAsync(db, unitId, cancellationToken) is not { } state)
-        {
-            return Conflict("Not placed", "The Umpire hasn't placed this unit on the map yet.");
-        }
+        var (unit, state, embarked) = ordered;
 
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
-        var move = MoveFor(grid, unit, turn.Number, state, request, byUmpire);
+        var aboard = embarked.Now.GetValueOrDefault(unitId);
+        var move = MoveFor(grid, unit, turn.Number, state, request, byUmpire, aboard);
         if (await OrderProblemAsync(db, move, cancellationToken) is { } why)
         {
             return Invalid(why.Field, why.Message);
@@ -230,7 +234,18 @@ internal static class OrderEndpoints
             return Invalid("path", problem);
         }
 
-        var saved = await StageOrderAsync(db, grid, turn, unitId, StagedOrder.Of(move, plan));
+        var boats =
+            move.Kind == OrderKind.Embark
+                ? await BoatsToBoardAsync(db, turn, unitId, move, embarked, cancellationToken)
+                : (Boats: [.. move.Aboard ?? []], Problem: null);
+        if (boats.Problem is { } tooFew)
+        {
+            return Invalid("kind", tooFew);
+        }
+
+        var staged = StagedOrder.Of(move, plan, boats.Boats);
+        var saved = await StageOrderAsync(db, grid, turn, unitId, staged);
+        await TieBoatsAsync(db, turn, unitId, staged, state.At, cancellationToken);
         if (byUmpire)
         {
             await RecordEditAsync(
@@ -267,8 +282,21 @@ internal static class OrderEndpoints
             return NotEditable(byUmpire);
         }
 
+        var embarked = await Embarkation.LoadAsync(
+            db,
+            httpContext.CampaignContext().CampaignId,
+            cancellationToken
+        );
+        if (embarked.CarrierNow(unitId) is { } carrier)
+        {
+            return await TiedAsync(db, carrier, cancellationToken);
+        }
+
+        // Its boats' orders follow it.
         var removed = await db
-            .UnitOrders.Where(o => o.ArmyTurnId == id && o.UnitId == unitId)
+            .UnitOrders.Where(o =>
+                o.ArmyTurnId == id && (o.UnitId == unitId || o.CarrierId == unitId)
+            )
             .ExecuteDeleteAsync(cancellationToken);
         if (byUmpire && removed > 0)
         {
@@ -287,8 +315,7 @@ internal static class OrderEndpoints
         return TypedResults.NoContent();
     }
 
-    /// <summary>Adds or changes the unit's order (not saved), and says where it leaves the unit.</summary>
-    /// <summary>An order as it's staged: where the unit ends up, and how it got there.</summary>
+    /// <summary>An order as it's staged: where the unit ends up, how it got there, and on what boats.</summary>
     private sealed record StagedOrder(
         OrderKind Kind,
         Hex At,
@@ -296,10 +323,11 @@ internal static class OrderEndpoints
         double? Progress,
         bool ByUmpire,
         bool ForceMarch,
-        bool LivesOffTheLand
+        bool LivesOffTheLand,
+        IReadOnlyList<Guid> Boats
     )
     {
-        public static StagedOrder Of(MoveRequest move, MovePlan plan) =>
+        public static StagedOrder Of(MoveRequest move, MovePlan plan, IReadOnlyList<Guid> boats) =>
             new(
                 move.Kind,
                 plan.At,
@@ -307,10 +335,12 @@ internal static class OrderEndpoints
                 plan.Progress,
                 move.ByUmpire,
                 move.ForceMarch,
-                move.LivesOffTheLand
+                move.LivesOffTheLand,
+                boats
             );
     }
 
+    /// <summary>Adds or changes the unit's order (not saved), and says where it leaves the unit.</summary>
     private static async Task<UnitPosition> StageOrderAsync(
         WwgDbContext db,
         HexGrid grid,
@@ -332,6 +362,7 @@ internal static class OrderEndpoints
             staged.ByUmpire
         );
         (order.ForceMarch, order.LivesOffTheLand) = (staged.ForceMarch, staged.LivesOffTheLand);
+        (order.Boats, order.CarrierId) = ([.. staged.Boats], null);
         return Positions.Of(
             grid,
             new OrderRow(
@@ -346,8 +377,130 @@ internal static class OrderEndpoints
                 staged.ByUmpire,
                 staged.Progress,
                 staged.ForceMarch,
-                staged.LivesOffTheLand
+                staged.LivesOffTheLand,
+                order.Boats
             )
+        );
+    }
+
+    /// <summary>
+    /// Writes the orders of the boats tied to a unit with its own (not saved; decision 0022): they
+    /// go where it goes, and stay where it was while it embarks, holds or lands. A boat no longer
+    /// its loses its order.
+    /// </summary>
+    private static async Task TieBoatsAsync(
+        WwgDbContext db,
+        EditableTurn turn,
+        Guid unitId,
+        StagedOrder staged,
+        Hex from,
+        CancellationToken cancellationToken
+    )
+    {
+        var boats = staged.Boats.ToList();
+        var orders = await db
+            .UnitOrders.Where(o =>
+                o.ArmyTurnId == turn.Id && (o.CarrierId == unitId || boats.Contains(o.UnitId))
+            )
+            .ToListAsync(cancellationToken);
+        db.UnitOrders.RemoveRange(orders.Where(o => !boats.Contains(o.UnitId)));
+        var moves = staged.Kind == OrderKind.Move;
+        foreach (var boat in boats)
+        {
+            var order =
+                orders.Find(o => o.UnitId == boat)
+                ?? db.UnitOrders.Add(new UnitOrder { ArmyTurnId = turn.Id, UnitId = boat }).Entity;
+            var at = moves ? staged.At : from;
+            (order.Kind, order.Q, order.R) = (moves ? OrderKind.Move : OrderKind.Hold, at.Q, at.R);
+            (order.Path, order.Progress) = (
+                moves ? [.. staged.Path] : [],
+                moves ? staged.Progress : null
+            );
+            (order.ByUmpire, order.ForceMarch, order.LivesOffTheLand) = (
+                staged.ByUmpire,
+                false,
+                false
+            );
+            (order.Boats, order.CarrierId) = ([], unitId);
+        }
+    }
+
+    /// <summary>
+    /// The army's free boats in the unit's hex it embarks on: as many as its points need, by the
+    /// campaign's capacity, none tied to another unit or boarded by one this turn. Or why there
+    /// aren't enough.
+    /// </summary>
+    private static async Task<(List<Guid> Boats, string? Problem)> BoatsToBoardAsync(
+        WwgDbContext db,
+        EditableTurn turn,
+        Guid unitId,
+        MoveRequest move,
+        Embarked embarked,
+        CancellationToken cancellationToken
+    )
+    {
+        var capacity = (
+            await CalendarEndpoints.LoadAsync(db, move.CampaignId, cancellationToken)
+        ).BoatCapacity;
+        var needed = BoatRules.Needed(move.Points, capacity);
+        var claimed = (
+            await db
+                .UnitOrders.AsNoTracking()
+                .Where(o =>
+                    o.ArmyTurnId == turn.Id && o.Kind == OrderKind.Embark && o.UnitId != unitId
+                )
+                .Select(o => o.Boats)
+                .ToListAsync(cancellationToken)
+        )
+            .SelectMany(boats => boats)
+            .ToHashSet();
+        // Where each of the army's boats is now: its order in the last closed turn.
+        var free = (
+            await db
+                .UnitOrders.AsNoTracking()
+                .Where(o =>
+                    o.ArmyUnit.ArmyId == turn.ArmyId
+                    && o.ArmyUnit.Type == UnitType.Boat
+                    && o.ArmyTurn.CampaignTurn.ClosedAt != null
+                )
+                .Select(o => new
+                {
+                    o.UnitId,
+                    o.ArmyUnit.Name,
+                    o.ArmyTurn.CampaignTurn.Number,
+                    o.Q,
+                    o.R,
+                })
+                .ToListAsync(cancellationToken)
+        ).GroupBy(o => o.UnitId).Select(g => g.MaxBy(o => o.Number)!) // A group has at least one row.
+        .Where(o => new Hex(o.Q, o.R) == move.State.At && embarked.CarrierNow(o.UnitId) is null && !claimed.Contains(o.UnitId)).OrderBy(o => o.Name, StringComparer.OrdinalIgnoreCase).ThenBy(o => o.UnitId).Select(o => o.UnitId).ToList();
+        return free.Count >= needed
+            ? ([.. free.Take(needed)], null)
+            : (
+                [],
+                $"It needs {Boats(needed)} ({move.Points} points, {capacity} a boat); "
+                    + $"{(free.Count == 0 ? "none" : free.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))} free here."
+            );
+    }
+
+    private static string Boats(int count) =>
+        count == 1 ? "1 boat" : FormattableString.Invariant($"{count} boats");
+
+    /// <summary>409: a boat tied to a unit goes by that unit's orders, never its own.</summary>
+    private static async Task<ProblemHttpResult> TiedAsync(
+        WwgDbContext db,
+        Guid carrierId,
+        CancellationToken cancellationToken
+    )
+    {
+        var name = await db
+            .ArmyUnits.AsNoTracking()
+            .Where(u => u.Id == carrierId)
+            .Select(u => u.Name)
+            .SingleAsync(cancellationToken);
+        return Conflict(
+            "Carrying a unit",
+            $"This boat carries {name}: it goes where {name} does, by that unit's orders."
         );
     }
 
@@ -446,8 +599,14 @@ internal static class OrderEndpoints
         IReadOnlyList<Hex> Path,
         bool ByUmpire,
         bool ForceMarch,
-        bool LivesOffTheLand
-    );
+        bool LivesOffTheLand,
+        int Points,
+        IReadOnlyList<Guid>? Aboard
+    )
+    {
+        /// <summary>How it moves: by its boats while it's on them (decision 0022), else by its type.</summary>
+        public MovementClass Class => Aboard is null ? Movement.ClassOf(Type) : MovementClass.Boat;
+    }
 
     /// <summary>
     /// Where an order leaves the unit, or why it won't do. The Umpire's moves get where they're
@@ -470,14 +629,21 @@ internal static class OrderEndpoints
                 [move.State.At, .. move.Path],
                 cancellationToken
             ),
-            Movement.ClassOf(move.Type)
+            move.Class
         );
         if (PathProblem(movement, move.State.At, move.Kind, move.Path) is { } problem)
         {
             return MovePlan.Refused(problem);
         }
 
-        return move.ByUmpire || move.Kind == OrderKind.Hold
+        if (move.Kind == OrderKind.Disembark)
+        {
+            return Embarkation.LandingProblem(movement.Terrain, move.State.At, move.Path) is { } why
+                ? MovePlan.Refused(why)
+                : new MovePlan(move.Path.Count == 0 ? move.State.At : move.Path[0], null, null);
+        }
+
+        return move.ByUmpire || move.Kind is OrderKind.Hold or OrderKind.Embark
             ? new MovePlan(move.Path.Count == 0 ? move.State.At : move.Path[^1], null, null)
             : Movement.Plan(
                 movement.Table,
@@ -496,7 +662,8 @@ internal static class OrderEndpoints
         int turn,
         UnitState state,
         GiveOrderRequest request,
-        bool byUmpire
+        bool byUmpire,
+        IReadOnlyList<Guid>? aboard
     ) =>
         new(
             grid,
@@ -506,22 +673,69 @@ internal static class OrderEndpoints
             turn,
             state,
             request.Kind,
-            request.Kind == OrderKind.Hold ? [] : request.Path ?? [],
+            request.Kind is OrderKind.Hold or OrderKind.Embark ? [] : request.Path ?? [],
             byUmpire,
             request.ForceMarch && request.Kind == OrderKind.Move,
-            request.LivesOffTheLand
+            request.LivesOffTheLand,
+            unit.Points,
+            aboard
         );
 
     /// <summary>The Umpire's change to an order, in the turn's history.</summary>
     private static string EditNote(MoveRequest move) =>
         (
-            move.Kind == OrderKind.Hold ? "Set to hold."
-            : move.ForceMarch ? "Set to force march."
-            : "Set to move."
+            move.Kind switch
+            {
+                OrderKind.Hold => "Set to hold.",
+                OrderKind.Embark => "Set to embark.",
+                OrderKind.Disembark => "Set to land.",
+                _ when move.ForceMarch => "Set to force march.",
+                _ => "Set to move.",
+            }
         ) + (move.LivesOffTheLand ? " Living off the land." : "");
 
-    /// <summary>The unit being ordered: its type, campaign, and the nation it marches as.</summary>
-    private sealed record OrderedUnit(UnitType Type, Guid CampaignId, Nation Nation);
+    /// <summary>A unit that can be given an order: what it is, where, and who's on boats.</summary>
+    private sealed record Ordered(OrderedUnit Unit, UnitState State, Embarked Embarked);
+
+    /// <summary>
+    /// The army's unit to order, or why it can't have one: not the army's (404), not placed yet,
+    /// or a boat tied to a unit, which goes by that unit's orders (409).
+    /// </summary>
+    private static async Task<(Ordered? Ordered, ProblemHttpResult? Problem)> OrderedAsync(
+        WwgDbContext db,
+        Guid unitId,
+        Guid armyId,
+        CancellationToken cancellationToken
+    )
+    {
+        var unit = await OrderedUnitAsync(db, unitId, armyId, cancellationToken);
+        if (unit is null)
+        {
+            return (
+                null,
+                TypedResults.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    detail: "That unit isn't in this army."
+                )
+            );
+        }
+
+        if (await TurnRules.CurrentStateAsync(db, unitId, cancellationToken) is not { } state)
+        {
+            return (
+                null,
+                Conflict("Not placed", "The Umpire hasn't placed this unit on the map yet.")
+            );
+        }
+
+        var embarked = await Embarkation.LoadAsync(db, unit.CampaignId, cancellationToken);
+        return embarked.CarrierNow(unitId) is { } carrier
+            ? (null, await TiedAsync(db, carrier, cancellationToken))
+            : (new Ordered(unit, state, embarked), null);
+    }
+
+    /// <summary>The unit being ordered: its type, campaign, the nation it marches as, and its points.</summary>
+    private sealed record OrderedUnit(UnitType Type, Guid CampaignId, Nation Nation, int Points);
 
     /// <summary>The army's unit, or null if it isn't one of the army's.</summary>
     private static Task<OrderedUnit?> OrderedUnitAsync(
@@ -539,7 +753,8 @@ internal static class OrderEndpoints
                 // Its faction's nation (step 45), or its army's if the faction has none.
                 u.Unit.Faction.Nation != Nation.None
                     ? u.Unit.Faction.Nation
-                    : u.Army.Nation
+                    : u.Army.Nation,
+                u.Points
             ))
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -553,7 +768,7 @@ internal static class OrderEndpoints
     {
         var calendar = await CalendarEndpoints.LoadAsync(db, move.CampaignId, cancellationToken);
         var part = TurnParts.Of(calendar.FirstTurnPart, calendar.StartDate, move.Turn)?.Part;
-        var movementClass = Movement.ClassOf(move.Type);
+        var movementClass = move.Class;
         var budget = Movement.BudgetFor(table, movementClass, move.Nation, part, calendar);
         // A force march goes a flat hex's worth further (decision 0018).
         return move.ForceMarch ? budget + (1 / table.Rate(movementClass, Ground.Flat)) : budget;
@@ -569,6 +784,11 @@ internal static class OrderEndpoints
         CancellationToken cancellationToken
     )
     {
+        if (BoatProblem(move) is { } boats)
+        {
+            return boats;
+        }
+
         if (move.ForceMarch && await ForceMarchProblemAsync(db, move, cancellationToken) is { } why)
         {
             return ("forceMarch", why);
@@ -592,6 +812,32 @@ internal static class OrderEndpoints
     }
 
     /// <summary>
+    /// What's wrong with an order about boats (decision 0022), and on which field, or null:
+    /// embarking twice, or as a boat or supply train; landing when not aboard; force marching or
+    /// living off the land on the water.
+    /// </summary>
+    private static (string Field, string Message)? BoatProblem(MoveRequest move) =>
+        move switch
+        {
+            { Kind: OrderKind.Embark, Aboard: not null } => ("kind", "It's on its boats already."),
+            { Kind: OrderKind.Embark } when !BoatRules.CanEmbark(move.Type) => (
+                "kind",
+                "Boats and supply trains don't board boats."
+            ),
+            { Kind: OrderKind.Disembark, Aboard: null } => ("kind", "It isn't on boats."),
+            { ForceMarch: true, Aboard: not null } => (
+                "forceMarch",
+                "No forced marches on boats: being carried is rest."
+            ),
+            { LivesOffTheLand: true, Kind: OrderKind.Embark }
+            or { LivesOffTheLand: true, Aboard: not null, Kind: not OrderKind.Disembark } => (
+                "livesOffTheLand",
+                "A unit on boats can't live off the land."
+            ),
+            _ => null,
+        };
+
+    /// <summary>
     /// Why the unit can't force march this turn, or null if it can: only by day (by night, moving
     /// counts towards a forced march anyway), and only a class that moves over flat ground.
     /// </summary>
@@ -609,7 +855,7 @@ internal static class OrderEndpoints
         }
 
         var table = await MovementTable.LoadAsync(db, unit.CampaignId, cancellationToken);
-        return table.Rate(Movement.ClassOf(unit.Type), Ground.Flat) > 0
+        return table.Rate(unit.Class, Ground.Flat) > 0
             ? null
             : "This unit can't force march: it doesn't move over land.";
     }
@@ -625,7 +871,7 @@ internal static class OrderEndpoints
     /// <summary>
     /// Why a Move's path won't do, or null if it will: it needs a step, and each step is next to
     /// the last (the first to the unit's hex) and inside the grid. (What it costs is the move's
-    /// plan.) A Hold has no path.
+    /// plan.) A Hold has no path, nor embarking; a landing may have one step (the plan checks it).
     /// </summary>
     private static string? PathProblem(
         MoveCheck movement,
@@ -634,12 +880,12 @@ internal static class OrderEndpoints
         IReadOnlyList<Hex> path
     )
     {
-        if (kind == OrderKind.Hold)
+        if (kind is OrderKind.Hold or OrderKind.Embark)
         {
             return null;
         }
 
-        if (path.Count == 0)
+        if (path.Count == 0 && kind == OrderKind.Move)
         {
             return "Say where the unit moves to.";
         }
