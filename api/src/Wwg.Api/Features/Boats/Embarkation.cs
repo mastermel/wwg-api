@@ -35,6 +35,22 @@ internal sealed class Embarked
     public Guid? CarrierNow(Guid boatId) =>
         _carrierNow.TryGetValue(boatId, out var carrier) ? carrier : null;
 
+    /// <summary>The unit a boat is tied to after the open turn's orders, or null if it's free.</summary>
+    public Guid? CarrierNext(Guid boatId) =>
+        _carrierNext.TryGetValue(boatId, out var carrier) ? carrier : null;
+
+    /// <summary>
+    /// The boats a unit is on as the turn starts that are still its after the turn's orders: not
+    /// boarded meanwhile by another unit (its own fell to 0 points, then were put back). Null if
+    /// none are, or it wasn't aboard.
+    /// </summary>
+    public IReadOnlyList<Guid>? AboardNow(Guid unitId) =>
+        Now.TryGetValue(unitId, out var boats)
+        && boats.Where(b => CarrierNext(b) is not { } other || other == unitId).ToList()
+            is { Count: > 0 } kept
+            ? kept
+            : null;
+
     /// <summary>Whether a unit is on the water as the turn starts: aboard, or a boat tied to one.</summary>
     public bool AfloatNow(Guid unitId) =>
         Now.ContainsKey(unitId) || _carrierNow.ContainsKey(unitId);
@@ -94,12 +110,39 @@ internal static class Embarkation
         var open = orders.Where(o => !o.Closed).ToDictionary(o => o.UnitId);
 
         Dictionary<Guid, IReadOnlyList<Guid>> Aboard(IEnumerable<Row> rows) =>
-            rows.Where(o => !lost.Contains(o.UnitId) && LeavesAboard(o.Kind, o.Boats))
-                .ToDictionary(o => o.UnitId, o => (IReadOnlyList<Guid>)o.Boats);
+            OneUnitABoat(
+                rows.Where(o => !lost.Contains(o.UnitId) && LeavesAboard(o.Kind, o.Boats))
+            );
 
         var now = Aboard(latest);
         var next = Aboard(latest.Where(o => !open.ContainsKey(o.UnitId)).Concat(open.Values));
         return new Embarked(now, next);
+    }
+
+    /// <summary>
+    /// Each unit aboard and its boats, a boat tied to one unit only: where two claim it (a unit
+    /// that fell to 0 points, freeing its boats, and had its points put back after another took
+    /// them), the latest claim wins, an Embark before a unit's boats carried on from earlier.
+    /// </summary>
+    private static Dictionary<Guid, IReadOnlyList<Guid>> OneUnitABoat(IEnumerable<Row> aboard)
+    {
+        var claims = aboard.ToList();
+        var holder = claims
+            .SelectMany(o => o.Boats.Select(boat => (Boat: boat, Claim: o)))
+            .GroupBy(c => c.Boat)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                    g.OrderByDescending(c => c.Claim.Number)
+                        .ThenByDescending(c => c.Claim.Kind == OrderKind.Embark)
+                        .ThenBy(c => c.Claim.UnitId)
+                        .First()
+                        .Claim.UnitId
+            );
+        return claims
+            .Select(o => (o.UnitId, Boats: o.Boats.Where(b => holder[b] == o.UnitId).ToList()))
+            .Where(o => o.Boats.Count > 0)
+            .ToDictionary(o => o.UnitId, o => (IReadOnlyList<Guid>)o.Boats);
     }
 
     /// <summary>

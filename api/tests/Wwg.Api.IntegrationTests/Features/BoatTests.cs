@@ -327,6 +327,70 @@ public sealed class BoatTests : ApiTest
     }
 
     [Fact]
+    public async Task GiveOrder_ToABoatBoardedThisTurn_Returns409()
+    {
+        var (scenario, boats) = await AfloatAsync();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var embarked = await TurnSteps.OrderAsync(scenario, turn.Id, Embark);
+        embarked.EnsureSuccessStatusCode();
+
+        using var given = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            TurnSteps.Move(new Hex(1, 0)),
+            boats[0]
+        );
+        using var undone = await scenario
+            .As(Role.Commander)
+            .DeleteAsync(
+                new Uri($"/api/army-turns/{turn.Id}/orders/{boats[0]}", UriKind.Relative),
+                Token
+            );
+
+        await given.AssertProblemAsync(HttpStatusCode.Conflict);
+        await undone.AssertProblemAsync(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task GiveOrder_AUnitsPointsPutBackAfterAnotherTookItsBoats_LeavesThemTheOthers()
+    {
+        var (scenario, boats) = await AboardAsync();
+        // The Guard falls to 0 points: its boats are free, and another unit there boards them.
+        using var lost = await SetPointsAsync(scenario, 0);
+        lost.EnsureSuccessStatusCode();
+        var other = await LibrarySteps.AddUnitAsync(scenario, "2nd Division", points: 20);
+        using var placed = await TurnSteps.PlaceAsync(scenario, other);
+        placed.EnsureSuccessStatusCode();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var boarded = await TurnSteps.OrderAsync(scenario, turn.Id, Embark, other);
+        Assert.Equal(boats, (await boarded.Content.ReadAsAsync<UnitPosition>())!.Boats);
+
+        // The Umpire puts its points back: the boats stay the other unit's.
+        using var restored = await SetPointsAsync(scenario, 20);
+        restored.EnsureSuccessStatusCode();
+        using var held = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Hold);
+
+        Assert.Empty((await held.Content.ReadAsAsync<UnitPosition>())!.Boats);
+        var orders = await OpenOrdersAsync(scenario);
+        Assert.All(
+            orders.Where(o => boats.Contains(o.UnitId)),
+            o => Assert.Equal(other, o.CarriedBy)
+        );
+    }
+
+    private static Task<HttpResponseMessage> SetPointsAsync(
+        CampaignScenario scenario,
+        int points
+    ) =>
+        scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/army-units/{scenario.UnitId}", UriKind.Relative),
+                new UpdateArmyUnitRequest("1st Division", UnitType.LineInfantry, 5, points),
+                Token
+            );
+
+    [Fact]
     public async Task GiveOrder_DisembarkAcrossARiverSide_LandsThere_AndFreesTheBoatsWhereTheyWere()
     {
         var (scenario, boats) = await AboardAsync();

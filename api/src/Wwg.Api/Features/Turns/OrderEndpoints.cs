@@ -211,7 +211,7 @@ internal static class OrderEndpoints
             return NotEditable(byUmpire);
         }
 
-        var (ordered, refused) = await OrderedAsync(db, unitId, turn.ArmyId, cancellationToken);
+        var (ordered, refused) = await OrderedAsync(db, turn, unitId, cancellationToken);
         if (ordered is null)
         {
             return refused!; // Set whenever there's no unit to order.
@@ -221,7 +221,7 @@ internal static class OrderEndpoints
 
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
-        var aboard = embarked.Now.GetValueOrDefault(unitId);
+        var aboard = embarked.AboardNow(unitId);
         var move = MoveFor(grid, unit, turn, state, request, byUmpire, aboard);
         if (await OrderProblemAsync(db, move, cancellationToken) is { } why)
         {
@@ -287,9 +287,12 @@ internal static class OrderEndpoints
             httpContext.CampaignContext().CampaignId,
             cancellationToken
         );
-        if (embarked.CarrierNow(unitId) is { } carrier)
+        var carrier =
+            embarked.CarrierNow(unitId)
+            ?? await TiedThisTurnAsync(db, id, unitId, cancellationToken);
+        if (carrier is { } tiedTo)
         {
-            return await TiedAsync(db, carrier, cancellationToken);
+            return await TiedAsync(db, tiedTo, cancellationToken);
         }
 
         // Its boats' orders follow it.
@@ -706,12 +709,12 @@ internal static class OrderEndpoints
     /// </summary>
     private static async Task<(Ordered? Ordered, ProblemHttpResult? Problem)> OrderedAsync(
         WwgDbContext db,
+        EditableTurn turn,
         Guid unitId,
-        Guid armyId,
         CancellationToken cancellationToken
     )
     {
-        var unit = await OrderedUnitAsync(db, unitId, armyId, cancellationToken);
+        var unit = await OrderedUnitAsync(db, unitId, turn.ArmyId, cancellationToken);
         if (unit is null)
         {
             return (
@@ -732,10 +735,29 @@ internal static class OrderEndpoints
         }
 
         var embarked = await Embarkation.LoadAsync(db, unit.CampaignId, cancellationToken);
-        return embarked.CarrierNow(unitId) is { } carrier
-            ? (null, await TiedAsync(db, carrier, cancellationToken))
+        var carrier =
+            embarked.CarrierNow(unitId)
+            ?? await TiedThisTurnAsync(db, turn.Id, unitId, cancellationToken);
+        return carrier is { } tiedTo
+            ? (null, await TiedAsync(db, tiedTo, cancellationToken))
             : (new Ordered(unit, state, embarked), null);
     }
+
+    /// <summary>
+    /// The unit a boat follows in this army turn (its order written with that unit's: embarking on
+    /// it this turn, say), or null if its order, if any, is its own.
+    /// </summary>
+    private static Task<Guid?> TiedThisTurnAsync(
+        WwgDbContext db,
+        Guid armyTurnId,
+        Guid unitId,
+        CancellationToken cancellationToken
+    ) =>
+        db
+            .UnitOrders.AsNoTracking()
+            .Where(o => o.ArmyTurnId == armyTurnId && o.UnitId == unitId)
+            .Select(o => o.CarrierId)
+            .FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>The unit being ordered: its type, campaign, the nation it marches as, and its points.</summary>
     private sealed record OrderedUnit(UnitType Type, Guid CampaignId, Nation Nation, int Points);
