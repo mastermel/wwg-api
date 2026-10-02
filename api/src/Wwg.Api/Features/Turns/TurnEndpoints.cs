@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Turns;
 
@@ -275,8 +277,9 @@ internal static class TurnEndpoints
 
     /// <summary>
     /// Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where
-    /// its units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or
-    /// with what's stopping it (no area, no armies, an army without a side, units not placed).
+    /// its units are, and turn 1 opens, a Draft for every army, whose commander is emailed. 409 if
+    /// it has started already, or with what's stopping it (no area, no armies, an army without a
+    /// side, units not placed).
     /// </summary>
     internal static async Task<
         Results<Ok<CampaignTurnsResponse>, ProblemHttpResult>
@@ -284,6 +287,8 @@ internal static class TurnEndpoints
         Guid id,
         WwgDbContext db,
         TimeProvider time,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
         HttpContext httpContext,
         CancellationToken cancellationToken
     )
@@ -329,6 +334,14 @@ internal static class TurnEndpoints
 
         setup.ClosedAt = now;
         await db.SaveChangesAsync(cancellationToken);
+        await TurnStartedEmails.QueueAsync(
+            db,
+            emails,
+            TurnActionEndpoints.MapLink(appOptions, id),
+            id,
+            1,
+            cancellationToken
+        );
         return await ListTurnsAsync(id, db, httpContext, cancellationToken);
     }
 

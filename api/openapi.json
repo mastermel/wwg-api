@@ -3961,7 +3961,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where\nits units are, and turn 1 opens, a Draft for every army. 409 if it has started already, or\nwith what's stopping it (no area, no armies, an army without a side, units not placed).",
+        "summary": "Starts the campaign (Umpire or Admin): turn 0 closes, with every army's placements as where\nits units are, and turn 1 opens, a Draft for every army, whose commander is emailed. 409 if\nit has started already, or with what's stopping it (no area, no armies, an army without a\nside, units not placed).",
         "operationId": "StartCampaign",
         "parameters": [
           {

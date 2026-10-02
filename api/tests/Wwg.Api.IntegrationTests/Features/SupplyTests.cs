@@ -156,6 +156,31 @@ public sealed class SupplyTests : ApiTest
     }
 
     [Fact]
+    public async Task StartNextTurn_OutOfSupply_IsInTheCommandersTurnEmail()
+    {
+        using var scenario = await StartedAsync();
+        await DepotAsync(scenario, DepotHex);
+
+        await TurnSteps.PlayAsync(scenario, "hold", "hold");
+
+        var second = await Emails.WaitForEmailToAsync(
+            "commander@example.com",
+            "turn 2 has started"
+        );
+        Assert.Contains(
+            "- 1st Division is out of supply.",
+            second.TextBody,
+            StringComparison.Ordinal
+        );
+        var third = await Emails.WaitForEmailToAsync("commander@example.com", "turn 3 has started");
+        Assert.Contains(
+            "- 1st Division: 2nd turn out of supply.",
+            third.TextBody,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task GetSupply_EnemyBoatsOnTheRoad_DontCutIt()
     {
         using var scenario = await StartedAsync();

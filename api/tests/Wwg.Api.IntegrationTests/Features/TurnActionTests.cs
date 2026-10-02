@@ -209,7 +209,7 @@ public sealed class TurnActionTests : ApiTest
             [ArmyTurnEventKind.Submitted, ArmyTurnEventKind.Approved],
             turn.History.Select(e => e.Kind)
         );
-        var email = await Emails.WaitForEmailToAsync("commander@example.com");
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "approved for");
         Assert.Equal("The Peninsular War: turn 1 approved for First Corps", email.Subject);
     }
 
@@ -250,7 +250,7 @@ public sealed class TurnActionTests : ApiTest
             [new UnitNoteDto(scenario.UnitId, "Advance on the ridge.")],
             sentBack.UnitNotes
         );
-        var email = await Emails.WaitForEmailToAsync("commander@example.com");
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "sent back for");
         Assert.Contains(
             "1st Division: Advance on the ridge.",
             email.TextBody,
@@ -384,7 +384,7 @@ public sealed class TurnActionTests : ApiTest
         var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
         Assert.Equal((ArmyTurnStatus.Draft, null), (turn.Status, turn.CompletedAt));
         Assert.Equal(ArmyTurnEventKind.Reverted, turn.History[^1].Kind);
-        await Emails.WaitForEmailToAsync("commander@example.com");
+        await Emails.WaitForEmailToAsync("commander@example.com", "reopened for");
         Assert.Contains(
             "The Peninsular War: turn 1 reopened for First Corps",
             Emails.Sent.Select(e => e.Subject),
@@ -444,12 +444,8 @@ public sealed class TurnActionTests : ApiTest
         var turns = await response.Content.ReadAsAsync<CampaignTurnsResponse>();
         Assert.Equal((2, 3), (turns?.OpenTurn, turns?.Turns.Count));
         Assert.Equal(ArmyTurnStatus.Draft, (await TurnSteps.OpenArmyTurnAsync(scenario)).Status);
-        await Emails.WaitForEmailToAsync("commander@example.com");
-        Assert.Contains(
-            "The Peninsular War: turn 2 has started",
-            Emails.Sent.Select(e => e.Subject),
-            StringComparer.Ordinal
-        );
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "turn 2 has started");
+        Assert.Equal("The Peninsular War: turn 2 has started (Afternoon)", email.Subject);
     }
 
     [Fact]

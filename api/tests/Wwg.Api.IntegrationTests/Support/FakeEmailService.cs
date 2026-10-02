@@ -40,6 +40,10 @@ internal sealed class FakeEmailService : IEmailService
     public Task<EmailMessage> WaitForEmailToAsync(string address) =>
         WaitForAsync(address, e => !e.Subject.StartsWith("Welcome to", StringComparison.Ordinal));
 
+    /// <summary>The first email to <paramref name="address"/> whose subject has this in it.</summary>
+    public Task<EmailMessage> WaitForEmailToAsync(string address, string subject) =>
+        WaitForAsync(address, e => e.Subject.Contains(subject, StringComparison.Ordinal));
+
     /// <summary>The welcome sent to <paramref name="address"/> on registering.</summary>
     public Task<EmailMessage> WaitForWelcomeToAsync(string address) =>
         WaitForAsync(address, e => e.Subject.StartsWith("Welcome to", StringComparison.Ordinal));

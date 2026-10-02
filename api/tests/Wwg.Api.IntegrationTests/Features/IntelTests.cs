@@ -169,6 +169,26 @@ public sealed class IntelTests : ApiTest
     }
 
     [Fact]
+    public async Task StartNextTurn_AReportArriving_IsInTheAllysTurnEmail_WithItsMessage()
+    {
+        var (scenario, ally) = await StartedAsync(new Hex(1, 0));
+        using var _ = scenario;
+        using var sent = await SendAsync(scenario, Everything(ally));
+        sent.EnsureSuccessStatusCode();
+
+        await NextTurnAsync(scenario);
+
+        var email = await Emails.WaitForEmailToAsync("player@example.com", "turn 2 has started");
+        Assert.Contains("Reports from allies", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(
+            "From First Corps (their units' positions)",
+            email.TextBody,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("> Hold the bridge at Wavre.", email.TextBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task SendReport_ToAnAllyFarOff_RidesATurnAtATime()
     {
         // 1 km hexes: the ally 9 hexes away, more than two turns' ride for light cavalry (4 a turn).

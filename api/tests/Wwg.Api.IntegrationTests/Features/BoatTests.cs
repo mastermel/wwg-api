@@ -507,6 +507,23 @@ public sealed class BoatTests : ApiTest
     }
 
     [Fact]
+    public async Task StartNextTurn_ABoatBuilt_IsInTheCommandersTurnEmail()
+    {
+        var (scenario, _) = await AfloatAsync(boats: 0, beforeStart: s => TownAsync(s));
+        var build = new GiveOrderRequest(OrderKind.BuildBoat, null);
+
+        await TurnAsync(scenario, build);
+        await TurnAsync(scenario, build);
+
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "turn 3 has started");
+        Assert.Contains(
+            "- Boat 1 was built in Hex (0, 0).",
+            email.TextBody,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task StartNextTurn_WorkInterrupted_BuildsNothing()
     {
         var (scenario, _) = await AfloatAsync(boats: 0, beforeStart: s => TownAsync(s));

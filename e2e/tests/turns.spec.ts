@@ -111,7 +111,7 @@ test("the Umpire sends a turn back, approves it resubmitted, and starts the next
   // Bob is told, and gives orders for turn 2.
   await expect
     .poll(() => latestEmailText(commander.email), { timeout: 15_000 })
-    .toContain("Turn 2 of Wavre 1815 has started.");
+    .toContain("Turn 2 of Wavre 1815 has started (Afternoon).");
   await bob.reload();
   await expect(bob.getByRole("region", { name: "Turn 2" }).getByText("No order yet")).toHaveCount(
     2,

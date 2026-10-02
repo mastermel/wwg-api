@@ -277,7 +277,14 @@ internal static class TurnActionEndpoints
         open.ClosedAt = now;
         await db.SaveChangesAsync(cancellationToken);
 
-        await EmailTurnStartedAsync(db, emails, appOptions, id, next.Number, cancellationToken);
+        await TurnStartedEmails.QueueAsync(
+            db,
+            emails,
+            MapLink(appOptions, id),
+            id,
+            next.Number,
+            cancellationToken
+        );
         return await TurnEndpoints.ListTurnsAsync(id, db, httpContext, cancellationToken);
     }
 
@@ -649,49 +656,6 @@ internal static class TurnActionEndpoints
         );
     }
 
-    private static async Task EmailTurnStartedAsync(
-        WwgDbContext db,
-        IEmailQueue emails,
-        IOptions<AppOptions> appOptions,
-        Guid campaignId,
-        int number,
-        CancellationToken cancellationToken
-    )
-    {
-        var commanders = await db
-            .Armies.AsNoTracking()
-            .Where(a => a.CampaignId == campaignId && a.Commander != null)
-            .Select(a => new
-            {
-                Army = a.Name,
-                Campaign = a.Campaign.Name,
-                To = db
-                    .CampaignMembers.Where(m => m.Id == a.CommanderId)
-                    .Select(m => new TurnRecipient(
-                        m.User.Email ?? "",
-                        m.User.FirstName,
-                        m.User.LastName,
-                        m.User.MutedEmails
-                    ))
-                    .Single(),
-            })
-            .ToListAsync(cancellationToken);
-        var map = MapLink(appOptions, campaignId);
-        foreach (var commander in commanders.Where(c => c.To.Wants(EmailKind.TurnStarted)))
-        {
-            await emails.QueueAsync(
-                TurnEmails.Create(
-                    commander.To,
-                    $"{commander.Campaign}: turn {number} has started",
-                    $"Turn {number} of {commander.Campaign} has started. Give {commander.Army} its orders.",
-                    "Give orders on the map",
-                    map
-                ),
-                cancellationToken
-            );
-        }
-    }
-
     private static Task<List<TurnRecipient>> UmpiresAsync(
         WwgDbContext db,
         Guid campaignId,
@@ -722,7 +686,7 @@ internal static class TurnActionEndpoints
             .SingleOrGoneAsync(cancellationToken);
     }
 
-    private static Uri MapLink(IOptions<AppOptions> appOptions, Guid campaignId) =>
+    internal static Uri MapLink(IOptions<AppOptions> appOptions, Guid campaignId) =>
         new(
             appOptions.Value.PublicUrl!, // Required and validated at startup.
             $"/campaigns/{campaignId}/map"

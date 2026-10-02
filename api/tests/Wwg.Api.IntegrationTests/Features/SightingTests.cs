@@ -116,6 +116,24 @@ public sealed class SightingTests : ApiTest
     }
 
     [Fact]
+    public async Task StartNextTurn_AConfirmedSighting_IsInTheCommandersTurnEmail()
+    {
+        var (scenario, enemy) = await StartedAsync();
+        using var _ = scenario;
+
+        using var next = await NextTurnAsync(scenario, enemy, Everything(scenario));
+        next.EnsureSuccessStatusCode();
+
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "turn 2 has started");
+        Assert.Contains("Enemy sightings", email.TextBody, StringComparison.Ordinal);
+        Assert.Contains(
+            "- Hex (1, 0): Prussians: 1 line infantry, a medium force.",
+            email.TextBody,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task StartNextTurn_TheHexKeptBack_GivesOnlyRoughlyWhere()
     {
         var (scenario, enemy) = await StartedAsync();

@@ -153,6 +153,26 @@ public sealed class AttritionTests : ApiTest
     }
 
     [Fact]
+    public async Task StartNextTurn_TheConfirmedLoss_IsInTheCommandersTurnEmail()
+    {
+        using var scenario = await StartedAsync();
+        await MovedAsync(scenario, turnsBefore: 3);
+
+        using var response = await StartNextAsync(
+            scenario,
+            new AttritionLossRequest(scenario.UnitId, 2)
+        );
+        response.EnsureSuccessStatusCode();
+
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "turn 5 has started");
+        Assert.Contains(
+            "- 1st Division lost 2 points to attrition (forced march); now 48 points.",
+            email.TextBody,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task StartNextTurn_MoreThanTheUnitHas_IsAValidationError()
     {
         using var scenario = await StartedAsync();

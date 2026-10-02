@@ -225,7 +225,7 @@ public sealed class UmpireOrderTests : ApiTest
         using var response = await TurnSteps.ActAsync(scenario, turn.Id, "submit", Role.Umpire);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var email = await Emails.WaitForEmailToAsync("commander@example.com");
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "submitted for");
         Assert.Equal("The Peninsular War: turn 1 submitted for First Corps", email.Subject);
         Assert.Contains(
             "Orders the Umpire set:\n- 1st Division: hold",
@@ -267,7 +267,7 @@ public sealed class UmpireOrderTests : ApiTest
         using var approved = await TurnSteps.ActAsync(scenario, turn.Id, "approve", Role.Umpire);
 
         Assert.Equal(HttpStatusCode.NoContent, approved.StatusCode);
-        var email = await Emails.WaitForEmailToAsync("commander@example.com");
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "approved for");
         Assert.Contains("- 1st Division: move", email.TextBody, StringComparison.Ordinal);
     }
 }

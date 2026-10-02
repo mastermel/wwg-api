@@ -2622,10 +2622,11 @@ build on positions.
       for an unconfirmed account with the link sent again on request (`EmailConfirmation`; the
       link lasts 7 days, by its own token provider, apart from the 2-hour reset link;
       `ConfirmEmailPage`, `ConfirmEmailReminder`).
-    - **52c. The new turn's email:** to each army's commander, the campaign's first turn too: the
+    - ✅ **52c. The new turn's email:** to each army's commander, the campaign's first turn too: the
       turn's number, date and time of day, and what's new for the army as the last turn closed
       (sightings, supply, attrition, boats built, allies' reports with their messages), or
-      "Nothing new".
+      "Nothing new" (`TurnNewsBuilder`, from what the closing turn saved; `TurnStartedEmails`,
+      from starting the campaign and each next turn).
     - **52d. More emails:** a player given an army; the Umpires when a player joins, and when
       every army has submitted, with what's waiting for them (sightings to shape, couriers among
       the enemy, attrition to confirm).
