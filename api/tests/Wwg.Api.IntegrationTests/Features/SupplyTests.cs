@@ -181,6 +181,45 @@ public sealed class SupplyTests : ApiTest
     }
 
     [Fact]
+    public async Task UpdateDepot_Moved_StartsItsTurnsCutOffAfresh()
+    {
+        using var scenario = await StartedAsync();
+        var depot = await DepotAsync(scenario, DepotHex, DepotKind.Intermediate);
+        await WithDbAsync(db =>
+            db.Depots.Where(d => d.Id == depot)
+                .ExecuteUpdateAsync(d => d.SetProperty(x => x.CutOffTurns, 4), Token)
+        );
+
+        using var moved = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/depots/{depot}", UriKind.Relative),
+                new SaveDepotRequest(DepotKind.Intermediate, null, 1, 0),
+                Token
+            );
+
+        moved.EnsureSuccessStatusCode();
+        Assert.Equal(
+            0,
+            Assert.Single((await SupplyAsync(scenario, Role.Umpire)).Depots).CutOffTurns
+        );
+    }
+
+    [Fact]
+    public async Task GetSupply_ABoat_NeedsNone()
+    {
+        using var scenario = await StartedAsync();
+        await DepotAsync(scenario, DepotHex);
+        var boat = await LibrarySteps.AddUnitAsync(scenario, "Barge", UnitType.Boat, points: 0);
+        using var placed = await TurnSteps.PlaceAsync(scenario, boat);
+        placed.EnsureSuccessStatusCode();
+
+        var supply = (await SupplyAsync(scenario)).Units.Single(u => u.UnitId == boat);
+
+        Assert.Equal(SupplyState.Exempt, supply.State);
+    }
+
+    [Fact]
     public async Task GetSupply_EnemyBoatsOnTheRoad_DontCutIt()
     {
         using var scenario = await StartedAsync();

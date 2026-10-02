@@ -457,6 +457,16 @@ internal static class OrderEndpoints
         )
             .SelectMany(boats => boats)
             .ToHashSet();
+        // Boats with orders of their own this turn (a move, say) go last: taking one overrides it.
+        var busy = (
+            await db
+                .UnitOrders.AsNoTracking()
+                .Where(o =>
+                    o.ArmyTurnId == turn.Id && o.CarrierId == null && o.Kind != OrderKind.Hold
+                )
+                .Select(o => o.UnitId)
+                .ToListAsync(cancellationToken)
+        ).ToHashSet();
         // Where each of the army's boats is now: its order in the last closed turn.
         var free = (
             await db
@@ -476,7 +486,7 @@ internal static class OrderEndpoints
                 })
                 .ToListAsync(cancellationToken)
         ).GroupBy(o => o.UnitId).Select(g => g.MaxBy(o => o.Number)!) // A group has at least one row.
-        .Where(o => new Hex(o.Q, o.R) == move.State.At && embarked.CarrierNow(o.UnitId) is null && !claimed.Contains(o.UnitId)).OrderBy(o => o.Name, StringComparer.OrdinalIgnoreCase).ThenBy(o => o.UnitId).Select(o => o.UnitId).ToList();
+        .Where(o => new Hex(o.Q, o.R) == move.State.At && embarked.CarrierNow(o.UnitId) is null && !claimed.Contains(o.UnitId)).OrderBy(o => busy.Contains(o.UnitId)).ThenBy(o => o.Name, StringComparer.OrdinalIgnoreCase).ThenBy(o => o.UnitId).Select(o => o.UnitId).ToList();
         return free.Count >= needed
             ? ([.. free.Take(needed)], null)
             : (
@@ -642,9 +652,20 @@ internal static class OrderEndpoints
 
         if (move.Kind == OrderKind.Disembark)
         {
+            var landsIn = move.Path.Count == 0 ? move.State.At : move.Path[0];
             return Embarkation.LandingProblem(movement.Terrain, move.State.At, move.Path) is { } why
-                ? MovePlan.Refused(why)
-                : new MovePlan(move.Path.Count == 0 ? move.State.At : move.Path[0], null, null);
+                    ? MovePlan.Refused(why)
+                // On ground its own feet (or hooves, or wheels) can take (decision 0022).
+                : !Movement.CanEnter(
+                    movement.Table,
+                    movement.Terrain,
+                    Movement.ClassOf(move.Type),
+                    landsIn
+                )
+                    ? MovePlan.Refused(
+                        $"It can't land there: {Movement.ClassLabel(Movement.ClassOf(move.Type))} can't go on that ground."
+                    )
+                : new MovePlan(landsIn, null, null);
         }
 
         return move.ByUmpire || move.Kind is not OrderKind.Move

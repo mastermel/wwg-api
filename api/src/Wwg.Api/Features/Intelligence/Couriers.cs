@@ -147,9 +147,10 @@ internal static class Couriers
     {
         report.Status = CourierStatus.Arrived;
         report.ArrivedTurn = turn;
+        // Not the recipient's own, come back by way of an ally's report: it has them already.
         var sightings = await db
             .Sightings.AsNoTracking()
-            .Where(s => report.SightingIds.Contains(s.Id))
+            .Where(s => report.SightingIds.Contains(s.Id) && s.SharedByArmyId != report.ToArmyId)
             .ToListAsync(cancellationToken);
         db.Sightings.AddRange(
             sightings.Select(s => new Sighting

@@ -316,6 +316,70 @@ public sealed class BoatTests : ApiTest
     }
 
     [Fact]
+    public async Task GiveOrder_Embark_TakesBoatsWithoutOrdersOfTheirOwnFirst()
+    {
+        var (scenario, boats) = await AfloatAsync(boats: 3);
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        // Boat A rows off downstream this turn.
+        using var rowing = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            TurnSteps.Move(new Hex(1, 0)),
+            boats[0]
+        );
+        rowing.EnsureSuccessStatusCode();
+
+        using var given = await TurnSteps.OrderAsync(scenario, turn.Id, Embark);
+
+        Assert.Equal(boats[1..], (await given.Content.ReadAsAsync<UnitPosition>())!.Boats);
+    }
+
+    [Fact]
+    public async Task GiveOrder_DisembarkOntoGroundTheUnitCantEnter_IsAValidationError()
+    {
+        var (scenario, _) = await AboardAsync();
+        using var mountain = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/grid/cells/0/-1", UriKind.Relative),
+                new UpdateHexCellRequest(
+                    Terrain.Mountain,
+                    false,
+                    new HexSettlement(SettlementSize.None, false, false, CapitalStatus.None, null)
+                ),
+                Token
+            );
+        mountain.EnsureSuccessStatusCode();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        // Line infantry can't go on mountains (the rules' table).
+        using var given = await TurnSteps.OrderAsync(scenario, turn.Id, Disembark(North));
+
+        await given.AssertValidationProblemAsync("path");
+    }
+
+    [Fact]
+    public async Task ListMarches_OnBoats_MovingCostsWhatHoldingDoes()
+    {
+        var (scenario, _) = await AfloatAsync();
+        // Four moves in a row on land: a second turn of forced march, owing attrition.
+        foreach (var to in new[] { new Hex(1, 0), Here, new Hex(1, 0), Here })
+        {
+            await TurnAsync(scenario, TurnSteps.Move(to));
+        }
+        await TurnAsync(scenario, Embark);
+
+        var march = (
+            await scenario
+                .As(Role.Commander)
+                .GetAsAsync<List<UnitMarchResponse>>($"/api/armies/{scenario.ArmyId}/marches")
+        )!.Single(m => m.UnitId == scenario.UnitId);
+
+        Assert.True(march.ForcedMarchTurns > 0);
+        Assert.Equal(0, march.MoveCosts);
+    }
+
+    [Fact]
     public async Task GiveOrder_ToABoatTiedToAUnit_Returns409()
     {
         var (scenario, boats) = await AboardAsync();

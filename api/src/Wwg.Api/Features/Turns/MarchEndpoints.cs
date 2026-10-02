@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Wwg.Api.Data;
+using Wwg.Api.Features.Boats;
 using Wwg.Api.Infrastructure.Auth;
 
 namespace Wwg.Api.Features.Turns;
@@ -42,25 +43,24 @@ internal static class MarchEndpoints
         CancellationToken cancellationToken
     )
     {
-        var (before, open) = await Marches.LoadAsync(
-            db,
-            httpContext.CampaignContext().CampaignId,
-            id,
-            cancellationToken
-        );
+        var campaignId = httpContext.CampaignContext().CampaignId;
+        var (before, open) = await Marches.LoadAsync(db, campaignId, id, cancellationToken);
+        // On boats, moving is rest (decision 0022): it costs what holding does.
+        var aboard = (await Embarkation.LoadAsync(db, campaignId, cancellationToken)).Now;
         return TypedResults.Ok(
             before
                 .Select(entry =>
                 {
                     var state = entry.Value;
                     var order = open.GetValueOrDefault(entry.Key);
+                    var moves = !aboard.ContainsKey(entry.Key);
                     return new UnitMarchResponse(
                         entry.Key,
                         state.MovesInRow,
                         state.ForceMarchesInRow,
                         state.ForcedMarchTurns,
-                        state.After(moved: true, forceMarch: false).Multiplier,
-                        state.After(moved: true, forceMarch: true).Multiplier,
+                        state.After(moved: moves, forceMarch: false).Multiplier,
+                        state.After(moved: moves, forceMarch: true).Multiplier,
                         order is null ? 0 : state.After(order.Moved, order.ForceMarch).Multiplier
                     );
                 })

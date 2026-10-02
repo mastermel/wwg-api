@@ -196,6 +196,12 @@ internal static class DepotEndpoints
 
     private static void Apply(Depot depot, SaveDepotRequest request)
     {
+        // Moved, or made another kind, it starts afresh: its turns cut off were the old one's.
+        if (depot.Kind != request.Kind || depot.Q != request.Q || depot.R != request.R)
+        {
+            depot.CutOffTurns = 0;
+        }
+
         depot.Kind = request.Kind;
         depot.Name = string.IsNullOrEmpty(request.Name) ? null : request.Name;
         (depot.Q, depot.R) = (request.Q, request.R);

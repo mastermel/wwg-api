@@ -57,10 +57,25 @@ internal static class SightingRecords
                 return "Give a rough size, or show the strength another way.";
             }
 
-            db.Sightings.Add(Record(request, turn, hex, seen, next, found));
+            db.Sightings.Add(Record(request, turn, hex, PointsNow(db, seen), next, found));
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The seen units with the points this close leaves them: attrition has just changed the
+    /// tracked units, not yet saved, which the positions (read from the database) don't show.
+    /// </summary>
+    private static List<UnitPlace> PointsNow(WwgDbContext db, List<UnitPlace> seen)
+    {
+        var points = db.ArmyUnits.Local.ToDictionary(u => u.Id, u => u.Points);
+        return
+        [
+            .. seen.Select(p =>
+                points.TryGetValue(p.UnitId, out var now) ? p with { Points = now } : p
+            ),
+        ];
     }
 
     private static Sighting Record(

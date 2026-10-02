@@ -99,6 +99,31 @@ internal static class Movement
     }
 
     /// <summary>
+    /// Whether a land class can stand on a hex's ground (a forest as low hills): 0 in the table
+    /// (cavalry on mountains, say) can't, nor can anyone on water. For landing from boats, where
+    /// no road is crossed.
+    /// </summary>
+    public static bool CanEnter(
+        MovementTable table,
+        PathTerrain terrain,
+        MovementClass movementClass,
+        Hex hex
+    )
+    {
+        var (ground, forest) = terrain.Cell(hex);
+        var land = ground switch
+        {
+            Terrain.Water => (Ground?)null,
+            Terrain.Mountain => Ground.Mountain,
+            Terrain.HighHill => Ground.HighHill,
+            Terrain.LowHill => Ground.LowHill,
+            _ when forest => Ground.LowHill,
+            _ => Ground.Flat,
+        };
+        return land is { } on && table.Rate(movementClass, on) > 0;
+    }
+
+    /// <summary>
     /// A boat's step (decision 0016): along a waterway across the edge, downstream or upstream
     /// by the way it flows; or onto a lake (a Water hex) from water or a waterway. Nowhere else.
     /// </summary>
@@ -196,7 +221,8 @@ internal static class Movement
         return new MovePlan(at, null, null);
     }
 
-    private static string ClassLabel(MovementClass movementClass) =>
+    /// <summary>A class in words, lower case ("light cavalry").</summary>
+    public static string ClassLabel(MovementClass movementClass) =>
         movementClass switch
         {
             MovementClass.Infantry => "infantry",

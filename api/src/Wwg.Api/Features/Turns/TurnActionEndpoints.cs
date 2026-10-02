@@ -97,6 +97,13 @@ internal static class TurnActionEndpoints
                 null,
                 cancellationToken
             );
+            await CampaignEmails.AllSubmittedAsync(
+                db,
+                emails,
+                appOptions,
+                turn.CampaignId,
+                cancellationToken
+            );
             return TypedResults.NoContent();
         }
 

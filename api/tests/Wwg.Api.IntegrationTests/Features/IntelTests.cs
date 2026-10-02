@@ -274,6 +274,37 @@ public sealed class IntelTests : ApiTest
         Assert.Equal((2, scenario.ArmyId), (shared.Turn, shared.SharedByArmyId));
     }
 
+    [Fact]
+    public async Task SendReport_SightingsSentBackByTheAlly_ArentHandedBackToTheirFirstObserver()
+    {
+        var (scenario, ally) = await StartedAsync(new Hex(-1, 0), enemyAt: new Hex(1, 0));
+        using var _ = scenario;
+        var umpire = scenario.As(Role.Umpire);
+        var armies = await umpire.GetAsAsync<List<ArmySummary>>(
+            $"/api/campaigns/{scenario.CampaignId}/armies"
+        );
+        await NextTurnWithSightingAsync(scenario, armies!);
+        using var sent = await SendAsync(scenario, new SendReportRequest(ally, false, true, null));
+        sent.EnsureSuccessStatusCode();
+        await NextTurnAsync(scenario);
+
+        // The ally sends everything it has back, the shared sighting among it.
+        using var back = await scenario
+            .As(Role.Player)
+            .PostAsJsonAsync(
+                new Uri($"/api/armies/{ally}/reports", UriKind.Relative),
+                new SendReportRequest(scenario.ArmyId, false, true, null),
+                Token
+            );
+        back.EnsureSuccessStatusCode();
+        await NextTurnAsync(scenario);
+
+        var sightings = await umpire.GetAsAsync<List<SightingResponse>>(
+            $"/api/campaigns/{scenario.CampaignId}/sightings"
+        );
+        Assert.Single(sightings!, s => s.ObservingArmyId == scenario.ArmyId);
+    }
+
     private static async Task NextTurnWithSightingAsync(
         CampaignScenario scenario,
         List<ArmySummary> armies

@@ -90,6 +90,25 @@ public sealed class CampaignEmailTests : ApiTest
     }
 
     [Fact]
+    public async Task SubmitTurn_TheUmpireSubmittingTheLastArmy_EmailsTheUmpireWhatsWaiting()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        await TurnSteps.StartedAsync(scenario);
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var held = await TurnSteps.OrderAsync(
+            scenario,
+            turn.Id,
+            TurnSteps.Hold,
+            role: Role.Umpire
+        );
+
+        using var submitted = await TurnSteps.ActAsync(scenario, turn.Id, "submit", Role.Umpire);
+
+        submitted.EnsureSuccessStatusCode();
+        await Emails.WaitForEmailToAsync("umpire@example.com", "every army");
+    }
+
+    [Fact]
     public async Task SubmitTurn_WithAnArmyStillADraft_SaysNothingOfEveryArmy()
     {
         using var scenario = await CreateCampaignScenarioAsync();
