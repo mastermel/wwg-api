@@ -2585,5 +2585,21 @@ build on positions.
       by the rules (the default), or only those the Umpire gives points, the rest worth nothing
       (`Campaign.VictoryPoints`, `VictoryPointsMode`, `HexSettlement.ValueIn`; `GET` / `PUT
       /api/campaigns/{id}/victory-settings`; `VictorySection`).
-51. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
+51. **Boats** (decision 0022), in parts:
+    - **51a. Embarking (API):** the Embark order (a unit and its army's free boats in its hex,
+      one per `BoatCapacity` points or part, a campaign setting of 14 by default; a whole turn)
+      and Disembark (a whole turn: landing in the hex, across a river side, or from a lake onto
+      a shore beside it, the boats left free in the water hex); an embarked unit moves by the
+      boats' class and rates, its boats with it (no orders or markers of their own; the turn's
+      checks skip them), rests (no forced marches), doesn't live off the land or take a
+      settlement; boats freed when the unit falls to 0 points or leaves; the Umpire warned of a
+      unit with more points than its boats carry. Worked out by replaying the orders, as forced
+      marches are (`GET` / `PUT /api/campaigns/{id}/boat-settings`).
+    - **51b. Building boats (API):** the Build boat order, for a land unit in a settlement hex with
+      a waterway and no enemy: two turns in a row there, and as the second closes, a generic Boat
+      joins its army in the hex; any other order loses the work. A sighting's embarked detail.
+    - **51c. In the app:** Embark, Disembark and Build boat in the unit's drawer, with the boats
+      needed and free; an embarked unit's marker badged with its boats, its reach by water; the
+      boat capacity in the campaign's edit page; the embarked detail in the Umpire's sightings.
+52. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.
