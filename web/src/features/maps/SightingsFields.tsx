@@ -75,7 +75,7 @@ export function SightingsFields({ entries, onChange, armies, places }: Sightings
       name: u.unit.name,
       type: u.unit.type,
       points: u.unit.points,
-      afloat: false,
+      afloat: (u.boats?.length ?? 0) > 0,
     }));
     onChange([
       ...entries,
@@ -91,6 +91,7 @@ export function SightingsFields({ entries, onChange, armies, places }: Sightings
         showsHex: true,
         showsArmies: true,
         showsTypes: true,
+        showsAfloat: units.some((u) => u.afloat),
         strength: "Rough",
         size: suggestedSize(units.reduce((sum, u) => sum + u.points, 0)),
       },
@@ -176,6 +177,16 @@ export function SightingsFields({ entries, onChange, armies, places }: Sightings
                       change(index, { showsTypes: event.currentTarget.checked });
                     }}
                   />
+                  {entry.units.some((u) => u.afloat) && (
+                    <Checkbox
+                      size="xs"
+                      label="On boats"
+                      checked={entry.showsAfloat}
+                      onChange={(event) => {
+                        change(index, { showsAfloat: event.currentTarget.checked });
+                      }}
+                    />
+                  )}
                 </Group>
                 <Group gap="xs" align="flex-end">
                   <Stack gap={2}>

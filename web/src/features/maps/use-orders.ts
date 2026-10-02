@@ -85,9 +85,11 @@ export function useOrders(campaignId: string) {
         done ??
           (order.kind === "Hold"
             ? `${unit.name} will hold.`
-            : order.forceMarch
-              ? `${unit.name} will force march.`
-              : `${unit.name} will move.`),
+            : order.kind === "Disembark"
+              ? `${unit.name} will land.`
+              : order.forceMarch
+                ? `${unit.name} will force march.`
+                : `${unit.name} will move.`),
         `${unit.name}'s order couldn't be saved. Try again.`,
       ),
     undo: (armyId: string, turnId: string, unit: { id: string; name: string }) =>

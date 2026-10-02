@@ -197,6 +197,15 @@ export function MapLegend({
         />
         <Item
           sample={
+            <svg width={32} height={24} viewBox="0 0 32 24" aria-hidden>
+              <circle cx={16} cy={12} r={7} fill="#1f4e8c" stroke="#ffffff" strokeWidth={2} />
+              <path d="M16 7.5v6.5h-3.5zM17 9l3 5h-3zM12 15h8l-1.5 2h-5z" fill="#ffffff" />
+            </svg>
+          }
+          label="On boats"
+        />
+        <Item
+          sample={
             <span className={flagClasses.flag} style={{ display: "inline-flex" }}>
               <IconFlagFilled size={14} color="#5c6370" aria-hidden />
             </span>

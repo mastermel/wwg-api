@@ -60,3 +60,20 @@
   line-height: 12px;
   text-align: center;
 }
+
+/* On boats (step 51): a boat on navy (white on #1f4e8c, 8.3:1), outlined in white like the
+   supply mark. */
+.boats {
+  position: absolute;
+  bottom: -6px;
+  right: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  border: 2px solid #ffffff;
+  background: #1f4e8c;
+  color: #ffffff;
+}

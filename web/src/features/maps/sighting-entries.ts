@@ -21,6 +21,8 @@ export interface SightingEntry {
   showsHex: boolean;
   showsArmies: boolean;
   showsTypes: boolean;
+  /** Whether it says the force was on boats (step 51); offered only when it was. */
+  showsAfloat: boolean;
   strength: SightingStrength;
   size: ForceSize;
 }
@@ -42,6 +44,7 @@ export const initialEntries = (due: readonly SightingDueResponse[]): SightingEnt
     showsHex: true,
     showsArmies: true,
     showsTypes: true,
+    showsAfloat: d.units.some((u) => u.afloat),
     strength: "Rough",
     size: suggestedSize(pointsOf(d.units)),
   }));
@@ -57,6 +60,7 @@ export const toRequests = (entries: readonly SightingEntry[]): SightingRequest[]
       showsHex: e.showsHex,
       showsArmies: e.showsArmies,
       showsTypes: e.showsTypes,
+      showsAfloat: e.showsAfloat && e.units.some((u) => u.afloat),
       strength: e.strength,
       size: e.strength === "Rough" ? e.size : null,
     }));

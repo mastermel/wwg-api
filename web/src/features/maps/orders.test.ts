@@ -36,6 +36,20 @@ describe("describeOrder", () => {
     ).toBe("Moves 2 hexes");
   });
 
+  it("says what a unit does with boats (step 51)", () => {
+    const boats = ["b1", "b2"];
+    expect(describeOrder({ ...order("Embark"), boats }, from)).toBe("Embarks on 2 boats");
+    expect(describeOrder({ ...order("Move", [{ q: 1, r: 0 }]), boats }, from)).toBe(
+      "Moves 1 hex, by boat",
+    );
+    expect(describeOrder({ ...order("Disembark", [{ q: 0, r: -1 }]), boats }, from)).toBe(
+      "Lands in the next hex",
+    );
+    expect(describeOrder({ ...order("Disembark"), boats }, from)).toBe("Lands");
+    expect(describeOrder(order("BuildBoat"), from)).toBe("Builds a boat");
+    expect(describeOrder({ ...order("Hold"), carriedBy: "u2" }, from)).toBe("Goes with its unit");
+  });
+
   it("marks a force march", () => {
     const forced = { ...order("Move", [{ q: 0, r: -1 }]), forceMarch: true };
 

@@ -2602,8 +2602,11 @@ build on positions.
       ("Boat 1", "Boat 2"…; an army unit with no library unit) joins its army in the hex; any
       other order loses the work (`BoatBuilding`, after couriers as the turn closes). A
       sighting's embarked detail (`SightingRequest.ShowsAfloat`, `SightingResponse.Afloat`).
-    - **51c. In the app:** Embark, Disembark and Build boat in the unit's drawer, with the boats
-      needed and free; an embarked unit's marker badged with its boats, its reach by water; the
-      boat capacity in the campaign's edit page; the embarked detail in the Umpire's sightings.
+    - ✅ **51c. In the app:** Embark, Land and Build a boat in the unit's drawer, with the boats
+      needed and free; an embarked unit's marker badged with its boats (theirs not drawn, nor
+      listed in the turn panel), its reach by water, and where it can land shaded; the Umpire
+      warned in the drawer of more points than its boats carry; the boat capacity on the
+      campaign's edit page; the embarked detail in the Umpire's sightings (`boats.ts`,
+      `BoatSection`).
 52. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.

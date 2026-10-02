@@ -55,10 +55,11 @@ export function describeSighting(sighting: SightingResponse, armies: readonly Ar
       : sighting.strength === "Rough" && sighting.size
         ? `, ${forceSizeLabels[sighting.size]}`
         : "";
+  const afloat = sighting.afloat ? ", on boats" : "";
   const source = sighting.sharedByArmyId
     ? ` (from ${armies.find((a) => a.id === sighting.sharedByArmyId)?.name ?? "an ally"}'s report)`
     : sighting.byUmpire
       ? " (reported)"
       : "";
-  return `${where}: ${whose}${what}${strength}${source}.`;
+  return `${where}: ${whose}${what}${strength}${afloat}${source}.`;
 }

@@ -4,6 +4,7 @@ import type {
   ArmyUnitResponse,
   CampaignConcentrationResponse,
   DepotResponse,
+  OrderKind,
 } from "@/api/generated/model";
 import { hexKey, hexName, type Hex } from "@/features/maps/hex-grid";
 import type { TerrainIndex } from "@/features/maps/terrain";
@@ -21,6 +22,8 @@ export interface UnitInHex {
   hex: Hex;
   /** It lives off the land this turn (step 48b): its side's hex is held to half the limits. */
   livesOffTheLand?: boolean;
+  /** The boats it's on (step 51): empty, or missing, ashore. */
+  boats?: readonly string[];
 }
 
 /** A side's counted points in a hex, and whether they're over the hex's limits. */
@@ -109,12 +112,25 @@ export function hexWarnings(
 /** Where the units will be once the orders as given are carried out: each one's order, or still. */
 export function afterOrders<T extends UnitInHex>(
   units: readonly T[],
-  orders: readonly { unitId: string; q: number; r: number; livesOffTheLand: boolean }[],
+  orders: readonly {
+    unitId: string;
+    q: number;
+    r: number;
+    livesOffTheLand: boolean;
+    kind?: OrderKind;
+    boats?: readonly string[];
+  }[],
 ): T[] {
   return units.map((placed) => {
     const order = orders.find((o) => o.unitId === placed.unit.id);
     return order
-      ? { ...placed, hex: { q: order.q, r: order.r }, livesOffTheLand: order.livesOffTheLand }
+      ? {
+          ...placed,
+          hex: { q: order.q, r: order.r },
+          livesOffTheLand: order.livesOffTheLand,
+          // On boats after it, unless it lands (step 51).
+          boats: order.kind === "Disembark" ? [] : (order.boats ?? placed.boats),
+        }
       : placed;
   });
 }

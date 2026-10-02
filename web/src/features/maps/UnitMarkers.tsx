@@ -1,3 +1,4 @@
+import { IconSailboat } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { Marker, useMap } from "react-map-gl/maplibre";
 import { armyColorVar } from "@/features/armies/identity/army-colors";
@@ -41,6 +42,8 @@ export function UnitMarkers({ units, onSelect, highlight, outOfSupply }: UnitMar
     const [top, ...under] = stack.units as [PlacedUnit, ...PlacedUnit[]];
     const next = under.at(0);
     const cutOff = stack.units.filter((u) => outOfSupply?.has(u.unit.id));
+    // On boats (step 51): its boats aren't drawn, but go with it.
+    const afloat = stack.units.filter((u) => (u.boats?.length ?? 0) > 0);
     const label =
       (under.length === 0
         ? describeUnit(top)
@@ -49,7 +52,12 @@ export function UnitMarkers({ units, onSelect, highlight, outOfSupply }: UnitMar
         ? ""
         : under.length === 0
           ? ", out of supply"
-          : `; out of supply: ${cutOff.map((u) => u.unit.name).join(", ")}`);
+          : `; out of supply: ${cutOff.map((u) => u.unit.name).join(", ")}`) +
+      (afloat.length === 0
+        ? ""
+        : under.length === 0
+          ? ", on boats"
+          : `; on boats: ${afloat.map((u) => u.unit.name).join(", ")}`);
     return (
       <Marker
         key={stack.key}
@@ -81,6 +89,11 @@ export function UnitMarkers({ units, onSelect, highlight, outOfSupply }: UnitMar
           {cutOff.length > 0 && (
             <span className={classes.supply} aria-hidden>
               !
+            </span>
+          )}
+          {afloat.length > 0 && (
+            <span className={classes.boats} aria-hidden>
+              <IconSailboat size={10} stroke={2.5} />
             </span>
           )}
           {under.length > 0 && (

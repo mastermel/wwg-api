@@ -1,6 +1,7 @@
 import { ActionIcon, Alert, Box, Button, Grid, Group, Stack, Switch, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
+  IconAnchor,
   IconArrowMoveRight,
   IconCloudOff,
   IconHistory,
@@ -46,6 +47,7 @@ import {
   useListDepots,
 } from "@/api/generated/endpoints/supply/supply";
 import type {
+  ArmyTurnDetails,
   CampaignMapResponse,
   DepotResponse,
   MapBounds,
@@ -83,7 +85,7 @@ import {
 } from "@/features/maps/movement";
 import { indexTerrain } from "@/features/maps/terrain";
 import { canForceMarch, forceMarchBonus, moveCost } from "@/features/maps/marches";
-import { OrderActions } from "@/features/maps/OrderActions";
+import { OrderActions, type BoatOptions } from "@/features/maps/OrderActions";
 import { OrderOverlay, type PendingMove } from "@/features/maps/OrderOverlay";
 import { PastTurnPanel } from "@/features/maps/PastTurnPanel";
 import { hexes } from "@/features/maps/orders";
@@ -94,6 +96,18 @@ import { HexDetailsList } from "@/features/maps/HexDetailsList";
 import { MapLegend } from "@/features/maps/MapLegend";
 import classes from "@/features/maps/MapPage.module.css";
 import { describeHex } from "@/features/maps/hex-info";
+import {
+  aboardAfter,
+  boatCount,
+  boatsNeeded,
+  canBuildBoatsAt,
+  canEmbark,
+  freeBoatsFor,
+  landingHexes,
+  tiedBoats,
+  usualBoatCapacity,
+} from "@/features/maps/boats";
+import { useGetBoatSettings } from "@/api/generated/endpoints/boats/boats";
 import { useFullScreen } from "@/features/maps/use-full-screen";
 import { HexInfoPopup } from "@/features/maps/HexInfoPopup";
 import { SelectedHexLayer } from "@/features/maps/SelectedHexLayer";
@@ -251,6 +265,8 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const [target, setTarget] = useState<Hex | null>(null);
   // The move being chosen is a force march (step 47): a flat hex's worth further, by day.
   const [forceMarch, setForceMarch] = useState(false);
+  // Landing a unit from its boats (step 51): the moving unit chooses where it lands.
+  const [landing, setLanding] = useState(false);
   useEffect(() => {
     if (placing || moving) mapArea.current?.scrollIntoView({ block: "start" });
   }, [placing, moving]);
@@ -281,12 +297,18 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                     ? { hex: position.path.at(-1) ?? position, progress: position.progress }
                     : undefined,
                 livesOffTheLand: position.livesOffTheLand,
+                boats: aboardAfter(position),
               },
             ]
           : [];
       }),
     [positions.data, everyUnit],
   );
+  // Boats tied to units (step 51) go with them: not drawn, listed or ordered on their own.
+  const tied = useMemo(() => tiedBoats(onMap), [onMap]);
+  const shownOnMap = useMemo(() => onMap.filter((p) => !tied.has(p.unit.id)), [onMap, tied]);
+  const boatSettings = useGetBoatSettings(campaignId, live);
+  const boatCapacity = boatSettings.data?.capacity ?? usualBoatCapacity;
   const placingUnit = everyUnit.find((u) => u.unit.id === placing);
   // Depots (step 48a): those the viewer may see, and the Umpire placing, moving or changing one.
   const depots = useListDepots(campaignId, live);
@@ -381,10 +403,12 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   // While moving: the hexes the unit can reach this turn by the terrain and the campaign's
   // table, and (for the Umpire, who can go past that after a warning, closed steps too; decision
   // 0011) anywhere in the grid.
+  // A unit on boats moves as boats do (step 51).
+  const movingType = moving && (moving.boats?.length ?? 0) > 0 ? "Boat" : moving?.unit.type;
   const withinTurn = useMemo(
     () =>
-      moving
-        ? reach(grid, moving.hex, moving.unit.type, {
+      moving && movingType && !landing
+        ? reach(grid, moving.hex, movingType, {
             ...costs,
             carried: moving.headingInto,
             // Further or less by the time of day, for some nations' infantry (step 45), and
@@ -392,14 +416,14 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             budget:
               budgetFor(
                 costs.rates,
-                moving.unit.type,
+                movingType,
                 moving.unit.nation,
                 openTurn?.part,
                 calendar.data,
-              ) + (forceMarch ? forceMarchBonus(costs.rates, moving.unit.type) : 0),
+              ) + (forceMarch ? forceMarchBonus(costs.rates, movingType) : 0),
           })
         : null,
-    [grid, moving, costs, openTurn?.part, calendar.data, forceMarch],
+    [grid, moving, movingType, landing, costs, openTurn?.part, calendar.data, forceMarch],
   );
   // The moving unit's forced marches, for what the move costs: its commander's and the Umpire's.
   const marches = useListMarches(moving?.army.id ?? "", {
@@ -413,10 +437,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     : null;
   const reachable = useMemo(
     () =>
-      moving && manager
-        ? reach(grid, moving.hex, moving.unit.type, { ...costs, budget: Infinity })
+      moving && movingType && manager && !landing
+        ? reach(grid, moving.hex, movingType, { ...costs, budget: Infinity })
         : withinTurn,
-    [grid, moving, manager, withinTurn, costs],
+    [grid, moving, movingType, manager, landing, withinTurn, costs],
   );
   // Contact and concentration, for the Umpire (step 46): in the open turn from the orders as
   // given, on a past one from where the units ended up.
@@ -500,7 +524,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             stepCost(
               costs.rates,
               costs.terrain,
-              classOf(moving.unit.type),
+              classOf(movingType ?? moving.unit.type),
               i === 0 ? moving.hex : (targetPath[i - 1] ?? hex),
               hex,
             ),
@@ -549,10 +573,37 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
     setMoving(null);
     setTarget(null);
     setForceMarch(false);
+    setLanding(false);
+  };
+  // Where the landing unit can land: its hex, across a river side, or onto a lake's shore.
+  const landingAt = useMemo(
+    () => (moving && landing ? landingHexes(moving.hex, costs.terrain) : null),
+    [moving, landing, costs.terrain],
+  );
+  const landAt = async (hex: Hex) => {
+    const turn = moving && turnOf(moving.army.id);
+    if (!moving || !turn) return;
+    if (!landingAt?.some((h) => hexKey(h) === hexKey(hex))) {
+      notifications.show({
+        color: "red",
+        message: `${moving.unit.name} lands in its hex, across a river side of it, or from a lake onto its shore.`,
+      });
+      return;
+    }
+    const order = {
+      kind: "Disembark",
+      path: hexKey(hex) === hexKey(moving.hex) ? [] : [hex],
+      livesOffTheLand: false,
+    } as const;
+    if (await orders.give(moving.army.id, turn.id, moving.unit, order)) stopMoving();
   };
   const chooseTarget = (point: Point) => {
     if (!moving) return;
     const hex = grid.hexAt(point);
+    if (landing) {
+      void landAt(hex);
+      return;
+    }
     const problem = !grid.contains(hex)
       ? "That's outside the campaign's area."
       : hexKey(hex) === hexKey(moving.hex)
@@ -621,6 +672,49 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
   const closeDrawer = () => {
     setChosen([]);
     setSelected(null);
+  };
+  // In the unit's drawer: boarding its army's free boats, landing from them, or building one.
+  const boatOptions = (unit: PlacedUnit, turn: ArmyTurnDetails): BoatOptions => {
+    const aboard = unit.boats?.length ?? 0;
+    const free = freeBoatsFor(unit, onMap, turn.orders);
+    const give = (kind: "Embark" | "BuildBoat", done: string) => {
+      void orders
+        .give(
+          unit.army.id,
+          turn.id,
+          unit.unit,
+          { kind, path: null, livesOffTheLand: kind === "BuildBoat" && livingOffTheLand(unit) },
+          done,
+        )
+        .then((saved) => {
+          if (saved) closeDrawer();
+        });
+    };
+    return {
+      aboard,
+      embark:
+        aboard === 0 && canEmbark(unit.unit.type) && free.length > 0
+          ? { needed: boatsNeeded(unit.unit.points, boatCapacity), free: free.length }
+          : undefined,
+      canBuild:
+        aboard === 0 && unit.unit.type !== "Boat" && canBuildBoatsAt(unit.hex, costs.terrain),
+      overloaded:
+        manager && aboard > 0 && unit.unit.points > aboard * boatCapacity
+          ? `${String(unit.unit.points)} points on ${boatCount(aboard)} of ${String(boatCapacity)}: more than they carry.`
+          : undefined,
+      onEmbark: () => {
+        give("Embark", `${unit.unit.name} will embark.`);
+      },
+      onBuild: () => {
+        give("BuildBoat", `${unit.unit.name} will build a boat.`);
+      },
+      onLand: () => {
+        setMoving(unit);
+        setLanding(true);
+        setTarget(null);
+        closeDrawer();
+      },
+    };
   };
   const view = (number: number) => {
     setViewing(number);
@@ -697,7 +791,20 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           </Group>
         </Alert>
       )}
-      {moving && (
+      {moving && landing && (
+        <Alert role="status" color="navy" icon={<IconAnchor aria-hidden />}>
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">
+              Tap a shaded hex for where <strong>{moving.unit.name}</strong> lands: its own, or
+              across a river side.
+            </Text>
+            <Button size="compact-sm" variant="default" onClick={stopMoving}>
+              Cancel
+            </Button>
+          </Group>
+        </Alert>
+      )}
+      {moving && !landing && (
         <Alert role="status" color="navy" icon={<IconArrowMoveRight aria-hidden />}>
           <Group justify="space-between" gap="xs">
             <Text size="sm">
@@ -727,7 +834,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
               )}
               {movingCost && <> {movingCost}</>}
             </Text>
-            {canForceMarch(costs.rates, moving.unit.type, openTurn?.part) && (
+            {canForceMarch(costs.rates, movingType ?? moving.unit.type, openTurn?.part) && (
               <Switch
                 size="sm"
                 label="Force march (a hex further)"
@@ -822,11 +929,13 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           <OrderOverlay
             moves={moves}
             reachable={
-              withinTurn
-                ? [...withinTurn.values()]
-                    .filter(({ from }) => from !== null)
-                    .map(({ hex }) => grid.corners(hex))
-                : undefined
+              landingAt
+                ? landingAt.map((hex) => grid.corners(hex))
+                : withinTurn
+                  ? [...withinTurn.values()]
+                      .filter(({ from }) => from !== null)
+                      .map(({ hex }) => grid.corners(hex))
+                  : undefined
             }
           />
           <SelectedHexLayer grid={grid} hex={idle ? pinned : null} />
@@ -853,7 +962,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
             />
           )}
           <UnitMarkers
-            units={onMap}
+            units={shownOnMap}
             outOfSupply={past === null ? outOfSupply : undefined}
             highlight={manager ? highlighted : null}
             onSelect={(stack) => {
@@ -926,7 +1035,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         open={openTurn}
         commanded={commanded}
         units={everyUnit
-          .filter((u) => myArmies.some((a) => a.id === u.army.id))
+          .filter((u) => myArmies.some((a) => a.id === u.army.id) && !tied.has(u.unit.id))
           .map((u) => ({ ...u, placed: onMap.find((p) => p.unit.id === u.unit.id) }))}
         orders={orders}
         onChoose={(placed) => {
@@ -1118,7 +1227,10 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
                           });
                         }}
                         busy={orders.busy}
+                        boats={boatOptions(unit, turn)}
                         offTheLand={
+                          // Not on boats (step 51).
+                          (unit.boats?.length ?? 0) === 0 &&
                           supplySettings.data?.offTheLandNations.includes(unit.unit.nation)
                             ? {
                                 on: livingOffTheLand(unit),

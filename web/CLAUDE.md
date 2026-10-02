@@ -138,6 +138,12 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   mode is `VictorySection` on the edit page); the scoreboard is the API's,
   shown by `ScoreboardPanel` (map and campaign pages) and `HoldingFlags`; the Umpire sets the
   value and holder in the terrain editor (`HolderField`).
+- Boats (step 51, decision 0022) are `features/maps/boats.ts` (who's on boats, free boats in a
+  hex, where a unit can land, where boats are built), mirroring the API's rules. A placed unit
+  carries the boats it's on (`PlacedUnit.boats`, from its position); boats tied to a unit aren't
+  drawn or listed (`tiedBoats`), and a unit on them moves as a "Boat". The drawer's Embark, Land
+  and Build a boat are `OrderActions`' `boats` (`boatOptions` in `MapPage`); the capacity is
+  `BoatSection` on the edit page.
 - Queries that must not be saved for offline use (live status, admin data such as the user list)
   pass `meta: { persist: false }`.
 - Accessibility (WCAG 2.1 AA) is enforced in part by `jsx-a11y`; also give every page a title and

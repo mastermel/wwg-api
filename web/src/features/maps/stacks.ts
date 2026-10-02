@@ -14,6 +14,8 @@ export interface PlacedUnit {
   headingInto?: HeadingInto;
   /** It lived off the land in the turn its position is after (step 48b). */
   livesOffTheLand?: boolean;
+  /** The boats it's on, as of its position (step 51): empty, or missing, ashore. */
+  boats?: readonly string[];
 }
 
 /** Units drawn as one marker: those that would overlap at the current zoom. */

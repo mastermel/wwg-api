@@ -32,6 +32,7 @@ const defaults = [
     HttpResponse.json({ stage: "Setup", openTurn: 0, turns: [], startProblems: [] }),
   ),
   http.get("*/api/campaigns/:id/victory-settings", () => HttpResponse.json({ mode: "Rules" })),
+  http.get("*/api/campaigns/:id/boat-settings", () => HttpResponse.json({ capacity: 14 })),
   http.get("*/api/campaigns/:id/join-code", () =>
     HttpResponse.json({ joinCode: "test-join-code" }),
   ),

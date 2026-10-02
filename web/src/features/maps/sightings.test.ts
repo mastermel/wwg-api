@@ -67,6 +67,11 @@ describe("describeSighting", () => {
     ).toMatch(/, 60 points \(from Prussian I Corps's report\)\.$/);
     expect(describeSighting(sighting({ byUmpire: true }), [prussians])).toMatch(/\(reported\)\.$/);
   });
+
+  it("says when the force was on boats, if the Umpire showed it", () => {
+    expect(describeSighting(sighting({ afloat: true }), [prussians])).toMatch(/, on boats\.$/);
+    expect(describeSighting(sighting({ afloat: false }), [prussians])).not.toMatch(/boats/);
+  });
 });
 
 describe("sightingsFor", () => {
