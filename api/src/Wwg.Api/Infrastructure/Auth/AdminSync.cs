@@ -96,6 +96,15 @@ internal static partial class AdminSync
             }
             else if (!await users.IsInRoleAsync(user, Roles.Admin))
             {
+                // Granted only to an address its owner has confirmed (decision 0023): otherwise
+                // anyone could register a listed address, or change theirs to it, and become
+                // Admin. An Admin already keeps it (accounts from before confirmation).
+                if (!user.EmailConfirmed)
+                {
+                    LogUnconfirmed(logger, email);
+                    continue;
+                }
+
                 // No stamp change: their next refresh (within 30 minutes) picks up the role.
                 await users.AddToRoleAsync(user, Roles.Admin);
                 LogAdded(logger, user.Email);
@@ -117,4 +126,10 @@ internal static partial class AdminSync
         Message = "Admin:Emails lists {Email}, which has no account yet; it gets the role on the next restart after registering"
     )]
     private static partial void LogNotRegistered(ILogger logger, string email);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Admin:Emails lists {Email}, whose account hasn't confirmed its email; it gets the role on the next restart after confirming"
+    )]
+    private static partial void LogUnconfirmed(ILogger logger, string email);
 }

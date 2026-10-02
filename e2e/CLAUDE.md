@@ -17,8 +17,9 @@ npm run lint && npm run typecheck && npm run format:check
   network is pinned so the app trusts Caddy's forwarded headers, as production trusts Traefik.
 - HTTPS is required: WebKit drops the `Secure` refresh cookie over http, even on localhost.
 - Rate limits are raised: every test's users come from one IP.
-- `stack.sh up` registers the Admin (`tests/support/accounts.ts`) and restarts the app, because
-  `Admin:Emails` grants the role at startup. Keep the password in both files in step.
+- `stack.sh up` registers the Admin (`tests/support/accounts.ts`), confirms its email with the
+  welcome's link from Mailpit (curl and jq), and restarts the app, because `Admin:Emails` grants
+  the role at startup, to confirmed addresses only. Keep the password in both files in step.
 
 ## Writing tests
 

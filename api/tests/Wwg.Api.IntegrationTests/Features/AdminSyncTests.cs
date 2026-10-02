@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Wwg.Api.Features.Account;
 using Wwg.Api.Features.Auth;
 using Wwg.Api.IntegrationTests.Support;
@@ -46,10 +47,35 @@ public sealed class AdminSyncTests : ApiTest
         );
     }
 
+    /// <summary>Marks the account's email confirmed, as its welcome's link would.</summary>
+    private Task<int> ConfirmAsync(string email) =>
+        WithDbAsync(async db =>
+        {
+            var user = await db.Users.SingleAsync(
+                u => u.Email == email,
+                TestContext.Current.CancellationToken
+            );
+            user.EmailConfirmed = true;
+            return await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        });
+
+    [Fact]
+    public async Task Startup_ListedButUnconfirmed_IsntMadeAdmin()
+    {
+        (await CreateUserClientAsync("mel@example.com")).Dispose();
+
+        using var restarted = RestartWithAdmins("mel@example.com");
+        using var client = restarted.CreateClient();
+        var me = await SignInAndGetMeAsync(client, "mel@example.com");
+
+        Assert.False(me?.IsAdmin);
+    }
+
     [Fact]
     public async Task Startup_EmailListedInAnyCase_MakesTheExistingAccountAdmin()
     {
         (await CreateUserClientAsync("mel@example.com")).Dispose();
+        await ConfirmAsync("mel@example.com");
 
         using var restarted = RestartWithAdmins(" MEL@Example.com ");
         using var client = restarted.CreateClient();

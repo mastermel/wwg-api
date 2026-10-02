@@ -475,14 +475,16 @@ Identity has two layers:
 
 - **Admin** is an Identity role. Admins pass every campaign permission check.
   - **`Admin:Emails` is the full list of Admins, synced at startup only.** On
-    startup, every existing account whose email is listed gets the Admin
-    role, and every Admin whose email is *not* listed loses it.
-  - Promotion **never** happens at sign-up or on email change. Since emails
-    aren't verified, promoting at sign-up would let anyone who registers a
-    listed address first become Admin.
-  - Operating procedure: **register the account first, then add its email to
-    config and restart.** If someone else had already registered that address,
-    registration fails and you'd know before granting anything.
+    startup, every existing account whose email is listed, and confirmed
+    (decision 0023), gets the Admin role, and every Admin whose email is *not*
+    listed loses it. An Admin from before confirmation keeps the role.
+  - Promotion **never** happens at sign-up or on email change, nor to an
+    unconfirmed address: otherwise anyone who registered a listed address
+    first, or changed theirs to it, would become Admin.
+  - Operating procedure: **register the account and confirm its email first,
+    then add its email to config and restart.** If someone else had already
+    registered that address, registration fails and you'd know before granting
+    anything.
   - There's no endpoint to grant or remove Admin.
 - **Campaign roles** come from the `CampaignMember` row (§5.1), not Identity
   roles.
@@ -2124,7 +2126,8 @@ generated SDK, and the app installs as a PWA and opens offline.
     app's About page.
 21. ✅ **First deploy** to the server behind Traefik, with the SMTP values and
     `ForwardedHeaders__KnownNetworks__0` (the shared network's subnet) filled
-    in. Register the Admin account, then add it to `Admin:Emails` and restart.
+    in. Register the Admin account and confirm its email, then add it to `Admin:Emails` and
+    restart.
 
 > Steps 19–21 were done right after Phase 1 (decision 0006), so Phases 2–3
 > ship to a running deployment.
