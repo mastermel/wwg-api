@@ -75,13 +75,7 @@ internal static class IntelEndpoints
             );
         }
 
-        var rides = await CourierRides.LoadAsync(
-            db,
-            grid,
-            campaignId,
-            [from, to],
-            cancellationToken
-        );
+        var rides = await CourierRides.LoadAsync(db, grid, campaignId, cancellationToken);
         var sightings = request.IncludesSightings
             ? await db
                 .Sightings.Where(s => s.ObservingArmyId == id)

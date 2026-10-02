@@ -11,9 +11,6 @@ namespace Wwg.Api.Features.Intelligence;
 /// </summary>
 internal sealed class CourierRides
 {
-    // Room round the start and the end for a path to go round something.
-    private const int Margin = 4;
-
     private readonly HexGrid _grid;
     private readonly MovementTable _table;
     private readonly PathTerrain _terrain;
@@ -22,32 +19,21 @@ internal sealed class CourierRides
     private CourierRides(HexGrid grid, MovementTable table, PathTerrain terrain) =>
         (_grid, _table, _terrain) = (grid, table, terrain);
 
-    /// <summary>What a ride between these hexes needs: the terrain round them and the table.</summary>
+    /// <summary>
+    /// What a ride needs: the campaign's table, and the terrain of the whole grid, which the
+    /// cheapest way may cross anywhere (a ford round a river's end, say).
+    /// </summary>
     public static async Task<CourierRides> LoadAsync(
         WwgDbContext db,
         HexGrid grid,
         Guid campaignId,
-        IReadOnlyCollection<Hex> hexes,
         CancellationToken cancellationToken
-    )
-    {
-        var (minQ, maxQ) = (hexes.Min(h => h.Q) - Margin, hexes.Max(h => h.Q) + Margin);
-        var (minR, maxR) = (hexes.Min(h => h.R) - Margin, hexes.Max(h => h.R) + Margin);
-        var box = new List<Hex>();
-        for (var q = minQ; q <= maxQ; q++)
-        {
-            for (var r = minR; r <= maxR; r++)
-            {
-                box.Add(new Hex(q, r));
-            }
-        }
-
-        return new CourierRides(
+    ) =>
+        new(
             grid,
             await MovementTable.LoadAsync(db, campaignId, cancellationToken),
-            await PathTerrain.LoadAsync(db, campaignId, box, cancellationToken)
+            await PathTerrain.LoadAllAsync(db, campaignId, cancellationToken)
         );
-    }
 
     /// <summary>The cheapest way from a hex to every hex it reaches, in turns: each step's cost, and the hex before.</summary>
     private Dictionary<Hex, (double Cost, Hex? From)> Costs(Hex start)

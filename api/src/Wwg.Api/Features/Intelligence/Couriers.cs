@@ -108,22 +108,19 @@ internal static class Couriers
 
         var grid = await CampaignMaps.GridAsync(db, campaignId, cancellationToken);
         var (_, next) = await Whereabouts.LoadAsync(db, campaignId, cancellationToken);
+        // Once for every courier: the whole grid's terrain.
+        var rides = grid is null
+            ? null
+            : await CourierRides.LoadAsync(db, grid, campaignId, cancellationToken);
         foreach (var report in reports)
         {
             var courier = new Hex(report.CourierQ, report.CourierR);
             if (
                 !report.ArrivesNext
-                && grid is not null
+                && rides is not null
                 && Ends(next, report.FromArmyId, report.ToArmyId, courier) is var (_, to)
             )
             {
-                var rides = await CourierRides.LoadAsync(
-                    db,
-                    grid,
-                    campaignId,
-                    [courier, to],
-                    cancellationToken
-                );
                 courier = rides.Ride(courier, to);
                 (report.CourierQ, report.CourierR) = (courier.Q, courier.R);
                 report.ArrivesNext = courier.Distance(to) <= 1;

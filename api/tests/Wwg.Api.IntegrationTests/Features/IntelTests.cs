@@ -189,6 +189,53 @@ public sealed class IntelTests : ApiTest
     }
 
     [Fact]
+    public async Task SendReport_ARiverBridgedFarOff_TheCourierRidesRoundByTheBridge()
+    {
+        // 1 km hexes: the river runs the area's whole height, between column 0 and column 1,
+        // bridged only 10 hexes north, well beyond the courier and its ally.
+        var (scenario, ally) = await StartedAsync(new Hex(6, 0), hexSize: 1000);
+        using var _ = scenario;
+        await RiverAsync(scenario, bridgedAt: -10);
+        using var sent = await SendAsync(scenario, Everything(ally));
+        sent.EnsureSuccessStatusCode();
+
+        for (var turn = 0; turn < 8; turn++)
+        {
+            await NextTurnAsync(scenario);
+        }
+
+        Assert.Single(await ReportsAsync(scenario, Role.Player));
+    }
+
+    /// <summary>A river between column 0 and column 1, as far as the grid runs, bridged once.</summary>
+    private static async Task RiverAsync(CampaignScenario scenario, int bridgedAt)
+    {
+        for (var r = -20; r <= 20; r++)
+        {
+            var river = new UpdateHexEdgeRequest(
+                RoadQuality.None,
+                true,
+                r == bridgedAt,
+                Waterway.None
+            );
+            foreach (var side in new[] { "NE", "SE" })
+            {
+                // Outside the grid is refused: the river runs as far as the grid does.
+                using var edge = await scenario
+                    .As(Role.Umpire)
+                    .PutAsJsonAsync(
+                        new Uri(
+                            $"/api/campaigns/{scenario.CampaignId}/grid/edges/0/{r}/{side}",
+                            UriKind.Relative
+                        ),
+                        river,
+                        Token
+                    );
+            }
+        }
+    }
+
+    [Fact]
     public async Task SendReport_ToAnAllyFarOff_RidesATurnAtATime()
     {
         // 1 km hexes: the ally 9 hexes away, more than two turns' ride for light cavalry (4 a turn).

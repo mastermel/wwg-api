@@ -383,4 +383,29 @@ internal sealed class PathTerrain
         ).ToDictionary(e => (new Hex(e.Q, e.R), e.Side));
         return new PathTerrain(cells, edges);
     }
+
+    /// <summary>
+    /// The terrain of the campaign's whole grid: for a search that may go anywhere in it (a
+    /// courier's ride). Only hexes and edges with something on them are stored.
+    /// </summary>
+    public static async Task<PathTerrain> LoadAllAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        CancellationToken cancellationToken
+    )
+    {
+        var cells = await db
+            .HexCells.AsNoTracking()
+            .Where(c => c.CampaignId == campaignId)
+            .ToDictionaryAsync(
+                c => new Hex(c.Q, c.R),
+                c => (c.Terrain, c.Forest),
+                cancellationToken
+            );
+        var edges = await db
+            .HexEdges.AsNoTracking()
+            .Where(e => e.CampaignId == campaignId)
+            .ToDictionaryAsync(e => (new Hex(e.Q, e.R), e.Side), cancellationToken);
+        return new PathTerrain(cells, edges);
+    }
 }
