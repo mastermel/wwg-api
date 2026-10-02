@@ -57,6 +57,9 @@ internal sealed class Sighting : Entity
     /// <summary>Their points, if the strength shown is exact.</summary>
     public int? Points { get; set; }
 
+    /// <summary>Whether they were on boats (decision 0022), if the Umpire showed it.</summary>
+    public bool? Afloat { get; set; }
+
     /// <summary>Added by the Umpire (spies, scouting parties) rather than found by sight.</summary>
     public bool ByUmpire { get; set; }
 

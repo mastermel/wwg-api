@@ -72,6 +72,12 @@ public enum OrderKind
     /// lake onto a shore beside it (the order's position). The boats stay, free, where it was.
     /// </summary>
     Disembark,
+
+    /// <summary>
+    /// Builds (or procures) a boat where it is, in a settlement on a waterway with no enemy there
+    /// (decision 0022): two turns in a row make one, which joins its army as the second closes.
+    /// </summary>
+    BuildBoat,
 }
 
 /// <summary>A unit's order in an army's turn, and so its position after that turn.</summary>

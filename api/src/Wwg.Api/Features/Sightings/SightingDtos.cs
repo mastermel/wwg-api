@@ -10,12 +10,14 @@ namespace Wwg.Api.Features.Sightings;
 /// <param name="Name">Its name.</param>
 /// <param name="Type">Its type.</param>
 /// <param name="Points">Its points.</param>
+/// <param name="Afloat">Whether it's on boats, or a boat tied to a unit on them (decision 0022).</param>
 public sealed record SightedUnitResponse(
     Guid UnitId,
     Guid ArmyId,
     string Name,
     UnitType Type,
-    int Points
+    int Points,
+    bool Afloat
 );
 
 /// <summary>
@@ -46,6 +48,7 @@ public sealed record SightingDueResponse(
 /// <param name="ShowsTypes">Whether they learn each unit's type.</param>
 /// <param name="Strength">Hidden, a rough size, or their points.</param>
 /// <param name="Size">The rough size, when that's what's shown.</param>
+/// <param name="ShowsAfloat">Whether they learn if the force is on boats (decision 0022).</param>
 public sealed record SightingRequest(
     [property: JsonRequired] Guid ObservingArmyId,
     [property: JsonRequired] int Q,
@@ -54,7 +57,8 @@ public sealed record SightingRequest(
     [property: JsonRequired] bool ShowsArmies,
     [property: JsonRequired] bool ShowsTypes,
     [property: JsonRequired, EnumDataType(typeof(SightingStrength))] SightingStrength Strength,
-    [property: EnumDataType(typeof(ForceSize))] ForceSize? Size = null
+    [property: EnumDataType(typeof(ForceSize))] ForceSize? Size = null,
+    bool ShowsAfloat = false
 );
 
 /// <summary>What an army saw of a hex of the other side's units, on a turn (decision 0020).</summary>
@@ -73,6 +77,7 @@ public sealed record SightingRequest(
 /// <param name="Points">The points, if shown exactly.</param>
 /// <param name="ByUmpire">Added by the Umpire (spies, scouting parties).</param>
 /// <param name="SharedByArmyId">The ally whose report brought it, if one did.</param>
+/// <param name="Afloat">Whether the force was on boats, if shown.</param>
 public sealed record SightingResponse(
     Guid Id,
     Guid ObservingArmyId,
@@ -88,5 +93,6 @@ public sealed record SightingResponse(
     ForceSize? Size,
     int? Points,
     bool ByUmpire,
-    Guid? SharedByArmyId
+    Guid? SharedByArmyId,
+    bool? Afloat
 );

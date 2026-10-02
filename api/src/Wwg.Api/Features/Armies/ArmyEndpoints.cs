@@ -198,8 +198,10 @@ internal static class ArmyEndpoints
             var dropped = chosen.Where(f => !factionIds.Contains(f.FactionId)).ToList();
             var droppedIds = dropped.Select(f => f.FactionId).ToList();
             var inUse = await db
-                .ArmyUnits.Where(u => u.ArmyId == id && droppedIds.Contains(u.Unit.FactionId))
-                .Select(u => u.Unit.Faction.Name)
+                .ArmyUnits.Where(u =>
+                    u.ArmyId == id && u.Unit != null && droppedIds.Contains(u.Unit.FactionId)
+                )
+                .Select(u => u.Unit!.Faction.Name) // Only units copied from the library.
                 .Distinct()
                 .ToListAsync(cancellationToken);
             if (inUse.Count > 0)

@@ -28,6 +28,7 @@ const sighting = (changes: Partial<SightingResponse>): SightingResponse => ({
   armyIds: [prussians.id],
   unitTypes: ["LineInfantry", "LineInfantry", "LightCavalry"],
   strength: "Rough",
+  afloat: null,
   size: "Medium",
   points: null,
   byUmpire: false,

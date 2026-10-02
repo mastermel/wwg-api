@@ -146,7 +146,8 @@ public sealed class ArmyUnitTests : ApiTest
                 .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}")
         )!
             .Units[0]
-            .UnitId;
+            .UnitId!
+            .Value; // Copied from the library.
 
         using var response = await LibrarySteps.AddAsync(
             scenario.As(Role.Umpire),
@@ -274,7 +275,8 @@ public sealed class ArmyUnitTests : ApiTest
                 .GetAsAsync<ArmyResponse>($"/api/armies/{scenario.ArmyId}")
         )!
             .Units[0]
-            .UnitId;
+            .UnitId!
+            .Value; // Copied from the library.
         var expected = new ArmyUnitResponse(
             scenario.UnitId,
             scenario.ArmyId,

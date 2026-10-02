@@ -37,7 +37,7 @@ internal static class UnitStats
 
 /// <summary>
 /// A unit in an army: a copy of a library unit, taken when it joined the campaign (decision 0015),
-/// so what happens in the campaign changes only this. Every member sees it; where it is follows
+/// so what happens in the campaign changes only this; or a boat its troops built (decision 0022). Every member sees it; where it is follows
 /// the visibility rule.
 /// </summary>
 internal sealed class ArmyUnit : Entity
@@ -51,10 +51,10 @@ internal sealed class ArmyUnit : Entity
 
     public Campaign Campaign { get; set; } = null!; // Set by EF Core when loaded.
 
-    /// <summary>The library unit it was copied from.</summary>
-    public Guid UnitId { get; set; }
+    /// <summary>The library unit it was copied from; null for a boat built in the campaign.</summary>
+    public Guid? UnitId { get; set; }
 
-    public Unit Unit { get; set; } = null!; // Set by EF Core when loaded.
+    public Unit? Unit { get; set; }
 
     public required string Name { get; set; }
 

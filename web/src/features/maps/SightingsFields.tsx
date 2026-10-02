@@ -75,6 +75,7 @@ export function SightingsFields({ entries, onChange, armies, places }: Sightings
       name: u.unit.name,
       type: u.unit.type,
       points: u.unit.points,
+      afloat: false,
     }));
     onChange([
       ...entries,

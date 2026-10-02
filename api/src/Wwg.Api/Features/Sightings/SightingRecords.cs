@@ -88,6 +88,7 @@ internal static class SightingRecords
             Strength = request.Strength,
             Size = request.Strength == SightingStrength.Rough ? request.Size : null,
             Points = request.Strength == SightingStrength.Exact ? seen.Sum(p => p.Points) : null,
+            Afloat = request.ShowsAfloat ? seen.Any(p => p.Afloat) : null,
             ByUmpire = !found.Contains((request.ObservingArmyId, hex)),
         };
     }

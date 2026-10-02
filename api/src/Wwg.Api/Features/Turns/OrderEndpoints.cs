@@ -222,7 +222,7 @@ internal static class OrderEndpoints
         // A placed unit's campaign has an area.
         var grid = (await CampaignMaps.GridAsync(db, unit.CampaignId, cancellationToken))!;
         var aboard = embarked.Now.GetValueOrDefault(unitId);
-        var move = MoveFor(grid, unit, turn.Number, state, request, byUmpire, aboard);
+        var move = MoveFor(grid, unit, turn, state, request, byUmpire, aboard);
         if (await OrderProblemAsync(db, move, cancellationToken) is { } why)
         {
             return Invalid(why.Field, why.Message);
@@ -591,6 +591,7 @@ internal static class OrderEndpoints
     private sealed record MoveRequest(
         HexGrid Grid,
         Guid CampaignId,
+        Guid ArmyId,
         UnitType Type,
         Nation Nation,
         int Turn,
@@ -643,7 +644,7 @@ internal static class OrderEndpoints
                 : new MovePlan(move.Path.Count == 0 ? move.State.At : move.Path[0], null, null);
         }
 
-        return move.ByUmpire || move.Kind is OrderKind.Hold or OrderKind.Embark
+        return move.ByUmpire || move.Kind is not OrderKind.Move
             ? new MovePlan(move.Path.Count == 0 ? move.State.At : move.Path[^1], null, null)
             : Movement.Plan(
                 movement.Table,
@@ -659,7 +660,7 @@ internal static class OrderEndpoints
     private static MoveRequest MoveFor(
         HexGrid grid,
         OrderedUnit unit,
-        int turn,
+        EditableTurn turn,
         UnitState state,
         GiveOrderRequest request,
         bool byUmpire,
@@ -668,12 +669,13 @@ internal static class OrderEndpoints
         new(
             grid,
             unit.CampaignId,
+            turn.ArmyId,
             unit.Type,
             unit.Nation,
-            turn,
+            turn.Number,
             state,
             request.Kind,
-            request.Kind is OrderKind.Hold or OrderKind.Embark ? [] : request.Path ?? [],
+            request.Kind is OrderKind.Move or OrderKind.Disembark ? request.Path ?? [] : [],
             byUmpire,
             request.ForceMarch && request.Kind == OrderKind.Move,
             request.LivesOffTheLand,
@@ -689,6 +691,7 @@ internal static class OrderEndpoints
                 OrderKind.Hold => "Set to hold.",
                 OrderKind.Embark => "Set to embark.",
                 OrderKind.Disembark => "Set to land.",
+                OrderKind.BuildBoat => "Set to build a boat.",
                 _ when move.ForceMarch => "Set to force march.",
                 _ => "Set to move.",
             }
@@ -750,8 +753,10 @@ internal static class OrderEndpoints
             .Select(u => new OrderedUnit(
                 u.Type,
                 u.Army.CampaignId,
-                // Its faction's nation (step 45), or its army's if the faction has none.
-                u.Unit.Faction.Nation != Nation.None
+                // Its faction's nation (step 45), or its army's if the faction has none (or it
+                // has no faction: a boat built in the campaign).
+                u.Unit != null
+                && u.Unit.Faction.Nation != Nation.None
                     ? u.Unit.Faction.Nation
                     : u.Army.Nation,
                 u.Points
@@ -787,6 +792,21 @@ internal static class OrderEndpoints
         if (BoatProblem(move) is { } boats)
         {
             return boats;
+        }
+
+        if (
+            move.Kind == OrderKind.BuildBoat
+            && await BoatBuilding.SiteProblemAsync(
+                db,
+                move.CampaignId,
+                move.ArmyId,
+                move.State.At,
+                cancellationToken
+            )
+                is { } site
+        )
+        {
+            return ("kind", site);
         }
 
         if (move.ForceMarch && await ForceMarchProblemAsync(db, move, cancellationToken) is { } why)
@@ -825,6 +845,14 @@ internal static class OrderEndpoints
                 "Boats and supply trains don't board boats."
             ),
             { Kind: OrderKind.Disembark, Aboard: null } => ("kind", "It isn't on boats."),
+            { Kind: OrderKind.BuildBoat, Aboard: not null } => (
+                "kind",
+                "Land first: a unit on boats can't build them."
+            ),
+            { Kind: OrderKind.BuildBoat, Type: UnitType.Boat } => (
+                "kind",
+                "Boats don't build boats."
+            ),
             { ForceMarch: true, Aboard: not null } => (
                 "forceMarch",
                 "No forced marches on boats: being carried is rest."
@@ -880,7 +908,7 @@ internal static class OrderEndpoints
         IReadOnlyList<Hex> path
     )
     {
-        if (kind is OrderKind.Hold or OrderKind.Embark)
+        if (kind is OrderKind.Hold or OrderKind.Embark or OrderKind.BuildBoat)
         {
             return null;
         }

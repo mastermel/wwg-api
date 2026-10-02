@@ -50,7 +50,8 @@ internal static class SightingEndpoints
                                 u.ArmyId,
                                 u.Name,
                                 u.Type,
-                                u.Points
+                                u.Points,
+                                u.Afloat
                             )),
                     ]
                 ))
@@ -104,7 +105,8 @@ internal static class SightingEndpoints
                         s.Size,
                         s.Points,
                         s.ByUmpire,
-                        s.SharedByArmyId
+                        s.SharedByArmyId,
+                        s.Afloat
                     );
                 })
                 .ToList()

@@ -320,6 +320,8 @@ internal static class TurnActionEndpoints
         await SupplyData.CloseTurnAsync(db, campaignId, cancellationToken);
         // Couriers (decision 0020) ride a turn on, and some arrive.
         await Couriers.RideAsync(db, campaignId, closing + 1, cancellationToken);
+        // Boats (decision 0022): a second turn of work builds one.
+        await BoatBuilding.CloseTurnAsync(db, campaignId, closing, cancellationToken);
         // Towns and victory points (decision 0021): settlements change hands.
         await Holdings.CloseTurnAsync(db, campaignId, closing, cancellationToken);
         return null;
@@ -617,6 +619,7 @@ internal static class TurnActionEndpoints
                     OrderKind.Hold => ": hold",
                     OrderKind.Embark => ": embark",
                     OrderKind.Disembark => ": land",
+                    OrderKind.BuildBoat => ": build a boat",
                     _ => ": move",
                 }
             )

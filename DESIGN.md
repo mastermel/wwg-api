@@ -2597,9 +2597,11 @@ build on positions.
       marches are (`Embarkation`; each order keeps its `Boats`, and a tied boat's its
       `CarrierId`, written with its unit's; positions give both; `GET` / `PUT
       /api/campaigns/{id}/boat-settings`).
-    - **51b. Building boats (API):** the Build boat order, for a land unit in a settlement hex with
+    - ✅ **51b. Building boats (API):** the Build boat order, for a land unit in a settlement hex with
       a waterway and no enemy: two turns in a row there, and as the second closes, a generic Boat
-      joins its army in the hex; any other order loses the work. A sighting's embarked detail.
+      ("Boat 1", "Boat 2"…; an army unit with no library unit) joins its army in the hex; any
+      other order loses the work (`BoatBuilding`, after couriers as the turn closes). A
+      sighting's embarked detail (`SightingRequest.ShowsAfloat`, `SightingResponse.Afloat`).
     - **51c. In the app:** Embark, Disembark and Build boat in the unit's drawer, with the boats
       needed and free; an embarked unit's marker badged with its boats, its reach by water; the
       boat capacity in the campaign's edit page; the embarked detail in the Umpire's sightings.

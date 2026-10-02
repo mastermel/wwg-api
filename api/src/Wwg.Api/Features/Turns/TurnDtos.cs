@@ -102,8 +102,9 @@ public sealed record PlaceUnitRequest(
 
 /// <summary>A unit's order for the turn.</summary>
 /// <param name="Kind">
-/// Move (along the path), Hold (stay where it is), Embark (board the army's free boats in its hex)
-/// or Disembark (land: in its hex, or with one step, across a river side or onto a lake's shore).
+/// Move (along the path), Hold (stay where it is), Embark (board the army's free boats in its hex),
+/// Disembark (land: in its hex, or with one step, across a river side or onto a lake's shore) or
+/// BuildBoat (work where it is: two turns in a row, in a settlement on a waterway, make a boat).
 /// </param>
 /// <param name="Path">
 /// A Move's steps: the hexes it passes through in order, from next to the unit's hex to where it

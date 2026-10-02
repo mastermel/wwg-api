@@ -153,7 +153,9 @@ internal static class ArmyUnitEndpoints
 
         var ids = units.Select(u => u.Id).ToList();
         var taken = await db
-            .ArmyUnits.Where(u => u.CampaignId == campaignId && ids.Contains(u.UnitId))
+            .ArmyUnits.Where(u =>
+                u.CampaignId == campaignId && u.UnitId != null && ids.Contains(u.UnitId.Value)
+            )
             .Select(u => u.Name)
             .ToListAsync(cancellationToken);
         return taken.Count == 0
@@ -273,9 +275,11 @@ internal static class ArmyUnitProjection
             u.Id,
             u.ArmyId,
             u.UnitId,
-            u.Unit.FactionId,
-            // It marches as its faction's nation (step 45), or its army's if the faction has none.
-            u.Unit.Faction.Nation != Nation.None
+            u.Unit == null ? null : u.Unit.FactionId,
+            // It marches as its faction's nation (step 45), or its army's if the faction has none
+            // (or it has no faction: a boat built in the campaign).
+            u.Unit != null
+            && u.Unit.Faction.Nation != Nation.None
                 ? u.Unit.Faction.Nation
                 : u.Army.Nation,
             u.Name,

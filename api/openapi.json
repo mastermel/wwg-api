@@ -5609,13 +5609,19 @@
             "format": "uuid"
           },
           "unitId": {
-            "type": "string",
-            "description": "The library unit it was copied from.",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The library unit it was copied from; null for a boat built in the campaign.",
             "format": "uuid"
           },
           "factionId": {
-            "type": "string",
-            "description": "That library unit's faction.",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "That library unit's faction; null for a built boat.",
             "format": "uuid"
           },
           "nation": {
@@ -6703,7 +6709,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "description": "Move (along the path), Hold (stay where it is), Embark (board the army's free boats in its hex)\nor Disembark (land: in its hex, or with one step, across a river side or onto a lake's shore).",
+            "description": "Move (along the path), Hold (stay where it is), Embark (board the army's free boats in its hex),\nDisembark (land: in its hex, or with one step, across a river side or onto a lake's shore) or\nBuildBoat (work where it is: two turns in a row, in a settlement on a waterway, make a boat).",
             "$ref": "#/components/schemas/OrderKind"
           },
           "path": {
@@ -7598,7 +7604,8 @@
           "Move",
           "Hold",
           "Embark",
-          "Disembark"
+          "Disembark",
+          "BuildBoat"
         ],
         "description": "What a unit does in a turn."
       },
@@ -8479,7 +8486,8 @@
           "armyId",
           "name",
           "type",
-          "points"
+          "points",
+          "afloat"
         ],
         "type": "object",
         "properties": {
@@ -8505,6 +8513,10 @@
             "type": "integer",
             "description": "Its points.",
             "format": "int32"
+          },
+          "afloat": {
+            "type": "boolean",
+            "description": "Whether it's on boats, or a boat tied to a unit on them (decision 0022)."
           }
         },
         "description": "A unit in a hex another army can see (decision 0020), for the Umpire."
@@ -8606,6 +8618,11 @@
                 "$ref": "#/components/schemas/ForceSize"
               }
             ]
+          },
+          "showsAfloat": {
+            "type": "boolean",
+            "description": "Whether they learn if the force is on boats (decision 0022).",
+            "default": false
           }
         },
         "description": "The Umpire's shaping of one sighting, when starting the next turn (decision 0020)."
@@ -8626,7 +8643,8 @@
           "size",
           "points",
           "byUmpire",
-          "sharedByArmyId"
+          "sharedByArmyId",
+          "afloat"
         ],
         "type": "object",
         "properties": {
@@ -8736,6 +8754,13 @@
             ],
             "description": "The ally whose report brought it, if one did.",
             "format": "uuid"
+          },
+          "afloat": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether the force was on boats, if shown."
           }
         },
         "description": "What an army saw of a hex of the other side's units, on a turn (decision 0020)."

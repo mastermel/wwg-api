@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Armies;
 using Wwg.Api.Features.ArmyUnits;
 using Wwg.Api.Features.Boats;
 using Wwg.Api.Features.Maps;
+using Wwg.Api.Features.Sightings;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.Features.Victory;
 using Wwg.Api.IntegrationTests.Support;
@@ -47,8 +49,14 @@ public sealed class BoatTests : ApiTest
         response.EnsureSuccessStatusCode();
     }
 
-    /// <summary>The river, the unit and <paramref name="boats"/> boats at (0, 0), and turn 1 open.</summary>
-    private async Task<(CampaignScenario Scenario, List<Guid> Boats)> AfloatAsync(int boats = 2)
+    /// <summary>
+    /// The river, the unit and <paramref name="boats"/> boats at (0, 0), anything else
+    /// <paramref name="beforeStart"/> sets up, and turn 1 open.
+    /// </summary>
+    private async Task<(CampaignScenario Scenario, List<Guid> Boats)> AfloatAsync(
+        int boats = 2,
+        Func<CampaignScenario, Task>? beforeStart = null
+    )
     {
         var scenario = await CreateCampaignScenarioAsync();
         await TurnSteps.SetCalendarAsync(scenario);
@@ -79,10 +87,73 @@ public sealed class BoatTests : ApiTest
             ids.Add(boat);
         }
 
+        if (beforeStart is not null)
+        {
+            await beforeStart(scenario);
+        }
+
         using var started = await TurnSteps.StartAsync(scenario);
         started.EnsureSuccessStatusCode();
         return (scenario, ids);
     }
+
+    /// <summary>A town at the hex (by default, the unit's).</summary>
+    private static async Task TownAsync(CampaignScenario scenario, Hex? at = null)
+    {
+        var hex = at ?? Here;
+        using var town = await scenario
+            .As(Role.Umpire)
+            .PutAsJsonAsync(
+                new Uri(
+                    $"/api/campaigns/{scenario.CampaignId}/grid/cells/{hex.Q}/{hex.R}",
+                    UriKind.Relative
+                ),
+                new UpdateHexCellRequest(
+                    Terrain.Flat,
+                    false,
+                    new HexSettlement(
+                        SettlementSize.Town,
+                        false,
+                        false,
+                        CapitalStatus.None,
+                        "Wavre"
+                    )
+                ),
+                Token
+            );
+        town.EnsureSuccessStatusCode();
+    }
+
+    /// <summary>An army of the other side, with no commander, and a brigade at the hex.</summary>
+    private static async Task<Guid> EnemyAsync(CampaignScenario scenario, Hex at)
+    {
+        using var created = await scenario
+            .As(Role.Umpire)
+            .PostAsJsonAsync(
+                new Uri($"/api/campaigns/{scenario.CampaignId}/armies", UriKind.Relative),
+                new CreateArmyRequest("Prussians", null, scenario.OtherSideId),
+                Token
+            );
+        var enemy = (await created.Content.ReadAsAsync<ArmyResponse>())!.Id;
+        var unit = await LibrarySteps.AddUnitAsync(scenario, "Brigade", armyId: enemy);
+        using var placed = await TurnSteps.PlaceAsync(scenario, unit, at);
+        placed.EnsureSuccessStatusCode();
+        return enemy;
+    }
+
+    private static Task<HttpResponseMessage> BuildAsync(CampaignScenario scenario, Guid turnId) =>
+        TurnSteps.OrderAsync(scenario, turnId, new GiveOrderRequest(OrderKind.BuildBoat, null));
+
+    private static async Task<List<ArmyUnitResponse>> BoatsOfAsync(CampaignScenario scenario) =>
+        [
+            .. (
+                await scenario
+                    .As(Role.Umpire)
+                    .GetAsAsync<List<ArmyUnitResponse>>(
+                        $"/api/campaigns/{scenario.CampaignId}/units"
+                    )
+            )!.Where(u => u.Type == UnitType.Boat),
+        ];
 
     /// <summary>The unit embarked in turn 1; turn 2 open.</summary>
     private async Task<(CampaignScenario Scenario, List<Guid> Boats)> AboardAsync(int boats = 2)
@@ -386,6 +457,162 @@ public sealed class BoatTests : ApiTest
         using var given = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Hold, boats[0]);
 
         given.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task StartNextTurn_TheSecondTurnOfWorkInARiverTown_BuildsABoatThere()
+    {
+        var (scenario, _) = await AfloatAsync(boats: 0, beforeStart: s => TownAsync(s));
+        var build = new GiveOrderRequest(OrderKind.BuildBoat, null);
+
+        await TurnAsync(scenario, build);
+        Assert.Empty(await BoatsOfAsync(scenario));
+        await TurnAsync(scenario, build);
+
+        var boat = Assert.Single(await BoatsOfAsync(scenario));
+        Assert.Equal(
+            ("Boat 1", (Guid?)null, scenario.ArmyId),
+            (boat.Name, boat.UnitId, boat.ArmyId)
+        );
+        var positions = await scenario
+            .As(Role.Commander)
+            .GetAsAsync<List<UnitPosition>>($"/api/campaigns/{scenario.CampaignId}/positions");
+        var at = positions!.Single(p => p.UnitId == boat.Id);
+        Assert.Equal(Here, new Hex(at.Q, at.R));
+    }
+
+    [Fact]
+    public async Task StartNextTurn_WorkInterrupted_BuildsNothing()
+    {
+        var (scenario, _) = await AfloatAsync(boats: 0, beforeStart: s => TownAsync(s));
+        var build = new GiveOrderRequest(OrderKind.BuildBoat, null);
+
+        await TurnAsync(scenario, build);
+        await TurnAsync(scenario, TurnSteps.Hold);
+        await TurnAsync(scenario, build);
+
+        Assert.Empty(await BoatsOfAsync(scenario));
+    }
+
+    [Fact]
+    public async Task GiveOrder_BuildBoatOutsideASettlement_IsAValidationError()
+    {
+        var (scenario, _) = await AfloatAsync(boats: 0);
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        using var given = await BuildAsync(scenario, turn.Id);
+
+        await given.AssertValidationProblemAsync("kind");
+    }
+
+    [Fact]
+    public async Task GiveOrder_BuildBoatInATownWithNoWaterway_IsAValidationError()
+    {
+        var (scenario, _) = await AfloatAsync(boats: 0, beforeStart: s => TownAsync(s, South));
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        await TurnAsync(scenario, TurnSteps.Move(South));
+        turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        using var given = await BuildAsync(scenario, turn.Id);
+
+        await given.AssertValidationProblemAsync("kind");
+    }
+
+    [Fact]
+    public async Task GiveOrder_BuildBoatWithTheEnemyInTheTown_IsAValidationError()
+    {
+        var (scenario, _) = await AfloatAsync(
+            boats: 0,
+            beforeStart: async s =>
+            {
+                await TownAsync(s);
+                await EnemyAsync(s, Here);
+            }
+        );
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        using var given = await BuildAsync(scenario, turn.Id);
+
+        await given.AssertValidationProblemAsync("kind");
+    }
+
+    [Fact]
+    public async Task GiveOrder_BuildBoatOnBoats_IsAValidationError()
+    {
+        var (scenario, _) = await AboardAsync();
+        await TownAsync(scenario);
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+
+        using var given = await BuildAsync(scenario, turn.Id);
+
+        await given.AssertValidationProblemAsync("kind");
+    }
+
+    [Fact]
+    public async Task StartNextTurn_ASightingShowingTheBoats_SaysTheForceWasAfloat()
+    {
+        var enemy = Guid.Empty;
+        var (scenario, _) = await AfloatAsync(beforeStart: async s =>
+            enemy = await EnemyAsync(s, new Hex(2, 0))
+        );
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var embarked = await TurnSteps.OrderAsync(scenario, turn.Id, Embark);
+        embarked.EnsureSuccessStatusCode();
+        using var submitted = await TurnSteps.ActAsync(scenario, turn.Id, "submit", Role.Commander);
+        using var approved = await TurnSteps.ActAsync(scenario, turn.Id, "approve", Role.Umpire);
+        approved.EnsureSuccessStatusCode();
+        await HoldEnemyAsync(scenario, enemy);
+
+        using var next = await TurnSteps.StartNextTurnAsync(
+            scenario,
+            request: new(
+                [],
+                [
+                    new SightingRequest(
+                        enemy,
+                        Here.Q,
+                        Here.R,
+                        true,
+                        false,
+                        false,
+                        SightingStrength.Hidden,
+                        ShowsAfloat: true
+                    ),
+                ]
+            )
+        );
+
+        next.EnsureSuccessStatusCode();
+        var seen = await scenario
+            .As(Role.Umpire)
+            .GetAsAsync<List<SightingResponse>>($"/api/campaigns/{scenario.CampaignId}/sightings");
+        Assert.True(Assert.Single(seen!).Afloat);
+    }
+
+    /// <summary>The enemy's units hold, submitted and approved by the Umpire.</summary>
+    private static async Task HoldEnemyAsync(CampaignScenario scenario, Guid enemy)
+    {
+        var umpire = scenario.As(Role.Umpire);
+        var turn = (
+            await umpire.GetAsAsync<List<ArmyTurnDetails>>($"/api/armies/{enemy}/turns")
+        )!.Single(t => t.Open);
+        var units = await umpire.GetAsAsync<List<ArmyUnitResponse>>(
+            $"/api/campaigns/{scenario.CampaignId}/units"
+        );
+        foreach (var unit in units!.Where(u => u.ArmyId == enemy))
+        {
+            using var held = await TurnSteps.OrderAsync(
+                scenario,
+                turn.Id,
+                TurnSteps.Hold,
+                unit.Id,
+                Role.Umpire
+            );
+            held.EnsureSuccessStatusCode();
+        }
+        using var submitted = await TurnSteps.ActAsync(scenario, turn.Id, "submit", Role.Umpire);
+        using var approved = await TurnSteps.ActAsync(scenario, turn.Id, "approve", Role.Umpire);
+        approved.EnsureSuccessStatusCode();
     }
 
     [Fact]

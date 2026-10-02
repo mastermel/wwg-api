@@ -168,6 +168,7 @@ internal static class Couriers
                 Strength = s.Strength,
                 Size = s.Size,
                 Points = s.Points,
+                Afloat = s.Afloat,
                 ByUmpire = s.ByUmpire,
                 SharedByArmyId = s.SharedByArmyId ?? report.FromArmyId,
             })

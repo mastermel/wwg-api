@@ -30,8 +30,8 @@ public sealed record UpdateArmyUnitRequest(
 /// <summary>A unit in an army: the campaign's copy of a library unit.</summary>
 /// <param name="Id">The unit's ID.</param>
 /// <param name="ArmyId">The army it's in.</param>
-/// <param name="UnitId">The library unit it was copied from.</param>
-/// <param name="FactionId">That library unit's faction.</param>
+/// <param name="UnitId">The library unit it was copied from; null for a boat built in the campaign.</param>
+/// <param name="FactionId">That library unit's faction; null for a built boat.</param>
 /// <param name="Nation">The nation it marches as (step 45): its faction's, or its army's when the faction has none.</param>
 /// <param name="Name">Its name.</param>
 /// <param name="Type">What kind of troops it is.</param>
@@ -40,8 +40,8 @@ public sealed record UpdateArmyUnitRequest(
 public sealed record ArmyUnitResponse(
     Guid Id,
     Guid ArmyId,
-    Guid UnitId,
-    Guid FactionId,
+    Guid? UnitId,
+    Guid? FactionId,
     Nation Nation,
     string Name,
     UnitType Type,
