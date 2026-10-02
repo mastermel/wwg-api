@@ -67,8 +67,9 @@ true, because the build launches the app to write the document.
   rules differ (orders, decision 0011), the handler checks `CampaignContext().CanManage`.
   `EndpointConventionTests` fails for any endpoint without one.
 - Campaign endpoints: the `RequireCampaignAccess` filter finds the campaign from the route's `{id}`
-  (a campaign's; an army's with `CampaignRouteId.Army`; an army turn's with
-  `CampaignRouteId.ArmyTurn`). It gives 404 to non-members (Admins pass)
+  (a campaign's; an army's with `CampaignRouteId.Army`; an army unit's with `ArmyUnit`; a side's
+  with `Side`; an army turn's with `ArmyTurn`; a depot's with `Depot`; a report's with `Report`).
+  It gives 404 to non-members (Admins pass)
   and 403 to members without the role, then sets `HttpContext.CampaignContext()` (campaign ID,
   Admin flag, role, member ID) for the handler. Handlers still take `Guid id`, or OpenAPI
   doesn't declare the path parameter. Row-level rules are checked in the handler.

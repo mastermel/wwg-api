@@ -6,7 +6,7 @@ export interface Point {
   longitude: number;
 }
 
-// The mean Earth radius, as the API uses (Geo.cs), so both measure a move the same.
+// The mean Earth radius, as the API's hex grid uses (HexGrid.cs).
 const earthRadius = 6_371_008.8;
 const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
 const toDegrees = (radians: number) => (radians * 180) / Math.PI;

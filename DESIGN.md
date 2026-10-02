@@ -117,7 +117,7 @@ wwg/
 ├── .gitignore
 ├── .dockerignore                # keeps node_modules, bin/obj etc. out of the build context
 ├── .config/dotnet-tools.json    # local tools: CSharpier, Husky.Net, dotnet-ef
-├── .husky/                      # pre-commit hook config (covers api/ and web/)
+├── .husky/                      # pre-commit hook config (covers api/, web/ and e2e/)
 ├── .vscode/extensions.json      # recommended editor extensions
 ├── .github/
 │   ├── workflows/ci.yml         # api, web and e2e jobs; Docker image on main
@@ -148,10 +148,20 @@ wwg/
 │   │       │   ├── Auth/        # register, login, refresh, forgot/reset password
 │   │       │   ├── Account/     # /api/me: profile, email, password
 │   │       │   ├── Admin/       # users, all campaigns, set umpire
-│   │       │   ├── Campaigns/   # campaigns, members, join codes
+│   │       │   ├── Campaigns/   # campaigns, members, join codes, calendar, concentration
 │   │       │   ├── Join/        # join link preview + join
-│   │       │   ├── Armies/
-│   │       │   └── Units/
+│   │       │   ├── Sides/       # the campaign's two sides
+│   │       │   ├── Armies/      # armies, commanders
+│   │       │   ├── ArmyUnits/   # an army's units
+│   │       │   ├── Library/     # the club's factions and units
+│   │       │   ├── Maps/        # map settings, place search, the grid and its terrain, hex details
+│   │       │   ├── Turns/       # turns, orders, placement, movement, marches, attrition, visibility
+│   │       │   ├── Supply/      # depots, supply settings, the supply check
+│   │       │   ├── Sightings/   # sightings
+│   │       │   ├── Intelligence/ # couriers and intelligence reports
+│   │       │   ├── Victory/     # holdings, victory points, scoreboard
+│   │       │   ├── Boats/       # boat settings, building, embarking
+│   │       │   └── Health/      # /health
 │   │       ├── Data/
 │   │       │   ├── WwgDbContext.cs
 │   │       │   ├── Entities/
@@ -184,7 +194,8 @@ A single API project organised by **feature folders**. Splitting into
 concrete reason.
 
 Each feature exposes one `Map{Feature}Endpoints(this IEndpointRouteBuilder)`
-extension, called from `Program.cs`. Handlers are static methods (not inline
+extension, called from `MapApiEndpoints` (`Features/EndpointRouteBuilderExtensions.cs`),
+which `Program.cs` calls once. Handlers are static methods (not inline
 lambdas) so they're readable. Their return types, such as
 `Results<Ok<T>, NotFound, ValidationProblem>`, give the OpenAPI generator exact
 metadata.
@@ -323,8 +334,9 @@ Identity has two layers:
    - Its `/register` request is fixed to email + password. There's no way to
      require first and last name at sign-up.
    - It can't be partly mapped. It always adds 2FA, email-confirmation and
-     `/manage/*` endpoints, and changing email through it requires a
-     confirmation email, which we've chosen not to do.
+     `/manage/*` endpoints, and changing email through it waits for the new
+     address to be confirmed, where ours changes it at once and asks for
+     confirmation after (decision 0023).
    - Its operation names and request shapes aren't ours, which makes the
      generated TypeScript SDK less consistent with the rest of the API.
 
@@ -333,9 +345,9 @@ Identity has two layers:
 
 **Details:**
 
-- **Sign-up:** email, password, first name, last name. No email confirmation.
-  A successful sign-up signs the user in straight away (access token +
-  refresh cookie).
+- **Sign-up:** email, password, first name, last name. A successful sign-up
+  signs the user in straight away (access token + refresh cookie), and queues a
+  **welcome** with a link to confirm the address (decision 0023).
   The Identity `UserName` is kept equal to the email.
 - **Identity options that must change from the defaults:**
   - `User.RequireUniqueEmail = true` (default is `false`).
@@ -436,10 +448,20 @@ Identity has two layers:
   includes **new tokens** so the current session keeps working.
 - **Change email** (logged in): requires the current password. Updates
   `Email` and `UserName` together (with the new security stamp, in one save)
-  and rejects an address already in use (409) or the current one. No
-  confirmation step, which matches sign-up. As a safeguard against account
-  takeover, a **notice is sent to the old address**. Like a password change,
-  it signs out other sessions and returns new tokens.
+  and rejects an address already in use (409) or the current one. The new
+  address is marked unconfirmed and sent a confirmation link. As a safeguard
+  against account takeover, a **notice is sent to the old address**. Like a
+  password change, it signs out other sessions and returns new tokens.
+- **Email confirmation** (decision 0023): the link,
+  `{App:PublicUrl}/confirm-email?user=…&code=…`, opens the app's confirm page,
+  which calls `POST /api/auth/confirm-email { userId, code }` (signed in or
+  not; a bad, expired or superseded code is a `code` error). It lasts
+  `Auth:EmailConfirmationLinkLifetime` (default 7 days), by its own token
+  provider, apart from the reset link's. `POST /api/me/confirmation-email`
+  sends a fresh one (nothing if already confirmed). **Nothing is held back
+  from an unconfirmed account**: it signs in and gets its emails as before,
+  and the app reminds it to confirm (`emailConfirmed` on `GET /api/me`). Only
+  the Admin role needs a confirmed address (§3.5).
 - **Lockout** after repeated failed logins (Identity defaults: 5 attempts, 5
   minutes). Login calls `CheckPasswordSignInAsync(…, lockoutOnFailure:
   true)`, and that's a tested requirement. So do change-email and
@@ -450,12 +472,14 @@ Identity has two layers:
   `LockoutEnd` instead of the fake clock.
 - **Rate limiting** (`AddRateLimiter`), partitioned by client IP. Needs the
   real client IP behind the proxy (§3.10).
-  - `auth` policy: login, register, reset-password (e.g. 10 requests/minute).
+  - `auth` policy: login, register, reset-password, confirm-email, and
+    change-email and change-password (e.g. 10 requests/minute).
   - `refresh` policy: token refresh, far looser (120/minute). Every page load
     and tab refreshes, and club members often share one IP (the same Wi-Fi),
     so the `auth` limit refused them. Refresh needs a valid refresh cookie, so
     there's nothing to guess.
-  - `email` policy: forgot-password (e.g. 3 requests per 15 minutes). This
+  - `email` policy: forgot-password and confirmation-email (e.g. 3 requests
+    per 15 minutes). This
     prevents using us to spam someone's inbox or run up SMTP costs.
   - Rejected requests get **429** Problem Details.
   - Limits are configurable, and set very high in the test factory so they
@@ -495,8 +519,8 @@ Identity has two layers:
     `.RequireCampaignAccess(CampaignAccess.Member)` or
     `.RequireCampaignAccess(CampaignAccess.Umpire)`.
   - A shared **endpoint filter** resolves the campaign from the route's
-    `{id}`: the campaign's own, or an army's or a unit's with one small
-    query. It loads the caller's relationship (Admin / Umpire / Player /
+    `{id}`: the campaign's own, or an army's, an army unit's, a side's, an army
+    turn's, a depot's or a report's with one small query. It loads the caller's relationship (Admin / Umpire / Player /
     none), applies the 404-vs-403 rule (§3.3), and then puts a
     `CampaignContext` (campaign ID, caller's role, member ID) in the request
     for the handler to use.
@@ -521,14 +545,30 @@ Identity has two layers:
 - The production implementation uses **MailKit**. `System.Net.Mail.SmtpClient`
   is discouraged by Microsoft for new code, can't do implicit TLS (port 465),
   and has no OAuth2 support.
-- Emails sent: **password reset link**, **email-changed notice** (to the old
-  address). From Phase 8, the **turn emails**, each to the other side of the
-  action:
-  - an army's turn submitted → the Umpire (submitted by the Umpire, from
-    Phase 9 → the army's commander);
-  - approved, sent back or reverted (with the Umpire's notes) → the army's
-    commander; from Phase 9 these list the orders the Umpire set;
-  - a new turn opened (or the campaign started) → every commander.
+- Emails sent (decision 0023: whoever has something new to do is emailed):
+  - the account's own: **password reset link**, **email-changed notice** (to
+    the old address), **welcome** with a confirm link (on sign-up) and a
+    **confirm link** to a changed address (§3.4);
+  - from Phase 8, the **turn emails**, each to the other side of the action:
+    an army's turn submitted → the Umpire (submitted by the Umpire, from
+    Phase 9 → the army's commander); approved, sent back or reopened
+    (reverted; with the Umpire's notes) → the army's commander, listing the
+    orders the Umpire set (Phase 9);
+  - a **new turn started** (the campaign's first too) → each army's commander,
+    one per army: the turn's number, date and time of day, and what's new for
+    the army as the last turn closed (sightings, units out of supply and depots
+    cut off, attrition, boats built, allies' reports with their notes), or
+    "Nothing new since the last turn" (`TurnNewsBuilder`, `TurnStartedEmails`);
+  - a player **given an army** (at its making, or made its commander) → that
+    player; a **player joined** → the Umpire; **every army submitted** the
+    open turn → the Umpire, with what's waiting as they start the next
+    (sightings to shape, couriers among the enemy, attrition to confirm)
+    (`CampaignEmails`).
+- **Campaign emails can be turned off**, kind by kind, on the account page
+  (`EmailKind`: TurnStarted, TurnReviewed, ArmyGiven, ArmySubmitted,
+  AllSubmitted, PlayerJoined; kept in `AppUser.MutedEmails`, `GET` / `PUT
+  /api/me/email-settings`). Every campaign email checks its recipient
+  (`TurnRecipient.Wants`). The account's own emails always go.
 - Settings are bound from config section `Smtp` and validated at startup:
 
   | Key | Example |
@@ -547,8 +587,9 @@ Identity has two layers:
   - A failed send is tried again after 10 seconds, 1 minute and 5 minutes, then
     given up and logged as an error. A retry waits on its own, so the emails
     behind it still go out.
-  - Emails still queued or waiting to retry are lost if the app stops. They're
-    a reset link or a notice, which the user can ask for again.
+  - Emails still queued or waiting to retry are lost if the app stops. That's
+    accepted: a reset or confirm link can be asked for again, and the campaign
+    emails only point at what the app already shows.
 - **If `Smtp:Host` is empty**, emails are logged instead of sent (with a warning
   at startup). This lets the app run before a real SMTP service is set up.
   Reset links then appear in the log, so configure SMTP before real use.
@@ -1117,9 +1158,12 @@ web/
 - No push notifications, error reporting or analytics in v1.
 
 **Screens, navigation and errors**
-- **URLs:** `/campaigns`, `/campaigns/:id`, `/campaigns/:id/armies/:armyId`,
-  `/join/:code`, `/sign-in`, `/register`, `/forgot-password`,
-  `/reset-password`, `/account`, `/admin/users`, `/admin/users/:id`,
+- **URLs:** `/campaigns`, `/campaigns/new`, `/campaigns/:id`,
+  `/campaigns/:id/edit`, `/campaigns/:id/armies/:armyId`,
+  `/campaigns/:id/map`, `/campaigns/:id/map/settings`,
+  `/campaigns/:id/map/terrain`, `/library`, `/library/:id`, `/join/:code`,
+  `/sign-in`, `/register`, `/forgot-password`, `/reset-password`,
+  `/confirm-email`, `/account`, `/admin/users`, `/admin/users/:id`,
   `/admin/campaigns`, `/about`.
 - Signed out, the app opens on the **sign-in page**, which carries the main
   image. Signed in, it opens on the campaign list.
@@ -1220,8 +1264,8 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   a label with its ground follows the pointer from hex to hex.
 - **The Map page's layout:** on a computer (62em and wider), the map takes the width with the turn
   panel and the legend beside it (340px, as tall as the map, scrolling together; the legend's
-  groups open one at a time), and the other panels flow in columns beneath (two, or three on a
-  wide screen). On a phone or tablet, one column: the map, the turn panel, the other panels, and
+  groups open one at a time), and the other panels flow in columns beneath (two; three from 88em,
+  four from 120em). On a phone or tablet, one column: the map, the turn panel, the other panels, and
   the legend in full.
 - **The legend** samples the unit symbols, the terrain tints, roads, rivers, waterways and
   bridges, towns, cities and fortresses, and the markers, in the current scheme's map colours.
@@ -1261,7 +1305,10 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   `milsymbol` (decision 0009's choice): none of its codes gave the distinct
   types needed, with nothing for skirmishers or horse artillery. A legend on the
   map says what each means. Each unit on the map is a button named for screen
-  readers ("Imperial Guard, Heavy Infantry, Armée du Nord").
+  readers ("Imperial Guard, Line Infantry, Armée du Nord").
+  - Decision 0009 chose `milsymbol` for these; that was reversed when the
+    symbols were built (for the reason above), and the icons have been drawn by
+    `UnitSymbol` since. The reversal has no decision record of its own.
 - **Stacks:** units close together at the current zoom are drawn as one
   **stack** marker with the count and the armies' colours. Tapping it lists the
   units in it; choosing one selects it. The unit list beside the map selects
@@ -1277,9 +1324,10 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
 - `/campaigns/:id/map`: the map, for every member (what's on it follows §5.2).
 - `/campaigns/:id/map/settings` (Umpire, Admin): bounds and place search, the
   layer switches, the label language, the distance unit (km or miles), and the
-  hex size (while setting up; from Phase 11). Phase 11 adds the terrain editor
-  (the inferred terrain of each hex, which the Umpire can change) and the
-  movement table.
+  hex size (while setting up; from Phase 11), and the movement table (step 44).
+- `/campaigns/:id/map/terrain` (Umpire, Admin; from the Map page, step 43a): the terrain
+  editor, its own page: a hex's ground, forest and settlement (with its value and starting
+  holder), its six sides, **Infer terrain**, and rolling a hex's actual terrain.
 - `/library` (step 41; everyone signed in, in the navigation): the club's factions and their
   units; Managers and Admins create, edit and delete them there, and only there. In a campaign,
   **Edit army** selects the army's factions, and **Add units** lists only their units.
@@ -1330,7 +1378,7 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   history lists what the Umpire changed.
 - **Setup (turn 0):** the units not yet placed are listed; the Umpire places
   each one on the map, then presses **Start campaign** (every army needs a
-  faction, and every unit a position). A unit or army added later appears in
+  side, and every unit a position). A unit or army added later appears in
   that list until it's placed; the next turn can't start until then.
 
 **Testing:** MapLibre needs WebGL, which jsdom lacks. Component tests stub the
@@ -1342,7 +1390,7 @@ e2e suite (Chromium) drives the real map.
 | Concern | Approach |
 |---|---|
 | Logging | Built-in `ILogger`. **JSON console logs** in production (`Logging:Console:FormatterName`, UTC timestamps); plain text in development. **One line per API request** (`HttpLogging`: method, path, status, duration; never headers, bodies or query strings); static files and `/health` aren't logged. EF Core's SQL is only logged in development |
-| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Smtp`, `Admin`, `Auth`, `Backup`, `Geocoding`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. Nested objects (each rate limit) need `[ValidateObjectMembers]`, or they aren't checked; lists are checked in `Validate` (`IValidatableObject`), e.g. that every `Admin:Emails` entry is an email. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development |
+| Configuration | `appsettings.{Environment}.json` + env vars; user-secrets in dev. **Every settings section** (`App`, `Database`, `Smtp`, `Admin`, `Auth`, `Backup`, `Geocoding`, `RateLimits`, `ForwardedHeaders`) is a typed options class with DataAnnotations, `ValidateDataAnnotations()` and `ValidateOnStart()`, so bad config fails at startup with a clear message. Nested objects (each rate limit) need `[ValidateObjectMembers]`, or they aren't checked; lists are checked in `Validate` (`IValidatableObject`), e.g. that every `Admin:Emails` entry is an email. `App:PublicUrl` (the app's public URL, e.g. `https://wwg.example.com`) is required outside development. `Database` holds `MigrateOnStartup` (default on) and the connection string, read from the standard `ConnectionStrings:Default` |
 | Health check | `GET /health` (includes a DB check) for Docker and the proxy |
 | Time | `TimeProvider` injected everywhere; faked in tests |
 | Code quality | See §4.1 |
@@ -1402,10 +1450,12 @@ with a comment saying why.
 
 **Pre-commit hook (Husky.Net):**
 
-- Husky.Net is a .NET local tool, so no Node is needed. Its config lives in
-  `.husky/` and is committed.
-- **pre-commit:** runs CSharpier on the staged `.cs` files and re-stages
-  them. It deliberately doesn't build or test; that would make every commit
+- Husky.Net is a .NET local tool, so no Node is needed for the C# task. Its
+  config lives in `.husky/` (`task-runner.json`) and is committed.
+- **pre-commit:** runs CSharpier on the staged `.cs` files, and `eslint --fix`
+  and Prettier on the staged `web/` and `e2e/` files (each from its own folder,
+  failing with "run `npm ci`" if that folder's `node_modules` is missing), and
+  re-stages them. It deliberately doesn't build or test; that would make every commit
   slow, and CI covers it.
   - Caveat: if a file is only *partly* staged, re-staging it also stages the
     rest of that file's changes.
@@ -1479,7 +1529,8 @@ Unit
   Type            (Phase 11, by the rules' movement classes) LineInfantry |
                   FootArtillery | Engineers | LightInfantry | Partisans |
                   LightCavalry | Scouts | MediumCavalry | HeavyCavalry |
-                  HorseArtillery | SupplyTrain | SiegeArtillery
+                  HorseArtillery | SupplyTrain | SiegeArtillery |
+                  Boat (step 44d)
                   (before: HeavyInfantry, now LineInfantry; Skirmishers,
                   now LightInfantry)
   FightingFactor  int 1–9 ("FF" in the app)
@@ -1496,13 +1547,15 @@ Faction                       Army (new fields)
   Name         string (≤100)    Nation       Nation (whose flag it flies; None = plain)
   CreatedAt / UpdatedAt
 
-CampaignMap (one per campaign)         MovementLimit
-  CampaignId     → Campaign (key)        CampaignId  → Campaign
-  West/South/East/North  double (bounds)  UnitType    (as Unit.Type)
-  LabelLanguage  string ("local", "en"…)  Metres      int (per turn)
+CampaignMap (one per campaign)
+  CampaignId     → Campaign (key)
+  West/South/East/North  double (bounds)
+  LabelLanguage  string ("local", "en"…)
   DistanceUnit   Kilometres | Miles
   ShowRoads / ShowPlaces / ShowWater /
   ShowForests / ShowHills / ShowContours  bool
+  (Phase 8's MovementLimit, metres per turn per unit type, was dropped with
+   its table in step 39)
 
 CampaignTurn                   ArmyTurn
   Id           Guid              Id              Guid
@@ -1514,8 +1567,9 @@ CampaignTurn                   ArmyTurn
 UnitOrder                      ArmyTurnEvent (the turn's history)
   Id           Guid              Id           Guid
   ArmyTurnId   → ArmyTurn        ArmyTurnId   → ArmyTurn
-  UnitId       → Unit            Kind         Submitted | Approved | SentBack | Reverted
-  Kind         Move | Hold       At / ByUserId
+  UnitId       → Unit            Kind         Submitted | Approved | SentBack | Reverted |
+  Kind         Move | Hold                    Edited (Phase 9)
+  (step 51 adds three)           At / ByUserId
   Latitude / Longitude  double   Note         string? (≤2000)
   (Hold copies the current
    position, so every turn is    UnitNote
@@ -1542,6 +1596,8 @@ CampaignMap (new fields)          Campaign (new fields)
   HexSize     int (metres across    StartDate      date (the first turn's day)
               the flats; 4828 =     FirstTurnPart  Morning | Afternoon | Night
               3 miles)
+  ShowGrid    bool (the grid layer;
+              on by default, step 40)
                                     UnitOrder (changed)
 HexCell (only hexes with data)        Q / R          int (the hex; replaces
   CampaignId  → Campaign                             Latitude / Longitude)
@@ -1557,9 +1613,9 @@ HexCell (only hexes with data)        Q / R          int (the hex; replaces
   SetByUmpire bool (inference
               leaves it alone)          CampaignId, MovementClass, Ground
                                         (GoodRoad | PoorRoad | Flat | LowHill
-HexEdge (the edge on a hex's N, NE      | HighHill | Mountain), Hexes (per
-or SE side; the others belong to        turn; 0 = can't)
-its neighbours)
+HexEdge (the edge on a hex's N, NE      | HighHill | Mountain | Downstream |
+or SE side; the others belong to        Upstream | Lake: boats' three, step
+its neighbours)                         44d), Hexes (per turn; 0 = can't)
   CampaignId, Q, R, Side  (N | NE | SE)
   Road        None | Poor | Good
   River       bool (along the edge:
@@ -1603,13 +1659,14 @@ page 57; decision 0016)                  HexDetailId → HexDetail
   Umpire can change any of it; members see a detail once it's shown to their army or to all.
 - **Movement classes** (the rules' table, §E.1; hexes per turn):
 
-  | Class | Types | Good road | Poor road | Flat | Low hill | High hill | Mountain |
-  |---|---|:-:|:-:|:-:|:-:|:-:|:-:|
-  | Infantry | Line infantry, Foot artillery, Engineers | 3 | 2 | 2 | 1 | ½ | – |
-  | Light | Light infantry, Partisans | 5 | 4 | 3 | 2 | 1 | ½ |
-  | Light cavalry | Light cavalry, Scouts | 6 | 5 | 4 | 3 | 2 | 1 |
-  | Cavalry | Medium cavalry, Heavy cavalry, Horse artillery | 5 | 4 | 3 | 2 | 1 | – |
-  | Slow | Supply train, Siege artillery | 3 | 2 | 1 | ½ | – | – |
+  | Class | Types | Good road | Poor road | Flat | Low hill | High hill | Mountain | Downstream | Upstream | Lake |
+  |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+  | Infantry | Line infantry, Foot artillery, Engineers | 3 | 2 | 2 | 1 | ½ | – | – | – | – |
+  | Light | Light infantry, Partisans | 5 | 4 | 3 | 2 | 1 | ½ | – | – | – |
+  | Light cavalry | Light cavalry, Scouts | 6 | 5 | 4 | 3 | 2 | 1 | – | – | – |
+  | Cavalry | Medium cavalry, Heavy cavalry, Horse artillery | 5 | 4 | 3 | 2 | 1 | – | – | – | – |
+  | Slow | Supply train, Siege artillery | 3 | 2 | 1 | ½ | – | – | – | – | – |
+  | Boat (step 44d) | Boat | – | – | – | – | – | – | 4 | 2 | 3 |
 
 **Step 41** (decision 0015) makes factions and units the club's, shared by every campaign:
 
@@ -1618,8 +1675,10 @@ Faction (global: a collection)   Unit (global)                ArmyUnit (a unit i
   Id        Guid                   Id           Guid            Id           Guid
   Name      string (≤100)          FactionId    → Faction       CampaignId   → Campaign
   Nation    Nation (its flag;      Name         string (≤100)   ArmyId       → Army
-            None = plain)          Type         (as before)     UnitId       → Unit (the library
-  CreatedAt / UpdatedAt            FightingFactor / Points                    unit it came from)
+            None = plain)          Type         (as before)     UnitId       → Unit? (the library
+  CreatedAt / UpdatedAt            FightingFactor / Points                    unit it came from;
+                                                                              null for a boat
+                                                                              built, step 51b)
                                    CreatedAt / UpdatedAt        Name, Type, FightingFactor,
 Side (was the campaign's                                          Points (copied when it joins;
 Faction; unchanged)                                               the campaign's from then on)
@@ -1637,6 +1696,80 @@ ArmyFaction (the library factions an army takes units from)
   library items.
 - **Manager** is an Identity role beside Admin (§3.5): Managers and Admins edit the library.
   Admins grant and remove it on a user's admin page; it's never granted by config.
+
+**Steps 44–52** (decisions 0017 to 0023) add the rules that build on positions:
+
+```
+Campaign (new fields)
+  MorningNations / AfternoonNations  Nation[]? (whose infantry move a flat hex
+                     further each Morning / less each Afternoon; null = the
+                     rules': France and its allies / Russia and Austria; 45a)
+  InfantryLimitTypes / CavalryLimitTypes  UnitType[]? (counted towards each
+                     concentration limit; null = the usual types; 46b)
+  InfantryLimit / CavalryLimit  int 1–10,000 (a side's points in a hex; 200 / 160)
+  SupplyReach        int 0–3 (hexes from a supply route; 1; 48b)
+  SupplyExemptTypes  UnitType[]? (null = light infantry, partisans, scouts,
+                     light cavalry)
+  OffTheLandNations  Nation[]? (may live off the land; null = France)
+  VictoryPoints      VictoryPointsMode: Rules | Chosen (which settlements count; 50d)
+  BoatCapacity       int 1–100 (points a boat carries; 14; 51a)
+
+AppUser (new field)
+  MutedEmails  EmailKind[] (the campaign emails turned off: TurnStarted |
+               TurnReviewed | ArmyGiven | ArmySubmitted | AllSubmitted |
+               PlayerJoined; 52a)
+
+UnitOrder (new fields)                    ArmyUnit (new fields)
+  Kind        + Embark | Disembark |        AttritionCarry   double 0–1 (a point
+              BuildBoat (51)                                 owed, not yet lost; 47b)
+  ByUmpire    bool (set for the             UnsuppliedTurns  int (turns in a row
+              commander; Phase 9)                            ending out of supply; 48c)
+  ForceMarch  bool (a flat hex further,
+              by day; 47a)                HexCell (new field)
+  LivesOffTheLand  bool (48b)               VictoryPoints  int? (the Umpire's value;
+  Boats       Guid[] (the boats it's on                    null = the rules'; 50a)
+              this turn; 51a)
+  CarrierId   Guid? (a tied boat's: the
+              unit whose order it follows)
+
+Depot (an army's; 48a)             PointsChange (a unit's points history; 47b)
+  ArmyId      → Army                 ArmyUnitId  → ArmyUnit
+  Kind        Main | Intermediate    Turn        int
+  Name        string? (≤100)         Change      int (below 0: lost)
+  Q / R       int                    PointsAfter int
+  CutOffTurns int (an intermediate   Reason      Attrition | Edited
+              one's, from its main   Note        string? (≤200)
+              depots; 48c)           ByUserId    → AppUser? (null once deleted)
+
+Sighting (what an army saw of an enemy hex, for a turn; 49b)
+  ObservingArmyId → Army      Turn  int      Q / R  int     ShowsHex  bool
+  Whereabouts  string (≤200; roughly where, from the army's nearest unit)
+  ArmyIds      Guid[]? / UnitTypes  UnitType[]?   (if shown)
+  Strength     Hidden | Rough | Exact   Size  (Small | Medium | Large)?   Points  int?
+  Afloat       bool? (on boats, if shown; 51b)
+  ByUmpire     bool (added by the Umpire)
+  SharedByArmyId  Guid? (the ally whose report brought it; not a foreign key; 49c)
+
+IntelReport (a report to an ally, by courier; 49c)
+  FromArmyId / ToArmyId  → Army     SentTurn  int     ArrivedTurn  int?
+  Note         string? (≤1000)      Snapshot  string? (JSON: the sender's units as they were)
+  SightingIds  Guid[] (copied to the recipient on arrival)
+  Status       EnRoute | Arrived | Stopped     CourierQ / CourierR  int
+  ArrivesNext  bool (within two turns' ride when sent)
+
+Holding (who holds a settlement; 50a)   HoldingChange (kept for the scoreboard)
+  CampaignId  → Campaign                  CampaignId  → Campaign
+  Q / R       int (unique together)       Turn        int (0 = set up)
+  ArmyId      → Army? (null = no one)     Q / R       int
+                                          FromArmyId / ToArmyId  → Army?
+                                          ByUmpire    bool
+```
+
+- What a sighting or report records is **copied in**, as it was then, so later changes don't
+  rewrite it. Deleting an army deletes its depots, its sightings and the reports it sent or got;
+  a holding or holding change whose army goes is kept, with no one in its place.
+- `UnitOrder.Kind` is now Move | Hold | Embark | Disembark | BuildBoat, and `ArmyTurnEvent.Kind`
+  Submitted | Approved | SentBack | Reverted | Edited.
 
 **Rules enforced in the database:**
 
@@ -1662,8 +1795,7 @@ ArmyFaction (the library factions an army takes units from)
   gets a **409**. EF rebuilds a SQLite table for some migrations, which drops
   its triggers, so a test fails if they're missing.
 - Phase 8: `CampaignTurn (CampaignId, Number)`, `ArmyTurn (CampaignTurnId,
-  ArmyId)` and `UnitOrder (ArmyTurnId, UnitId)` are unique, and
-  `MovementLimit (CampaignId, UnitType)`. A `UnitOrder` **restricts** deleting
+  ArmyId)` and `UnitOrder (ArmyTurnId, UnitId)` are unique. A `UnitOrder` **restricts** deleting
   its unit, and an `ArmyTurn` its army, so no history can be deleted by
   accident (during setup the handler deletes the turn-0 order first).
 - **Cascades:**
@@ -1684,7 +1816,7 @@ ArmyFaction (the library factions an army takes units from)
 - **Phase 8:**
   - At most **8 armies** per campaign.
   - **Start campaign** (closing turn 0, opening turn 1) needs every army to have
-    a faction, and every unit a position.
+    a side (a faction until step 41), and every unit a position.
   - **Start turn N+1** needs every army's turn N to be Completed and every unit
     placed. An army with no commander can't submit, so it holds the campaign up.
   - Turn statuses only move Draft → Submitted (the commander, once every unit
@@ -1770,7 +1902,7 @@ New rows:
 The library (step 41) isn't a campaign's: viewing it is for everyone signed in, and creating,
 editing and deleting factions and units is for **Managers** and Admins (403 for others). Admins
 make users Managers (`PUT /api/admin/users/{id}/manager`).
-| View the map settings (bounds, layers, language, limits) | ✅ | ✅ | ✅ | ✅ | 404 |
+| View the map settings (bounds, layers, language, hex size) | ✅ | ✅ | ✅ | ✅ | 404 |
 | Edit the map settings; search for places | ✅ | ✅ | 403 | 403 | 404 |
 | View turn progress (numbers, statuses, counts) | ✅ | ✅ | ✅ | ✅ | 404 |
 | View **positions and orders** (the visibility rule) | ✅ all | ✅ all | own army | 403 | 404 |
@@ -1778,16 +1910,30 @@ make users Managers (`PUT /api/admin/users/{id}/manager`).
 | Place units (turn 0, and units added later) | ✅ | ✅ | 403 | 403 | 404 |
 | Approve / send back / revert an army's turn | ✅ | ✅ | 403 | 403 | 404 |
 | Start the campaign; start the next turn | ✅ | ✅ | 403 | 403 | 404 |
+| Steps 44–51: view the movement table, calendar, concentration, supply, victory and boat settings | ✅ | ✅ | ✅ | ✅ | 404 |
+| Steps 44–51: change them (movement table: save, or put back to the rules') | ✅ | ✅ | 403 | 403 | 404 |
+| Step 47: view a unit's points history | ✅ | ✅ | ✅ | ✅ | 404 |
+| Step 47: view an army's marches | ✅ | ✅ | own army | 403 | 404 |
+| Step 47: view the attrition due | ✅ | ✅ | 403 | 403 | 404 |
+| Step 48: list depots; view supply (filtered in the handler) | ✅ all | ✅ all | own army's | none (empty) | 404 |
+| Step 48: place, move or remove a depot | ✅ | ✅ | 403 | 403 | 404 |
+| Step 49: list sightings (filtered in the handler; the hex left out where its observers weren't told it) | ✅ all | ✅ all | own army's (its own and those allies' reports brought) | none (empty) | 404 |
+| Step 49: the sightings due; list couriers; stop a courier | ✅ | ✅ | 403 | 403 | 404 |
+| Step 49: send a report to an ally | ✅ | ✅ (for the army) | own army | 403 | 404 |
+| Step 49: list reports (filtered in the handler) | ✅ all | ✅ all | own army's sent (not whether they arrived) and those that reached it | none (empty) | 404 |
+| Step 50: view the scoreboard (filtered in the handler) | ✅ everything | ✅ everything | every side's totals; their side's settlements and changes | every side's totals | 404 |
+| Step 50: set who holds a settlement | ✅ | ✅ | 403 | 403 | 404 |
 
 - **The visibility rule** is one server-side check, "can this user see army
   A's positions in turn N?", that every read of positions or orders goes
-  through (queries apply it too). Today: the Umpire and Admins, and the army's
-  commander. Later, intelligence sharing (allies' positions for a past turn)
-  and scouting (chosen enemy units for a chosen turn) add grants to it.
+  through (queries apply it too): the Umpire and Admins, and the army's
+  commander (`Visibility.VisibleArmyIds`). Intelligence sharing and scouting
+  (step 49) don't widen it: sightings and reports are separate records, each
+  filtered for its viewer in its own handler (above).
 - The Umpire (and Admins) can also give, change and take back any army's orders,
   and submit a Draft for it, in the open turn only (decision 0011): a Draft or a
-  Submitted turn (an approved one is reopened first), inside the area but not
-  held to the movement limit. The commander edits only a Draft.
+  Submitted turn (an approved one is reopened first), inside the grid but not
+  held to a turn's movement (after a warning). The commander edits only a Draft.
 
 - Any signed-in user can create a campaign, and becomes its Umpire.
 - The join link preview is public; anyone with the code can see the campaign
@@ -1807,6 +1953,10 @@ make users Managers (`PUT /api/admin/users/{id}/manager`).
 | List all campaigns (`/api/admin/campaigns`) | ✅ | 403 |
 | Set a campaign's Umpire | ✅ | 403 |
 
+**Account:** every signed-in user views and changes their own email settings (step 52a) and
+asks for a new confirmation email (step 52b); confirming an email (`POST
+/api/auth/confirm-email`) is anonymous, the link's code being the proof.
+
 ### 5.3 Endpoints
 
 **Auth** (anonymous)
@@ -1820,16 +1970,19 @@ make users Managers (`PUT /api/admin/users/{id}/manager`).
 | POST | `/api/auth/masquerade/end` | End a masquerade → the Admin's own tokens (not masquerading: 409) |
 | POST | `/api/auth/forgot-password` | Send reset email (always 204) |
 | POST | `/api/auth/reset-password` | Email + code + new password |
+| POST | `/api/auth/confirm-email` | Confirm an address `{ userId, code }` from the link (signed in or not; 204; bad or expired: 400). Rate-limited (`auth`) |
 
 **Account** (signed in)
 
 | Method | Route | Purpose |
 |---|---|---|
-| GET | `/api/me` | Current user: id, email, names, `isAdmin`, `masquerade` (who, until when) |
+| GET | `/api/me` | Current user: id, email, names, `isAdmin`, `isManager`, `masquerade` (who, until when), `emailConfirmed` |
 | PUT | `/api/me` | Update first/last name |
-| PUT | `/api/me/email` | Change email (needs current password) → new tokens; notice to the old address. Rate-limited (`auth`) |
+| PUT | `/api/me/email` | Change email (needs current password) → new tokens; notice to the old address, confirm link to the new (now unconfirmed). Rate-limited (`auth`) |
 | PUT | `/api/me/password` | Change password (needs current password) → new tokens. Rate-limited (`auth`) |
 | POST | `/api/me/sign-out-everywhere` | Rotate security stamp; all tokens stop working, this session's too (its cookie is cleared) |
+| POST | `/api/me/confirmation-email` | Send a new confirm link (204; nothing if already confirmed). Rate-limited (`email`) |
+| GET / PUT | `/api/me/email-settings` | The campaign emails turned off `{ muted }` (`EmailKind`s) |
 
 **Admin** (Admin only)
 
@@ -1886,10 +2039,10 @@ each step)
 | GET | `/api/campaigns/{id}/places?search=` | Place search for the bounds (Umpire; server-side geocoder, rate-limited) |
 | GET | `/api/campaigns/{id}/turns` | Campaign turns: number, open/closed, each army's status and times, counts; for the Umpire, what stops the start or the next turn |
 | POST | `/api/campaigns/{id}/start` | Start the campaign (close turn 0, open turn 1) |
-| POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander); from step 47b, with the Umpire's confirmed attrition |
+| POST | `/api/campaigns/{id}/turns` | Start the next turn (emails every commander); from step 47b `{ attrition: [{ unitId, points }], sightings? }`: the Umpire's confirmed attrition and, from step 49b, the sightings as shaped |
 | GET | `/api/campaigns/{id}/positions?turn=` | Units' positions, as the caller may see them: now (the default), after a closed turn, or ordered in the open one |
 | GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
-| PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, path? }` (Move: the hexes it passes through, in order) / undo it |
+| PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, path?, forceMarch, livesOffTheLand }` (Move: the hexes it passes through, in order; kinds and flags from steps 47, 48 and 51) / undo it |
 | POST | `/api/army-turns/{id}/submit` | Submit (every unit on the map has an order; emails the Umpire) |
 | POST | `/api/army-turns/{id}/approve` | Approve: Completed (this and the next two email the commander) |
 | POST | `/api/army-turns/{id}/send-back` | Back to Draft `{ note?, unitNotes? }` |
@@ -1919,6 +2072,32 @@ one, as a campaign is made with both)
 | PUT / DELETE | `/api/army-units/{id}` | Edit the campaign's copy / remove it from the army (setup only) |
 | PUT / DELETE | `/api/army-units/{id}/placement` | Replaces `/api/units/{id}/placement` |
 
+**Steps 44–52: the rules on the grid** (decisions 0017 to 0023; access in §5.2)
+
+| Method | Route | Purpose |
+|---|---|---|
+| GET / PUT / DELETE | `/api/campaigns/{id}/movement` | The movement table, every class on every ground, in halves (0: can't) / save the campaign's own `{ rates }` / put back the rules' (204) |
+| GET / PUT | `/api/campaigns/{id}/calendar` | `{ startDate, firstTurnPart, morningNations, afternoonNations }` (step 45a) |
+| GET / PUT | `/api/campaigns/{id}/concentration` | `{ infantryTypes, cavalryTypes, infantryLimit, cavalryLimit }` (step 46b) |
+| GET | `/api/armies/{id}/marches` | Each unit's march count and what moving this turn would cost (step 47a) |
+| GET | `/api/campaigns/{id}/attrition` | The attrition the open turn's orders cost, unit by unit, for the Umpire to confirm (step 47b) |
+| GET | `/api/army-units/{id}/points` | A unit's points history (`PointsChange`s) |
+| GET | `/api/campaigns/{id}/depots` | The depots the viewer may see (step 48a) |
+| POST | `/api/armies/{id}/depots` | Place a depot `{ kind, name, q, r }` (201; outside the grid: 400; no map yet: 409) |
+| PUT / DELETE | `/api/depots/{id}` | Move, rename or change a depot (the same fields) / remove it (204) |
+| GET / PUT | `/api/campaigns/{id}/supply-settings` | `{ reach, exemptTypes, offTheLandNations }` (step 48b) |
+| GET | `/api/campaigns/{id}/supply` | Each unit's supply as the open turn began and by its orders as given, and each intermediate depot's, as the viewer may see (step 48c) |
+| GET | `/api/campaigns/{id}/sightings/due` | The sightings the open turn's orders give, per observing army, possible screens flagged, for the Umpire to shape (step 49a) |
+| GET | `/api/campaigns/{id}/sightings` | The sightings the viewer may see, every turn's, oldest first (step 49b) |
+| POST | `/api/armies/{id}/reports` | Send an ally a report `{ toArmyId, includesSnapshot, includesSightings, note }` (201; not an ally, or nothing to send: 400; not under way, or an army off the map: 409) (step 49c) |
+| GET | `/api/campaigns/{id}/reports` | The reports the viewer may see, newest first |
+| GET | `/api/campaigns/{id}/couriers` | The couriers on their way, flagged where the other side's units are in their hex |
+| POST | `/api/reports/{id}/stop` | Stop a courier (204; not on its way: 409) |
+| PUT | `/api/campaigns/{id}/holdings/{q}/{r}` | Who holds a settlement `{ armyId }` (null: no one; 204; no settlement worth anything there: 404) (step 50a) |
+| GET | `/api/campaigns/{id}/scoreboard` | Each side's total with its armies' parts, the totals after every turn, and the settlements and changes the viewer may see (step 50b) |
+| GET / PUT | `/api/campaigns/{id}/victory-settings` | `{ mode }`: `Rules` or `Chosen` (step 50d) |
+| GET / PUT | `/api/campaigns/{id}/boat-settings` | `{ capacity }`: the points a boat carries, 1–100 (step 51a) |
+
 Status changes that aren't allowed now (submitting a Submitted turn, reverting
 in a closed turn) are **409**s, as is losing a race for the same change; a Move
 out of range or bounds is a validation error on the position. Each change is
@@ -1933,10 +2112,8 @@ None blocking. Items to revisit later:
 - Letting users delete their own account.
 - After Phase 8 (decision 0010): the Umpire editing closed turns, or anything
   about a unit beyond its order (decision 0011 covers orders in the open turn);
-  destroyed units; intelligence sharing and scouting (grants in the visibility
-  rule); per-faction visibility of armies and units; turn deadlines and
-  reminders; turning emails off; the map offline (a self-hosted Protomaps
-  extract); movement along roads.
+  destroyed units; per-faction visibility of armies and units; turn deadlines
+  and reminders; the map offline (a self-hosted Protomaps extract).
 
 ## 7. Implementation plan
 
@@ -2635,4 +2812,7 @@ build on positions.
       Draft, with what's waiting for them (sightings to shape, couriers among the enemy,
       attrition to confirm) (`CampaignEmails`).
 53. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
-    pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.
+    pontoons; earthworks), and the siege clock. Mostly the Umpire's bookkeeping. (Building
+    boats came with step 51.)
+    - Decision 0018 leaves attrition for sieges to "steps 48 and 51"; with the steps as they
+      are now, that means this step.

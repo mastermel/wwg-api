@@ -6,7 +6,8 @@ namespace Wwg.Api.Features.Account;
 
 /// <summary>
 /// Sent to the old address when the email changes, so a takeover (someone else changing it)
-/// doesn't go unnoticed: emails aren't verified, so this is the safeguard.
+/// doesn't go unnoticed: the new address is confirmed only later (decision 0023), so this is the
+/// safeguard meanwhile.
 /// </summary>
 internal static class EmailChangedEmail
 {

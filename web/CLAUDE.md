@@ -77,9 +77,10 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   (`viewLimits`, `playableOutline`), drawn by `PlayableAreaLayer`. The Map page's full screen (a
   computer's) is `useFullScreen`: a fixed layer under drawers and dialogs, and the whole page's
   browser full screen, never the map's (which would hide them).
-  Distances and the range circle come from `geo.ts` (haversine, the same Earth radius as the
-  API's `Geo.cs`); orders in words from `orders.ts`. Ghost moves and the range are
-  `OrderOverlay`, inside the map: sight only, as the turn panel lists the same orders.
+  `geo.ts` holds `Point` and the haversine distance (`distanceMetres`, which measures the view
+  for the game map's zoom rule); orders in words from `orders.ts`. Ghost moves and the reach
+  (the hexes the unit can reach, shaded as hex polygons) are `OrderOverlay`, inside the map:
+  sight only, as the turn panel lists the same orders.
   A commander's turn changes go through `useOrders` (`use-orders.ts`), which also refetches the
   army's turns: they're keyed by the army, so `refreshCampaign` doesn't reach them.
   The hex grid (decision 0014) is `hex-grid.ts`: its arithmetic matches the API's `HexGrid.cs`,
@@ -93,7 +94,7 @@ The pre-commit hook runs `eslint --fix` and Prettier on staged files.
   the browser: `tiles.ts` fetches and decodes them (browser only), `sources.ts` and `infer.ts`
   are plain arithmetic, tested with made-up data. A hex's actual terrain (the rules' p. 57
   roll) is `hex-detail.ts` in words, `HexDetailSection` for the Umpire and `HexDetailsList` on
-  the Map page. The Umpire's
+  the Map page. The Umpire's turn actions
   (approve, send back, reopen, the next turn) go through `useReview` (`use-review.ts`).
 - The library (decision 0015) is `features/library`: every signed-in user views it; edits are
   shown only to `canEditLibrary(user)` (Managers and Admins). `UnitFormModal` (`features/units`)
