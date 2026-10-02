@@ -72,7 +72,9 @@ test("the Umpire draws the area corner to corner, and sees how many hexes it hol
   await clickMap(page, 60, 40);
 
   await expect(page.getByText(/^The outline is the campaign's area/)).toBeVisible();
-  await expect(page.getByText(/^(About )?[\d,]+ hex(es)? in the area\.$/)).toBeVisible();
+  await expect(
+    page.getByText(/^(About )?[\d,]+ hex(es)? in the area: [\d,]+ across by [\d,]+ down\.$/),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Save map settings" }).click();
   await expect(page.getByText("Saved the map settings.")).toBeVisible();
 });

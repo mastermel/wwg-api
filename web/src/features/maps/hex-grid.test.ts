@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import expected from "../../../../testdata/hex-grid.json";
 import { distanceMetres } from "@/features/maps/geo";
-import { hexCount, hexDistance, hexGrid, neighbours } from "@/features/maps/hex-grid";
+import {
+  gridDimensions,
+  hexCount,
+  hexDimensions,
+  hexDistance,
+  hexGrid,
+  neighbours,
+} from "@/features/maps/hex-grid";
 
 describe.each(expected.cases)(
   "the hex grid: $name",
@@ -40,5 +47,20 @@ describe("hexDistance", () => {
     expect(hexDistance({ q: 0, r: 0 }, { q: 0, r: 0 })).toBe(0);
     expect(hexDistance({ q: 0, r: 0 }, { q: 1, r: -1 })).toBe(1);
     expect(hexDistance({ q: -3, r: 4 }, { q: 3, r: -4 })).toBe(8);
+  });
+});
+
+describe("the area's size in hexes", () => {
+  // Waterloo and around, at 3 miles and at 2 km: as laid out, and as estimated.
+  const waterloo = { west: 4.2, south: 50.55, east: 4.7, north: 50.8 };
+
+  it("counts a laid-out grid's columns and the most hexes down one", () => {
+    expect(gridDimensions(hexGrid(waterloo, 4828).hexes())).toEqual({ across: 9, down: 6 });
+    expect(gridDimensions(hexGrid(waterloo, 2000).hexes())).toEqual({ across: 21, down: 14 });
+  });
+
+  it("estimates the same without laying it out", () => {
+    expect(hexDimensions(waterloo, 4828)).toEqual({ across: 9, down: 6 });
+    expect(hexDimensions(waterloo, 2000)).toEqual({ across: 21, down: 14 });
   });
 });

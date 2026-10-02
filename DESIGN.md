@@ -1231,8 +1231,8 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
 - **Bounds:** the Umpire draws the campaign's area as a rectangle on the map
   (**Draw the area**: drag it, or tap one corner and then the opposite one, as
   on a phone), or saves the view as it is (**Use this view**); while the grid's
-  shown, the Hex grid section counts the hexes the area and hex size give, as
-  they change. Everyone's map opens on it (a computer's on the whole area; a
+  shown, the Hex grid section counts the hexes the area and hex size give, and
+  how many across and down, as they change. Everyone's map opens on it (a computer's on the whole area; a
   phone's filled by it, the rest a pan away) and is held around it (MapLibre's
   `maxBounds`: the area and a margin, widened to the map's shape, so zooming out
   shows all of it at any size or shape). The world outside is faded, and the

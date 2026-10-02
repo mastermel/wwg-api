@@ -40,7 +40,13 @@ import { canManage } from "@/features/campaigns/campaign-access";
 import { drawStep, preview as drawnSoFar, type AreaDrawing } from "@/features/maps/area-drawing";
 import { CampaignMap, type MapPointer } from "@/features/maps/CampaignMap";
 import { HexGridLayer } from "@/features/maps/HexGridLayer";
-import { hexCount, hexGrid, maxDrawnHexes } from "@/features/maps/hex-grid";
+import {
+  gridDimensions,
+  hexCount,
+  hexDimensions,
+  hexGrid,
+  maxDrawnHexes,
+} from "@/features/maps/hex-grid";
 import { MovementTableSection } from "@/features/maps/MovementTableSection";
 import { PlaceSearch } from "@/features/maps/PlaceSearch";
 import {
@@ -164,15 +170,13 @@ function SettingsFormView({
   const tooManyHexes = hexes > maxDrawnHexes ? hexes : 0;
   const hexSize = toMetres(hexDistance, distanceUnit);
   // Exactly, while that's quick; beyond, the estimate (which is within a few per cent).
-  const hexesInArea = useMemo(
-    () =>
-      !bounds || hexes === 0
-        ? 0
-        : hexes <= exactHexCountLimit
-          ? hexGrid(bounds, hexSize).hexes().length
-          : hexes,
-    [bounds, hexSize, hexes],
-  );
+  const { hexesInArea, dimensions } = useMemo(() => {
+    if (!bounds || hexes === 0) return { hexesInArea: 0, dimensions: null };
+    if (hexes > exactHexCountLimit)
+      return { hexesInArea: hexes, dimensions: hexDimensions(bounds, hexSize) };
+    const laidOut = hexGrid(bounds, hexSize).hexes();
+    return { hexesInArea: laidOut.length, dimensions: gridDimensions(laidOut) };
+  }, [bounds, hexSize, hexes]);
   const [drawing, setDrawingState] = useState<AreaDrawing>({ phase: "idle" });
   // Pointer events can come faster than the page draws: each builds on the last, not on the
   // state as of the last render.
@@ -411,7 +415,10 @@ function SettingsFormView({
                     <Text size="sm" aria-live="polite">
                       {hexesInArea > exactHexCountLimit ? "About " : ""}
                       {hexesInArea.toLocaleString()} {hexesInArea === 1 ? "hex" : "hexes"} in the
-                      area.
+                      area
+                      {dimensions &&
+                        `: ${dimensions.across.toLocaleString()} across by ${dimensions.down.toLocaleString()} down`}
+                      .
                     </Text>
                   )}
                 </Stack>

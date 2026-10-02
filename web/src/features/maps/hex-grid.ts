@@ -69,6 +69,34 @@ export function hexCount(bounds: MapBounds, size: number) {
   return Math.round((width * height) / ((Math.sqrt(3) / 2) * size * size));
 }
 
+/** An area's size in hexes: its columns, and the hexes down one. */
+export interface HexDimensions {
+  across: number;
+  down: number;
+}
+
+/**
+ * About how many hexes of `size` metres an area is across and down, without laying them out:
+ * flat-topped columns are 1.5 corner-to-centre distances apart, rows a hex's height (`size`),
+ * and a hex is in the grid when its centre is, at either edge too.
+ */
+export function hexDimensions(bounds: MapBounds, size: number): HexDimensions {
+  const lat0 = radians((bounds.south + bounds.north) / 2);
+  const width = earthRadius * Math.cos(lat0) * radians(bounds.east - bounds.west);
+  const height = earthRadius * radians(bounds.north - bounds.south);
+  return {
+    across: Math.floor(width / ((1.5 * size) / Math.sqrt(3))) + 1,
+    down: Math.floor(height / size) + 1,
+  };
+}
+
+/** A laid-out grid's size in hexes: how many columns, and the most hexes in one. */
+export function gridDimensions(hexes: readonly Hex[]): HexDimensions {
+  const columns = new Map<number, number>();
+  for (const { q } of hexes) columns.set(q, (columns.get(q) ?? 0) + 1);
+  return { across: columns.size, down: Math.max(0, ...columns.values()) };
+}
+
 export function hexGrid(bounds: MapBounds, size: number): HexGrid {
   const lat0 = (bounds.south + bounds.north) / 2;
   const lon0 = (bounds.west + bounds.east) / 2;

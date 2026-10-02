@@ -172,11 +172,19 @@ describe("map settings", () => {
     await user.click(await screen.findByRole("button", { name: "Draw the area" }));
     await user.click(screen.getByRole("button", { name: "Drag on the map" }));
 
-    expect(screen.getByText("31 hexes in the area.")).toBeInTheDocument();
+    expect(
+      screen.getByText("31 hexes in the area: 7 across by 5 down.", {
+        normalizer: (t) => t.replace(/\s+/g, " ").trim(),
+      }),
+    ).toBeInTheDocument();
     const size = screen.getByRole("textbox", { name: "Hex size, across the flats" });
     await user.clear(size);
     await user.type(size, "2");
-    expect(await screen.findByText(/^1[,\d]* hexes in the area\.$/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/^1[,\d]* hexes in the area: \d+ across by \d+ down\.$/, {
+        normalizer: (t) => t.replace(/\s+/g, " ").trim(),
+      }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("switch", { name: "Hex grid" }));
     expect(screen.queryByText(/hexes in the area/)).not.toBeInTheDocument();
   });
