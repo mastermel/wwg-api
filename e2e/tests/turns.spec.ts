@@ -51,10 +51,10 @@ test("a commander moves one unit, holds another and submits the turn", async ({ 
   await expect(panel.getByText("Submitted: the Umpire reviews it next.")).toBeVisible();
   await expect(panel.getByRole("button", { name: /Undo/ })).toHaveCount(0);
 
-  // The Umpire hears of it.
-  expect(await latestEmailText(umpire.email)).toContain(
-    "Bob Tester submitted Armée du Nord's orders for turn 1",
-  );
+  // The Umpire hears of it: the only army, so every army has submitted (decision 0023).
+  await expect
+    .poll(() => latestEmailText(umpire.email), { timeout: 15_000 })
+    .toContain("The army has submitted turn 1 of");
 });
 
 test("the Umpire sends a turn back, approves it resubmitted, and starts the next", async ({

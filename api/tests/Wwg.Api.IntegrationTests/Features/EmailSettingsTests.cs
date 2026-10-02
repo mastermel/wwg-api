@@ -70,13 +70,13 @@ public sealed class EmailSettingsTests : ApiTest
             new ReviewTurnRequest("Again, please.", [])
         );
         sentBack.EnsureSuccessStatusCode();
-        await Emails.WaitForEmailToAsync("commander@example.com");
+        await Emails.WaitForEmailToAsync("commander@example.com", "sent back for");
 
         Assert.DoesNotContain(
             Emails.Sent,
             e =>
                 string.Equals(e.ToAddress, "umpire@example.com", StringComparison.OrdinalIgnoreCase)
-                && !e.Subject.StartsWith("Welcome to", StringComparison.Ordinal)
+                && e.Subject.Contains("First Corps submitted turn", StringComparison.Ordinal)
         );
     }
 
@@ -94,8 +94,11 @@ public sealed class EmailSettingsTests : ApiTest
         using var next = await TurnSteps.StartNextTurnAsync(scenario, request: new([], []));
         next.EnsureSuccessStatusCode();
 
-        // Their first email is the new turn's, sent after the approval's would have been.
-        var first = await Emails.WaitForEmailToAsync("commander@example.com");
-        Assert.Contains("has started", first.Subject, StringComparison.Ordinal);
+        // The new turn's email, sent after the approval's would have been.
+        await Emails.WaitForEmailToAsync("commander@example.com", "turn 2 has started");
+        Assert.DoesNotContain(
+            Emails.Sent,
+            e => e.Subject.Contains("approved for", StringComparison.Ordinal)
+        );
     }
 }

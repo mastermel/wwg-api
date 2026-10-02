@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Boats;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Intelligence;
 using Wwg.Api.Features.Sightings;
 using Wwg.Api.Features.Supply;
@@ -99,24 +100,16 @@ internal static class TurnActionEndpoints
             return TypedResults.NoContent();
         }
 
-        foreach (
-            var umpire in (await UmpiresAsync(db, turn.CampaignId, cancellationToken)).Where(u =>
-                u.Wants(EmailKind.ArmySubmitted)
-            )
-        )
-        {
-            await emails.QueueAsync(
-                TurnEmails.Create(
-                    umpire,
-                    $"{turn.Campaign}: {turn.Army} submitted turn {turn.Number}",
-                    $"{by} submitted {turn.Army}'s orders for turn {turn.Number} of {turn.Campaign}.",
-                    "Review them on the map",
-                    map
-                ),
-                cancellationToken
-            );
-        }
+        await EmailSubmittedAsync(db, emails, turn, by, map, cancellationToken);
 
+        // The last army in: the Umpires can start the next turn (decision 0023).
+        await CampaignEmails.AllSubmittedAsync(
+            db,
+            emails,
+            appOptions,
+            turn.CampaignId,
+            cancellationToken
+        );
         return TypedResults.NoContent();
     }
 
@@ -654,6 +647,35 @@ internal static class TurnActionEndpoints
             ),
             cancellationToken
         );
+    }
+
+    /// <summary>Tells the Umpires an army submitted its turn (those who want to know).</summary>
+    private static async Task EmailSubmittedAsync(
+        WwgDbContext db,
+        IEmailQueue emails,
+        TurnInfo turn,
+        string by,
+        Uri map,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (
+            var umpire in (await UmpiresAsync(db, turn.CampaignId, cancellationToken)).Where(u =>
+                u.Wants(EmailKind.ArmySubmitted)
+            )
+        )
+        {
+            await emails.QueueAsync(
+                TurnEmails.Create(
+                    umpire,
+                    $"{turn.Campaign}: {turn.Army} submitted turn {turn.Number}",
+                    $"{by} submitted {turn.Army}'s orders for turn {turn.Number} of {turn.Campaign}.",
+                    "Review them on the map",
+                    map
+                ),
+                cancellationToken
+            );
+        }
     }
 
     private static Task<List<TurnRecipient>> UmpiresAsync(

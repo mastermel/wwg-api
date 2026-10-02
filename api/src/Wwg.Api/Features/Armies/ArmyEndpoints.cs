@@ -1,11 +1,14 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.ArmyUnits;
+using Wwg.Api.Features.Campaigns;
 using Wwg.Api.Features.Turns;
 using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Armies;
 
@@ -82,8 +85,9 @@ internal static class ArmyEndpoints
     }
 
     /// <summary>
-    /// Adds an army, optionally with a commander, side and factions (Umpire or Admin). A campaign has at
-    /// most 8 armies (409). Without a colour it gets the first one no other army has.
+    /// Adds an army, optionally with a commander (who's emailed: decision 0023), side and factions
+    /// (Umpire or Admin). A campaign has at most 8 armies (409). Without a colour it gets the first
+    /// one no other army has.
     /// </summary>
     internal static async Task<
         Results<Created<ArmyResponse>, ValidationProblem, ProblemHttpResult>
@@ -91,6 +95,8 @@ internal static class ArmyEndpoints
         Guid id,
         CreateArmyRequest request,
         WwgDbContext db,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
         CancellationToken cancellationToken
     )
     {
@@ -115,27 +121,20 @@ internal static class ArmyEndpoints
             return invalidChoice;
         }
 
-        if (request.CommanderMemberId is { } memberId)
+        var (invalid, conflict) = await CommanderProblemAsync(
+            db,
+            id,
+            request.CommanderMemberId,
+            cancellationToken
+        );
+        if (invalid is not null)
         {
-            var invalid = await Commanders.ValidateAsync(
-                db,
-                id,
-                memberId,
-                "commanderMemberId",
-                cancellationToken
-            );
-            if (invalid is not null)
-            {
-                return invalid;
-            }
+            return invalid;
+        }
 
-            if (
-                await Commanders.ConflictAsync(db, memberId, null, cancellationToken) is
-                { } conflict
-            )
-            {
-                return conflict;
-            }
+        if (conflict is not null)
+        {
+            return conflict;
         }
 
         var army = NewArmy(id, request, colors);
@@ -145,6 +144,7 @@ internal static class ArmyEndpoints
         );
         await TurnRules.JoinTurnsAsync(db, army, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await CampaignEmails.ArmyGivenAsync(db, emails, appOptions, army.Id, cancellationToken);
 
         return TypedResults.Created(
             $"/api/armies/{army.Id}",
@@ -266,6 +266,34 @@ internal static class ArmyEndpoints
                 }
             );
 
+    /// <summary>Why the member can't command the new army (not a Player, or commanding one), or null.</summary>
+    private static async Task<(
+        ValidationProblem? Invalid,
+        ProblemHttpResult? Conflict
+    )> CommanderProblemAsync(
+        WwgDbContext db,
+        Guid campaignId,
+        Guid? memberId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (memberId is not { } member)
+        {
+            return (null, null);
+        }
+
+        var invalid = await Commanders.ValidateAsync(
+            db,
+            campaignId,
+            member,
+            "commanderMemberId",
+            cancellationToken
+        );
+        return invalid is not null
+            ? (invalid, null)
+            : (null, await Commanders.ConflictAsync(db, member, null, cancellationToken));
+    }
+
     private static ProblemHttpResult TooManyArmies() =>
         TypedResults.Problem(
             statusCode: StatusCodes.Status409Conflict,
@@ -321,8 +349,8 @@ internal static class ArmyEndpoints
     }
 
     /// <summary>
-    /// Makes a Player the army's commander, replacing any other (Umpire or Admin). A Player
-    /// commands at most one army: 409 if they already command another.
+    /// Makes a Player the army's commander, replacing any other (Umpire or Admin), and emails them
+    /// (decision 0023). A Player commands at most one army: 409 if they already command another.
     /// </summary>
     internal static async Task<
         Results<Ok<ArmyResponse>, ValidationProblem, ProblemHttpResult>
@@ -330,6 +358,8 @@ internal static class ArmyEndpoints
         Guid id,
         AssignCommanderRequest request,
         WwgDbContext db,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
         CancellationToken cancellationToken
     )
     {
@@ -354,8 +384,13 @@ internal static class ArmyEndpoints
             return conflict;
         }
 
+        var given = army.CommanderId != request.MemberId;
         army.CommanderId = request.MemberId;
         await db.SaveChangesAsync(cancellationToken);
+        if (given)
+        {
+            await CampaignEmails.ArmyGivenAsync(db, emails, appOptions, id, cancellationToken);
+        }
         return TypedResults.Ok(await LoadAsync(db, id, cancellationToken));
     }
 

@@ -33,6 +33,7 @@ internal static class TurnEmails
     /// <param name="note">The Umpire's note on the turn, if any.</param>
     /// <param name="unitNotes">The Umpire's notes on units, by unit name.</param>
     /// <param name="umpireOrders">The orders the Umpire set for the commander ("Name: move").</param>
+    /// <param name="waiting">What's waiting for the Umpire as they start the next turn.</param>
     public static EmailMessage Create(
         TurnRecipient to,
         string subject,
@@ -41,7 +42,8 @@ internal static class TurnEmails
         Uri map,
         string? note = null,
         IReadOnlyList<(string ArmyUnit, string Text)>? unitNotes = null,
-        IReadOnlyList<string>? umpireOrders = null
+        IReadOnlyList<string>? umpireOrders = null,
+        IReadOnlyList<string>? waiting = null
     )
     {
         var html = new StringBuilder();
@@ -75,16 +77,12 @@ internal static class TurnEmails
 
         if (umpireOrders is { Count: > 0 })
         {
-            html.Append("<p>Orders the Umpire set:</p>\n<ul>\n");
-            text.Append("Orders the Umpire set:\n");
-            foreach (var order in umpireOrders)
-            {
-                html.Append(CultureInfo.InvariantCulture, $"<li>{Encode(order)}</li>\n");
-                text.Append(CultureInfo.InvariantCulture, $"- {order}\n");
-            }
+            AppendList(html, text, "Orders the Umpire set:", umpireOrders);
+        }
 
-            html.Append("</ul>\n");
-            text.Append('\n');
+        if (waiting is not null)
+        {
+            AppendWaiting(html, text, waiting);
         }
 
         html.Append(
@@ -100,6 +98,42 @@ internal static class TurnEmails
             HtmlBody: html.ToString(),
             TextBody: text.ToString()
         );
+    }
+
+    /// <summary>What's waiting for the Umpire, or that nothing is.</summary>
+    private static void AppendWaiting(
+        StringBuilder html,
+        StringBuilder text,
+        IReadOnlyList<string> waiting
+    )
+    {
+        if (waiting.Count == 0)
+        {
+            html.Append("<p>Nothing else is waiting for you as you start the next turn.</p>\n");
+            text.Append("Nothing else is waiting for you as you start the next turn.\n\n");
+            return;
+        }
+
+        AppendList(html, text, "Waiting for you as you start the next turn:", waiting);
+    }
+
+    private static void AppendList(
+        StringBuilder html,
+        StringBuilder text,
+        string heading,
+        IReadOnlyList<string> items
+    )
+    {
+        html.Append(CultureInfo.InvariantCulture, $"<p>{Encode(heading)}</p>\n<ul>\n");
+        text.Append(CultureInfo.InvariantCulture, $"{heading}\n");
+        foreach (var item in items)
+        {
+            html.Append(CultureInfo.InvariantCulture, $"<li>{Encode(item)}</li>\n");
+            text.Append(CultureInfo.InvariantCulture, $"- {item}\n");
+        }
+
+        html.Append("</ul>\n");
+        text.Append('\n');
     }
 
     private static string Encode(string value) => HtmlEncoder.Default.Encode(value);

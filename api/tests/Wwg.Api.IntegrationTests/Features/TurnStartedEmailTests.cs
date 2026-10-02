@@ -15,7 +15,7 @@ public sealed class TurnStartedEmailTests : ApiTest
 
         await TurnSteps.StartedAsync(scenario);
 
-        var email = await Emails.WaitForEmailToAsync("commander@example.com");
+        var email = await Emails.WaitForEmailToAsync("commander@example.com", "has started");
         Assert.Equal(
             "The Peninsular War: turn 1 has started (16 June 1815, Afternoon)",
             email.Subject
@@ -66,7 +66,7 @@ public sealed class TurnStartedEmailTests : ApiTest
         await TurnSteps.PlayAsync(scenario, "hold");
 
         // The Umpire's own, of the submitting, went after the first turn's would have.
-        await Emails.WaitForEmailToAsync("umpire@example.com");
+        await Emails.WaitForEmailToAsync("umpire@example.com", "submitted turn 1");
         Assert.DoesNotContain(
             Emails.Sent,
             e => e.Subject.Contains("has started", StringComparison.Ordinal)

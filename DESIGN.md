@@ -2627,8 +2627,9 @@ build on positions.
       (sightings, supply, attrition, boats built, allies' reports with their messages), or
       "Nothing new" (`TurnNewsBuilder`, from what the closing turn saved; `TurnStartedEmails`,
       from starting the campaign and each next turn).
-    - **52d. More emails:** a player given an army; the Umpires when a player joins, and when
-      every army has submitted, with what's waiting for them (sightings to shape, couriers among
-      the enemy, attrition to confirm).
+    - ✅ **52d. More emails:** a player given an army (at its making, or made its commander);
+      the Umpires when a player joins, and when a commander's submitting leaves no army's turn a
+      Draft, with what's waiting for them (sightings to shape, couriers among the enemy,
+      attrition to confirm) (`CampaignEmails`).
 53. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.

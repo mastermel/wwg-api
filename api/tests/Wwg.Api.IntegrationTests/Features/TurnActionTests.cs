@@ -135,7 +135,7 @@ public sealed class TurnActionTests : ApiTest
             (ArmyTurnEventKind.Submitted, "Test User"),
             (submitted.Kind, submitted.ByName)
         );
-        var email = await Emails.WaitForEmailToAsync("umpire@example.com");
+        var email = await Emails.WaitForEmailToAsync("umpire@example.com", "submitted turn 1");
         Assert.Equal("The Peninsular War: First Corps submitted turn 1", email.Subject);
         Assert.Contains(
             $"/campaigns/{scenario.CampaignId}/map",

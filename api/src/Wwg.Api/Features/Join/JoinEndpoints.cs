@@ -1,9 +1,13 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wwg.Api.Data;
 using Wwg.Api.Data.Entities;
+using Wwg.Api.Features.Campaigns;
+using Wwg.Api.Infrastructure;
 using Wwg.Api.Infrastructure.Auth;
+using Wwg.Api.Infrastructure.Email;
 
 namespace Wwg.Api.Features.Join;
 
@@ -39,8 +43,8 @@ internal static class JoinEndpoints
     }
 
     /// <summary>
-    /// Joins the campaign as a Player: 201. Already a member (including its Umpire): 200 with the
-    /// existing role, and nothing changes.
+    /// Joins the campaign as a Player: 201, and its Umpires are emailed (decision 0023). Already a
+    /// member (including its Umpire): 200 with the existing role, and nothing changes.
     /// </summary>
     internal static async Task<
         Results<Created<JoinCampaignResponse>, Ok<JoinCampaignResponse>, ProblemHttpResult>
@@ -48,6 +52,8 @@ internal static class JoinEndpoints
         string code,
         ClaimsPrincipal principal,
         WwgDbContext db,
+        IEmailQueue emails,
+        IOptions<AppOptions> appOptions,
         CancellationToken cancellationToken
     )
     {
@@ -84,6 +90,14 @@ internal static class JoinEndpoints
             }
         );
         await db.SaveChangesAsync(cancellationToken);
+        await CampaignEmails.PlayerJoinedAsync(
+            db,
+            emails,
+            appOptions,
+            campaign.Id,
+            userId,
+            cancellationToken
+        );
         return TypedResults.Created(
             $"/api/campaigns/{campaign.Id}",
             new JoinCampaignResponse(campaign.Id, CampaignRole.Player)

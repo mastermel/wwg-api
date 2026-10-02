@@ -2460,7 +2460,7 @@
         "tags": [
           "Join"
         ],
-        "summary": "Joins the campaign as a Player: 201. Already a member (including its Umpire): 200 with the\nexisting role, and nothing changes.",
+        "summary": "Joins the campaign as a Player: 201, and its Umpires are emailed (decision 0023). Already a\nmember (including its Umpire): 200 with the existing role, and nothing changes.",
         "operationId": "JoinCampaign",
         "parameters": [
           {
@@ -2641,7 +2641,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Adds an army, optionally with a commander, side and factions (Umpire or Admin). A campaign has at\nmost 8 armies (409). Without a colour it gets the first one no other army has.",
+        "summary": "Adds an army, optionally with a commander (who's emailed: decision 0023), side and factions\n(Umpire or Admin). A campaign has at most 8 armies (409). Without a colour it gets the first\none no other army has.",
         "operationId": "CreateArmy",
         "parameters": [
           {
@@ -2838,7 +2838,7 @@
         "tags": [
           "Armies"
         ],
-        "summary": "Makes a Player the army's commander, replacing any other (Umpire or Admin). A Player\ncommands at most one army: 409 if they already command another.",
+        "summary": "Makes a Player the army's commander, replacing any other (Umpire or Admin), and emails them\n(decision 0023). A Player commands at most one army: 409 if they already command another.",
         "operationId": "AssignCommander",
         "parameters": [
           {
