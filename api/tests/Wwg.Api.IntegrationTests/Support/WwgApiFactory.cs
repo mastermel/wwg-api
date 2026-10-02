@@ -23,6 +23,13 @@ public sealed class WwgApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _database;
 
+    static WwgApiFactory()
+    {
+        // Each app would watch its config files for changes, and a run's thousand-odd apps pass
+        // Linux's default limit of 1024 file watchers: the rest fail to start. They never change.
+        Environment.SetEnvironmentVariable("DOTNET_hostBuilder__reloadConfigOnChange", "false");
+    }
+
     public WwgApiFactory()
     {
         ConnectionString =
