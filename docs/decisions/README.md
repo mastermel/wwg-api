@@ -63,3 +63,4 @@ A reversal gets a new entry.
 | [0020](0020-sightings-and-couriers.md) | Sightings the Umpire shapes, and intelligence by courier between allies | 2026-10-01 |
 | [0021](0021-towns-and-victory-points.md) | Towns and victory points, held by armies | 2026-10-01 |
 | [0022](0022-boats-carry-units.md) | Units embark on boats, which go with them; boats are built in river towns | 2026-10-01 |
+| [0023](0023-email-notifications.md) | Email notifications: whenever there's something to do, each one a user can turn off | 2026-10-02 |

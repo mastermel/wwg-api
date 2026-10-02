@@ -2610,5 +2610,21 @@ build on positions.
       warned in the drawer of more points than its boats carry; the boat capacity on the
       campaign's edit page; the embarked detail in the Umpire's sightings (`boats.ts`,
       `BoatSection`).
-52. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
+52. **Email notifications** (decision 0023), in parts:
+    - **52a. Turning emails off:** each campaign email has a kind (turn started, your turn
+      reviewed, army given, army submitted, every army submitted, player joined); a user's
+      turned-off kinds are kept on their account (`GET` / `PUT /api/account/email-settings`) and
+      honoured by every campaign email; the account page's **Email notifications** section.
+    - **52b. Welcome and confirmation:** registering emails a welcome with a link to confirm the
+      address; changing it sends one to the new address (`POST /api/auth/confirm-email`, `POST
+      /api/account/confirmation-email` to send it again); the app's confirm page, and a reminder
+      for an unconfirmed account with the link sent again on request.
+    - **52c. The new turn's email:** to each army's commander, the campaign's first turn too: the
+      turn's number, date and time of day, and what's new for the army as the last turn closed
+      (sightings, supply, attrition, boats built, allies' reports with their messages), or
+      "Nothing new".
+    - **52d. More emails:** a player given an army; the Umpires when a player joins, and when
+      every army has submitted, with what's waiting for them (sightings to shape, couriers among
+      the enemy, attrition to confirm).
+53. **Engineering and sieges:** orders that take turns (destroy, repair or build bridges and
     pontoons; boats; earthworks), and the siege clock. Mostly the Umpire's bookkeeping.
