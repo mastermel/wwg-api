@@ -32,8 +32,8 @@ export function SendReportModal({ campaignId, from, armies, onClose }: SendRepor
   const sender = armies.find((a) => a.id === fromId);
   const allies = armies.filter((a) => a.side.id === sender?.side.id && a.id !== sender.id);
   const [toId, setToId] = useState<string | null>(allies[0]?.id ?? null);
-  const [snapshot, setSnapshot] = useState(true);
-  const [sightings, setSightings] = useState(true);
+  const [snapshot, setSnapshot] = useState(false);
+  const [sightings, setSightings] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const empty = !snapshot && !sightings && note.trim() === "";
