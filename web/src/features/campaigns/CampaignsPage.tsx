@@ -64,9 +64,13 @@ export function CampaignsPage({ page = 1 }: { page?: number }) {
                         size="lg"
                         underline="never"
                         className={classes.link}
-                        renderRoot={(props) => (
-                          <Link to="/campaigns/$id" params={{ id: campaign.id }} {...props} />
-                        )}
+                        renderRoot={(props) =>
+                          campaign.started ? (
+                            <Link to="/campaigns/$id/map" params={{ id: campaign.id }} {...props} />
+                          ) : (
+                            <Link to="/campaigns/$id" params={{ id: campaign.id }} {...props} />
+                          )
+                        }
                       >
                         {campaign.name}
                       </Anchor>

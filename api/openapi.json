@@ -6195,7 +6195,8 @@
           "name",
           "myRole",
           "umpireName",
-          "playerCount"
+          "playerCount",
+          "started"
         ],
         "type": "object",
         "properties": {
@@ -6249,6 +6250,10 @@
             "description": "Each intermediate depot's."
           }
         },
+          },
+          "started": {
+            "type": "boolean",
+            "description": "Whether it has started (it is on turn 1 or beyond)."
         "description": "The supply the viewer may see: their army's (the Umpire's, every army's)."
       },
       "CampaignSupplySettingsResponse": {

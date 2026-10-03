@@ -22,12 +22,14 @@ public sealed record UpdateCampaignRequest(
 /// <param name="MyRole">The caller's role in it.</param>
 /// <param name="UmpireName">The Umpire's name, or null if it has none.</param>
 /// <param name="PlayerCount">How many Players it has.</param>
+/// <param name="Started">Whether it has started (it is on turn 1 or beyond).</param>
 public sealed record CampaignSummary(
     Guid Id,
     string Name,
     CampaignRole MyRole,
     string? UmpireName,
-    int PlayerCount
+    int PlayerCount,
+    bool Started
 );
 
 /// <summary>The campaign's Umpire.</summary>

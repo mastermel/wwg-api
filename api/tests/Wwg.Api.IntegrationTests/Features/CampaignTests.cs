@@ -153,6 +153,20 @@ public sealed class CampaignTests : ApiTest
     }
 
     [Fact]
+    public async Task ListMyCampaigns_FlagsACampaignOnceItHasStarted()
+    {
+        using var scenario = await CreateCampaignScenarioAsync();
+        var umpire = scenario.As(Role.Umpire);
+
+        var before = await umpire.GetAsAsync<PagedResponse<CampaignSummary>>("/api/campaigns");
+        await TurnSteps.StartedAsync(scenario);
+        var after = await umpire.GetAsAsync<PagedResponse<CampaignSummary>>("/api/campaigns");
+
+        Assert.False(Assert.Single(before!.Items).Started);
+        Assert.True(Assert.Single(after!.Items).Started);
+    }
+
+    [Fact]
     public async Task ListMyCampaigns_SortsByNameIgnoringCase()
     {
         using var client = await CreateUserClientAsync();

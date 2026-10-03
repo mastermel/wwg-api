@@ -39,6 +39,7 @@ describe("campaigns", () => {
       myRole: "Player",
       umpireName: "Ada Admin",
       playerCount: 3,
+      started: false,
     };
     server.use(
       http.get("*/api/campaigns", () =>
@@ -56,6 +57,29 @@ describe("campaigns", () => {
     expect(within(card).getByText("3 players")).toBeInTheDocument();
   });
 
+  it.each([
+    [false, `/campaigns/${campaignId}`],
+    [true, `/campaigns/${campaignId}/map`],
+  ])("links a campaign (started: %s) to %s", async (started, href) => {
+    const summary: CampaignSummary = {
+      id: campaignId,
+      name: "The Peninsular War",
+      myRole: "Player",
+      umpireName: "Ada Admin",
+      playerCount: 3,
+      started,
+    };
+    server.use(
+      http.get("*/api/campaigns", () =>
+        HttpResponse.json({ items: [summary], page: 1, pageSize: 25, totalCount: 1 }),
+      ),
+    );
+    await renderApp("/campaigns");
+
+    const link = await screen.findByRole("link", { name: "The Peninsular War" });
+    expect(link).toHaveAttribute("href", href);
+  });
+
   it("pages through a long list", async () => {
     const pages: string[] = [];
     server.use(
@@ -68,6 +92,7 @@ describe("campaigns", () => {
           myRole: "Player",
           umpireName: "Ada Admin",
           playerCount: 1,
+          started: false,
         };
         return HttpResponse.json({
           items: [summary],

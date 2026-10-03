@@ -59,7 +59,8 @@ internal static class CampaignEndpoints
                 m.Campaign.Members.Where(u => u.Role == CampaignRole.Umpire)
                     .Select(u => u.User.FirstName + " " + u.User.LastName)
                     .FirstOrDefault(),
-                m.Campaign.Members.Count(p => p.Role == CampaignRole.Player)
+                m.Campaign.Members.Count(p => p.Role == CampaignRole.Player),
+                db.CampaignTurns.Any(t => t.CampaignId == m.CampaignId && t.Number >= 1)
             ))
             .ToPagedAsync(page, pageSize, cancellationToken);
         return TypedResults.Ok(result);
