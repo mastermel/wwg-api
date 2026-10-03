@@ -3,11 +3,11 @@ import { useDisclosure } from "@mantine/hooks";
 import { IconArrowBackUp, IconMoon, IconSend } from "@tabler/icons-react";
 import { useState } from "react";
 import type { ArmyTurnDetails, ArmyTurnStatus, CampaignTurnSummary } from "@/api/generated/model";
-import { ConfirmModal } from "@/components/ConfirmModal";
 import { Section } from "@/components/Section";
 import { ArmyBadge } from "@/features/armies/identity/ArmyBadge";
 import { armyColorVar } from "@/features/armies/identity/army-colors";
 import { describeOrder } from "@/features/maps/orders";
+import { SubmitTurnModal } from "@/features/maps/SubmitTurnModal";
 import type { PlacedUnit } from "@/features/maps/stacks";
 import { reviewOf, type OpenArmyTurn, type useOrders } from "@/features/maps/use-orders";
 import { UnitSymbol } from "@/features/units/UnitSymbol";
@@ -44,6 +44,7 @@ interface TurnPanelProps {
 export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPanelProps) {
   const [submitting, setSubmitting] = useState<OpenArmyTurn | null>(null);
   const [confirming, { open: ask, close }] = useDisclosure(false);
+  const [note, setNote] = useState("");
 
   return (
     <Section
@@ -80,13 +81,12 @@ export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPane
           ) : null,
         )}
       </Stack>
-      <ConfirmModal
+      <SubmitTurnModal
         opened={confirming}
         onClose={close}
-        title="Submit this turn?"
-        confirmLabel="Submit"
-        color="navy"
         loading={orders.busy}
+        note={note}
+        setNote={setNote}
         onConfirm={() => {
           const turn = submitting?.turn;
           if (submitting && turn) {
@@ -96,7 +96,7 @@ export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPane
       >
         The Umpire reviews {submitting?.army.name}&apos;s orders next. They can&apos;t be changed
         once submitted, unless the Umpire sends them back.
-      </ConfirmModal>
+      </SubmitTurnModal>
     </Section>
   );
 }

@@ -11,6 +11,7 @@ import {
   IconMinimize,
   IconMountain,
   IconSettings,
+  IconSwords,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -174,6 +175,14 @@ export function MapPage({ campaignId }: { campaignId: string }) {
       Terrain
     </LinkButton>
   );
+  const campaignPageButton = (
+    <LinkButton
+      leftSection={<IconSwords size={16} aria-hidden />}
+      renderLink={(props) => <Link to="/campaigns/$id" params={{ id: campaignId }} {...props} />}
+    >
+      Campaign
+    </LinkButton>
+  );
 
   return (
     <Page
@@ -182,6 +191,7 @@ export function MapPage({ campaignId }: { campaignId: string }) {
       actions={
         manager && (
           <Group gap="xs">
+            {campaignPageButton}
             {map.data?.bounds && terrainButton}
             {settingsButton}
           </Group>
@@ -1077,6 +1087,29 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           armyIds={(manager ? (armies.data ?? []) : myArmies).map((a) => a.id)}
         />
       )}
+      {running && !manager && myArmies.length > 0 && (
+        <IntelligencePanel
+          campaignId={campaignId}
+          reports={reports.data ?? []}
+          mine={myArmies}
+          armies={armies.data ?? []}
+          shown={shownReport}
+          onShow={setShownReport}
+        />
+      )}
+      <SightingsPanel
+        sightings={sightings.data ?? []}
+        armies={armies.data ?? []}
+        turn={viewingTurn}
+        manager={manager}
+      />
+      {manager && (
+        <CouriersPanel
+          campaignId={campaignId}
+          couriers={couriers.data ?? []}
+          armies={armies.data ?? []}
+        />
+      )}
       <DepotsPanel
         depots={depots.data ?? []}
         armies={armies.data ?? []}
@@ -1095,40 +1128,17 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
         onEdit={setDepotForm}
         onRemove={setRemovingDepot}
       />
-      {running && !manager && myArmies.length > 0 && (
-        <IntelligencePanel
-          campaignId={campaignId}
-          reports={reports.data ?? []}
-          mine={myArmies}
-          armies={armies.data ?? []}
-          shown={shownReport}
-          onShow={setShownReport}
-        />
-      )}
-      {manager && (
-        <CouriersPanel
-          campaignId={campaignId}
-          couriers={couriers.data ?? []}
-          armies={armies.data ?? []}
-        />
-      )}
       <ScoreboardPanel scoreboard={scoreboard.data} armies={armies.data ?? []} />
-      <SightingsPanel
-        sightings={sightings.data ?? []}
-        armies={armies.data ?? []}
-        turn={viewingTurn}
-        manager={manager}
-      />
-      {turns.data && !setup && (
-        <TurnList
-          sighted={sightedTurns}
-          turns={turns.data}
-          viewing={past ?? turns.data.openTurn}
-          onView={view}
-          manager={manager}
-        />
-      )}
     </>
+  );
+  const turnsList = turns.data && !setup && (
+    <TurnList
+      sighted={sightedTurns}
+      turns={turns.data}
+      viewing={past ?? turns.data.openTurn}
+      onView={view}
+      manager={manager}
+    />
   );
   const legend = (
     <Section title="Legend">
@@ -1293,6 +1303,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
           <Box style={{ flex: 1, minWidth: 0 }}>{mapColumn}</Box>
           <Stack gap="xl" className={classes.side}>
             {turnPanel}
+            {turnsList}
             {legend}
           </Stack>
         </Group>
@@ -1306,6 +1317,7 @@ function MapWorkspace({ campaignId, settings, bounds, manager, user }: MapWorksp
       <Grid.Col span={12}>
         <Stack gap="xl">
           {turnPanel}
+          {turnsList}
           {otherPanels}
           {legend}
         </Stack>

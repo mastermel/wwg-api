@@ -34,7 +34,7 @@ export function Section({ title, description, actions, flush, tone, children }: 
             {title}
           </Title>
           {description && (
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-line" }}>
               {description}
             </Text>
           )}

@@ -72,6 +72,8 @@ import { InferTerrainSection } from "@/features/maps/InferTerrainSection";
 import { TerrainLayer } from "@/features/maps/TerrainLayer";
 import { MapLayersControl } from "@/features/maps/MapLayersControl";
 import {
+  gameMaxHexesAcross,
+  hexesAcross,
   shownRealLayers,
   showsGameLayer,
   useHiddenLayers,
@@ -172,10 +174,16 @@ function TerrainEditor({ campaignId, settings, bounds, terrain, details }: Terra
     () => ({ ...settings, layers: shownRealLayers(settings.layers, layers.hidden) }),
     [settings, layers.hidden],
   );
-  const shows = (key: GameLayer) => showsGameLayer(settings.layers, layers.hidden, key);
   const index = useMemo(() => indexTerrain(terrain), [terrain]);
   const [chosen, setChosen] = useState<{ hex: Hex; side: Side } | null>(null);
   const [outside, setOutside] = useState(false);
+  // The map opens on the campaign's area: start from that, so a small area's game map is drawn
+  // from the first frame (WebKit can miss layers first shown just after the map loads).
+  const [zoomedIn, setZoomedIn] = useState(
+    () => hexesAcross(bounds, settings.hexSize) <= gameMaxHexesAcross,
+  );
+  const showsGame = (key: GameLayer) =>
+    zoomedIn && showsGameLayer(settings.layers, layers.hidden, key);
 
   const choose = (point: { longitude: number; latitude: number }) => {
     const hex = grid.hexAt(point);
@@ -198,20 +206,23 @@ function TerrainEditor({ campaignId, settings, bounds, terrain, details }: Terra
           </Box>
           <CampaignMap
             settings={shownSettings}
-            grid={shows("grid")}
+            grid={showsGame("grid")}
             bounds={bounds}
             cursor="crosshair"
             onMapClick={choose}
+            onViewChange={(view) => {
+              setZoomedIn(hexesAcross(view, settings.hexSize) <= gameMaxHexesAcross);
+            }}
           >
             <TerrainLayer
               grid={grid}
               terrain={terrain}
               show={{
-                terrain: shows("terrain"),
-                roads: shows("roads"),
-                rivers: shows("rivers"),
-                towns: shows("towns"),
-                bridges: shows("bridges"),
+                terrain: showsGame("terrain"),
+                roads: showsGame("roads"),
+                rivers: showsGame("rivers"),
+                towns: showsGame("towns"),
+                bridges: showsGame("bridges"),
               }}
             />
             {chosen && <ChosenHex grid={grid} hex={chosen.hex} />}

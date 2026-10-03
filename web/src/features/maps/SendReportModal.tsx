@@ -106,6 +106,7 @@ export function SendReportModal({ campaignId, from, armies, onClose }: SendRepor
             />
           )}
           <Checkbox
+            hidden // Removed for now, putting emphasis on handwritten message
             label="Our units"
             description="Where each is now, and its points."
             checked={snapshot}
@@ -114,6 +115,7 @@ export function SendReportModal({ campaignId, from, armies, onClose }: SendRepor
             }}
           />
           <Checkbox
+            hidden // Removed for now, putting emphasis on handwritten message
             label="Our sightings"
             description="Every sighting of the enemy received so far, on its turn."
             checked={sightings}
@@ -122,7 +124,7 @@ export function SendReportModal({ campaignId, from, armies, onClose }: SendRepor
             }}
           />
           <Textarea
-            label="Note"
+            label="Message"
             autosize
             minRows={3}
             maxLength={noteLimit}

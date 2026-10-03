@@ -77,7 +77,7 @@ export function ReviewPanel({
         `${String(open.submitted)} of ${String(open.armies)} armies have submitted this turn.`,
       ]
         .filter(Boolean)
-        .join(" ")}
+        .join("\n")}
     >
       <Stack gap="lg">
         {armyTurns.map((entry) =>
@@ -189,7 +189,7 @@ function ArmyTurnReview({ entry: { army }, turn, review, onReview }: ArmyTurnRev
             disabled={!online || review.busy}
             onClick={() => void review.submit(turn, army.name)}
           >
-            Submit for it
+            Submit for them
           </Button>
         </Group>
       )}

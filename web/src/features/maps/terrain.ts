@@ -152,5 +152,6 @@ export function describeSettlement(settlement: HexSettlement): string | null {
           .filter(Boolean)
           .join(" ")
           .replace(/^./, (c) => c.toUpperCase()) + (fortress ? ", with a fortress" : "");
-  return name ? `${kind}: ${name}` : kind;
+
+  return name ? `${name}: ${kind}` : kind;
 }
