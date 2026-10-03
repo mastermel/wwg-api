@@ -1370,7 +1370,8 @@ visibility); the data is in §5.1. Built in Phase 8 (§7).
   of 6"). Choosing a turn shows everyone's positions in it, and each army's turn
   under it: status, submitted and completed times, and **Approve**, **Send
   back** or **Revert** (the last two with a note for the turn and for units),
-  for the open turn only.
+  for the open turn only. A Submitted turn shows the commander's note to the Umpire (the latest
+  submission's); past turns list it in their history, for the Umpire and for the commander's own army.
 - **Start turn N+1**, with confirmation, once every army's turn is Completed.
 - **On a commander's behalf** (decision 0011): Move, Hold and Take back in the drawer for any
   army's unit while its turn is a Draft or Submitted (a move past the limit warns first), and

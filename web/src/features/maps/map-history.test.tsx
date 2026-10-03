@@ -132,7 +132,7 @@ function serveHistory() {
               kind: "Submitted",
               at: "2026-09-02T14:00:00Z",
               byName: "Bob Tester",
-              note: null,
+              note: "Holding the bridge.",
               unitNotes: [],
             },
             {
@@ -182,6 +182,9 @@ describe("the turn list", () => {
     expect(positionRequests.at(-1)).toBe("?turn=1");
     const history = screen.getByRole("list", { name: "What happened to Armée du Nord's turn" });
     expect(within(history).getByText(/^Submitted by Bob Tester/)).toBeInTheDocument();
+    expect(
+      within(history).getByText("Note to the Umpire: Holding the bridge."),
+    ).toBeInTheDocument();
     expect(
       within(history).getByText(/^Sent back by Ada Tester, .*: Too cautious\.$/),
     ).toBeInTheDocument();

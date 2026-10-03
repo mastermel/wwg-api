@@ -203,6 +203,34 @@ describe("the Umpire's turn", () => {
     await expectNoAxeViolations(document.body);
   });
 
+  it("shows the Umpire the note that came with the latest submission", async () => {
+    const withNote = (note: string | null, at: string) => ({
+      kind: "Submitted" as const,
+      at,
+      byName: "Bob Tester",
+      note,
+      unitNotes: [],
+    });
+    serveUmpire(
+      {
+        ...submitted,
+        history: [
+          withNote("Stale note.", "2026-09-03T10:00:00Z"),
+          withNote("Holding the bridge. Watch our flank.", "2026-09-03T12:00:00Z"),
+        ],
+      },
+      waiting,
+      [],
+    );
+
+    await openMap();
+
+    const panel = await screen.findByRole("region", { name: "Turn 1" });
+    expect(await within(panel).findByText("Note from the commander")).toBeInTheDocument();
+    expect(within(panel).getByText("Holding the bridge. Watch our flank.")).toBeInTheDocument();
+    expect(within(panel).queryByText("Stale note.")).not.toBeInTheDocument();
+  });
+
   it("approves a submitted turn", async () => {
     const requests = serveUmpire(submitted, waiting, []);
     const user = userEvent.setup();

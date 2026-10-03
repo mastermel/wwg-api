@@ -95,7 +95,12 @@ export function PastTurnPanel({
                     <List.Item key={`${event.kind}-${event.at}`}>
                       {eventLabels[event.kind]}
                       {event.byName && ` by ${event.byName}`}, {formatDateTime(event.at)}
-                      {event.note && `: ${event.note}`}
+                      {event.note && event.kind !== "Submitted" && `: ${event.note}`}
+                      {event.note && event.kind === "Submitted" && (
+                        <Text size="xs" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
+                          Note to the Umpire: {event.note}
+                        </Text>
+                      )}
                       {event.unitNotes.map((note) => (
                         <Text key={note.unitId} size="xs" c="dimmed">
                           {unitName(note.unitId)}: {note.text}

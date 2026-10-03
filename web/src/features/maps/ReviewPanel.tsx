@@ -158,6 +158,11 @@ function ArmyTurnReview({ entry: { army }, turn, review, onReview }: ArmyTurnRev
   const commander = army.commander
     ? `${army.commander.firstName} ${army.commander.lastName}`
     : null;
+  // A turn can be sent back and submitted again: the note that came with the latest submission.
+  const commanderNote =
+    turn.status === "Submitted"
+      ? turn.history.findLast((event) => event.kind === "Submitted")?.note
+      : null;
 
   return (
     <Stack gap={6}>
@@ -179,6 +184,13 @@ function ArmyTurnReview({ entry: { army }, turn, review, onReview }: ArmyTurnRev
                 ? `Approved ${formatDateTime(turn.completedAt)}.`
                 : "")}
       </Text>
+      {commanderNote && (
+        <Alert role="status" color="navy" title="Note from the commander">
+          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+            {commanderNote}
+          </Text>
+        </Alert>
+      )}
       {turn.status === "Draft" && (
         <Group gap="xs">
           <Button
