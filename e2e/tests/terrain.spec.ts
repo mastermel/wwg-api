@@ -33,7 +33,7 @@ test("the Umpire sets a hex's terrain and an edge, and a Player can't", async ({
   await hex.getByRole("textbox", { name: "Name" }).fill("Mont-Saint-Jean");
   await hex.getByRole("button", { name: "Save hex" }).click();
   await expect(page.getByText(/^Saved Hex \(/)).toBeVisible();
-  await expect(hex).toContainText("Low hills, Walled town: Mont-Saint-Jean");
+  await expect(hex).toContainText("Low hills, Mont-Saint-Jean: Walled town");
   await expect(hex.getByText("Set by you")).toBeVisible();
 
   // Its south edge: a good road over a bridged river.
@@ -51,7 +51,7 @@ test("the Umpire sets a hex's terrain and an edge, and a Player can't", async ({
   // Kept: the same hex, chosen again after a reload, has them.
   await page.reload();
   await clickMapCentre(page);
-  await expect(hex).toContainText("Low hills, Walled town: Mont-Saint-Jean");
+  await expect(hex).toContainText("Low hills, Mont-Saint-Jean: Walled town");
   await edge.getByRole("combobox", { name: "Side" }).click();
   await edge.getByRole("option", { name: "South", exact: true }).click();
   await expect(edge.getByRole("combobox", { name: "Road across it" })).toHaveValue("Good road");

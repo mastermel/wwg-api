@@ -77,9 +77,9 @@ describe("describeSettlement", () => {
         capital: "Capital",
         name: "Brussels",
       }),
-    ).toBe("Walled capital city, with a fortress: Brussels");
+    ).toBe("Brussels: Walled capital city, with a fortress");
     expect(describeSettlement({ ...noSettlement, fortress: true, name: "Fort Lillo" })).toBe(
-      "Fortress: Fort Lillo",
+      "Fort Lillo: Fortress",
     );
   });
 });

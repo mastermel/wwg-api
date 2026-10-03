@@ -399,7 +399,7 @@ describe("the terrain page", () => {
 
     const hex = within(screen.getByRole("region", { name: "Hex (0, 0)" }));
     expect(
-      hex.getByText("High hills, forest, Walled minor capital city: Namur"),
+      hex.getByText("High hills, forest, Namur: Walled minor capital city"),
     ).toBeInTheDocument();
     expect(hex.getByText("Set by you")).toBeInTheDocument();
     expect(hex.getByRole("textbox", { name: "Name" })).toHaveValue("Namur");

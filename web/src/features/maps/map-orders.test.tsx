@@ -543,8 +543,7 @@ describe("a commander's turn", () => {
 
     await user.click(screen.getByRole("button", { name: "Send a report" }));
     const dialog = await screen.findByRole("dialog", { name: "Send a report" });
-    await user.click(within(dialog).getByRole("checkbox", { name: /Our sightings/ }));
-    await user.type(within(dialog).getByRole("textbox", { name: "Note" }), "Come to Ligny.");
+    await user.type(within(dialog).getByRole("textbox", { name: "Message" }), "Come to Ligny.");
     await user.click(within(dialog).getByRole("button", { name: "Send by courier" }));
 
     expect(
@@ -556,7 +555,7 @@ describe("a commander's turn", () => {
       body: {
         toArmyId: allyId,
         includesSnapshot: true,
-        includesSightings: false,
+        includesSightings: true,
         note: "Come to Ligny.",
       },
     });

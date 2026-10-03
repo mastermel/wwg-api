@@ -280,7 +280,7 @@ test("a click or tap on a hex shows everything known of it", async ({ signUp }) 
   await clickMap(page);
 
   const card = page.getByRole("dialog", { name: "Hex (0, 0), Wavre" });
-  await expect(card).toContainText("Walled town: Wavre.");
+  await expect(card).toContainText("Wavre: Walled town.");
   await expect(card).toContainText("Good road to the north.");
   expect(await scan(page, "map, a hex's card")).toEqual([]);
 });

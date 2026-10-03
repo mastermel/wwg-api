@@ -74,7 +74,7 @@ describe("describeHex", () => {
     expect(info.summary).toBe("Low hills, forest");
     expect(info.lines).toEqual([
       "Low hills, forest.",
-      "Walled town: Wavre.",
+      "Wavre: Walled town.",
       "Worth 35 points.",
       "Good road to the north and south.",
       "Poor road to the north-east.",

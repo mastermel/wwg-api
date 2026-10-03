@@ -28,7 +28,7 @@ test("a commander sends an ally a report, which a courier brings the next turn",
   const intelligence = page.getByRole("region", { name: "Intelligence" });
   await intelligence.getByRole("button", { name: "Send a report" }).click();
   const dialog = page.getByRole("dialog", { name: "Send a report" });
-  await dialog.getByRole("textbox", { name: "Note" }).fill("Come to Ligny by the Wavre road.");
+  await dialog.getByRole("textbox", { name: "Message" }).fill("Come to Ligny by the Wavre road.");
   expect(await scan(page, "send a report")).toEqual([]);
   await dialog.getByRole("button", { name: "Send by courier" }).click();
   await expect(page.getByText("Sent a report to Grouchy's Wing by courier.")).toBeVisible();
