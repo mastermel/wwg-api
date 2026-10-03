@@ -99,10 +99,10 @@ export function useOrders(campaignId: string) {
         `Took back ${unit.name}'s order.`,
         `${unit.name}'s order couldn't be taken back. Try again.`,
       ),
-    submit: (armyId: string, turn: ArmyTurnDetails, armyName: string) =>
+    submit: (armyId: string, turn: ArmyTurnDetails, armyName: string, note?: string) =>
       run(
         armyId,
-        () => submit.mutateAsync({ id: turn.id }),
+        () => submit.mutateAsync({ id: turn.id, data: note ? { note } : null }),
         `Submitted ${armyName}'s turn ${String(turn.turn)}.`,
         `${armyName}'s turn couldn't be submitted. Try again.`,
       ),

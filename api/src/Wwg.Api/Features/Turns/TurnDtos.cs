@@ -138,7 +138,9 @@ public sealed record UnitNoteDto(
 /// <param name="Kind">Submitted, Approved, SentBack or Reverted.</param>
 /// <param name="At">When (UTC).</param>
 /// <param name="ByName">Who, or null if their account is gone.</param>
-/// <param name="Note">The Umpire's note, when sending back or reverting.</param>
+/// <param name="Note">
+/// The commander's note to the Umpire, when submitting; the Umpire's, when sending back or reverting.
+/// </param>
 /// <param name="UnitNotes">Notes on particular units' orders.</param>
 public sealed record ArmyTurnEventDto(
     ArmyTurnEventKind Kind,
@@ -167,6 +169,10 @@ public sealed record ArmyTurnDetails(
     IReadOnlyList<UnitPosition> Orders,
     IReadOnlyList<ArmyTurnEventDto> History
 );
+
+/// <summary>What the commander says when submitting a turn.</summary>
+/// <param name="Note">An optional note to the Umpire, kept in the turn's history.</param>
+public sealed record SubmitTurnRequest([property: Trimmed, StringLength(2000)] string? Note);
 
 /// <summary>Why the Umpire sends a turn back or reverts it: a note, and notes on units.</summary>
 /// <param name="Note">A note on the turn as a whole.</param>

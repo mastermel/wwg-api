@@ -28,6 +28,7 @@ internal static class TurnActionEndpoints
         turn.MapPost("/submit", SubmitTurnAsync)
             .WithName("SubmitTurn")
             .RequireCampaignAccess(CampaignAccess.Commander, CampaignRouteId.ArmyTurn)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
         turn.MapPost("/approve", ApproveTurnAsync)
             .WithName("ApproveTurn")
@@ -54,10 +55,12 @@ internal static class TurnActionEndpoints
     /// <summary>
     /// Submits the army's turn for the Umpire to approve (the army's commander, or the Umpire or an
     /// Admin on its behalf): a Draft in the open turn, once every unit on the map has an order.
-    /// Only the Umpire changes it while it's Submitted.
+    /// Only the Umpire changes it while it's Submitted. The commander may add a note for the Umpire,
+    /// kept on the Submitted event in the turn's history.
     /// </summary>
     internal static async Task<Results<NoContent, ProblemHttpResult>> SubmitTurnAsync(
         Guid id,
+        SubmitTurnRequest? request,
         WwgDbContext db,
         TimeProvider time,
         IEmailQueue emails,
@@ -75,7 +78,8 @@ internal static class TurnActionEndpoints
             return missing;
         }
 
-        var action = new TurnAction(ArmyTurnEventKind.Submitted, ArmyTurnStatus.Draft);
+        var note = string.IsNullOrEmpty(request?.Note) ? null : request.Note;
+        var action = new TurnAction(ArmyTurnEventKind.Submitted, ArmyTurnStatus.Draft, note);
         if (!await ActAsync(db, time, httpContext, turn, action, cancellationToken))
         {
             return NotNow(turn, "submitted", "a Draft");

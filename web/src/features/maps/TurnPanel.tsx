@@ -90,7 +90,12 @@ export function TurnPanel({ open, commanded, units, orders, onChoose }: TurnPane
         onConfirm={() => {
           const turn = submitting?.turn;
           if (submitting && turn) {
-            void orders.submit(submitting.army.id, turn, submitting.army.name).then(close);
+            void orders
+              .submit(submitting.army.id, turn, submitting.army.name, note.trim())
+              .then(() => {
+                setNote("");
+                close();
+              });
           }
         }}
       >

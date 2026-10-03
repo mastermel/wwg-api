@@ -573,6 +573,29 @@ describe("a commander's turn", () => {
     expect(requests.map((r) => r.method)).toEqual(["DELETE"]);
   });
 
+  it("sends the commander's note to the Umpire when submitting", async () => {
+    const requests = serveCommander(draft({ orders: [hold] }));
+    const user = userEvent.setup();
+    await openMap();
+
+    await user.click(await screen.findByRole("button", { name: "Submit turn 1" }));
+    const dialog = await screen.findByRole("dialog", { name: "Submit this turn?" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Note for the Umpire" }),
+      "  Low on shot.  ",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Submit" }));
+
+    expect(await screen.findByText("Submitted Armée du Nord's turn 1.")).toBeInTheDocument();
+    expect(requests).toEqual([
+      {
+        method: "POST",
+        url: `/api/army-turns/${turnId}/submit`,
+        body: { note: "Low on shot." },
+      },
+    ]);
+  });
+
   it("submits the turn after confirming", async () => {
     const requests = serveCommander(draft({ orders: [hold] }));
     const user = userEvent.setup();

@@ -3,7 +3,7 @@ import { Button, Group, Modal, Stack, Text, Textarea } from "@mantine/core";
 
 const noteLimit = 1000;
 
-interface SendReportModalProps {
+interface SubmitTurnModalProps {
   children: ReactNode;
   note: string;
   setNote: (note: string) => void;
@@ -25,13 +25,14 @@ export function SubmitTurnModal({
   note,
   setNote,
   onClose,
-}: SendReportModalProps) {
+  onConfirm,
+}: SubmitTurnModalProps) {
   return (
     <Modal opened={opened} onClose={onClose} title="Submit this turn?" centered>
       <Stack gap="md">
         <Text size="sm">{children}</Text>
         <Textarea
-          label="Note"
+          label="Note for the Umpire"
           autosize
           minRows={3}
           maxLength={noteLimit}
@@ -45,7 +46,7 @@ export function SubmitTurnModal({
           <Button variant="default" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" loading={loading}>
+          <Button loading={loading} onClick={onConfirm}>
             Submit
           </Button>
         </Group>

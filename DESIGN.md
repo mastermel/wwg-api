@@ -2043,7 +2043,7 @@ each step)
 | GET | `/api/campaigns/{id}/positions?turn=` | Units' positions, as the caller may see them: now (the default), after a closed turn, or ordered in the open one |
 | GET | `/api/armies/{id}/turns` | An army's turns, with their orders, notes and history (visibility rule) |
 | PUT / DELETE | `/api/army-turns/{id}/orders/{unitId}` | Give a unit's order `{ kind, path?, forceMarch, livesOffTheLand }` (Move: the hexes it passes through, in order; kinds and flags from steps 47, 48 and 51) / undo it |
-| POST | `/api/army-turns/{id}/submit` | Submit (every unit on the map has an order; emails the Umpire) |
+| POST | `/api/army-turns/{id}/submit` | Submit (every unit on the map has an order; emails the Umpire). Optional body `{ note? }` (≤2000), a note to the Umpire kept on the Submitted event |
 | POST | `/api/army-turns/{id}/approve` | Approve: Completed (this and the next two email the commander) |
 | POST | `/api/army-turns/{id}/send-back` | Back to Draft `{ note?, unitNotes? }` |
 | POST | `/api/army-turns/{id}/revert` | Completed back to Draft, open turn only `{ note?, unitNotes? }` |

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Wwg.Api.Data.Entities;
 using Wwg.Api.Features.Maps;
 using Wwg.Api.Features.Turns;
@@ -142,6 +143,60 @@ public sealed class TurnActionTests : ApiTest
             email.TextBody,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task SubmitTurn_WithANote_KeepsItOnTheSubmittedEvent()
+    {
+        using var scenario = await StartedAsync();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var held = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Hold);
+        held.EnsureSuccessStatusCode();
+
+        using var response = await scenario
+            .As(Role.Commander)
+            .PostAsJsonAsync(
+                new Uri($"/api/army-turns/{turn.Id}/submit", UriKind.Relative),
+                new SubmitTurnRequest("  Low on shot.  "),
+                CancellationToken
+            );
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var submitted = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).History);
+        Assert.Equal(
+            (ArmyTurnEventKind.Submitted, "Low on shot."),
+            (submitted.Kind, submitted.Note)
+        );
+    }
+
+    [Fact]
+    public async Task SubmitTurn_WithoutANote_RecordsNone()
+    {
+        using var scenario = await StartedAsync();
+
+        await TurnSteps.SubmittedAsync(scenario);
+
+        var submitted = Assert.Single((await TurnSteps.OpenArmyTurnAsync(scenario)).History);
+        Assert.Null(submitted.Note);
+    }
+
+    [Fact]
+    public async Task SubmitTurn_ANoteOver2000Characters_IsAValidationError()
+    {
+        using var scenario = await StartedAsync();
+        var turn = await TurnSteps.OpenArmyTurnAsync(scenario);
+        using var held = await TurnSteps.OrderAsync(scenario, turn.Id, TurnSteps.Hold);
+        held.EnsureSuccessStatusCode();
+
+        using var response = await scenario
+            .As(Role.Commander)
+            .PostAsJsonAsync(
+                new Uri($"/api/army-turns/{turn.Id}/submit", UriKind.Relative),
+                new SubmitTurnRequest(new string('x', 2001)),
+                CancellationToken
+            );
+
+        await response.AssertValidationProblemAsync("note");
     }
 
     [Fact]

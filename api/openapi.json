@@ -4697,7 +4697,7 @@
         "tags": [
           "Turns"
         ],
-        "summary": "Submits the army's turn for the Umpire to approve (the army's commander, or the Umpire or an\nAdmin on its behalf): a Draft in the open turn, once every unit on the map has an order.\nOnly the Umpire changes it while it's Submitted.",
+        "summary": "Submits the army's turn for the Umpire to approve (the army's commander, or the Umpire or an\nAdmin on its behalf): a Draft in the open turn, once every unit on the map has an order.\nOnly the Umpire changes it while it's Submitted. The commander may add a note for the Umpire,\nkept on the Submitted event in the turn's history.",
         "operationId": "SubmitTurn",
         "parameters": [
           {
@@ -4710,9 +4710,35 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SubmitTurnRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           },
           "409": {
             "description": "Conflict",
@@ -5660,7 +5686,7 @@
               "null",
               "string"
             ],
-            "description": "The Umpire's note, when sending back or reverting."
+            "description": "The commander's note to the Umpire, when submitting; the Umpire's, when sending back or reverting."
           },
           "unitNotes": {
             "type": "array",
@@ -6224,6 +6250,10 @@
             "type": "integer",
             "description": "How many Players it has.",
             "format": "int32"
+          },
+          "started": {
+            "type": "boolean",
+            "description": "Whether it has started (it is on turn 1 or beyond)."
           }
         },
         "description": "A campaign in the \"my campaigns\" list."
@@ -6250,10 +6280,6 @@
             "description": "Each intermediate depot's."
           }
         },
-          },
-          "started": {
-            "type": "boolean",
-            "description": "Whether it has started (it is on turn 1 or beyond)."
         "description": "The supply the viewer may see: their army's (the Umpire's, every army's)."
       },
       "CampaignSupplySettingsResponse": {
@@ -9052,6 +9078,24 @@
           }
         },
         "description": "Starting the next turn."
+      },
+      "SubmitTurnRequest": {
+        "required": [
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "An optional note to the Umpire, kept in the turn's history."
+          }
+        },
+        "description": "What the commander says when submitting a turn."
       },
       "SupplyState": {
         "enum": [
